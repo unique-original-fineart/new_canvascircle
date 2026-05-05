@@ -397,6 +397,100 @@
     /* Account view banner — sits above the listings */
     #dashboard-banner.banner { display: block; margin: 0 0 12px; white-space: pre-line; }
 
+    /* ------ Tab strip ------ */
+    .tab-strip {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--card-line);
+      margin: 6px 0 14px;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 10px 16px 12px;
+      margin-bottom: -1px;
+      font-size: 14px;
+      font-family: inherit;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-btn:hover { color: var(--fg); }
+    .tab-btn.is-active {
+      color: var(--fg);
+      font-weight: 600;
+      border-bottom-color: var(--accent);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.is-active { display: block; }
+
+    /* ------ Saved-listings grid ------ */
+    .saved-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    @media (min-width: 720px)  { .saved-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+    @media (min-width: 1000px) { .saved-grid { grid-template-columns: repeat(4, 1fr); } }
+
+    .saved-card-wrap { position: relative; }
+    .saved-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column;
+      color: inherit;
+      text-decoration: none;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .saved-card:hover, .saved-card:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06);
+    }
+    .saved-card .img {
+      aspect-ratio: 1/1; background: #f0ede6; overflow: hidden; position: relative;
+    }
+    .saved-card .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .saved-card.is-sold .img::after {
+      content: "SOLD"; position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(168,40,31,.55); color: #fff;
+      font-weight: 800; font-size: 22px; letter-spacing: 3px;
+    }
+    .saved-card .body { padding: 10px 12px 12px; }
+    .saved-card .artist { font-weight: 600; font-size: 14px; line-height: 1.3; }
+    .saved-card .title  {
+      color: var(--muted); font-size: 13px; margin-top: 2px;
+      overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+      -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    }
+    .saved-card .row {
+      margin-top: 6px;
+      display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    }
+    .saved-card .price { font-weight: 600; font-size: 14px; }
+    .saved-card.is-sold .price { color: var(--muted); text-decoration: line-through; }
+    .saved-card-wrap .unsave-btn {
+      position: absolute;
+      top: 8px; right: 8px;
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #fff;
+      color: #c93f3f;
+      border: 1px solid var(--card-line);
+      border-radius: 999px;
+      padding: 4px 9px 4px 8px;
+      font: 600 12px inherit;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,.18);
+      z-index: 2;
+      transition: transform .12s ease;
+    }
+    .saved-card-wrap .unsave-btn:hover { transform: scale(1.06); }
+    .saved-card-wrap .unsave-btn[disabled] { opacity: .55; cursor: progress; }
+
     /* ------ New listing form ------ */
     .nl-head {
       display: flex; align-items: center; justify-content: space-between;
@@ -721,45 +815,66 @@
           <button type="button" class="ghost" id="signout-btn">Sign out</button>
         </div>
 
-        <div class="dash-head">
-          <h2>Your listings <span class="count" id="listings-count"></span></h2>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button type="button" class="btn-secondary" id="sales-post-btn" data-go="sales-post">Build Facebook Sales Post</button>
-            <button type="button" class="btn-primary" id="add-listing-btn" data-go="new-listing">+ Add new listing</button>
+        <!-- Tabs -->
+        <div class="tab-strip" role="tablist">
+          <button type="button" class="tab-btn is-active" data-tab="your-listings" role="tab">Your listings</button>
+          <button type="button" class="tab-btn" data-tab="saved-listings" role="tab">Saved listings <span id="saved-count-badge" class="count" style="margin-left:4px;"></span></button>
+        </div>
+
+        <!-- Tab: Your listings -->
+        <div class="tab-panel is-active" data-tab-panel="your-listings">
+          <div class="dash-head">
+            <h2>Your listings <span class="count" id="listings-count"></span></h2>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn-secondary" id="sales-post-btn" data-go="sales-post">Build Facebook Sales Post</button>
+              <button type="button" class="btn-primary" id="add-listing-btn" data-go="new-listing">+ Add new listing</button>
+            </div>
           </div>
+
+          <form class="dash-toolbar" id="dash-toolbar" autocomplete="off" onsubmit="return false;">
+            <input type="search" id="dash-q" placeholder="Search title, artist, medium, notes&hellip;" />
+            <select id="dash-status">
+              <option value="">All statuses</option>
+              <option value="available">Available</option>
+              <option value="pending">Pending</option>
+              <option value="sold">Sold</option>
+              <option value="delisted">Delisted</option>
+              <option value="not_renewed">Not renewed</option>
+              <option value="pending_review">Pending review</option>
+            </select>
+            <select id="dash-sort">
+              <option value="newest">Newest first</option>
+              <option value="title-asc">Title A→Z</option>
+              <option value="artist-asc">Artist A→Z</option>
+              <option value="price-desc">Price high→low</option>
+              <option value="price-asc">Price low→high</option>
+            </select>
+            <button type="button" class="btn-secondary" id="dash-clear">Clear</button>
+          </form>
+
+          <div id="dashboard-banner" class="banner" hidden></div>
+          <div id="listings-loading" class="empty-state" hidden>Loading your listings&hellip;</div>
+          <div id="listings-error"   class="banner error" hidden></div>
+          <div id="listings-empty"   class="empty-state" hidden>
+            You don't have any listings yet. Once you add one, it'll show up here.
+          </div>
+          <div id="listings-no-match" class="empty-state" hidden>
+            No listings match your filters.
+          </div>
+          <div id="listings-list" class="listing-list" hidden></div>
         </div>
 
-        <form class="dash-toolbar" id="dash-toolbar" autocomplete="off" onsubmit="return false;">
-          <input type="search" id="dash-q" placeholder="Search title, artist, medium, notes&hellip;" />
-          <select id="dash-status">
-            <option value="">All statuses</option>
-            <option value="available">Available</option>
-            <option value="pending">Pending</option>
-            <option value="sold">Sold</option>
-            <option value="delisted">Delisted</option>
-            <option value="not_renewed">Not renewed</option>
-            <option value="pending_review">Pending review</option>
-          </select>
-          <select id="dash-sort">
-            <option value="newest">Newest first</option>
-            <option value="title-asc">Title A→Z</option>
-            <option value="artist-asc">Artist A→Z</option>
-            <option value="price-desc">Price high→low</option>
-            <option value="price-asc">Price low→high</option>
-          </select>
-          <button type="button" class="btn-secondary" id="dash-clear">Clear</button>
-        </form>
-
-        <div id="dashboard-banner" class="banner" hidden></div>
-        <div id="listings-loading" class="empty-state" hidden>Loading your listings&hellip;</div>
-        <div id="listings-error"   class="banner error" hidden></div>
-        <div id="listings-empty"   class="empty-state" hidden>
-          You don't have any listings yet. Once you add one, it'll show up here.
+        <!-- Tab: Saved listings -->
+        <div class="tab-panel" data-tab-panel="saved-listings">
+          <div class="dash-head">
+            <h2>Saved listings <span class="count" id="saved-listings-count"></span></h2>
+          </div>
+          <div id="saved-loading" class="empty-state" hidden>Loading your saved listings&hellip;</div>
+          <div id="saved-empty"   class="empty-state" hidden>
+            You haven't saved any listings yet. Click the heart on any listing in the catalog to save it here.
+          </div>
+          <div id="saved-grid" class="saved-grid" hidden></div>
         </div>
-        <div id="listings-no-match" class="empty-state" hidden>
-          No listings match your filters.
-        </div>
-        <div id="listings-list" class="listing-list" hidden></div>
 
         <div class="quicklinks" style="margin-top: 18px;">
           <a href="/">View public catalog <span class="arrow">→</span></a>
@@ -929,6 +1044,7 @@
 
   <script type="module">
     import { supabase, currentProfile, publicImageUrl, compressImage } from "/lib/supabase.js";
+    import { getSavedListings, toggleSave, clearSavesCache } from "/lib/saves.js";
 
     // -----------------------------------------------------------------------
     // View switching
@@ -1175,6 +1291,8 @@
       const profile = await currentProfile();
       $whoName.textContent = profile?.display_name || "Welcome";
       await loadDashboardListings(session.user.id);
+      // Fire-and-forget the saved-listings fetch so the badge count populates.
+      loadSavedListings(true);
     }
 
     // -----------------------------------------------------------------------
@@ -1649,6 +1767,143 @@
       if (dirtyIds.size > 0) {
         e.preventDefault();
         e.returnValue = "";
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Tabs (Your listings / Saved listings)
+    // -----------------------------------------------------------------------
+    const $tabBtns   = document.querySelectorAll(".tab-btn[data-tab]");
+    const $tabPanels = document.querySelectorAll("[data-tab-panel]");
+
+    function activateTab(name) {
+      for (const b of $tabBtns)   b.classList.toggle("is-active", b.dataset.tab === name);
+      for (const p of $tabPanels) p.classList.toggle("is-active", p.dataset.tabPanel === name);
+      if (name === "saved-listings") loadSavedListings();
+    }
+    $tabBtns.forEach(b => b.addEventListener("click", () => activateTab(b.dataset.tab)));
+
+    // -----------------------------------------------------------------------
+    // Saved listings tab — render rows from lib/saves.js
+    // -----------------------------------------------------------------------
+    const $savedLoading = document.getElementById("saved-loading");
+    const $savedEmpty   = document.getElementById("saved-empty");
+    const $savedGrid    = document.getElementById("saved-grid");
+    const $savedCount   = document.getElementById("saved-listings-count");
+    const $savedBadge   = document.getElementById("saved-count-badge");
+
+    function renderSavedCard(l) {
+      const images   = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
+      const imgUrl   = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      const isSold   = l.status === "sold";
+      const price    = Number(l.asking_price_usd || 0).toLocaleString();
+      const saveCnt  = Number(l.save_count || 0);
+
+      const wrap = document.createElement("div");
+      wrap.className = "saved-card-wrap";
+      wrap.dataset.listingId = l.listing_id;
+
+      const card = document.createElement("a");
+      card.className = "saved-card" + (isSold ? " is-sold" : "");
+      card.href = `/listing.html?id=${l.listing_id}`;
+      card.innerHTML = `
+        <div class="img">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}</div>
+        <div class="body">
+          <div class="artist">${escapeHtml(l.artist_name || "Unknown")}</div>
+          <div class="title">${escapeHtml(l.artwork_title || "")}</div>
+          <div class="row">
+            <span class="price">$${price}</span>
+            <span class="pill" title="Total saves">♥ ${saveCnt}</span>
+          </div>
+        </div>`;
+
+      const unsave = document.createElement("button");
+      unsave.type = "button";
+      unsave.className = "unsave-btn";
+      unsave.title = "Remove from saved";
+      unsave.innerHTML = `<span style="font-size:14px;line-height:1;">♥</span><span>Saved</span>`;
+
+      wrap.appendChild(card);
+      wrap.appendChild(unsave);
+      return wrap;
+    }
+
+    let savedListingsCache = null;
+    async function loadSavedListings(force = false) {
+      if (!force && savedListingsCache) {
+        // Re-render from cache for instant tab switch
+        rerenderSavedListings(savedListingsCache);
+        return;
+      }
+      $savedLoading.hidden = false;
+      $savedEmpty.hidden   = true;
+      $savedGrid.hidden    = true;
+      $savedGrid.innerHTML = "";
+
+      const items = await getSavedListings();
+      savedListingsCache = items;
+      rerenderSavedListings(items);
+    }
+
+    function rerenderSavedListings(items) {
+      $savedLoading.hidden = true;
+      $savedCount.textContent = items.length ? `(${items.length})` : "";
+      $savedBadge.textContent = items.length ? `(${items.length})` : "";
+      if (!items.length) {
+        $savedEmpty.hidden = false;
+        $savedGrid.hidden  = true;
+        return;
+      }
+      $savedEmpty.hidden = true;
+      $savedGrid.innerHTML = "";
+      const frag = document.createDocumentFragment();
+      for (const l of items) frag.appendChild(renderSavedCard(l));
+      $savedGrid.appendChild(frag);
+      $savedGrid.hidden = false;
+    }
+
+    // Unsave button delegation
+    $savedGrid.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".unsave-btn");
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const wrap = btn.closest(".saved-card-wrap");
+      const id = wrap?.dataset?.listingId;
+      if (!id) return;
+      btn.disabled = true;
+      try {
+        await toggleSave(id);
+        // Drop from cache + UI
+        if (savedListingsCache) {
+          savedListingsCache = savedListingsCache.filter(l => l.listing_id !== id);
+        }
+        wrap.remove();
+        const remaining = $savedGrid.querySelectorAll(".saved-card-wrap").length;
+        $savedCount.textContent = remaining ? `(${remaining})` : "";
+        $savedBadge.textContent = remaining ? `(${remaining})` : "";
+        if (remaining === 0) {
+          $savedEmpty.hidden = false;
+          $savedGrid.hidden  = true;
+        }
+      } catch (err) {
+        console.error("[unsave] failed:", err);
+        btn.disabled = false;
+        alert("Couldn't remove from saved: " + (err.message || err));
+      }
+    });
+
+    // Reset saved cache when user signs out (so a different user later
+    // doesn't see stale saved data).
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        savedListingsCache = null;
+        clearSavesCache();
+        $savedBadge.textContent = "";
+        // If we're currently on the saved-listings tab, clear it visually too.
+        $savedGrid.innerHTML = "";
+        $savedGrid.hidden = true;
+        $savedEmpty.hidden = true;
       }
     });
 
