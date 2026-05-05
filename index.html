@@ -108,9 +108,11 @@
       color: var(--fg);
       font-size: 14px;
       font-family: inherit;
-      appearance: none;
-      -webkit-appearance: none;
+      min-width: 0;          /* let grid items shrink properly */
     }
+    /* Use the browser-native dropdown arrow (smaller, well-positioned).
+       Just make sure the text doesn't run under it. */
+    .toolbar select { padding-right: 24px; }
     .toolbar input[type="number"] { -moz-appearance: textfield; }
     .toolbar input[type="number"]::-webkit-outer-spin-button,
     .toolbar input[type="number"]::-webkit-inner-spin-button {
@@ -121,12 +123,6 @@
       outline: none;
       border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(184,134,11,.15);
-    }
-    .toolbar select {
-      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path fill='%23666' d='M5.5 7.5l4.5 5 4.5-5z'/></svg>");
-      background-repeat: no-repeat;
-      background-position: right 8px center;
-      padding-right: 28px;
     }
     .toolbar .clear-btn {
       padding: 9px 14px;
@@ -238,6 +234,26 @@
       border-top: 1px solid var(--card-line);
       background: #fff;
     }
+
+    /* Back to top */
+    #back-to-top {
+      position: fixed;
+      bottom: 20px; right: 20px;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      border: 1px solid var(--card-line);
+      background: #fff;
+      color: var(--fg);
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 100;
+      transition: opacity .15s ease;
+    }
+    #back-to-top.visible { display: flex; }
+    #back-to-top:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
   </style>
 </head>
 <body>
@@ -250,6 +266,7 @@
     <nav>
       <a href="/">Catalog</a>
       <a href="/portal/">Sell</a>
+      <a href="/guidelines.html">Guidelines</a>
       <a href="/about.html">About</a>
     </nav>
   </header>
@@ -297,35 +314,46 @@
     <div id="stats" class="stats" hidden></div>
     <div id="status">Loading catalog&hellip;</div>
     <div id="grid" class="grid" hidden></div>
+    <div id="sentinel" aria-hidden="true" style="height: 1px;"></div>
     <div id="empty" class="empty" hidden>
       <div class="empty-title">No listings match your filters</div>
       <div>Try clearing one or two of them.</div>
     </div>
   </main>
 
+  <button type="button" id="back-to-top" aria-label="Back to top" hidden>↑</button>
+
   <footer>
-    &copy; CanvasCircle. <a href="/about.html" style="color:inherit;">About</a> &middot;
+    &copy; CanvasCircle.
+    <a href="/about.html" style="color:inherit;">About</a> &middot;
+    <a href="/guidelines.html" style="color:inherit;">Guidelines</a> &middot;
     <a href="/portal/" style="color:inherit;">Seller portal</a>
   </footer>
 
   <script type="module">
     import { supabase, publicImageUrl } from "/lib/supabase.js";
 
-    const $status = document.getElementById("status");
-    const $grid   = document.getElementById("grid");
-    const $empty  = document.getElementById("empty");
-    const $stats  = document.getElementById("stats");
-    const $q      = document.getElementById("q");
-    const $cat    = document.getElementById("f-category");
-    const $statusF= document.getElementById("f-status");
-    const $seller = document.getElementById("f-seller");
-    const $artist = document.getElementById("f-artist");
-    const $min    = document.getElementById("f-min");
-    const $max    = document.getElementById("f-max");
-    const $sort   = document.getElementById("f-sort");
-    const $clear  = document.getElementById("clear");
+    const $status   = document.getElementById("status");
+    const $grid     = document.getElementById("grid");
+    const $empty    = document.getElementById("empty");
+    const $stats    = document.getElementById("stats");
+    const $sentinel = document.getElementById("sentinel");
+    const $back     = document.getElementById("back-to-top");
+    const $q        = document.getElementById("q");
+    const $cat      = document.getElementById("f-category");
+    const $statusF  = document.getElementById("f-status");
+    const $seller   = document.getElementById("f-seller");
+    const $artist   = document.getElementById("f-artist");
+    const $min      = document.getElementById("f-min");
+    const $max      = document.getElementById("f-max");
+    const $sort     = document.getElementById("f-sort");
+    const $clear    = document.getElementById("clear");
 
-    let allListings = [];
+    const PAGE_SIZE = 16;
+
+    let allListings   = [];
+    let filteredRows  = [];
+    let renderedCount = 0;
 
     function escapeHtml(s) {
       return String(s ?? "").replace(/[&<>"']/g, c => ({
@@ -417,14 +445,24 @@
       else if (so === "price-desc") rows.sort((a,b) => Number(b.asking_price_usd||0) - Number(a.asking_price_usd||0));
       else                          rows.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
 
-      // Render
+      // Reset incremental render state and draw the first batch.
+      filteredRows  = rows;
+      renderedCount = 0;
       $grid.innerHTML = "";
-      for (const l of rows) $grid.appendChild(renderCard(l));
+      renderNextBatch();
 
       $stats.hidden = false;
       $stats.textContent = `Showing ${rows.length} of ${allListings.length} listing${allListings.length === 1 ? "" : "s"}`;
       $grid.hidden  = rows.length === 0;
       $empty.hidden = rows.length !== 0;
+    }
+
+    function renderNextBatch() {
+      const end = Math.min(renderedCount + PAGE_SIZE, filteredRows.length);
+      const frag = document.createDocumentFragment();
+      for (let i = renderedCount; i < end; i++) frag.appendChild(renderCard(filteredRows[i]));
+      $grid.appendChild(frag);
+      renderedCount = end;
     }
 
     async function loadCatalog() {
@@ -470,6 +508,34 @@
       $sort.value = "newest";
       applyFilters();
     });
+
+    // Incremental render — observe the sentinel below the grid.
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && renderedCount < filteredRows.length) {
+            renderNextBatch();
+          }
+        }
+      }, { rootMargin: "400px 0px" });
+      io.observe($sentinel);
+    } else {
+      // Fallback: render everything if IntersectionObserver isn't available.
+      window.addEventListener("scroll", () => {
+        if (renderedCount < filteredRows.length &&
+            window.innerHeight + window.scrollY >= document.body.offsetHeight - 600) {
+          renderNextBatch();
+        }
+      });
+    }
+
+    // Back-to-top button
+    function onScroll() {
+      if (window.scrollY > 400) $back.classList.add("visible");
+      else                       $back.classList.remove("visible");
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    $back.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 
     loadCatalog();
   </script>
