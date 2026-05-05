@@ -397,6 +397,78 @@
     /* Account view banner — sits above the listings */
     #dashboard-banner.banner { display: block; margin: 0 0 12px; white-space: pre-line; }
 
+    /* ------ New listing form ------ */
+    .nl-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; margin: 4px 0 14px;
+    }
+    .nl-head h2 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 22px; font-weight: 600;
+    }
+    .nl-image-zone {
+      border: 2px dashed var(--card-line);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+      background: #fbf9f4;
+      transition: border-color .15s ease, background .15s ease;
+      cursor: pointer;
+    }
+    .nl-image-zone:hover { border-color: var(--accent); background: #fbf6e9; }
+    .nl-image-zone.has-file { padding: 0; background: #fff; cursor: default; }
+    .nl-image-zone input[type=file] { display: none; }
+    .nl-image-zone .placeholder {
+      padding: 30px 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .nl-image-zone .placeholder strong { color: var(--fg); display: block; margin-bottom: 4px; }
+    .nl-preview-wrap { position: relative; }
+    .nl-preview-wrap img {
+      width: 100%; max-height: 360px; object-fit: contain;
+      display: block; border-radius: 10px; background: #f0ede6;
+    }
+    .nl-preview-wrap .nl-replace-btn {
+      position: absolute; bottom: 10px; right: 10px;
+      padding: 6px 12px; border-radius: 8px;
+      background: rgba(0,0,0,.65); color: #fff;
+      border: none; font-size: 12px; font-family: inherit; cursor: pointer;
+    }
+    .nl-form-grid {
+      display: grid; gap: 12px; grid-template-columns: 1fr; margin-top: 14px;
+    }
+    @media (min-width: 640px) {
+      .nl-form-grid { grid-template-columns: 1fr 1fr; }
+      .nl-form-grid .span-2 { grid-column: 1 / -1; }
+    }
+    .nl-form-grid label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .nl-form-grid label .required { color: var(--red); margin-left: 2px; }
+    .nl-form-grid input,
+    .nl-form-grid select,
+    .nl-form-grid textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      background: #fff;
+      color: var(--fg);
+      font-size: 14px;
+      font-family: inherit;
+      min-width: 0;
+    }
+    .nl-form-grid select { padding-right: 24px; }
+    .nl-form-grid textarea { min-height: 100px; resize: vertical; }
+    .nl-form-grid input:focus, .nl-form-grid select:focus, .nl-form-grid textarea:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(184,134,11,.15);
+    }
+    .nl-actions {
+      display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
     footer {
       text-align: center;
       color: var(--muted);
@@ -538,8 +610,7 @@
 
         <div class="dash-head">
           <h2>Your listings <span class="count" id="listings-count"></span></h2>
-          <button type="button" class="btn-primary" id="add-listing-btn" disabled
-                  title="Coming soon — add a new listing">+ Add new listing</button>
+          <button type="button" class="btn-primary" id="add-listing-btn" data-go="new-listing">+ Add new listing</button>
         </div>
 
         <form class="dash-toolbar" id="dash-toolbar" autocomplete="off" onsubmit="return false;">
@@ -579,6 +650,94 @@
         </div>
       </section>
 
+      <!-- ============ NEW LISTING ============ -->
+      <section data-view="new-listing" hidden>
+        <div class="nl-head">
+          <h2>Add a new listing</h2>
+          <button type="button" class="ghost" data-go="account">← Back to dashboard</button>
+        </div>
+
+        <form id="new-listing-form" autocomplete="off">
+          <label class="nl-image-zone" id="nl-image-zone">
+            <input type="file" id="nl-image" accept="image/*" />
+            <div class="placeholder" id="nl-placeholder">
+              <strong>Upload artwork image</strong>
+              One image per listing. We'll compress it for you.
+            </div>
+            <div class="nl-preview-wrap" id="nl-preview-wrap" hidden>
+              <img id="nl-preview" alt="Selected artwork preview" />
+              <button type="button" class="nl-replace-btn" id="nl-replace-btn">Replace</button>
+            </div>
+          </label>
+
+          <div class="nl-form-grid">
+            <div>
+              <label for="nl-title">Artwork name<span class="required">*</span></label>
+              <input type="text" id="nl-title" required />
+            </div>
+            <div>
+              <label for="nl-artist">Artist name<span class="required">*</span></label>
+              <input type="text" id="nl-artist" required />
+            </div>
+            <div>
+              <label for="nl-medium">Medium / Type<span class="required">*</span></label>
+              <input type="text" id="nl-medium" required placeholder="e.g. Acrylic on canvas" />
+            </div>
+            <div>
+              <label for="nl-category">Unique/Original or Limited Edition<span class="required">*</span></label>
+              <select id="nl-category" required>
+                <option value="" disabled selected>Choose…</option>
+                <option value="Unique/Original">Unique/Original</option>
+                <option value="Limited Edition">Limited Edition</option>
+              </select>
+            </div>
+            <div>
+              <label for="nl-size">Artwork size (inches)<span class="required">*</span></label>
+              <input type="text" id="nl-size" required placeholder="e.g. 20 x 20" />
+            </div>
+            <div>
+              <label for="nl-framed">Frame size (inches)</label>
+              <input type="text" id="nl-framed" placeholder="e.g. 24 x 24 (optional)" />
+            </div>
+            <div>
+              <label for="nl-price">Price (USD)<span class="required">*</span></label>
+              <input type="text" inputmode="decimal" id="nl-price" required placeholder="e.g. 1200" />
+            </div>
+            <div>
+              <label for="nl-shipping">Shipping included?<span class="required">*</span></label>
+              <select id="nl-shipping" required>
+                <option value="" disabled selected>Choose…</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+            <div>
+              <label for="nl-coa">Certificate of Authenticity included?<span class="required">*</span></label>
+              <select id="nl-coa" required>
+                <option value="" disabled selected>Choose…</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+            <div class="span-2">
+              <label for="nl-description">Seller notes / Description</label>
+              <textarea id="nl-description" rows="4" placeholder="Condition, provenance, why you're selling, anything buyers should know."></textarea>
+            </div>
+          </div>
+
+          <div id="banner-new-listing" class="banner" hidden></div>
+
+          <div class="nl-actions">
+            <button type="button" class="btn-secondary" data-go="account">Cancel</button>
+            <button type="submit" class="btn-primary" id="nl-submit-btn">Submit listing</button>
+          </div>
+
+          <p class="small" style="margin-top: 14px;">
+            New listings go to the admin for review before appearing in the public catalog. Trusted sellers are auto-approved.
+          </p>
+        </form>
+      </section>
+
     </div>
   </main>
 
@@ -598,7 +757,7 @@
   </footer>
 
   <script type="module">
-    import { supabase, currentProfile, publicImageUrl } from "/lib/supabase.js";
+    import { supabase, currentProfile, publicImageUrl, compressImage } from "/lib/supabase.js";
 
     // -----------------------------------------------------------------------
     // View switching
@@ -1319,6 +1478,178 @@
       if (dirtyIds.size > 0) {
         e.preventDefault();
         e.returnValue = "";
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // New listing form
+    // -----------------------------------------------------------------------
+    const $nlForm        = document.getElementById("new-listing-form");
+    const $nlImageZone   = document.getElementById("nl-image-zone");
+    const $nlImageInput  = document.getElementById("nl-image");
+    const $nlPlaceholder = document.getElementById("nl-placeholder");
+    const $nlPreviewWrap = document.getElementById("nl-preview-wrap");
+    const $nlPreview     = document.getElementById("nl-preview");
+    const $nlReplaceBtn  = document.getElementById("nl-replace-btn");
+    const $nlSubmitBtn   = document.getElementById("nl-submit-btn");
+
+    let nlSelectedFile = null;
+
+    function nlReset() {
+      $nlForm.reset();
+      nlSelectedFile = null;
+      $nlPreview.src = "";
+      $nlPreviewWrap.hidden = true;
+      $nlPlaceholder.hidden = false;
+      $nlImageZone.classList.remove("has-file");
+      clearBanner("new-listing");
+    }
+
+    $nlImageInput.addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        setBanner("new-listing", "Please choose an image file (jpg, png, etc.).", "error");
+        $nlImageInput.value = "";
+        return;
+      }
+      // Quick sanity-cap on input size before compression: 25MB
+      if (file.size > 25 * 1024 * 1024) {
+        setBanner("new-listing", "That image is over 25MB. Try a smaller file.", "error");
+        $nlImageInput.value = "";
+        return;
+      }
+      nlSelectedFile = file;
+      $nlPreview.src = URL.createObjectURL(file);
+      $nlPlaceholder.hidden = true;
+      $nlPreviewWrap.hidden = false;
+      $nlImageZone.classList.add("has-file");
+      clearBanner("new-listing");
+    });
+
+    // Replace button — re-opens picker
+    $nlReplaceBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      $nlImageInput.value = "";
+      $nlImageInput.click();
+    });
+
+    // Reset form whenever we navigate AWAY from the new-listing view
+    document.querySelectorAll("[data-go]").forEach((b) => {
+      b.addEventListener("click", () => {
+        // If leaving new-listing → wipe form so next open is clean
+        if (b.dataset.go !== "new-listing") nlReset();
+      });
+    });
+
+    $nlForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearBanner("new-listing");
+
+      // Read fields
+      const title    = document.getElementById("nl-title").value.trim();
+      const artist   = document.getElementById("nl-artist").value.trim();
+      const medium   = document.getElementById("nl-medium").value.trim();
+      const category = document.getElementById("nl-category").value;
+      const sizeStr  = document.getElementById("nl-size").value.trim();
+      const framed   = document.getElementById("nl-framed").value.trim();
+      const priceStr = document.getElementById("nl-price").value.trim();
+      const shipping = document.getElementById("nl-shipping").value;
+      const coa      = document.getElementById("nl-coa").value;
+      const desc     = document.getElementById("nl-description").value.trim();
+
+      // Validate
+      const errs = [];
+      if (!title)    errs.push("Artwork name is required.");
+      if (!artist)   errs.push("Artist name is required.");
+      if (!medium)   errs.push("Medium / Type is required.");
+      if (category !== "Unique/Original" && category !== "Limited Edition")
+        errs.push("Pick Unique/Original or Limited Edition.");
+      if (!sizeStr)  errs.push("Artwork size is required.");
+      const price = parsePrice(priceStr);
+      if (price == null || Number.isNaN(price) || price < 0)
+        errs.push("Price must be a number — no words or other characters.");
+      if (shipping !== "Yes" && shipping !== "No")
+        errs.push("Pick Yes or No for Shipping Included.");
+      if (coa !== "Yes" && coa !== "No")
+        errs.push("Pick Yes or No for COA Included.");
+      if (!nlSelectedFile)
+        errs.push("Upload one image of the artwork.");
+
+      if (errs.length) {
+        setBanner("new-listing", errs.join("\n"), "error");
+        return;
+      }
+
+      const [h, w, d] = parseArtworkSize(sizeStr);
+
+      // Look up trusted-seller flag — auto-approve trusted sellers, queue others.
+      const profile  = await currentProfile();
+      const isTrusted = !!profile?.is_trusted;
+      const status            = isTrusted ? "available" : "pending_review";
+      const moderation_status = isTrusted ? "approved"  : "pending";
+
+      $nlSubmitBtn.disabled = true; $nlSubmitBtn.textContent = "Saving…";
+      try {
+        // 1) Insert the listing row first — we need its UUID for the image path.
+        $nlSubmitBtn.textContent = "Saving listing…";
+        const insertPayload = {
+          seller_id:        currentUserId,
+          artwork_title:    title,
+          artist_name:      artist,
+          medium:           medium,
+          artwork_category: category,
+          height_in:        h,
+          width_in:         w,
+          depth_in:         d,
+          framed_size:      framed || null,
+          asking_price_usd: price,
+          shipping_offered: shipping,
+          coa_included:     coa,
+          description:      desc || null,
+          status:           status,
+          moderation_status: moderation_status,
+        };
+        const { data: inserted, error: insertErr } = await supabase
+          .from("listings")
+          .insert(insertPayload)
+          .select("listing_id")
+          .single();
+        if (insertErr) throw insertErr;
+        const newId = inserted.listing_id;
+
+        // 2) Compress + upload the image.
+        $nlSubmitBtn.textContent = "Compressing image…";
+        const blob = await compressImage(nlSelectedFile, 1500, 0.85);
+        $nlSubmitBtn.textContent = "Uploading image…";
+        const path = `${newId}/0-${Date.now()}.jpg`;
+        const { error: uploadErr } = await supabase.storage
+          .from("listing-images")
+          .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+        if (uploadErr) throw uploadErr;
+
+        // 3) Insert the listing_images row so the catalog can render it.
+        const { error: imgRowErr } = await supabase
+          .from("listing_images")
+          .insert({ listing_id: newId, storage_path: path, position: 0 });
+        if (imgRowErr) throw imgRowErr;
+
+        // Success — show banner on the dashboard and reload listings.
+        nlReset();
+        showView("account");
+        await loadDashboardListings(currentUserId);
+        showDashBanner(
+          isTrusted
+            ? "Listing created and live on the catalog."
+            : "Listing submitted. The admin will review it before it appears in the public catalog.",
+          "success"
+        );
+      } catch (err) {
+        console.error("[new-listing] failed:", err);
+        setBanner("new-listing", "Could not create the listing: " + (err.message || err), "error");
+      } finally {
+        $nlSubmitBtn.disabled = false; $nlSubmitBtn.textContent = "Submit listing";
       }
     });
 
