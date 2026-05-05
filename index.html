@@ -68,17 +68,37 @@
       padding: 12px;
       margin-bottom: 12px;
       box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toolbar-row {
       display: grid;
-      grid-template-columns: 1fr;
       gap: 8px;
+      grid-template-columns: 1fr;
+    }
+    .toolbar-row.search-row {
+      grid-template-columns: 1fr auto;
+    }
+    .toolbar-row.filter-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     @media (min-width: 720px) {
-      .toolbar {
-        grid-template-columns: 2fr 1fr 1fr 1fr auto;
-        align-items: center;
+      .toolbar-row.filter-row {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
       }
     }
+    .price-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      grid-column: span 2;
+    }
+    @media (min-width: 720px) {
+      .price-pair { grid-column: span 2; }
+    }
     .toolbar input[type="search"],
+    .toolbar input[type="number"],
     .toolbar select {
       width: 100%;
       padding: 9px 12px;
@@ -91,7 +111,12 @@
       appearance: none;
       -webkit-appearance: none;
     }
-    .toolbar input[type="search"]:focus,
+    .toolbar input[type="number"] { -moz-appearance: textfield; }
+    .toolbar input[type="number"]::-webkit-outer-spin-button,
+    .toolbar input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none; margin: 0;
+    }
+    .toolbar input:focus,
     .toolbar select:focus {
       outline: none;
       border-color: var(--accent);
@@ -177,12 +202,16 @@
     .card .price  { font-weight: 600; font-size: 14px; }
     .card .prev   { color: var(--muted); text-decoration: line-through; font-size: 12px; margin-left: 6px; }
     .card .cat    {
-      font-size: 10px; font-weight: 700; letter-spacing: .5px;
-      text-transform: uppercase;
+      font-size: 10px; font-weight: 700; letter-spacing: .3px;
       padding: 3px 7px; border-radius: 999px;
       background: #efe9d8; color: #6a4c00; border: 1px solid #e3d8b1;
+      white-space: nowrap;
     }
     .card .cat.unique { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
+    /* On very narrow cards, allow the badge to drop under the price */
+    @media (max-width: 460px) {
+      .card .price-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+    }
 
     /* Sold overlay */
     .card.is-sold .img::after {
@@ -232,24 +261,37 @@
     </section>
 
     <form class="toolbar" id="toolbar" autocomplete="off">
-      <input type="search" id="q" placeholder="Search artist or title&hellip;" />
-      <select id="f-category">
-        <option value="">All categories</option>
-        <option value="Unique/Original">Unique/Original</option>
-        <option value="Limited Edition">Limited Edition</option>
-        <option value="Other">Other</option>
-      </select>
-      <select id="f-status">
-        <option value="">Available &amp; sold</option>
-        <option value="available">Available only</option>
-        <option value="sold">Sold only</option>
-      </select>
-      <select id="f-sort">
-        <option value="newest">Newest first</option>
-        <option value="price-asc">Price: low to high</option>
-        <option value="price-desc">Price: high to low</option>
-      </select>
-      <button type="button" class="clear-btn" id="clear">Clear</button>
+      <div class="toolbar-row search-row">
+        <input type="search" id="q" placeholder="Search artist or title&hellip;" />
+        <button type="button" class="clear-btn" id="clear">Clear</button>
+      </div>
+      <div class="toolbar-row filter-row">
+        <select id="f-category" title="Category">
+          <option value="">All categories</option>
+          <option value="Unique/Original">Unique/Original</option>
+          <option value="Limited Edition">Limited Edition</option>
+        </select>
+        <select id="f-status" title="Status">
+          <option value="">Available &amp; sold</option>
+          <option value="available">Available only</option>
+          <option value="sold">Sold only</option>
+        </select>
+        <select id="f-seller" title="Seller">
+          <option value="">All sellers</option>
+        </select>
+        <select id="f-artist" title="Artist">
+          <option value="">All artists</option>
+        </select>
+        <div class="price-pair">
+          <input type="number" id="f-min" placeholder="Min $" min="0" step="50" />
+          <input type="number" id="f-max" placeholder="Max $" min="0" step="50" />
+        </div>
+        <select id="f-sort" title="Sort">
+          <option value="newest">Newest first</option>
+          <option value="price-asc">Price: low to high</option>
+          <option value="price-desc">Price: high to low</option>
+        </select>
+      </div>
     </form>
 
     <div id="stats" class="stats" hidden></div>
@@ -276,6 +318,10 @@
     const $q      = document.getElementById("q");
     const $cat    = document.getElementById("f-category");
     const $statusF= document.getElementById("f-status");
+    const $seller = document.getElementById("f-seller");
+    const $artist = document.getElementById("f-artist");
+    const $min    = document.getElementById("f-min");
+    const $max    = document.getElementById("f-max");
     const $sort   = document.getElementById("f-sort");
     const $clear  = document.getElementById("clear");
 
@@ -299,10 +345,8 @@
                       && Number(listing.previous_price_usd) > Number(listing.asking_price_usd)
                       ? Number(listing.previous_price_usd).toLocaleString()
                       : null;
-      const catCls = listing.artwork_category === "Unique/Original" ? " unique" : "";
-      const catShort = listing.artwork_category === "Unique/Original" ? "Original"
-                     : listing.artwork_category === "Limited Edition" ? "Edition"
-                     : (listing.artwork_category || "");
+      const catCls   = listing.artwork_category === "Unique/Original" ? " unique" : "";
+      const catLabel = listing.artwork_category || "";
       card.innerHTML = `
         <div class="img">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}</div>
         <div class="body">
@@ -312,22 +356,56 @@
             <div>
               <span class="price">$${price}</span>${prev ? `<span class="prev">$${prev}</span>` : ""}
             </div>
-            ${catShort ? `<span class="cat${catCls}">${escapeHtml(catShort)}</span>` : ""}
+            ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
           </div>
         </div>`;
       return card;
     }
 
+    function populateOptions(selectEl, values) {
+      const seen = new Set();
+      const opts = [];
+      for (const v of values) {
+        if (!v) continue;
+        const key = String(v).trim();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        opts.push(key);
+      }
+      opts.sort((a, b) => a.localeCompare(b));
+      // keep the first option (the "All …") and append the rest
+      const first = selectEl.querySelector("option");
+      selectEl.innerHTML = "";
+      if (first) selectEl.appendChild(first);
+      for (const o of opts) {
+        const opt = document.createElement("option");
+        opt.value = o;
+        opt.textContent = o;
+        selectEl.appendChild(opt);
+      }
+    }
+
     function applyFilters() {
-      const q   = $q.value.trim().toLowerCase();
-      const cat = $cat.value;
-      const stf = $statusF.value;
-      const so  = $sort.value;
+      const q     = $q.value.trim().toLowerCase();
+      const cat   = $cat.value;
+      const stf   = $statusF.value;
+      const sel   = $seller.value;
+      const art   = $artist.value;
+      const minP  = Number($min.value);
+      const maxP  = Number($max.value);
+      const so    = $sort.value;
+      const hasMin = $min.value !== "" && !isNaN(minP);
+      const hasMax = $max.value !== "" && !isNaN(maxP);
 
       let rows = allListings.filter(l => {
         if (cat && l.artwork_category !== cat) return false;
         if (stf === "available" && l.status !== "available") return false;
         if (stf === "sold"      && l.status !== "sold")      return false;
+        if (sel && (l.profiles?.display_name || "") !== sel) return false;
+        if (art && (l.artist_name || "") !== art) return false;
+        const p = Number(l.asking_price_usd || 0);
+        if (hasMin && p < minP) return false;
+        if (hasMax && p > maxP) return false;
         if (q) {
           const hay = `${l.artist_name || ""} ${l.artwork_title || ""}`.toLowerCase();
           if (!hay.includes(q)) return false;
@@ -355,7 +433,8 @@
         .select(`
           listing_id, artist_name, artwork_title, artwork_category,
           asking_price_usd, previous_price_usd, status, created_at,
-          listing_images ( storage_path, position )
+          listing_images ( storage_path, position ),
+          profiles!listings_seller_id_fkey ( display_name )
         `)
         .eq("moderation_status", "approved")
         .in("status", ["available", "pending", "sold"])
@@ -372,15 +451,22 @@
         return;
       }
       allListings = listings;
+      populateOptions($seller, listings.map(l => l.profiles?.display_name));
+      populateOptions($artist, listings.map(l => l.artist_name));
       $status.hidden = true;
       applyFilters();
     }
 
-    [$q, $cat, $statusF, $sort].forEach(el => el.addEventListener("input", applyFilters));
+    [$q, $cat, $statusF, $seller, $artist, $min, $max, $sort]
+      .forEach(el => el.addEventListener("input", applyFilters));
     $clear.addEventListener("click", () => {
       $q.value = "";
       $cat.value = "";
       $statusF.value = "";
+      $seller.value = "";
+      $artist.value = "";
+      $min.value = "";
+      $max.value = "";
       $sort.value = "newest";
       applyFilters();
     });
