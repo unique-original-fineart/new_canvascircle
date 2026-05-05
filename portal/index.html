@@ -318,6 +318,7 @@
         </div>
 
         <div id="banner-signin" class="banner" hidden></div>
+        <button type="button" class="ghost" id="signin-reset-btn" hidden style="margin-top: 10px;">Reset and retry</button>
 
         <p class="small" style="margin-top: 18px;">
           <strong>First time signing in?</strong> If you submitted listings under the old form, your account already exists but doesn't have a password yet. Click <em>Forgot password</em> to set one.
@@ -469,21 +470,42 @@
     }
 
     // -----------------------------------------------------------------------
+    // Defensive: clear all Supabase auth state (localStorage + signOut local)
+    // so a hung previous attempt can't poison the next sign-in.
+    // -----------------------------------------------------------------------
+    function nukeAuthState() {
+      try {
+        for (const k of Object.keys(localStorage)) {
+          if (k.startsWith("sb-") || k.includes("supabase")) localStorage.removeItem(k);
+        }
+      } catch (e) { /* ignore */ }
+      // Best-effort local-only signOut. Don't await; if it hangs we don't care.
+      try { supabase.auth.signOut({ scope: "local" }); } catch {}
+    }
+
+    // -----------------------------------------------------------------------
     // Sign in
     // -----------------------------------------------------------------------
     const $signinForm = document.getElementById("signin-form");
     const $signinBtn  = document.getElementById("signin-btn");
+    const $signinResetBtn = document.getElementById("signin-reset-btn");
+    $signinResetBtn.addEventListener("click", () => {
+      nukeAuthState();
+      window.location.reload();
+    });
+
     $signinForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       clearBanner("signin");
+      $signinResetBtn.hidden = true;
       const email    = document.getElementById("signin-email").value.trim();
       const password = document.getElementById("signin-password").value;
       $signinBtn.disabled = true; $signinBtn.textContent = "Signing in…";
 
       console.log("[signin] submit", email);
-      const TIMEOUT_MS = 15000;
+      const TIMEOUT_MS = 10000;
       const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Timed out waiting for Supabase. Check your connection and the Supabase project status.")), TIMEOUT_MS)
+        setTimeout(() => reject(new Error("TIMEOUT")), TIMEOUT_MS)
       );
 
       try {
@@ -496,7 +518,16 @@
         // onAuthStateChange will flip to the account view.
       } catch (err) {
         console.error("[signin] failed:", err);
-        setBanner("signin", err.message || "Could not sign in.", "error");
+        if (err.message === "TIMEOUT") {
+          setBanner(
+            "signin",
+            "Sign-in stuck (a previous auth attempt left bad state). Click 'Reset and retry' to clear it and try again — no browser restart needed.",
+            "error"
+          );
+          $signinResetBtn.hidden = false;
+        } else {
+          setBanner("signin", err.message || "Could not sign in.", "error");
+        }
       } finally {
         $signinBtn.disabled = false; $signinBtn.textContent = "Sign in";
       }
@@ -777,11 +808,28 @@
       // If there's a hash like #access_token=…&type=recovery, supabase-js will
       // detect it and fire PASSWORD_RECOVERY shortly. Otherwise pick based on
       // the current session.
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await refreshAccountView();
-        showView("account");
-      } else {
+      //
+      // Wrap getSession in a timeout — on rare occasions supabase-js can hang
+      // here if localStorage tokens are corrupted. If that happens, we wipe
+      // auth state and show the sign-in form so the page is never frozen.
+      try {
+        const sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("init-timeout")), 5000)),
+        ]);
+        const session = sessionResult?.data?.session;
+        if (session?.user) {
+          await refreshAccountView();
+          showView("account");
+        } else {
+          // Proactive cleanup: a missing session combined with leftover sb-* keys
+          // is a classic hung-state precursor. Wipe.
+          nukeAuthState();
+          showView("signin");
+        }
+      } catch (e) {
+        console.warn("[init] getSession hung — nuking auth state");
+        nukeAuthState();
         showView("signin");
       }
     })();
