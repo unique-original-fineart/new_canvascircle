@@ -469,6 +469,95 @@
       flex-wrap: wrap;
     }
 
+    /* ------ Sales post builder ------ */
+    .sp-step {
+      background: #fff;
+      border: 1px solid var(--card-line);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .sp-step h3 {
+      margin: 0 0 10px;
+      font-size: 15px; font-weight: 600;
+    }
+    .sp-step .help { color: var(--muted); font-size: 13px; margin: -6px 0 10px; }
+    .sp-step textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      background: #fff;
+      font-size: 14px;
+      font-family: inherit;
+      min-height: 70px; resize: vertical;
+      margin-bottom: 8px;
+    }
+    .sp-step textarea:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(184,134,11,.15);
+    }
+    .sp-text-status { font-size: 12px; color: var(--muted); margin-left: 10px; }
+    .sp-text-status.ok  { color: var(--green); }
+    .sp-text-status.err { color: var(--red); }
+
+    .sp-quick-selects {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .sp-listings {
+      max-height: 360px;
+      overflow-y: auto;
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      background: #fbf9f4;
+    }
+    .sp-listing-row {
+      display: grid;
+      grid-template-columns: 28px 56px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--card-line);
+      cursor: pointer;
+    }
+    .sp-listing-row:last-child { border-bottom: none; }
+    .sp-listing-row:hover { background: #fff; }
+    .sp-listing-row input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; }
+    .sp-listing-row .sp-thumb {
+      width: 56px; height: 56px;
+      border-radius: 6px; background: #f0ede6;
+      overflow: hidden; position: relative;
+    }
+    .sp-listing-row .sp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .sp-listing-row .sp-thumb.is-sold::after {
+      content: "SOLD"; position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(168,40,31,.55); color: #fff;
+      font-size: 9px; font-weight: 800; letter-spacing: 1px;
+    }
+    .sp-listing-row .sp-meta .sp-artist { font-size: 13px; font-weight: 600; line-height: 1.2; }
+    .sp-listing-row .sp-meta .sp-title  { font-size: 12px; color: var(--muted); }
+    .sp-listing-row .sp-price { font-size: 13px; font-weight: 600; }
+
+    .sp-selected-count { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+    .sp-output { margin-top: 14px; }
+    .sp-output h3 { margin: 14px 0 8px; font-size: 15px; }
+    .sp-output textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      font-size: 14px; font-family: inherit;
+      min-height: 240px;
+      background: #fff;
+    }
+    .sp-output textarea:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(184,134,11,.15);
+    }
+
     footer {
       text-align: center;
       color: var(--muted);
@@ -610,7 +699,10 @@
 
         <div class="dash-head">
           <h2>Your listings <span class="count" id="listings-count"></span></h2>
-          <button type="button" class="btn-primary" id="add-listing-btn" data-go="new-listing">+ Add new listing</button>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="btn-secondary" id="sales-post-btn" data-go="sales-post">Build Facebook Sales Post</button>
+            <button type="button" class="btn-primary" id="add-listing-btn" data-go="new-listing">+ Add new listing</button>
+          </div>
         </div>
 
         <form class="dash-toolbar" id="dash-toolbar" autocomplete="off" onsubmit="return false;">
@@ -736,6 +828,57 @@
             New listings go to the admin for review before appearing in the public catalog. Trusted sellers are auto-approved.
           </p>
         </form>
+      </section>
+
+      <!-- ============ SALES POST BUILDER ============ -->
+      <section data-view="sales-post" hidden>
+        <div class="nl-head">
+          <h2>Build Facebook Sales Post</h2>
+          <button type="button" class="ghost" data-go="account">← Back to dashboard</button>
+        </div>
+
+        <!-- Step 1: Header / Footer -->
+        <div class="sp-step">
+          <h3>1. Header &amp; Footer</h3>
+          <p class="help">Optional intro and closing for your post. Saved to your seller profile so you can reuse them.</p>
+          <label for="sp-header" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Header</label>
+          <textarea id="sp-header" placeholder="e.g. Hi all — fresh listings posted on CanvasCircle below."></textarea>
+          <label for="sp-footer" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Footer</label>
+          <textarea id="sp-footer" placeholder="e.g. PM me with questions. Accept Venmo / PayPal G&S. Local pickup welcome."></textarea>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button type="button" class="btn-primary" id="sp-save-text-btn">Save header &amp; footer</button>
+            <span class="sp-text-status" id="sp-text-status"></span>
+          </div>
+        </div>
+
+        <!-- Step 2: Pick listings -->
+        <div class="sp-step">
+          <h3>2. Pick listings</h3>
+          <div class="sp-quick-selects">
+            <button type="button" class="btn-secondary" id="sp-select-available">Available only</button>
+            <button type="button" class="btn-secondary" id="sp-select-all">Select all</button>
+            <button type="button" class="btn-secondary" id="sp-select-none">Clear</button>
+          </div>
+          <div class="sp-listings" id="sp-listings"></div>
+          <div class="sp-selected-count" id="sp-selected-count">0 selected</div>
+        </div>
+
+        <!-- Step 3: Generate -->
+        <div class="sp-step">
+          <h3>3. Generate</h3>
+          <p class="help">Builds the post text. Collage images come in the next step (Phase 2.5b).</p>
+          <button type="button" class="btn-primary" id="sp-generate-btn">Generate post text</button>
+        </div>
+
+        <!-- Output -->
+        <div class="sp-output" id="sp-output" hidden>
+          <h3>Generated post</h3>
+          <textarea id="sp-text" readonly></textarea>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button type="button" class="btn-primary" id="sp-copy-btn">Copy text</button>
+            <span class="sp-text-status" id="sp-copy-status"></span>
+          </div>
+        </div>
       </section>
 
     </div>
@@ -1541,6 +1684,199 @@
         // If leaving new-listing → wipe form so next open is clean
         if (b.dataset.go !== "new-listing") nlReset();
       });
+    });
+
+    // -----------------------------------------------------------------------
+    // Sales-post builder
+    // -----------------------------------------------------------------------
+    const $spHeader        = document.getElementById("sp-header");
+    const $spFooter        = document.getElementById("sp-footer");
+    const $spSaveTextBtn   = document.getElementById("sp-save-text-btn");
+    const $spTextStatus    = document.getElementById("sp-text-status");
+    const $spListings      = document.getElementById("sp-listings");
+    const $spSelectedCount = document.getElementById("sp-selected-count");
+    const $spGenerateBtn   = document.getElementById("sp-generate-btn");
+    const $spOutput        = document.getElementById("sp-output");
+    const $spText          = document.getElementById("sp-text");
+    const $spCopyBtn       = document.getElementById("sp-copy-btn");
+    const $spCopyStatus    = document.getElementById("sp-copy-status");
+    const $spSelAvailable  = document.getElementById("sp-select-available");
+    const $spSelAll        = document.getElementById("sp-select-all");
+    const $spSelNone       = document.getElementById("sp-select-none");
+
+    let spInitialized = false;
+
+    // Open the sales-post view: load profile header/footer, render listing checkboxes.
+    async function enterSalesPost() {
+      // Reset output
+      $spOutput.hidden = true;
+      $spText.value = "";
+      $spCopyStatus.textContent = "";
+      $spCopyStatus.className = "sp-text-status";
+
+      const profile = await currentProfile();
+      $spHeader.value = profile?.post_header || "";
+      $spFooter.value = profile?.post_footer || "";
+      $spTextStatus.textContent = "";
+      $spTextStatus.className   = "sp-text-status";
+
+      // Render checkbox list of listings (newest first)
+      const rows = (allListings || []).slice().sort(
+        (a,b) => new Date(b.created_at) - new Date(a.created_at)
+      );
+      $spListings.innerHTML = "";
+      const frag = document.createDocumentFragment();
+      for (const l of rows) {
+        const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
+        const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+        const isSold = l.status === "sold";
+        const row = document.createElement("label");
+        row.className = "sp-listing-row";
+        row.innerHTML = `
+          <input type="checkbox" data-id="${l.listing_id}" data-status="${l.status}" />
+          <div class="sp-thumb${isSold ? " is-sold" : ""}">
+            ${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}
+          </div>
+          <div class="sp-meta">
+            <div class="sp-artist">${escapeHtml(l.artist_name || "Unknown")}</div>
+            <div class="sp-title">${escapeHtml(l.artwork_title || "")}</div>
+          </div>
+          <div class="sp-price">${isSold ? "SOLD" : ("$" + Number(l.asking_price_usd || 0).toLocaleString())}</div>
+        `;
+        frag.appendChild(row);
+      }
+      $spListings.appendChild(frag);
+
+      // Wire listening for checkboxes (re-bound on every entry)
+      $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+        cb.addEventListener("change", updateSpSelectedCount);
+      });
+      updateSpSelectedCount();
+      spInitialized = true;
+    }
+
+    function updateSpSelectedCount() {
+      const n = $spListings.querySelectorAll("input[type=checkbox]:checked").length;
+      $spSelectedCount.textContent = `${n} selected`;
+    }
+
+    // Hook the data-go listener so when user enters the sales-post view, we init it.
+    document.querySelectorAll('[data-go="sales-post"]').forEach((b) => {
+      b.addEventListener("click", () => { enterSalesPost(); });
+    });
+
+    // Save header / footer to profile
+    $spSaveTextBtn.addEventListener("click", async () => {
+      $spTextStatus.textContent = "Saving…";
+      $spTextStatus.className = "sp-text-status";
+      $spSaveTextBtn.disabled = true;
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            post_header: $spHeader.value,
+            post_footer: $spFooter.value,
+          })
+          .eq("user_id", currentUserId);
+        if (error) throw error;
+        $spTextStatus.textContent = "Saved.";
+        $spTextStatus.className = "sp-text-status ok";
+      } catch (err) {
+        console.error("[sales-post] save header/footer failed:", err);
+        $spTextStatus.textContent = "Could not save: " + (err.message || err);
+        $spTextStatus.className = "sp-text-status err";
+      } finally {
+        $spSaveTextBtn.disabled = false;
+      }
+    });
+
+    // Quick selects
+    $spSelAvailable.addEventListener("click", () => {
+      $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+        cb.checked = (cb.dataset.status === "available");
+      });
+      updateSpSelectedCount();
+    });
+    $spSelAll.addEventListener("click", () => {
+      $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => { cb.checked = true; });
+      updateSpSelectedCount();
+    });
+    $spSelNone.addEventListener("click", () => {
+      $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => { cb.checked = false; });
+      updateSpSelectedCount();
+    });
+
+    // Build the text post
+    function buildPostBlockForListing(l) {
+      const lines = [];
+      const artistTitle = [l.artist_name, l.artwork_title].filter(Boolean).join(" – ");
+      lines.push(artistTitle || "(untitled)");
+
+      // Category line
+      if (l.artwork_category) lines.push(l.artwork_category);
+
+      // Price (or SOLD)
+      if (l.status === "sold") {
+        lines.push("-SOLD");
+      } else {
+        const priceNum = Number(l.asking_price_usd || 0);
+        lines.push("$" + priceNum.toLocaleString());
+      }
+
+      // Logistics
+      const ship = l.shipping_offered === "Yes" ? "Shipping included" : "Shipping not included";
+      const coa  = l.coa_included     === "Yes" ? "COA included"      : "No COA";
+      lines.push(`${ship} · ${coa}`);
+
+      // Mood
+      if (l.seller_mood) lines.push(l.seller_mood);
+
+      // Description
+      if (l.description) lines.push(l.description);
+
+      return lines.join("\n");
+    }
+
+    function buildFullPostText(selectedListings, header, footer) {
+      const parts = [];
+      if (header && header.trim()) parts.push(header.trim());
+      for (const l of selectedListings) {
+        parts.push(buildPostBlockForListing(l));
+      }
+      if (footer && footer.trim()) parts.push(footer.trim());
+      return parts.join("\n\n");
+    }
+
+    $spGenerateBtn.addEventListener("click", () => {
+      const checked = Array.from($spListings.querySelectorAll("input[type=checkbox]:checked"));
+      if (!checked.length) {
+        $spText.value = "Pick at least one listing first.";
+        $spOutput.hidden = false;
+        return;
+      }
+      const ids = new Set(checked.map((c) => c.dataset.id));
+      // Preserve the order they appear in the picker (newest first)
+      const selected = (allListings || []).filter((l) => ids.has(l.listing_id))
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const text = buildFullPostText(selected, $spHeader.value, $spFooter.value);
+      $spText.value = text;
+      $spOutput.hidden = false;
+      $spCopyStatus.textContent = "";
+      $spCopyStatus.className = "sp-text-status";
+      $spOutput.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    $spCopyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText($spText.value);
+        $spCopyStatus.textContent = "Copied to clipboard.";
+        $spCopyStatus.className = "sp-text-status ok";
+      } catch (err) {
+        // Fallback: select the text
+        $spText.select();
+        $spCopyStatus.textContent = "Couldn't auto-copy — text is selected, hit Cmd/Ctrl+C.";
+        $spCopyStatus.className = "sp-text-status err";
+      }
     });
 
     $nlForm.addEventListener("submit", async (e) => {
