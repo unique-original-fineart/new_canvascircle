@@ -598,10 +598,13 @@
     </a>
     <nav>
       <a href="/">Catalog</a>
+      <a href="/portal/" id="nav-portal">Sell</a>
       <a href="/guidelines.html">Guidelines</a>
       <a href="/about.html">About</a>
     </nav>
   </header>
+
+  <script type="module" src="/lib/nav-auth.js"></script>
 
   <main>
     <div class="card">
@@ -2251,14 +2254,13 @@
     });
 
     // Initial view on first load.
+    //
+    // Important: we DO NOT auto-wipe localStorage when no session is found —
+    // that would destroy a perfectly good persisted session whenever the user
+    // revisits /portal/ after browsing elsewhere. We just show the sign-in
+    // form. If the page is genuinely stuck (rare), the "Reset and retry"
+    // button is still available as a manual escape hatch.
     (async () => {
-      // If there's a hash like #access_token=…&type=recovery, supabase-js will
-      // detect it and fire PASSWORD_RECOVERY shortly. Otherwise pick based on
-      // the current session.
-      //
-      // Wrap getSession in a timeout — on rare occasions supabase-js can hang
-      // here if localStorage tokens are corrupted. If that happens, we wipe
-      // auth state and show the sign-in form so the page is never frozen.
       try {
         const sessionResult = await Promise.race([
           supabase.auth.getSession(),
@@ -2269,14 +2271,10 @@
           await refreshAccountView();
           showView("account");
         } else {
-          // Proactive cleanup: a missing session combined with leftover sb-* keys
-          // is a classic hung-state precursor. Wipe.
-          nukeAuthState();
           showView("signin");
         }
       } catch (e) {
-        console.warn("[init] getSession hung — nuking auth state");
-        nukeAuthState();
+        console.warn("[init] getSession timed out — showing sign-in (use 'Reset and retry' if it persists)");
         showView("signin");
       }
     })();
