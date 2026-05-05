@@ -104,8 +104,7 @@ create table if not exists public.listings (
   artist_name             text not null,
   artwork_title           text not null,
   artwork_category        text not null check (artwork_category in (
-                            'Painting','Drawing','Print','Sculpture',
-                            'Photography','Mixed Media','Other')),
+                            'Unique/Original', 'Limited Edition', 'Other')),
   medium                  text,
   year_created            text,                 -- text, since "c. 1970" etc. is allowed
 
@@ -113,6 +112,7 @@ create table if not exists public.listings (
   height_in               numeric,
   width_in                numeric,
   depth_in                numeric,              -- optional, for sculpture / 3D
+  framed_size             text,                 -- e.g. "24.5 x 24.5" — free text from legacy form
 
   -- Condition / provenance / story
   condition_notes         text,

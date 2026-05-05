@@ -26,6 +26,7 @@
       --card-bg:   #ffffff;
       --card-line: #e8e4dc;
       --shadow:    0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
+      --green:     #2a7a3e;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
@@ -59,10 +60,75 @@
     .hero h1 { margin: 0 0 8px; font-size: 28px; }
     .hero p  { margin: 0; color: var(--muted); }
 
-    #status {
+    /* ---- Filter toolbar ---- */
+    .toolbar {
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    @media (min-width: 720px) {
+      .toolbar {
+        grid-template-columns: 2fr 1fr 1fr 1fr auto;
+        align-items: center;
+      }
+    }
+    .toolbar input[type="search"],
+    .toolbar select {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      background: #fff;
+      color: var(--fg);
+      font-size: 14px;
+      font-family: inherit;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .toolbar input[type="search"]:focus,
+    .toolbar select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(184,134,11,.15);
+    }
+    .toolbar select {
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path fill='%23666' d='M5.5 7.5l4.5 5 4.5-5z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 28px;
+    }
+    .toolbar .clear-btn {
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .toolbar .clear-btn:hover {
+      color: var(--fg);
+      border-color: #ccc;
+    }
+    .stats {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 0 4px 12px;
+    }
+
+    /* ---- Status / empty ---- */
+    #status, .empty {
       margin: 24px auto;
       max-width: 540px;
-      padding: 12px 16px;
+      padding: 16px;
       border-radius: 8px;
       background: #fff;
       border: 1px solid var(--card-line);
@@ -71,7 +137,9 @@
       font-size: 14px;
     }
     #status.error { color: #a8281f; border-color: #f1c4be; background: #fef6f5; }
+    .empty .empty-title { color: var(--fg); font-weight: 600; margin-bottom: 4px; }
 
+    /* ---- Grid + cards ---- */
     .grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -102,8 +170,19 @@
     .card .title  { color: var(--muted); font-size: 13px; margin-top: 2px;
                     overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
                     -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
-    .card .price  { font-weight: 600; font-size: 14px; margin-top: 6px; }
+    .card .price-row {
+      margin-top: 6px;
+      display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    }
+    .card .price  { font-weight: 600; font-size: 14px; }
     .card .prev   { color: var(--muted); text-decoration: line-through; font-size: 12px; margin-left: 6px; }
+    .card .cat    {
+      font-size: 10px; font-weight: 700; letter-spacing: .5px;
+      text-transform: uppercase;
+      padding: 3px 7px; border-radius: 999px;
+      background: #efe9d8; color: #6a4c00; border: 1px solid #e3d8b1;
+    }
+    .card .cat.unique { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
 
     /* Sold overlay */
     .card.is-sold .img::after {
@@ -152,8 +231,34 @@
       <p>A curated catalog from independent collectors and artists.</p>
     </section>
 
+    <form class="toolbar" id="toolbar" autocomplete="off">
+      <input type="search" id="q" placeholder="Search artist or title&hellip;" />
+      <select id="f-category">
+        <option value="">All categories</option>
+        <option value="Unique/Original">Unique/Original</option>
+        <option value="Limited Edition">Limited Edition</option>
+        <option value="Other">Other</option>
+      </select>
+      <select id="f-status">
+        <option value="">Available &amp; sold</option>
+        <option value="available">Available only</option>
+        <option value="sold">Sold only</option>
+      </select>
+      <select id="f-sort">
+        <option value="newest">Newest first</option>
+        <option value="price-asc">Price: low to high</option>
+        <option value="price-desc">Price: high to low</option>
+      </select>
+      <button type="button" class="clear-btn" id="clear">Clear</button>
+    </form>
+
+    <div id="stats" class="stats" hidden></div>
     <div id="status">Loading catalog&hellip;</div>
     <div id="grid" class="grid" hidden></div>
+    <div id="empty" class="empty" hidden>
+      <div class="empty-title">No listings match your filters</div>
+      <div>Try clearing one or two of them.</div>
+    </div>
   </main>
 
   <footer>
@@ -166,39 +271,90 @@
 
     const $status = document.getElementById("status");
     const $grid   = document.getElementById("grid");
+    const $empty  = document.getElementById("empty");
+    const $stats  = document.getElementById("stats");
+    const $q      = document.getElementById("q");
+    const $cat    = document.getElementById("f-category");
+    const $statusF= document.getElementById("f-status");
+    const $sort   = document.getElementById("f-sort");
+    const $clear  = document.getElementById("clear");
 
-    function renderCard(listing, firstImagePath) {
+    let allListings = [];
+
+    function escapeHtml(s) {
+      return String(s ?? "").replace(/[&<>"']/g, c => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+      }[c]));
+    }
+
+    function renderCard(listing) {
+      const images = (listing.listing_images || []).slice().sort((a,b) => a.position - b.position);
+      const firstPath = images[0]?.storage_path;
       const card = document.createElement("a");
       card.className = "card" + (listing.status === "sold" ? " is-sold" : "");
       card.href = `/listing.html?id=${listing.listing_id}`;
-      const imgUrl = firstImagePath ? publicImageUrl(firstImagePath) : "";
+      const imgUrl = firstPath ? publicImageUrl(firstPath) : "";
       const price  = Number(listing.asking_price_usd || 0).toLocaleString();
       const prev   = listing.previous_price_usd
                       && Number(listing.previous_price_usd) > Number(listing.asking_price_usd)
                       ? Number(listing.previous_price_usd).toLocaleString()
                       : null;
+      const catCls = listing.artwork_category === "Unique/Original" ? " unique" : "";
+      const catShort = listing.artwork_category === "Unique/Original" ? "Original"
+                     : listing.artwork_category === "Limited Edition" ? "Edition"
+                     : (listing.artwork_category || "");
       card.innerHTML = `
         <div class="img">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}</div>
         <div class="body">
           <div class="artist">${escapeHtml(listing.artist_name || "Unknown")}</div>
           <div class="title">${escapeHtml(listing.artwork_title || "")}</div>
-          <div class="price">$${price}${prev ? `<span class="prev">$${prev}</span>` : ""}</div>
+          <div class="price-row">
+            <div>
+              <span class="price">$${price}</span>${prev ? `<span class="prev">$${prev}</span>` : ""}
+            </div>
+            ${catShort ? `<span class="cat${catCls}">${escapeHtml(catShort)}</span>` : ""}
+          </div>
         </div>`;
       return card;
     }
 
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, c => ({
-        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
-      }[c]));
+    function applyFilters() {
+      const q   = $q.value.trim().toLowerCase();
+      const cat = $cat.value;
+      const stf = $statusF.value;
+      const so  = $sort.value;
+
+      let rows = allListings.filter(l => {
+        if (cat && l.artwork_category !== cat) return false;
+        if (stf === "available" && l.status !== "available") return false;
+        if (stf === "sold"      && l.status !== "sold")      return false;
+        if (q) {
+          const hay = `${l.artist_name || ""} ${l.artwork_title || ""}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      if (so === "price-asc")      rows.sort((a,b) => Number(a.asking_price_usd||0) - Number(b.asking_price_usd||0));
+      else if (so === "price-desc") rows.sort((a,b) => Number(b.asking_price_usd||0) - Number(a.asking_price_usd||0));
+      else                          rows.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+      // Render
+      $grid.innerHTML = "";
+      for (const l of rows) $grid.appendChild(renderCard(l));
+
+      $stats.hidden = false;
+      $stats.textContent = `Showing ${rows.length} of ${allListings.length} listing${allListings.length === 1 ? "" : "s"}`;
+      $grid.hidden  = rows.length === 0;
+      $empty.hidden = rows.length !== 0;
     }
 
     async function loadCatalog() {
-      // Get approved + active listings with their first image (position 0).
       const { data: listings, error } = await supabase
         .from("listings")
         .select(`
-          listing_id, artist_name, artwork_title, asking_price_usd, previous_price_usd, status,
+          listing_id, artist_name, artwork_title, artwork_category,
+          asking_price_usd, previous_price_usd, status, created_at,
           listing_images ( storage_path, position )
         `)
         .eq("moderation_status", "approved")
@@ -215,13 +371,19 @@
         $status.textContent = "The catalog is empty right now — check back soon.";
         return;
       }
+      allListings = listings;
       $status.hidden = true;
-      $grid.hidden = false;
-      for (const l of listings) {
-        const sorted = (l.listing_images || []).slice().sort((a, b) => a.position - b.position);
-        $grid.appendChild(renderCard(l, sorted[0]?.storage_path));
-      }
+      applyFilters();
     }
+
+    [$q, $cat, $statusF, $sort].forEach(el => el.addEventListener("input", applyFilters));
+    $clear.addEventListener("click", () => {
+      $q.value = "";
+      $cat.value = "";
+      $statusF.value = "";
+      $sort.value = "newest";
+      applyFilters();
+    });
 
     loadCatalog();
   </script>
