@@ -86,8 +86,31 @@
       border-radius: 12px;
       overflow: hidden;
       box-shadow: var(--shadow);
+      position: relative;
     }
     .gallery .main-img img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+
+    /* Heart/save button on the listing image */
+    .heart-btn {
+      position: absolute;
+      top: 12px; right: 12px;
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.94);
+      color: #555;
+      border: none;
+      border-radius: 999px;
+      padding: 7px 13px 7px 12px;
+      font: 600 14px inherit;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,.18);
+      transition: transform .12s ease, background .12s ease;
+      z-index: 2;
+    }
+    .heart-btn:hover { transform: scale(1.04); background: #fff; }
+    .heart-btn .heart-glyph { font-size: 18px; line-height: 1; }
+    .heart-btn.is-saved { background: #fff; }
+    .heart-btn.is-saved .heart-glyph { color: #c93f3f; }
+    .heart-btn[disabled] { opacity: .55; cursor: progress; }
     .gallery .thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
     .gallery .thumbs img {
       width: 64px; height: 64px; object-fit: cover; border-radius: 6px;
@@ -208,6 +231,8 @@
 
   <script type="module">
     import { supabase, publicImageUrl } from "/lib/supabase.js";
+    import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
+    import { showAuthPrompt } from "/lib/auth-prompt.js";
 
     const $status   = document.getElementById("status");
     const $content  = document.getElementById("content");
@@ -294,21 +319,26 @@
         return;
       }
 
-      const { data, error } = await supabase
-        .from("listings")
-        .select(`
-          listing_id, artist_name, artwork_title, artwork_category, medium, year_created,
-          height_in, width_in, depth_in, condition_notes, provenance, description,
-          asking_price_usd, previous_price_usd, price_updated_at,
-          shipping_offered, coa_included, status, moderation_status,
-          seller_mood, last_renewed_at, created_at, seller_id,
-          listing_images ( storage_path, position ),
-          profiles!listings_seller_id_fkey (
-            display_name, location, facebook_profile_url
-          )
-        `)
-        .eq("listing_id", id)
-        .maybeSingle();
+      const [listingResp, savesResp] = await Promise.all([
+        supabase
+          .from("listings")
+          .select(`
+            listing_id, artist_name, artwork_title, artwork_category, medium, year_created,
+            height_in, width_in, depth_in, condition_notes, provenance, description,
+            asking_price_usd, previous_price_usd, price_updated_at,
+            shipping_offered, coa_included, status, moderation_status,
+            seller_mood, last_renewed_at, created_at, seller_id, save_count,
+            listing_images ( storage_path, position ),
+            profiles!listings_seller_id_fkey (
+              display_name, location, facebook_profile_url
+            )
+          `)
+          .eq("listing_id", id)
+          .maybeSingle(),
+        getCurrentUserSaves(),
+      ]);
+      const userSaves = savesResp; // Set or null
+      const { data, error } = listingResp;
 
       if (error) {
         console.error(error);
@@ -320,10 +350,10 @@
         $status.textContent = "This listing isn't available.";
         return;
       }
-      render(data);
+      render(data, userSaves);
     }
 
-    function render(l) {
+    function render(l, userSaves) {
       const images = (l.listing_images || []).slice().sort((a, b) => a.position - b.position);
       const imgUrls = images.map(i => publicImageUrl(i.storage_path)).filter(Boolean);
       const heroUrl = imgUrls[0] || "";
@@ -334,11 +364,19 @@
       const seller   = l.profiles || {};
       const fbUrl    = fbProfileUrl(seller.facebook_profile_url);
       const priceDropped = l.previous_price_usd && Number(l.previous_price_usd) > Number(l.asking_price_usd);
+      const isSaved  = !!(userSaves && userSaves.has(l.listing_id));
+      const saveCnt  = Number(l.save_count || 0);
 
       $content.innerHTML = `
         <div class="listing">
           <div class="gallery">
-            <div class="main-img">${heroUrl ? `<img id="hero" src="${heroUrl}" alt="" />` : ""}</div>
+            <div class="main-img">
+              ${heroUrl ? `<img id="hero" src="${heroUrl}" alt="" />` : ""}
+              <button type="button" id="heart-btn" class="heart-btn${isSaved ? " is-saved" : ""}" aria-label="${isSaved ? "Unsave" : "Save listing"}">
+                <span class="heart-glyph">${isSaved ? "♥" : "♡"}</span>
+                <span class="heart-count">${saveCnt}</span>
+              </button>
+            </div>
             ${imgUrls.length > 1 ? `
               <div class="thumbs">
                 ${imgUrls.map((u, i) => `<img data-idx="${i}" src="${u}" alt="" class="${i===0?'active':''}" />`).join("")}
@@ -408,6 +446,39 @@
           }
         });
       });
+
+      // Heart / save button
+      const $heart = document.getElementById("heart-btn");
+      if ($heart) {
+        $heart.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            showAuthPrompt({ message: "Sign up to save listings. Same account also lets you sell — no commitment." });
+            return;
+          }
+          $heart.disabled = true;
+          const $glyph = $heart.querySelector(".heart-glyph");
+          const $count = $heart.querySelector(".heart-count");
+          const wasSaved = $heart.classList.contains("is-saved");
+          // Optimistic UI
+          $heart.classList.toggle("is-saved", !wasSaved);
+          $glyph.textContent = !wasSaved ? "♥" : "♡";
+          $count.textContent = String(Math.max(0, Number($count.textContent || 0) + (wasSaved ? -1 : 1)));
+          try {
+            await toggleSave(l.listing_id);
+          } catch (err) {
+            console.error("[heart] toggle failed:", err);
+            // Revert
+            $heart.classList.toggle("is-saved", wasSaved);
+            $glyph.textContent = wasSaved ? "♥" : "♡";
+            $count.textContent = String(Math.max(0, Number($count.textContent || 0) + (wasSaved ? 1 : -1)));
+          } finally {
+            $heart.disabled = false;
+          }
+        });
+      }
 
       setOgTags(l, heroUrl);
     }
