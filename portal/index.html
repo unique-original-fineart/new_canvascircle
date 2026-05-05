@@ -81,6 +81,22 @@
       font-size: 15px;
       font-family: inherit;
     }
+    /* Password field with a Show/Hide toggle */
+    .pw-wrap { position: relative; }
+    .pw-wrap input { padding-right: 60px; }
+    .pw-wrap .pw-toggle {
+      position: absolute;
+      top: 50%; right: 8px;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+    .pw-wrap .pw-toggle:hover { color: var(--fg); }
     input:focus {
       outline: none;
       border-color: var(--accent);
@@ -692,7 +708,7 @@
     </a>
     <nav>
       <a href="/">Catalog</a>
-      <a href="/portal/" id="nav-portal">Sell</a>
+      <a href="/portal/" class="cc-auth-link">Log In</a>
       <a href="/guidelines.html">Guidelines</a>
       <a href="/about.html">About</a>
     </nav>
@@ -715,7 +731,10 @@
           </div>
           <div class="field">
             <label for="signin-password">Password</label>
-            <input type="password" id="signin-password" required autocomplete="current-password" />
+            <div class="pw-wrap">
+              <input type="password" id="signin-password" required autocomplete="current-password" />
+              <button type="button" class="pw-toggle" data-target="signin-password">Show</button>
+            </div>
           </div>
           <button type="submit" class="primary" id="signin-btn">Sign in</button>
         </form>
@@ -751,7 +770,10 @@
           </div>
           <div class="field">
             <label for="signup-password">Password</label>
-            <input type="password" id="signup-password" required autocomplete="new-password" minlength="8" placeholder="At least 8 characters" />
+            <div class="pw-wrap">
+              <input type="password" id="signup-password" required autocomplete="new-password" minlength="8" placeholder="At least 8 characters" />
+              <button type="button" class="pw-toggle" data-target="signup-password">Show</button>
+            </div>
           </div>
           <button type="submit" class="primary" id="signup-btn">Create account</button>
         </form>
@@ -793,11 +815,17 @@
         <form id="recovery-form" autocomplete="on">
           <div class="field">
             <label for="rec-password">New password</label>
-            <input type="password" id="rec-password" required autocomplete="new-password" minlength="8" />
+            <div class="pw-wrap">
+              <input type="password" id="rec-password" required autocomplete="new-password" minlength="8" />
+              <button type="button" class="pw-toggle" data-target="rec-password">Show</button>
+            </div>
           </div>
           <div class="field">
             <label for="rec-password-2">Confirm new password</label>
-            <input type="password" id="rec-password-2" required autocomplete="new-password" minlength="8" />
+            <div class="pw-wrap">
+              <input type="password" id="rec-password-2" required autocomplete="new-password" minlength="8" />
+              <button type="button" class="pw-toggle" data-target="rec-password-2">Show</button>
+            </div>
           </div>
           <button type="submit" class="primary" id="recovery-btn">Update password &amp; sign in</button>
         </form>
@@ -1061,6 +1089,18 @@
       b.addEventListener("click", () => {
         clearAllBanners();
         showView(b.dataset.go);
+      });
+    });
+
+    // Password show/hide toggles
+    document.querySelectorAll(".pw-toggle").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.target;
+        const input = document.getElementById(id);
+        if (!input) return;
+        const isPw = input.type === "password";
+        input.type = isPw ? "text" : "password";
+        btn.textContent = isPw ? "Hide" : "Show";
       });
     });
 

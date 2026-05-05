@@ -138,6 +138,8 @@
     .badge.status-pending   { background: #fce6c4; color: #7a4a00; border-color: #f1c98a; }
     .badge.status-available { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
     .badge.mood             { background: #e6e0f0; color: #4a3478; border-color: #cdc1e5; }
+    .badge.cat-unique       { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
+    .badge.cat-edition      { background: #d6e6f7; color: #1f4a78; border-color: #a8c8e3; }
 
     .meta {
       background: var(--card-bg);
@@ -204,7 +206,7 @@
     </a>
     <nav>
       <a href="/">Catalog</a>
-      <a href="/portal/" id="nav-portal">Sell</a>
+      <a href="/portal/" class="cc-auth-link">Log In</a>
       <a href="/guidelines.html">Guidelines</a>
       <a href="/about.html">About</a>
     </nav>
@@ -226,7 +228,7 @@
     &copy; CanvasCircle.
     <a href="/about.html" style="color:inherit;">About</a> &middot;
     <a href="/guidelines.html" style="color:inherit;">Guidelines</a> &middot;
-    <a href="/portal/" style="color:inherit;">Seller portal</a>
+    <a href="/portal/" style="color:inherit;" class="cc-auth-link">Log In</a>
   </footer>
 
   <script type="module">
@@ -330,7 +332,7 @@
             seller_mood, last_renewed_at, created_at, seller_id, save_count,
             listing_images ( storage_path, position ),
             profiles!listings_seller_id_fkey (
-              display_name, location, facebook_profile_url
+              display_name, location, facebook_profile_url, contact_email
             )
           `)
           .eq("listing_id", id)
@@ -392,7 +394,10 @@
             </div>
 
             <div class="badges">
-              ${l.artwork_category ? `<span class="badge">${escapeHtml(l.artwork_category)}</span>` : ""}
+              ${l.artwork_category
+                ? `<span class="badge ${l.artwork_category === "Unique/Original" ? "cat-unique"
+                    : l.artwork_category === "Limited Edition" ? "cat-edition" : ""}">${escapeHtml(l.artwork_category)}</span>`
+                : ""}
               <span class="badge ${sb.cls}">${escapeHtml(sb.label)}</span>
               ${l.seller_mood ? `<span class="badge mood">${escapeHtml(l.seller_mood)}</span>` : ""}
             </div>
@@ -416,6 +421,7 @@
               ${seller.location ? `<div class="loc">${escapeHtml(seller.location)}</div>` : ""}
               <div class="seller-actions">
                 ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">Message on Facebook</a>` : ""}
+                ${seller.contact_email ? `<a id="email-seller-link" href="#">Email Seller</a>` : ""}
               </div>
             </div>
 
@@ -446,6 +452,25 @@
           }
         });
       });
+
+      // Email Seller mailto — built dynamically with listing context so the
+      // buyer's email opens with subject + body prefilled. No copy-paste needed.
+      const $emailLink = document.getElementById("email-seller-link");
+      if ($emailLink && seller.contact_email) {
+        const subject = `Inquiry about "${l.artwork_title || "your listing"}" on CanvasCircle`;
+        const body =
+          `Hi ${seller.display_name || ""},\n\n` +
+          `I'm interested in your listing on CanvasCircle:\n` +
+          `${(l.artwork_title || "Untitled")}${l.artist_name ? " by " + l.artist_name : ""}\n` +
+          `${window.location.href}\n\n` +
+          `[Your message here]\n\n` +
+          `Thanks!`;
+        const mailto =
+          "mailto:" + encodeURIComponent(seller.contact_email) +
+          "?subject=" + encodeURIComponent(subject) +
+          "&body=" + encodeURIComponent(body);
+        $emailLink.href = mailto;
+      }
 
       // Heart / save button
       const $heart = document.getElementById("heart-btn");
