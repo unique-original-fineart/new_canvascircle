@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Listing — CanvasCircle</title>
+
+  <link rel="icon" href="/assets/favicon.ico" />
+  <link rel="manifest" href="/assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#1a1a1a" />
+
+  <!-- Default OG tags; populated dynamically below once data loads. -->
+  <meta property="og:type"        content="article" />
+  <meta property="og:image"       content="https://canvascircle.art/assets/og-image.png" />
+  <meta name="twitter:card"       content="summary_large_image" />
+
+  <style>
+    :root {
+      --bg:        #faf9f6;
+      --fg:        #1a1a1a;
+      --muted:     #6b6b6b;
+      --accent:    #b8860b;
+      --card-bg:   #ffffff;
+      --card-line: #e8e4dc;
+      --shadow:    0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
+      --green:     #2a7a3e;
+      --red:       #a8281f;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.5;
+    }
+    a { color: var(--accent); }
+    header {
+      padding: 18px 16px;
+      border-bottom: 1px solid var(--card-line);
+      background: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); }
+    header img    { height: 32px; width: 32px; border-radius: 6px; }
+    header .title { font-weight: 600; font-size: 18px; letter-spacing: .2px; }
+    nav a { color: var(--fg); text-decoration: none; margin-left: 16px; font-size: 14px; }
+    nav a:hover { color: var(--accent); }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    #status {
+      margin: 24px auto;
+      max-width: 540px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--card-line);
+      color: var(--muted);
+      text-align: center;
+      font-size: 14px;
+    }
+    #status.error { color: var(--red); border-color: #f1c4be; background: #fef6f5; }
+
+    .back { display: inline-block; margin: 12px 0; color: var(--muted); text-decoration: none; font-size: 14px; }
+    .back:hover { color: var(--accent); }
+
+    .listing {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    @media (min-width: 800px) {
+      .listing { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 32px; }
+    }
+
+    .gallery { display: flex; flex-direction: column; gap: 8px; }
+    .gallery .main-img {
+      width: 100%;
+      aspect-ratio: 1/1;
+      background: #f0ede6;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .gallery .main-img img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+    .gallery .thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
+    .gallery .thumbs img {
+      width: 64px; height: 64px; object-fit: cover; border-radius: 6px;
+      border: 1px solid var(--card-line); cursor: pointer;
+    }
+    .gallery .thumbs img.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(184,134,11,.2); }
+
+    .details h1 { font-size: 22px; margin: 0 0 4px; }
+    .details .artist { font-size: 18px; font-weight: 600; }
+    .details .title  { font-size: 16px; color: var(--muted); margin-bottom: 12px; }
+
+    .price-row {
+      display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 6px 0 14px;
+    }
+    .price        { font-size: 26px; font-weight: 700; }
+    .prev-price   { color: var(--muted); text-decoration: line-through; font-size: 16px; }
+    .price-drop   { color: var(--green); font-size: 13px; font-weight: 600; }
+
+    .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .badge {
+      display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px;
+      font-weight: 600; background: #efe9d8; color: #6a4c00; border: 1px solid #e3d8b1;
+    }
+    .badge.status-sold      { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
+    .badge.status-pending   { background: #fce6c4; color: #7a4a00; border-color: #f1c98a; }
+    .badge.status-available { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
+    .badge.mood             { background: #e6e0f0; color: #4a3478; border-color: #cdc1e5; }
+
+    .meta {
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin: 12px 0;
+      box-shadow: var(--shadow);
+    }
+    .meta dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; }
+    .meta dt { font-size: 13px; color: var(--muted); }
+    .meta dd { font-size: 14px; margin: 0; }
+
+    .section h3 { font-size: 14px; margin: 18px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .section p  { margin: 0; white-space: pre-line; }
+
+    .seller-block {
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 18px;
+      box-shadow: var(--shadow);
+    }
+    .seller-block .name { font-weight: 600; }
+    .seller-block .loc  { color: var(--muted); font-size: 14px; margin-top: 2px; }
+    .seller-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .seller-actions a {
+      display: inline-block; padding: 9px 14px; border-radius: 8px;
+      text-decoration: none; font-size: 14px; font-weight: 600;
+      border: 1px solid var(--card-line); background: #fff; color: var(--fg);
+    }
+    .seller-actions a.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .seller-actions a:hover  { filter: brightness(.97); }
+
+    .listed-line { color: var(--muted); font-size: 13px; margin-top: 14px; }
+
+    /* Lightbox */
+    .lightbox {
+      position: fixed; inset: 0; background: rgba(0,0,0,.85);
+      display: none; align-items: center; justify-content: center; z-index: 1000;
+      padding: 16px; cursor: zoom-out;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img  { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 32px 16px;
+      border-top: 1px solid var(--card-line);
+      background: #fff;
+      margin-top: 48px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a class="brand" href="/">
+      <img src="/assets/CanvasCircleLogo.png" alt="CanvasCircle" />
+      <span class="title">CanvasCircle</span>
+    </a>
+    <nav>
+      <a href="/">Catalog</a>
+      <a href="/portal/">Sell</a>
+      <a href="/about.html">About</a>
+    </nav>
+  </header>
+
+  <main>
+    <a class="back" href="/">&larr; Back to catalog</a>
+    <div id="status">Loading listing&hellip;</div>
+    <div id="content" hidden></div>
+  </main>
+
+  <div class="lightbox" id="lightbox" aria-hidden="true">
+    <img id="lightbox-img" src="" alt="" />
+  </div>
+
+  <footer>
+    &copy; CanvasCircle. <a href="/about.html" style="color:inherit;">About</a> &middot;
+    <a href="/portal/" style="color:inherit;">Seller portal</a>
+  </footer>
+
+  <script type="module">
+    import { supabase, publicImageUrl } from "/lib/supabase.js";
+
+    const $status   = document.getElementById("status");
+    const $content  = document.getElementById("content");
+    const $lightbox = document.getElementById("lightbox");
+    const $lbImg    = document.getElementById("lightbox-img");
+
+    function getListingId() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("id");
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? "").replace(/[&<>"']/g, c => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+      }[c]));
+    }
+
+    function fmtPrice(n) {
+      if (n == null || isNaN(Number(n))) return "—";
+      return "$" + Number(n).toLocaleString();
+    }
+
+    function fmtDimensions(h, w, d) {
+      const parts = [];
+      if (h) parts.push(Number(h));
+      if (w) parts.push(Number(w));
+      if (d) parts.push(Number(d));
+      if (!parts.length) return null;
+      return parts.join(" × ") + " in";
+    }
+
+    function daysSince(iso) {
+      if (!iso) return null;
+      const d = new Date(iso);
+      const ms = Date.now() - d.getTime();
+      return Math.max(0, Math.floor(ms / 86400000));
+    }
+
+    function statusBadge(status) {
+      const map = {
+        available:      "Available",
+        pending:        "Pending sale",
+        sold:           "Sold",
+        delisted:       "Delisted",
+        not_renewed:    "Not renewed",
+        pending_review: "Pending review",
+        rejected:       "Rejected",
+      };
+      const cls = ["available", "pending", "sold"].includes(status) ? `status-${status}` : "";
+      return { label: map[status] || status, cls };
+    }
+
+    function fbProfileUrl(url) {
+      if (!url) return null;
+      const trimmed = String(url).trim();
+      if (!trimmed) return null;
+      if (/^https?:\/\//i.test(trimmed)) return trimmed;
+      return "https://" + trimmed;
+    }
+
+    function setOgTags(listing, imgUrl) {
+      const title = `${listing.artist_name || "Artwork"} — ${listing.artwork_title || ""}`.trim();
+      document.title = title + " — CanvasCircle";
+      const setMeta = (prop, val) => {
+        let el = document.querySelector(`meta[property="${prop}"]`);
+        if (!el) {
+          el = document.createElement("meta");
+          el.setAttribute("property", prop);
+          document.head.appendChild(el);
+        }
+        el.setAttribute("content", val);
+      };
+      setMeta("og:title", title);
+      setMeta("og:description", listing.description || "An original or resold artwork on CanvasCircle.");
+      if (imgUrl) setMeta("og:image", imgUrl);
+      setMeta("og:url", window.location.href);
+    }
+
+    async function loadListing() {
+      const id = getListingId();
+      if (!id) {
+        $status.textContent = "No listing id provided.";
+        $status.classList.add("error");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("listings")
+        .select(`
+          listing_id, artist_name, artwork_title, artwork_category, medium, year_created,
+          height_in, width_in, depth_in, condition_notes, provenance, description,
+          asking_price_usd, previous_price_usd, price_updated_at,
+          shipping_offered, coa_included, status, moderation_status,
+          seller_mood, last_renewed_at, created_at, seller_id,
+          listing_images ( storage_path, position ),
+          profiles!listings_seller_id_fkey (
+            display_name, location, facebook_profile_url
+          )
+        `)
+        .eq("listing_id", id)
+        .maybeSingle();
+
+      if (error) {
+        console.error(error);
+        $status.textContent = "Could not load this listing. Please try again later.";
+        $status.classList.add("error");
+        return;
+      }
+      if (!data) {
+        $status.textContent = "This listing isn't available.";
+        return;
+      }
+      render(data);
+    }
+
+    function render(l) {
+      const images = (l.listing_images || []).slice().sort((a, b) => a.position - b.position);
+      const imgUrls = images.map(i => publicImageUrl(i.storage_path)).filter(Boolean);
+      const heroUrl = imgUrls[0] || "";
+
+      const dims     = fmtDimensions(l.height_in, l.width_in, l.depth_in);
+      const sb       = statusBadge(l.status);
+      const days     = daysSince(l.created_at);
+      const seller   = l.profiles || {};
+      const fbUrl    = fbProfileUrl(seller.facebook_profile_url);
+      const priceDropped = l.previous_price_usd && Number(l.previous_price_usd) > Number(l.asking_price_usd);
+
+      $content.innerHTML = `
+        <div class="listing">
+          <div class="gallery">
+            <div class="main-img">${heroUrl ? `<img id="hero" src="${heroUrl}" alt="" />` : ""}</div>
+            ${imgUrls.length > 1 ? `
+              <div class="thumbs">
+                ${imgUrls.map((u, i) => `<img data-idx="${i}" src="${u}" alt="" class="${i===0?'active':''}" />`).join("")}
+              </div>` : ""}
+          </div>
+          <div class="details">
+            <div class="artist">${escapeHtml(l.artist_name || "Unknown artist")}</div>
+            <div class="title">${escapeHtml(l.artwork_title || "")}</div>
+
+            <div class="price-row">
+              <span class="price">${fmtPrice(l.asking_price_usd)}</span>
+              ${priceDropped ? `<span class="prev-price">${fmtPrice(l.previous_price_usd)}</span><span class="price-drop">Price dropped</span>` : ""}
+            </div>
+
+            <div class="badges">
+              ${l.artwork_category ? `<span class="badge">${escapeHtml(l.artwork_category)}</span>` : ""}
+              <span class="badge ${sb.cls}">${escapeHtml(sb.label)}</span>
+              ${l.seller_mood ? `<span class="badge mood">${escapeHtml(l.seller_mood)}</span>` : ""}
+            </div>
+
+            <div class="meta">
+              <dl>
+                ${dims        ? `<dt>Artwork size</dt><dd>${escapeHtml(dims)}</dd>` : ""}
+                ${l.medium    ? `<dt>Medium</dt><dd>${escapeHtml(l.medium)}</dd>` : ""}
+                ${l.year_created ? `<dt>Year</dt><dd>${escapeHtml(l.year_created)}</dd>` : ""}
+                <dt>Shipping included</dt><dd>${escapeHtml(l.shipping_offered || "—")}</dd>
+                <dt>COA included</dt><dd>${escapeHtml(l.coa_included || "—")}</dd>
+              </dl>
+            </div>
+
+            ${l.condition_notes ? `<div class="section"><h3>Condition</h3><p>${escapeHtml(l.condition_notes)}</p></div>` : ""}
+            ${l.provenance      ? `<div class="section"><h3>Provenance</h3><p>${escapeHtml(l.provenance)}</p></div>` : ""}
+            ${l.description     ? `<div class="section"><h3>Description</h3><p>${escapeHtml(l.description)}</p></div>` : ""}
+
+            <div class="seller-block">
+              <div class="name">${escapeHtml(seller.display_name || "Seller")}</div>
+              ${seller.location ? `<div class="loc">${escapeHtml(seller.location)}</div>` : ""}
+              <div class="seller-actions">
+                ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">Message on Facebook</a>` : ""}
+              </div>
+            </div>
+
+            ${days != null ? `<div class="listed-line">Listed ${days === 0 ? "today" : days === 1 ? "1 day ago" : `${days} days ago`}.</div>` : ""}
+          </div>
+        </div>
+      `;
+
+      $status.hidden = true;
+      $content.hidden = false;
+
+      // Wire up gallery interactions
+      const hero = document.getElementById("hero");
+      if (hero) {
+        hero.addEventListener("click", () => {
+          $lbImg.src = hero.src;
+          $lightbox.classList.add("open");
+        });
+      }
+      $content.querySelectorAll(".thumbs img").forEach(t => {
+        t.addEventListener("click", () => {
+          const idx = Number(t.dataset.idx || 0);
+          const url = imgUrls[idx];
+          if (url && hero) {
+            hero.src = url;
+            $content.querySelectorAll(".thumbs img").forEach(x => x.classList.remove("active"));
+            t.classList.add("active");
+          }
+        });
+      });
+
+      setOgTags(l, heroUrl);
+    }
+
+    $lightbox.addEventListener("click", () => $lightbox.classList.remove("open"));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") $lightbox.classList.remove("open");
+    });
+
+    loadListing();
+  </script>
+</body>
+</html>
