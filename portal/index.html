@@ -557,6 +557,27 @@
       outline: none; border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(184,134,11,.15);
     }
+    .sp-collages {
+      display: flex; flex-direction: column; gap: 16px;
+      margin-top: 8px;
+    }
+    .sp-collage {
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fff;
+    }
+    .sp-collage img {
+      width: 100%; height: auto; display: block;
+      border-radius: 6px;
+    }
+    .sp-collage .sp-collage-actions {
+      display: flex; gap: 8px; align-items: center;
+      margin-top: 8px;
+    }
+    .sp-collage .sp-collage-label {
+      font-size: 13px; color: var(--muted);
+    }
 
     footer {
       text-align: center;
@@ -866,18 +887,22 @@
         <!-- Step 3: Generate -->
         <div class="sp-step">
           <h3>3. Generate</h3>
-          <p class="help">Builds the post text. Collage images come in the next step (Phase 2.5b).</p>
-          <button type="button" class="btn-primary" id="sp-generate-btn">Generate post text</button>
+          <p class="help">Builds the post text and collage images. Up to 6 listings per collage; download each PNG and attach to your Facebook post.</p>
+          <button type="button" class="btn-primary" id="sp-generate-btn">Generate post + images</button>
+          <span class="sp-text-status" id="sp-generate-status"></span>
         </div>
 
         <!-- Output -->
         <div class="sp-output" id="sp-output" hidden>
-          <h3>Generated post</h3>
+          <h3>Generated post text</h3>
           <textarea id="sp-text" readonly></textarea>
           <div style="display:flex; gap:8px; margin-top:8px;">
             <button type="button" class="btn-primary" id="sp-copy-btn">Copy text</button>
             <span class="sp-text-status" id="sp-copy-status"></span>
           </div>
+
+          <h3 style="margin-top: 22px;">Collage images</h3>
+          <div class="sp-collages" id="sp-collages"></div>
         </div>
       </section>
 
@@ -1815,18 +1840,21 @@
       // Category line
       if (l.artwork_category) lines.push(l.artwork_category);
 
-      // Price (or SOLD)
+      // Price line — bakes shipping into it.
+      //   shipping included → "$1,200 shipped"
+      //   not included      → "$1,200 + shipping"
+      //   sold              → "-SOLD"
       if (l.status === "sold") {
         lines.push("-SOLD");
       } else {
         const priceNum = Number(l.asking_price_usd || 0);
-        lines.push("$" + priceNum.toLocaleString());
+        const priceStr = "$" + priceNum.toLocaleString();
+        const shipSuffix = l.shipping_offered === "Yes" ? " shipped" : " + shipping";
+        lines.push(priceStr + shipSuffix);
       }
 
-      // Logistics
-      const ship = l.shipping_offered === "Yes" ? "Shipping included" : "Shipping not included";
-      const coa  = l.coa_included     === "Yes" ? "COA included"      : "No COA";
-      lines.push(`${ship} · ${coa}`);
+      // COA
+      lines.push(l.coa_included === "Yes" ? "COA included" : "No COA");
 
       // Mood
       if (l.seller_mood) lines.push(l.seller_mood);
@@ -1847,23 +1875,221 @@
       return parts.join("\n\n");
     }
 
-    $spGenerateBtn.addEventListener("click", () => {
+    // -- Collage rendering ---------------------------------------------------
+    const COLLAGE_CELL_W   = 600;
+    const COLLAGE_CELL_H   = 600;
+    const COLLAGE_HEADER_H = 64;
+    const COLLAGE_PADDING  = 14;
+    const COLLAGE_MAX_PER  = 6;
+
+    function gridShapeFor(n) {
+      if (n <= 1) return [1, 1];
+      if (n === 2) return [2, 1];
+      if (n === 3) return [3, 1];
+      if (n === 4) return [2, 2];
+      return [3, 2]; // 5 or 6
+    }
+
+    function chunkArr(arr, size) {
+      const out = [];
+      for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+      return out;
+    }
+
+    function loadCanvasImage(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload  = () => resolve(img);
+        img.onerror = () => reject(new Error("img-load-failed: " + url));
+        img.src = url;
+      });
+    }
+
+    function fitText(ctx, text, maxWidth) {
+      // Truncate with ellipsis to fit maxWidth.
+      if (ctx.measureText(text).width <= maxWidth) return text;
+      let s = text;
+      while (s.length > 1 && ctx.measureText(s + "…").width > maxWidth) s = s.slice(0, -1);
+      return s + "…";
+    }
+
+    async function drawCellOnCanvas(ctx, listing, x, y) {
+      // Header strip (dark bar with artist – title)
+      ctx.fillStyle = "#1f1a17";
+      ctx.fillRect(x, y, COLLAGE_CELL_W, COLLAGE_HEADER_H);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "600 28px Georgia, 'Times New Roman', serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const headerText = [listing.artist_name, listing.artwork_title].filter(Boolean).join(" – ");
+      ctx.fillText(fitText(ctx, headerText, COLLAGE_CELL_W - 24),
+                   x + COLLAGE_CELL_W / 2,
+                   y + COLLAGE_HEADER_H / 2);
+
+      // Image area background
+      const imgY = y + COLLAGE_HEADER_H;
+      ctx.fillStyle = "#f0ede6";
+      ctx.fillRect(x, imgY, COLLAGE_CELL_W, COLLAGE_CELL_H);
+
+      // Draw image cover-fitted
+      const images = (listing.listing_images || []).slice().sort((a,b) => a.position - b.position);
+      const path   = images[0]?.storage_path;
+      if (path) {
+        try {
+          const img = await loadCanvasImage(publicImageUrl(path));
+          const ratio = Math.max(COLLAGE_CELL_W / img.naturalWidth, COLLAGE_CELL_H / img.naturalHeight);
+          const dw = img.naturalWidth * ratio;
+          const dh = img.naturalHeight * ratio;
+          const dx = x + (COLLAGE_CELL_W - dw) / 2;
+          const dy = imgY + (COLLAGE_CELL_H - dh) / 2;
+          // Clip to cell bounds
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(x, imgY, COLLAGE_CELL_W, COLLAGE_CELL_H);
+          ctx.clip();
+          ctx.drawImage(img, dx, dy, dw, dh);
+          ctx.restore();
+        } catch (e) {
+          console.warn("[collage] image load failed", e);
+          // Leave the placeholder background in place
+        }
+      }
+
+      // SOLD overlay
+      if (listing.status === "sold") {
+        ctx.fillStyle = "rgba(168, 40, 31, 0.55)";
+        ctx.fillRect(x, imgY, COLLAGE_CELL_W, COLLAGE_CELL_H);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "800 110px Georgia, 'Times New Roman', serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "rgba(0,0,0,.35)";
+        ctx.shadowBlur  = 10;
+        ctx.fillText("SOLD", x + COLLAGE_CELL_W / 2, imgY + COLLAGE_CELL_H / 2);
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    async function buildCollageCanvas(chunkOfListings) {
+      const n = chunkOfListings.length;
+      const [cols, rows] = gridShapeFor(n);
+      const cellTotalH = COLLAGE_CELL_H + COLLAGE_HEADER_H;
+      const W = COLLAGE_PADDING + cols * COLLAGE_CELL_W + (cols - 1) * COLLAGE_PADDING + COLLAGE_PADDING;
+      const H = COLLAGE_PADDING + rows * cellTotalH    + (rows - 1) * COLLAGE_PADDING + COLLAGE_PADDING;
+      const canvas = document.createElement("canvas");
+      canvas.width  = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, W, H);
+      for (let i = 0; i < n; i++) {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = COLLAGE_PADDING + col * (COLLAGE_CELL_W + COLLAGE_PADDING);
+        const y = COLLAGE_PADDING + row * (cellTotalH    + COLLAGE_PADDING);
+        await drawCellOnCanvas(ctx, chunkOfListings[i], x, y);
+      }
+      return canvas;
+    }
+
+    function slugifyName(s) {
+      return String(s || "seller").toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        || "seller";
+    }
+
+    async function renderCollages(selected, sellerSlug) {
+      const $collages = document.getElementById("sp-collages");
+      $collages.innerHTML = "";
+      const chunks = chunkArr(selected, COLLAGE_MAX_PER);
+      for (let idx = 0; idx < chunks.length; idx++) {
+        const wrap = document.createElement("div");
+        wrap.className = "sp-collage";
+        wrap.innerHTML = `
+          <div class="sp-collage-label">Collage ${idx + 1} of ${chunks.length} — ${chunks[idx].length} listing${chunks[idx].length === 1 ? "" : "s"}</div>
+          <div class="sp-collage-img"></div>
+          <div class="sp-collage-actions">
+            <button type="button" class="btn-primary" data-download>Download PNG</button>
+            <span class="sp-text-status sp-collage-msg"></span>
+          </div>
+        `;
+        $collages.appendChild(wrap);
+
+        const $msg = wrap.querySelector(".sp-collage-msg");
+        $msg.textContent = "Rendering…";
+        $msg.className = "sp-text-status";
+
+        try {
+          const canvas = await buildCollageCanvas(chunks[idx]);
+          // Show as <img> from data URL — easier to right-click-save in addition
+          // to the explicit Download button.
+          const dataUrl = canvas.toDataURL("image/png");
+          const previewImg = document.createElement("img");
+          previewImg.alt = `Collage ${idx + 1}`;
+          previewImg.src = dataUrl;
+          wrap.querySelector(".sp-collage-img").appendChild(previewImg);
+          $msg.textContent = "";
+
+          wrap.querySelector("[data-download]").addEventListener("click", () => {
+            // Use the same data URL; trigger a download.
+            const a = document.createElement("a");
+            a.href = dataUrl;
+            a.download = `${sellerSlug}_SalesPost_${idx + 1}.png`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+          });
+        } catch (err) {
+          console.error("[collage] failed:", err);
+          $msg.textContent = "Couldn't render this collage. " + (err.message || err);
+          $msg.className = "sp-text-status err";
+        }
+      }
+    }
+
+    $spGenerateBtn.addEventListener("click", async () => {
+      const $genStatus = document.getElementById("sp-generate-status");
+      $genStatus.textContent = "";
+      $genStatus.className = "sp-text-status";
+
       const checked = Array.from($spListings.querySelectorAll("input[type=checkbox]:checked"));
       if (!checked.length) {
-        $spText.value = "Pick at least one listing first.";
-        $spOutput.hidden = false;
+        $genStatus.textContent = "Pick at least one listing first.";
+        $genStatus.className = "sp-text-status err";
         return;
       }
       const ids = new Set(checked.map((c) => c.dataset.id));
       // Preserve the order they appear in the picker (newest first)
       const selected = (allListings || []).filter((l) => ids.has(l.listing_id))
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      // 1) Text
       const text = buildFullPostText(selected, $spHeader.value, $spFooter.value);
       $spText.value = text;
       $spOutput.hidden = false;
       $spCopyStatus.textContent = "";
       $spCopyStatus.className = "sp-text-status";
       $spOutput.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      // 2) Collages — async; show progress text in the meantime.
+      $spGenerateBtn.disabled = true;
+      $spGenerateBtn.textContent = "Rendering images…";
+      try {
+        const profile = await currentProfile();
+        const slug = slugifyName(profile?.display_name);
+        await renderCollages(selected, slug);
+        $genStatus.textContent = `Rendered ${Math.ceil(selected.length / COLLAGE_MAX_PER)} collage image${selected.length > COLLAGE_MAX_PER ? "s" : ""}.`;
+        $genStatus.className = "sp-text-status ok";
+      } catch (err) {
+        console.error("[generate] failed:", err);
+        $genStatus.textContent = "Generation failed: " + (err.message || err);
+        $genStatus.className = "sp-text-status err";
+      } finally {
+        $spGenerateBtn.disabled = false;
+        $spGenerateBtn.textContent = "Generate post + images";
+      }
     });
 
     $spCopyBtn.addEventListener("click", async () => {
