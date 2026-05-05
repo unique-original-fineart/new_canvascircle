@@ -53,7 +53,7 @@ begin
 
   insert into public.listing_images (listing_id, storage_path, position) values
     ('11111111-1111-1111-1111-111111111111',
-     'https://images.unsplash.com/photo-1549887534-1541e9326642?w=1200', 0)
+     'https://images.unsplash.com/photo-1547826039-bfc35e0f1ea8?w=1200', 0)
   on conflict do nothing;
 
   -- Listing 2: a sculpture, motivated to sell
