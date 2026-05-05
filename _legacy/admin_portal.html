@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #f5f1ea;
+      --card: rgba(255,255,255,0.92);
+      --text: #1f1a17;
+      --muted: #6f675e;
+      --line: #dbd1c4;
+      --shadow-soft: 0 8px 22px rgba(35, 27, 20, 0.05);
+      --shadow: 0 14px 30px rgba(35, 27, 20, 0.08);
+      --accent: #1f7a1f;
+      --danger: #c93f3f;
+      --warn: #b3791e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.7), transparent 35%),
+        linear-gradient(180deg, #f7f3ed 0%, #f2ece3 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+    .page { max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; }
+    .hero {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 18px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+    .hero h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(26px, 4vw, 36px);
+      letter-spacing: -0.02em;
+      font-weight: 600;
+    }
+    .hero .hero-sub { color: var(--muted); font-size: 14px; }
+
+    .toolbar {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow-soft);
+      margin-bottom: 18px;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr auto auto;
+      align-items: center;
+      gap: 10px;
+    }
+    .toolbar input.search,
+    .toolbar select {
+      width: 100%;
+      padding: 9px 12px;
+      font: inherit;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--text);
+    }
+    .toolbar .filter-meta {
+      grid-column: 1 / -1;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .toolbar button.refresh,
+    .toolbar button.clear {
+      padding: 8px 14px;
+      font: inherit;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .toolbar button.clear { background: rgba(255,255,255,0.6); }
+    .toolbar button.clear:hover { background: #fff; border-color: rgba(31,26,23,0.4); }
+    @media (max-width: 720px) {
+      .toolbar { grid-template-columns: 1fr 1fr; }
+      .toolbar input.search { grid-column: 1 / -1; }
+      .toolbar button.refresh,
+      .toolbar button.clear { grid-column: span 1; }
+    }
+
+    /* Trusted-sellers panel */
+    .panel { background: var(--card); padding: 16px 18px; border-radius: 18px; margin-bottom: 16px; border: 1px solid var(--line); box-shadow: var(--shadow-soft); }
+    .panel h2 { margin: 0 0 4px; font-family: Georgia, "Times New Roman", serif; font-size: 20px; font-weight: 600; }
+    .panel .help { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+    .panel input.search,
+    .panel input[type="email"] {
+      width: 100%;
+      padding: 10px 12px;
+      font: inherit;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--text);
+    }
+    .trust-meta { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+    .trust-list { margin-top: 10px; max-height: 320px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+    .trust-list .trust-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border-bottom:1px solid #f1eadd; font-size:14px; }
+    .trust-list .trust-row:last-child { border-bottom:none; }
+    .trust-row .who { min-width:0; flex:1; }
+    .trust-row .who .name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .trust-row .who .email { color: var(--muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .trust-row .count { font-size:12px; color: var(--muted); white-space:nowrap; }
+    .trust-row.is-trusted { background:#f3f9f3; }
+    .trust-row .toggle { padding:7px 13px; font-size:13px; border-radius:999px; border:1px solid var(--line); background:#fff; cursor:pointer; white-space:nowrap; }
+    .trust-row .toggle.on { background: var(--accent); border-color: var(--accent); color:#fff; }
+    .trust-row .toggle:disabled { opacity:0.55; cursor:wait; }
+    .trust-row .seller-mailto { font-size:12px; color: var(--text); text-decoration: none; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: #fff; white-space:nowrap; }
+    .trust-row .seller-mailto:hover { background: #f6efe3; }
+    .trust-list .empty { padding:14px; color: var(--muted); font-size:13px; text-align:center; }
+
+    /* Broadcast email panel */
+    .broadcast-panel { display:flex; flex-direction:column; gap:10px; }
+    .broadcast-panel label { font-size:13px; color: var(--muted); }
+    .broadcast-panel input.bc-subject,
+    .broadcast-panel textarea.bc-body {
+      width:100%;
+      padding:10px 12px;
+      font: inherit;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:#fff;
+      color: var(--text);
+    }
+    .broadcast-panel textarea.bc-body { min-height:160px; resize: vertical; }
+    .broadcast-panel .bc-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .broadcast-panel button.bc-send {
+      padding: 9px 18px;
+      border-radius:999px;
+      border:1px solid var(--accent);
+      background: var(--accent);
+      color:#fff;
+      font: inherit;
+      font-weight:600;
+      cursor:pointer;
+    }
+    .broadcast-panel button.bc-send:disabled { opacity:0.55; cursor:wait; }
+    .broadcast-panel .bc-status { font-size:13px; min-height:16px; }
+    .broadcast-panel .bc-status.ok { color: var(--accent); }
+    .broadcast-panel .bc-status.err { color: var(--danger); }
+    .broadcast-panel .bc-status.info { color: var(--muted); }
+    .broadcast-panel .bc-recipient-count { font-size:13px; color: var(--muted); }
+
+    /* Rotate seller link */
+    .rotate-row { display:flex; gap:8px; }
+    .rotate-row input { flex:1; }
+    .rotate-row button.rotate { background:#7a4d00; color:#fff; padding:0 16px; font-size:14px; white-space:nowrap; border:none; border-radius: 12px; cursor:pointer; }
+    .rotate-row button.rotate:disabled { opacity:0.55; cursor:wait; }
+    .rotate-status { font-size:13px; margin-top:8px; min-height:16px; }
+    .rotate-status.ok { color: var(--accent); }
+    .rotate-status.err { color: var(--danger); }
+    .rotate-status.info { color: var(--muted); }
+
+    /* Listings grid — catalog-style cards */
+    .listings-meta { font-size:13px; color: var(--muted); margin: 4px 0 14px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 22px;
+    }
+    .a-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .a-card-img-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(239,232,220,0.9));
+      border-bottom: 1px solid var(--line);
+      padding: 18px;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      position: relative;
+    }
+    .a-card-img-wrap img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      background: #f3efe8;
+      border: 6px solid white;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08), 0 12px 28px rgba(0,0,0,0.10);
+    }
+    .a-card-img-wrap .no-img {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .mod-pill {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: #fff;
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+    .mod-pill.pending_review { background: #fbf3df; border-color: #ecdca8; color: #715814; }
+    .mod-pill.approved { background: #edf6ee; border-color: #bcdbc0; color: #1f5d23; }
+    .mod-pill.rejected { background: #f6e5e5; border-color: #e0b9b9; color: #8b1f1f; }
+
+    .a-card-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .a-card .artist {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 19px;
+      letter-spacing: -0.02em;
+      font-weight: 600;
+      line-height: 1.1;
+    }
+    .a-card .title { font-style: italic; color: var(--muted); font-size: 15px; }
+    .a-card .price-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .a-card .price { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+    .a-card .badges { display:flex; flex-wrap: wrap; gap: 6px; }
+    .a-card .badge {
+      font-size: 11px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-weight: 600;
+    }
+    .a-card .badge.muted { color: var(--muted); background: rgba(255,255,255,0.5); }
+    .a-card .badge.cat { background: #efeae0; }
+    .a-card .badge.status-available { background: #edf6ee; color: #1f5d23; }
+    .a-card .badge.status-pending { background: #fbf3df; color: #715814; }
+    .a-card .badge.status-sold { background: #f6e5e5; color: #8b1f1f; }
+    .a-card .badge.status-delisted { background: #eee6e1; color: #5a4a3d; }
+
+    .a-card .specs { font-size: 13px; color: var(--text); display: grid; gap: 4px; }
+    .a-card .spec-row { display:flex; gap: 8px; }
+    .a-card .spec-row .spec-label { color: var(--muted); min-width: 96px; }
+
+    .a-card .seller {
+      font-size: 13px;
+      color: var(--text);
+      padding-top: 8px;
+      border-top: 1px dashed var(--line);
+    }
+    .a-card .seller .seller-name { font-weight: 600; }
+    .a-card .seller .seller-email { color: var(--muted); font-size: 12px; word-break: break-all; }
+    .a-card .seller .seller-fb { font-size: 12px; }
+    .a-card .seller .seller-fb a { color: var(--text); }
+
+    .a-card .notes { font-size: 13px; color: var(--text); white-space: pre-wrap; }
+    .a-card .notes.collapsed { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    .a-card .notes-toggle { background:none; border:none; padding:0; color: var(--muted); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; align-self: flex-start; }
+
+    .a-card .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .a-card .actions button {
+      flex: 1;
+      min-width: 120px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+    }
+    .a-card .actions button.approve { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .a-card .actions button.reject { background: #fff; border-color: var(--danger); color: var(--danger); }
+    .a-card .actions button.reinstate { background: #7a4d00; border-color: #7a4d00; color: #fff; }
+    .a-card .actions button:disabled { opacity: 0.55; cursor: wait; }
+
+    .empty-listings {
+      background: var(--card);
+      border: 1px dashed var(--line);
+      border-radius: 18px;
+      padding: 36px 20px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    /* Back-to-top button */
+    #backToTop {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.96);
+      color: #1f1a17;
+      font-size: 20px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+    #backToTop.show { display: flex; }
+    #backToTop:hover { background: #fff; }
+
+    @media (max-width: 720px) {
+      .page { padding: 22px 12px 70px; }
+      .grid { grid-template-columns: 1fr; gap: 16px; }
+      .toolbar { gap: 8px; }
+      .toolbar select { min-width: 0; flex: 1; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="page">
+  <header class="hero">
+    <div>
+      <h1>Admin Portal</h1>
+      <div class="hero-sub">Approve / reject listings, manage trusted sellers, and rotate seller links.</div>
+    </div>
+  </header>
+
+  <div class="panel broadcast-panel">
+    <h2>Email all sellers</h2>
+    <p class="help">Sends an individual email to every seller on file (one message per seller — no one sees other addresses). From: Canvas Circle.</p>
+    <label for="broadcastSubject">Subject</label>
+    <input id="broadcastSubject" class="bc-subject" type="text" placeholder="e.g. Canvas Circle update — new feature for sellers" autocomplete="off" />
+    <label for="broadcastBody">Message</label>
+    <textarea id="broadcastBody" class="bc-body" placeholder="Hi all,&#10;&#10;Quick note from Canvas Circle..."></textarea>
+    <div class="bc-actions">
+      <button id="broadcastSendButton" class="bc-send" type="button" disabled>Send to 0 sellers</button>
+      <span id="broadcastRecipientCount" class="bc-recipient-count">Loading recipient count...</span>
+    </div>
+    <div id="broadcastStatus" class="bc-status info"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Sellers (auto-approve &amp; contact)</h2>
+    <p class="help">Sellers marked trusted have their new submissions and edits auto-approved — no manual review, the catalog rebuilds automatically (debounced ~2 min). Use the ✉ Email link on any row to message that seller directly.</p>
+    <input id="trustSearchInput" class="search" type="search" placeholder="Search sellers by name or email..." autocomplete="off" />
+    <div id="trustListMeta" class="trust-meta"></div>
+    <div id="trustList" class="trust-list"><div class="empty">Loading sellers...</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Rotate seller link</h2>
+    <p class="help">Use only when a seller reports their private link was leaked. Issues a new link and emails it to them; the old link stops working.</p>
+    <div class="rotate-row">
+      <input id="rotateSellerEmailInput" type="email" placeholder="seller@example.com" autocomplete="off" />
+      <button id="rotateSellerButton" class="rotate" type="button">Rotate &amp; Email</button>
+    </div>
+    <div id="rotateSellerStatus" class="rotate-status info"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Expiring listings</h2>
+    <p class="help">Listings auto-demote to "Not Renewed" after 60 days without seller activity. Use "Refresh now" on a seller's row to extend all their renewable listings (useful when a seller is on vacation). The list shows sellers with the most-urgent listings first.</p>
+    <div id="expiringMeta" class="trust-meta"></div>
+    <div id="expiringList" class="trust-list"><div class="empty">Loading listings...</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Update catalog</h2>
+    <p class="help">Manually trigger a GitHub workflow rebuild of canvascircle.art — useful if you want a fresh deploy without changing any listing. New listings normally trigger a rebuild automatically on approval; this is the manual "go" button.</p>
+    <div class="rotate-row">
+      <button id="rebuildCatalogButton" class="rotate" type="button" style="background:#1f7a1f; padding:9px 18px;">↻ Update Catalog</button>
+    </div>
+    <div id="rebuildCatalogStatus" class="rotate-status info"></div>
+  </div>
+
+  <div class="toolbar">
+    <input type="search" id="searchInput" class="search" placeholder="Search artist, title, seller, listing ID..." autocomplete="off" />
+    <select id="statusFilter">
+      <option value="pending_review" selected>Pending Review</option>
+      <option value="approved">Approved</option>
+      <option value="rejected">Rejected</option>
+      <option value="delisted">Removed from seller portal</option>
+      <option value="all">All</option>
+    </select>
+    <select id="sellerFilter"><option value="">All Sellers</option></select>
+    <select id="artistFilter"><option value="">All Artists</option></select>
+    <button class="clear" id="clearFiltersButton" type="button">Clear</button>
+    <button class="refresh" id="refreshButton" type="button">Refresh</button>
+    <span class="filter-meta" id="filterMeta"></span>
+  </div>
+
+  <div class="listings-meta" id="listingsMeta"></div>
+  <div id="listings"></div>
+</div>
+
+<button id="backToTop" type="button" aria-label="Back to top">↑</button>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+let listings = [];
+const inFlightActions = new Set(); // listing ids currently mid-action
+
+// ---------- Utilities ----------
+
+function escapeHtml(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value).replace(/'/g, "&#39;");
+}
+
+function formatPrice(rawPrice) {
+  const trimmed = String(rawPrice == null ? "" : rawPrice).replace(/[$,\s]/g, "").trim();
+  if (!trimmed) return "Price on request";
+  const n = Number(trimmed);
+  if (!isFinite(n)) return "$" + escapeHtml(rawPrice);
+  return n % 1 === 0
+    ? "$" + n.toLocaleString()
+    : "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function listingMatchesStatusFilter(listing, filter) {
+  if (filter === "all") return true;
+  if (filter === "delisted") {
+    return String(listing.status || "").toLowerCase() === "delisted";
+  }
+  // moderation filters: don't show delisted listings under approved/rejected/pending_review
+  // (admin manages them via the "Removed from seller portal" view).
+  const isDelisted = String(listing.status || "").toLowerCase() === "delisted";
+  if (isDelisted) return false;
+  return String(listing.moderation_status || "pending_review") === filter;
+}
+
+function listingMatchesAllFilters(listing) {
+  const status = document.getElementById("statusFilter").value;
+  const seller = (document.getElementById("sellerFilter").value || "").toLowerCase();
+  const artist = (document.getElementById("artistFilter").value || "").toLowerCase();
+  const query = (document.getElementById("searchInput").value || "").trim().toLowerCase();
+
+  if (!listingMatchesStatusFilter(listing, status)) return false;
+  if (seller && String(listing.seller_name || "").toLowerCase() !== seller) return false;
+  if (artist && String(listing.artist_name || "").toLowerCase() !== artist) return false;
+  if (query) {
+    const text = [
+      listing.artist_name,
+      listing.artwork_title,
+      listing.seller_name,
+      listing.seller_email,
+      listing.medium,
+      listing.listing_id,
+    ].filter(Boolean).join(" ").toLowerCase();
+    if (!text.includes(query)) return false;
+  }
+  return true;
+}
+
+// ---------- Listings render ----------
+
+function render() {
+  const filtered = (listings || []).filter(listingMatchesAllFilters);
+  const status = document.getElementById("statusFilter").value;
+
+  const meta = document.getElementById("listingsMeta");
+  meta.textContent = filtered.length
+    ? filtered.length + " listing" + (filtered.length === 1 ? "" : "s") + " — " + filterLabel(status)
+    : "";
+
+  const filterMetaInline = document.getElementById("filterMeta");
+  filterMetaInline.textContent = listings.length + " total listings loaded";
+
+  const container = document.getElementById("listings");
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty-listings">No listings match these filters.</div>';
+    return;
+  }
+
+  container.innerHTML = '<div class="grid">' + filtered.map(renderCard).join("") + '</div>';
+  bindCardActions();
+}
+
+function populateFilterDropdowns() {
+  const sellerSel = document.getElementById("sellerFilter");
+  const artistSel = document.getElementById("artistFilter");
+  if (!sellerSel || !artistSel) return;
+
+  const prevSeller = sellerSel.value;
+  const prevArtist = artistSel.value;
+
+  const sellers = Array.from(new Set(
+    (listings || []).map(l => String(l.seller_name || "").trim()).filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b));
+  const artists = Array.from(new Set(
+    (listings || []).map(l => String(l.artist_name || "").trim()).filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b));
+
+  sellerSel.innerHTML = '<option value="">All Sellers</option>' +
+    sellers.map(s => '<option value="' + escapeAttr(s.toLowerCase()) + '">' + escapeHtml(s) + '</option>').join("");
+  artistSel.innerHTML = '<option value="">All Artists</option>' +
+    artists.map(a => '<option value="' + escapeAttr(a.toLowerCase()) + '">' + escapeHtml(a) + '</option>').join("");
+
+  // Preserve selection across reloads if the value still exists.
+  if (prevSeller && sellers.some(s => s.toLowerCase() === prevSeller)) sellerSel.value = prevSeller;
+  if (prevArtist && artists.some(a => a.toLowerCase() === prevArtist)) artistSel.value = prevArtist;
+}
+
+function clearAdminFilters() {
+  document.getElementById("searchInput").value = "";
+  document.getElementById("statusFilter").value = "pending_review";
+  document.getElementById("sellerFilter").value = "";
+  document.getElementById("artistFilter").value = "";
+  render();
+}
+
+function filterLabel(filter) {
+  switch (filter) {
+    case "pending_review": return "Pending Review";
+    case "approved": return "Approved";
+    case "rejected": return "Rejected";
+    case "delisted": return "Removed from seller portal";
+    case "all": return "All";
+    default: return filter;
+  }
+}
+
+function renderCard(l) {
+  const id = l.listing_id;
+  const moderation = String(l.moderation_status || "pending_review");
+  const moderationClass = moderation.replace(/[^a-z0-9_-]/gi, "").toLowerCase();
+  const moderationLabel = moderation.replace(/_/g, " ");
+  const status = String(l.status || "available").toLowerCase();
+  const isDelisted = status === "delisted";
+  const isPending = inFlightActions.has(id);
+
+  const imageHtml = l.source_image_url
+    ? '<img src="' + escapeHtml(l.source_image_url) + '" referrerpolicy="no-referrer" loading="lazy" alt="' + escapeAttr(l.artwork_title || l.artist_name || "Artwork") + '" />'
+    : '<div class="no-img">No image</div>';
+
+  const badges = [];
+  if (l.shipping_included === "Yes") badges.push('<span class="badge">Shipping Included</span>');
+  else if (l.shipping_included === "No") badges.push('<span class="badge muted">Shipping Extra</span>');
+  if (l.certificate_of_authenticity_included === "Yes") badges.push('<span class="badge">COA Included</span>');
+  if (l.artwork_category) badges.push('<span class="badge cat">' + escapeHtml(l.artwork_category) + '</span>');
+  // Listing-status badge — important for admin so delisted ones stand out.
+  badges.push('<span class="badge status-' + escapeHtml(status) + '">' +
+    escapeHtml(status === "delisted" ? "Removed from seller portal" : status) + '</span>');
+
+  const specs = [];
+  if (l.medium) specs.push('<div class="spec-row"><span class="spec-label">Type</span><span>' + escapeHtml(l.medium) + '</span></div>');
+  if (l.artwork_size_inches) specs.push('<div class="spec-row"><span class="spec-label">Artwork Size</span><span>' + escapeHtml(l.artwork_size_inches) + '</span></div>');
+  if (l.framed_size_inches) specs.push('<div class="spec-row"><span class="spec-label">Framed Size</span><span>' + escapeHtml(l.framed_size_inches) + '</span></div>');
+  specs.push('<div class="spec-row"><span class="spec-label">Listing ID</span><span>' + escapeHtml(l.listing_id) + '</span></div>');
+
+  const sellerBlocks = [];
+  if (l.seller_name) sellerBlocks.push('<div class="seller-name">' + escapeHtml(l.seller_name) + '</div>');
+  if (l.seller_email) sellerBlocks.push('<div class="seller-email">' + escapeHtml(l.seller_email) + '</div>');
+  if (l.seller_profile_url) {
+    sellerBlocks.push('<div class="seller-fb">FB: <a href="' + escapeAttr(l.seller_profile_url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(l.seller_profile_url) + '</a></div>');
+  }
+  const sellerHtml = sellerBlocks.length
+    ? '<div class="seller">' + sellerBlocks.join("") + '</div>'
+    : "";
+
+  const notesHtml = l.seller_notes
+    ? '<div class="notes collapsed" data-notes="' + escapeAttr(l.seller_notes) + '">' + escapeHtml(l.seller_notes) + '</div>' +
+      '<button class="notes-toggle" type="button">Show more</button>'
+    : "";
+
+  // Action buttons — conditional on current state. Reinstate ALWAYS shown for delisted.
+  const actions = [];
+  if (isDelisted) {
+    actions.push('<button class="reinstate" data-action="reinstate" data-id="' + escapeAttr(id) + '"' + (isPending ? " disabled" : "") + '>Reinstate</button>');
+  } else {
+    if (moderation !== "approved") {
+      actions.push('<button class="approve" data-action="approve" data-id="' + escapeAttr(id) + '"' + (isPending ? " disabled" : "") + '>Approve</button>');
+    }
+    if (moderation !== "rejected") {
+      actions.push('<button class="reject" data-action="reject" data-id="' + escapeAttr(id) + '"' + (isPending ? " disabled" : "") + '>Reject</button>');
+    }
+  }
+
+  return (
+    '<article class="a-card" data-listing-id="' + escapeAttr(id) + '">' +
+      '<div class="a-card-img-wrap">' +
+        imageHtml +
+        '<span class="mod-pill ' + moderationClass + '">' + escapeHtml(moderationLabel) + '</span>' +
+      '</div>' +
+      '<div class="a-card-body">' +
+        '<h2 class="artist">' + escapeHtml(l.artist_name || "Unknown Artist") + '</h2>' +
+        '<div class="title">' + escapeHtml(l.artwork_title || "Untitled") + '</div>' +
+        '<div class="price-row">' +
+          '<span class="price">' + escapeHtml(formatPrice(l.price_usd)) + '</span>' +
+        '</div>' +
+        '<div class="badges">' + badges.join("") + '</div>' +
+        '<div class="specs">' + specs.join("") + '</div>' +
+        sellerHtml +
+        notesHtml +
+        '<div class="actions">' + actions.join("") + '</div>' +
+      '</div>' +
+    '</article>'
+  );
+}
+
+function bindCardActions() {
+  document.querySelectorAll(".a-card .actions button[data-action]").forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      handleListingAction(id, action, btn);
+    };
+  });
+  document.querySelectorAll(".a-card .notes-toggle").forEach(btn => {
+    btn.onclick = () => {
+      const notes = btn.previousElementSibling;
+      if (!notes) return;
+      const collapsed = notes.classList.toggle("collapsed");
+      btn.textContent = collapsed ? "Show more" : "Show less";
+    };
+  });
+}
+
+function handleListingAction(id, action, btn) {
+  if (!id || inFlightActions.has(id)) return;
+  inFlightActions.add(id);
+  btn.disabled = true;
+  btn.textContent = "Saving...";
+
+  const onSuccess = () => {
+    inFlightActions.delete(id);
+    if (action === "reinstate") {
+      // Locally update status; moderation_status unchanged.
+      listings = listings.map(l =>
+        l.listing_id === id ? { ...l, status: "available" } : l
+      );
+    } else {
+      const newStatus = action === "approve" ? "approved" : "rejected";
+      listings = listings.map(l =>
+        l.listing_id === id ? { ...l, moderation_status: newStatus } : l
+      );
+    }
+    render();
+  };
+  const onFailure = (err) => {
+    inFlightActions.delete(id);
+    alert("Action failed: " + (err && err.message ? err.message : "unknown error"));
+    render();
+  };
+
+  if (action === "reinstate") {
+    google.script.run
+      .withSuccessHandler(onSuccess)
+      .withFailureHandler(onFailure)
+      .reinstateListing(id);
+  } else {
+    const newStatus = action === "approve" ? "approved" : "rejected";
+    google.script.run
+      .withSuccessHandler(onSuccess)
+      .withFailureHandler(onFailure)
+      .updateModerationStatus(id, newStatus);
+  }
+}
+
+document.getElementById("statusFilter").addEventListener("change", render);
+document.getElementById("refreshButton").addEventListener("click", () => loadListings());
+document.getElementById("searchInput").addEventListener("input", render);
+document.getElementById("sellerFilter").addEventListener("change", render);
+document.getElementById("artistFilter").addEventListener("change", render);
+document.getElementById("clearFiltersButton").addEventListener("click", clearAdminFilters);
+
+// ---------- Back-to-top button ----------
+const backToTopButton = document.getElementById("backToTop");
+window.addEventListener("scroll", () => {
+  if (!backToTopButton) return;
+  backToTopButton.classList.toggle("show", window.scrollY > 400);
+});
+if (backToTopButton) {
+  backToTopButton.addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+
+// ---------- Expiring listings panel ----------
+const expiringList = document.getElementById("expiringList");
+const expiringMeta = document.getElementById("expiringMeta");
+let expiringData = null;
+const pendingExtend = new Set(); // emails currently mid-extend
+
+function renderExpiringList() {
+  if (!expiringList) return;
+  if (!expiringData || !Array.isArray(expiringData.sellers)) {
+    expiringList.innerHTML = '<div class="empty">Failed to load.</div>';
+    return;
+  }
+  const sellers = expiringData.sellers;
+  const windowDays = expiringData.renewalWindowDays || 60;
+  const warnDays = expiringData.renewalWarningDays || 7;
+
+  const totalExpiringSoon = sellers.reduce((acc, s) => acc + s.expiringSoonCount, 0);
+  const totalNotRenewed = sellers.reduce((acc, s) => acc + s.notRenewedCount, 0);
+  expiringMeta.textContent =
+    `${totalExpiringSoon} expiring within ${warnDays} days · ${totalNotRenewed} already not-renewed · ${windowDays}-day renewal window`;
+
+  if (!sellers.length) {
+    expiringList.innerHTML = '<div class="empty">No renewable listings yet.</div>';
+    return;
+  }
+
+  expiringList.innerHTML = sellers.map(s => {
+    const isPending = pendingExtend.has(s.email);
+    const labelParts = [];
+    if (s.notRenewedCount) labelParts.push(`${s.notRenewedCount} not-renewed`);
+    if (s.expiringSoonCount) labelParts.push(`${s.expiringSoonCount} expiring in ≤${warnDays}d`);
+    const tag = labelParts.length
+      ? `<span class="count">${escapeHtml(labelParts.join(" · "))}</span>`
+      : `<span class="count">earliest in ${s.minDaysUntilExpiration}d</span>`;
+    return (
+      '<div class="trust-row" data-email="' + escapeAttr(s.email) + '">' +
+        '<div class="who">' +
+          '<div class="name">' + escapeHtml(s.name || "(no name)") + '</div>' +
+          '<div class="email">' + escapeHtml(s.email) + '</div>' +
+        '</div>' +
+        tag +
+        '<button class="toggle" type="button" data-email="' + escapeAttr(s.email) + '"' +
+          (isPending ? " disabled" : "") + '>' +
+          (isPending ? 'Refreshing...' : 'Refresh now') +
+        '</button>' +
+      '</div>'
+    );
+  }).join("");
+
+  expiringList.querySelectorAll(".toggle").forEach(btn => {
+    btn.onclick = () => extendRenewalForSeller(btn.dataset.email);
+  });
+}
+
+function loadExpiringList() {
+  if (!expiringList) return;
+  google.script.run
+    .withSuccessHandler(data => {
+      expiringData = data;
+      renderExpiringList();
+    })
+    .withFailureHandler(err => {
+      expiringList.innerHTML = '<div class="empty">Failed to load: ' +
+        escapeHtml(err && err.message ? err.message : "unknown error") + '</div>';
+    })
+    .getExpiringListingsAdmin();
+}
+
+function extendRenewalForSeller(email) {
+  if (!email || pendingExtend.has(email)) return;
+  pendingExtend.add(email);
+  renderExpiringList();
+  google.script.run
+    .withSuccessHandler(() => {
+      pendingExtend.delete(email);
+      loadExpiringList();
+    })
+    .withFailureHandler(err => {
+      pendingExtend.delete(email);
+      renderExpiringList();
+      alert("Failed to extend: " + (err && err.message ? err.message : "unknown error"));
+    })
+    .extendRenewalForSellerAdmin(email);
+}
+
+loadExpiringList();
+
+// ---------- Manual catalog rebuild ----------
+const rebuildCatalogButton = document.getElementById("rebuildCatalogButton");
+const rebuildCatalogStatus = document.getElementById("rebuildCatalogStatus");
+
+function setRebuildStatus(message, kind) {
+  if (!rebuildCatalogStatus) return;
+  rebuildCatalogStatus.textContent = message || "";
+  rebuildCatalogStatus.className = "rotate-status " + (kind || "info");
+}
+
+if (rebuildCatalogButton) {
+  rebuildCatalogButton.addEventListener("click", () => {
+    rebuildCatalogButton.disabled = true;
+    setRebuildStatus("Triggering rebuild...", "info");
+    google.script.run
+      .withSuccessHandler((result) => {
+        rebuildCatalogButton.disabled = false;
+        const ok = result && result.dispatched;
+        if (ok) {
+          setRebuildStatus(
+            "Dispatch sent. New rebuild should appear on the Actions tab and finish in ~30–60s.",
+            "ok"
+          );
+        } else {
+          const reason = (result && result.message) || "GITHUB_PAT or GITHUB_REPO not configured.";
+          setRebuildStatus("Rebuild not triggered: " + reason, "err");
+        }
+      })
+      .withFailureHandler((err) => {
+        rebuildCatalogButton.disabled = false;
+        setRebuildStatus(
+          (err && err.message) ? err.message : "Rebuild failed.",
+          "err"
+        );
+      })
+      .triggerManualCatalogRebuild();
+  });
+}
+
+// ---------- Rotate seller link ----------
+
+const rotateSellerButton = document.getElementById("rotateSellerButton");
+const rotateSellerEmailInput = document.getElementById("rotateSellerEmailInput");
+const rotateSellerStatus = document.getElementById("rotateSellerStatus");
+
+function setRotateStatus(message, kind) {
+  rotateSellerStatus.textContent = message || "";
+  rotateSellerStatus.className = "rotate-status " + (kind || "info");
+}
+
+rotateSellerButton.addEventListener("click", () => {
+  const email = (rotateSellerEmailInput.value || "").trim();
+  if (!email) {
+    setRotateStatus("Enter the seller email first.", "err");
+    return;
+  }
+  const confirmed = confirm(
+    "Rotate the seller token for " + email + "?\n\n" +
+    "This will:\n" +
+    "  - Issue a new private link for this seller\n" +
+    "  - Email the new link to " + email + "\n" +
+    "  - Invalidate any old link they had\n\n" +
+    "Use only if the seller reports their link was leaked."
+  );
+  if (!confirmed) return;
+  rotateSellerButton.disabled = true;
+  setRotateStatus("Rotating token and sending email...", "info");
+  google.script.run
+    .withSuccessHandler(result => {
+      rotateSellerButton.disabled = false;
+      rotateSellerEmailInput.value = "";
+      const count = result && typeof result.rotated_count === "number" ? result.rotated_count : 0;
+      const target = result && result.seller_email ? result.seller_email : email;
+      setRotateStatus(
+        "Rotated. " + count + " listing" + (count === 1 ? "" : "s") +
+        " updated. New link emailed to " + target + ".",
+        "ok"
+      );
+    })
+    .withFailureHandler(err => {
+      rotateSellerButton.disabled = false;
+      setRotateStatus((err && err.message) ? err.message : "Rotation failed.", "err");
+    })
+    .rotateSellerTokenByEmail(email);
+});
+
+// ---------- Trusted sellers panel ----------
+
+let trustedSellers = [];
+let trustSearch = "";
+const pendingTrustToggles = new Set();
+
+const trustSearchInput = document.getElementById("trustSearchInput");
+const trustList = document.getElementById("trustList");
+const trustListMeta = document.getElementById("trustListMeta");
+
+function renderTrustList() {
+  if (!trustList) return;
+  const q = trustSearch.trim().toLowerCase();
+  const filtered = !q
+    ? trustedSellers.slice()
+    : trustedSellers.filter(s =>
+        String(s.name || "").toLowerCase().includes(q) ||
+        String(s.email || "").toLowerCase().includes(q)
+      );
+
+  const trustedCount = trustedSellers.filter(s => s.trusted).length;
+  trustListMeta.textContent =
+    trustedCount + " trusted of " + trustedSellers.length + " seller" +
+    (trustedSellers.length === 1 ? "" : "s") +
+    (q ? " — showing " + filtered.length + " match" + (filtered.length === 1 ? "" : "es") : "");
+
+  if (!filtered.length) {
+    trustList.innerHTML = '<div class="empty">' +
+      (q ? "No sellers match your search." : "No sellers yet.") +
+      '</div>';
+    return;
+  }
+
+  trustList.innerHTML = filtered.map(s => {
+    const pending = pendingTrustToggles.has(s.email);
+    const cls = "trust-row" + (s.trusted ? " is-trusted" : "");
+    const toggleCls = "toggle" + (s.trusted ? " on" : "");
+    const toggleText = pending ? "Saving..." : (s.trusted ? "Trusted ✓" : "Mark trusted");
+    const mailtoSubject = encodeURIComponent("Canvas Circle");
+    return (
+      '<div class="' + cls + '" data-email="' + escapeAttr(s.email) + '">' +
+        '<div class="who">' +
+          '<div class="name">' + escapeHtml(s.name || "(no name)") + '</div>' +
+          '<div class="email">' + escapeHtml(s.email) + '</div>' +
+        '</div>' +
+        '<div class="count">' + s.listing_count + ' listing' + (s.listing_count === 1 ? "" : "s") + '</div>' +
+        '<a class="seller-mailto" href="mailto:' + escapeAttr(s.email) + '?subject=' + mailtoSubject +
+          '" target="_blank" rel="noopener noreferrer" title="Email ' + escapeAttr(s.email) + '">✉ Email</a>' +
+        '<button class="' + toggleCls + '" type="button" data-email="' + escapeAttr(s.email) +
+          '" data-name="' + escapeAttr(s.name || "") +
+          '" data-trusted="' + (s.trusted ? "1" : "0") + '"' +
+          (pending ? " disabled" : "") + '>' +
+          escapeHtml(toggleText) +
+        '</button>' +
+      '</div>'
+    );
+  }).join("");
+
+  trustList.querySelectorAll(".toggle").forEach(btn => {
+    btn.onclick = () => {
+      const email = btn.dataset.email;
+      const name = btn.dataset.name;
+      const isCurrentlyTrusted = btn.dataset.trusted === "1";
+      toggleSellerTrust(email, name, !isCurrentlyTrusted);
+    };
+  });
+}
+
+function toggleSellerTrust(email, name, makeTrusted) {
+  if (!email) return;
+  if (pendingTrustToggles.has(email)) return;
+  pendingTrustToggles.add(email);
+  renderTrustList();
+  google.script.run
+    .withSuccessHandler(updated => {
+      pendingTrustToggles.delete(email);
+      trustedSellers = Array.isArray(updated) ? updated : [];
+      renderTrustList();
+    })
+    .withFailureHandler(err => {
+      pendingTrustToggles.delete(email);
+      renderTrustList();
+      alert("Failed to update: " + (err && err.message ? err.message : "unknown error"));
+    })
+    .setSellerTrustedAdmin(email, name, !!makeTrusted);
+}
+
+if (trustSearchInput) {
+  trustSearchInput.addEventListener("input", () => {
+    trustSearch = trustSearchInput.value || "";
+    renderTrustList();
+  });
+}
+
+google.script.run
+  .withSuccessHandler(data => {
+    trustedSellers = Array.isArray(data) ? data : [];
+    renderTrustList();
+  })
+  .withFailureHandler(err => {
+    if (trustList) {
+      trustList.innerHTML = '<div class="empty">Failed to load: ' +
+        escapeHtml(err && err.message ? err.message : "unknown error") + '</div>';
+    }
+  })
+  .getAdminTrustedSellersData();
+
+// ---------- Broadcast email panel ----------
+
+const broadcastSubjectInput = document.getElementById("broadcastSubject");
+const broadcastBodyInput = document.getElementById("broadcastBody");
+const broadcastSendButton = document.getElementById("broadcastSendButton");
+const broadcastStatus = document.getElementById("broadcastStatus");
+const broadcastRecipientCount = document.getElementById("broadcastRecipientCount");
+let broadcastRecipientTotal = 0;
+
+function setBroadcastStatus(message, kind) {
+  if (!broadcastStatus) return;
+  broadcastStatus.textContent = message || "";
+  broadcastStatus.className = "bc-status " + (kind || "info");
+}
+
+function refreshBroadcastSendButton() {
+  if (!broadcastSendButton) return;
+  const hasContent =
+    (broadcastSubjectInput.value || "").trim() &&
+    (broadcastBodyInput.value || "").trim();
+  broadcastSendButton.textContent =
+    "Send to " + broadcastRecipientTotal + " seller" +
+    (broadcastRecipientTotal === 1 ? "" : "s");
+  broadcastSendButton.disabled = !hasContent || broadcastRecipientTotal === 0;
+}
+
+function loadBroadcastPreview() {
+  google.script.run
+    .withSuccessHandler(preview => {
+      broadcastRecipientTotal = (preview && preview.recipientCount) || 0;
+      const quotaText =
+        preview && typeof preview.remainingQuota === "number" && preview.remainingQuota >= 0
+          ? " · " + preview.remainingQuota + " emails left in today's quota"
+          : "";
+      if (broadcastRecipientCount) {
+        broadcastRecipientCount.textContent =
+          broadcastRecipientTotal + " distinct seller email" +
+          (broadcastRecipientTotal === 1 ? "" : "s") + " on file" + quotaText;
+      }
+      refreshBroadcastSendButton();
+    })
+    .withFailureHandler(err => {
+      if (broadcastRecipientCount) {
+        broadcastRecipientCount.textContent =
+          "Could not load recipient count: " +
+          (err && err.message ? err.message : "unknown error");
+      }
+      refreshBroadcastSendButton();
+    })
+    .getBroadcastEmailPreview();
+}
+
+if (broadcastSubjectInput) broadcastSubjectInput.addEventListener("input", refreshBroadcastSendButton);
+if (broadcastBodyInput) broadcastBodyInput.addEventListener("input", refreshBroadcastSendButton);
+
+if (broadcastSendButton) {
+  broadcastSendButton.addEventListener("click", () => {
+    const subject = (broadcastSubjectInput.value || "").trim();
+    const body = (broadcastBodyInput.value || "").trim();
+    if (!subject || !body) {
+      setBroadcastStatus("Subject and message are both required.", "err");
+      return;
+    }
+    if (broadcastRecipientTotal === 0) {
+      setBroadcastStatus("No recipients on file.", "err");
+      return;
+    }
+
+    const confirmed = confirm(
+      "Send this email to " + broadcastRecipientTotal + " seller" +
+      (broadcastRecipientTotal === 1 ? "" : "s") + "?\n\n" +
+      "Subject: " + subject + "\n\n" +
+      "Each seller receives an individual message — no one sees other addresses. " +
+      "This cannot be undone."
+    );
+    if (!confirmed) return;
+
+    broadcastSendButton.disabled = true;
+    broadcastSendButton.textContent = "Sending...";
+    setBroadcastStatus("Sending — this may take a minute for large lists. Don't close the tab.", "info");
+
+    google.script.run
+      .withSuccessHandler(result => {
+        const sent = (result && result.sent) || 0;
+        const failed = (result && result.failed) || 0;
+        const total = (result && result.total) || 0;
+        if (failed === 0) {
+          setBroadcastStatus(
+            "Sent to " + sent + " of " + total + " seller" + (total === 1 ? "" : "s") + ".",
+            "ok"
+          );
+          // Clear the inputs after a fully successful broadcast.
+          broadcastSubjectInput.value = "";
+          broadcastBodyInput.value = "";
+        } else {
+          const firstFail = (result && result.failures && result.failures[0]) || null;
+          const failHint = firstFail
+            ? " First failure: " + firstFail.email + " — " +
+              (firstFail.message || "unknown error")
+            : "";
+          setBroadcastStatus(
+            "Sent " + sent + " of " + total + ". " + failed + " failed." + failHint,
+            "err"
+          );
+        }
+        // Refresh quota display in case it dropped meaningfully.
+        loadBroadcastPreview();
+      })
+      .withFailureHandler(err => {
+        setBroadcastStatus(
+          (err && err.message) ? err.message : "Send failed.",
+          "err"
+        );
+        refreshBroadcastSendButton();
+      })
+      .sendBroadcastEmail({ subject: subject, body: body });
+  });
+}
+
+loadBroadcastPreview();
+
+// ---------- Initial listings load ----------
+
+function loadListings() {
+  document.getElementById("listings").innerHTML =
+    '<div class="empty-listings">Loading listings...</div>';
+  google.script.run
+    .withSuccessHandler(data => {
+      listings = Array.isArray(data) ? data : [];
+      populateFilterDropdowns();
+      render();
+    })
+    .withFailureHandler(err => {
+      document.getElementById("listings").innerHTML =
+        '<div class="empty-listings">Failed to load: ' +
+        escapeHtml(err && err.message ? err.message : "unknown error") + '</div>';
+    })
+    .getAdminListings();
+}
+
+loadListings();
+
+});
+</script>
+</body>
+</html>

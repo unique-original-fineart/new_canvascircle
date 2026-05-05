@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CanvasCircle — Original & Resold Fine Art</title>
+
+  <link rel="icon" href="/assets/favicon.ico" />
+  <link rel="manifest" href="/assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#1a1a1a" />
+
+  <!-- Open Graph -->
+  <meta property="og:title"       content="CanvasCircle — Original & Resold Fine Art" />
+  <meta property="og:description" content="A curated catalog of original and resold fine art from independent collectors and artists." />
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://canvascircle.art" />
+  <meta property="og:image"       content="https://canvascircle.art/assets/og-image.png" />
+  <meta name="twitter:card"       content="summary_large_image" />
+
+  <style>
+    :root {
+      --bg:        #faf9f6;
+      --fg:        #1a1a1a;
+      --muted:     #6b6b6b;
+      --accent:    #b8860b;
+      --card-bg:   #ffffff;
+      --card-line: #e8e4dc;
+      --shadow:    0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.5;
+    }
+    header {
+      padding: 18px 16px;
+      border-bottom: 1px solid var(--card-line);
+      background: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header .brand { display: flex; align-items: center; gap: 10px; }
+    header img    { height: 32px; width: 32px; border-radius: 6px; }
+    header .title { font-weight: 600; font-size: 18px; letter-spacing: .2px; }
+    nav a { color: var(--fg); text-decoration: none; margin-left: 16px; font-size: 14px; }
+    nav a:hover { color: var(--accent); }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+    }
+    .hero {
+      text-align: center;
+      padding: 32px 16px 24px;
+    }
+    .hero h1 { margin: 0 0 8px; font-size: 28px; }
+    .hero p  { margin: 0; color: var(--muted); }
+
+    #status {
+      margin: 24px auto;
+      max-width: 540px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--card-line);
+      color: var(--muted);
+      text-align: center;
+      font-size: 14px;
+    }
+    #status.error { color: #a8281f; border-color: #f1c4be; background: #fef6f5; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    @media (min-width: 720px)  { .grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+    @media (min-width: 1000px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column;
+    }
+    .card .img { aspect-ratio: 1/1; background: #f0ede6; overflow: hidden; }
+    .card .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .card .body { padding: 10px 12px 12px; }
+    .card .artist { font-weight: 600; font-size: 14px; line-height: 1.3; }
+    .card .title  { color: var(--muted); font-size: 13px; margin-top: 2px;
+                    overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+                    -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+    .card .price  { font-weight: 600; font-size: 14px; margin-top: 6px; }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 32px 16px;
+      border-top: 1px solid var(--card-line);
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <img src="/assets/CanvasCircleLogo.png" alt="CanvasCircle" />
+      <span class="title">CanvasCircle</span>
+    </div>
+    <nav>
+      <a href="/">Catalog</a>
+      <a href="/portal/">Sell</a>
+      <a href="/about.html">About</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Original &amp; resold fine art</h1>
+      <p>A curated catalog from independent collectors and artists.</p>
+    </section>
+
+    <div id="status">Loading catalog&hellip;</div>
+    <div id="grid" class="grid" hidden></div>
+  </main>
+
+  <footer>
+    &copy; CanvasCircle. <a href="/about.html" style="color:inherit;">About</a> &middot;
+    <a href="/portal/" style="color:inherit;">Seller portal</a>
+  </footer>
+
+  <script type="module">
+    import { supabase, publicImageUrl } from "/lib/supabase.js";
+
+    const $status = document.getElementById("status");
+    const $grid   = document.getElementById("grid");
+
+    function renderCard(listing, firstImagePath) {
+      const card = document.createElement("a");
+      card.className = "card";
+      card.href = `/listing.html?id=${listing.listing_id}`;
+      const imgUrl = firstImagePath ? publicImageUrl(firstImagePath) : "";
+      card.innerHTML = `
+        <div class="img">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}</div>
+        <div class="body">
+          <div class="artist">${escapeHtml(listing.artist_name || "Unknown")}</div>
+          <div class="title">${escapeHtml(listing.artwork_title || "")}</div>
+          <div class="price">$${Number(listing.asking_price_usd || 0).toLocaleString()}</div>
+        </div>`;
+      return card;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+      }[c]));
+    }
+
+    async function loadCatalog() {
+      // Get approved + active listings with their first image (position 0).
+      const { data: listings, error } = await supabase
+        .from("listings")
+        .select(`
+          listing_id, artist_name, artwork_title, asking_price_usd,
+          listing_images ( storage_path, position )
+        `)
+        .eq("moderation_status", "approved")
+        .in("status", ["available", "pending"])
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error(error);
+        $status.textContent = "Could not load the catalog. Please try again later.";
+        $status.classList.add("error");
+        return;
+      }
+      if (!listings || listings.length === 0) {
+        $status.textContent = "The catalog is empty right now — check back soon.";
+        return;
+      }
+      $status.hidden = true;
+      $grid.hidden = false;
+      for (const l of listings) {
+        const sorted = (l.listing_images || []).slice().sort((a, b) => a.position - b.position);
+        $grid.appendChild(renderCard(l, sorted[0]?.storage_path));
+      }
+    }
+
+    loadCatalog();
+  </script>
+</body>
+</html>

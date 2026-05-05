@@ -1,0 +1,2633 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Apple touch icon — belt-and-suspenders alongside setFaviconUrl() in
+         doGet. Apps Script's iframe model means the top frame may or may not
+         pick this up, but it's harmless when ignored. The 180px variant is
+         the canonical Apple touch icon size. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="https://canvascircle.art/icons/seller-portal-icon-180.png">
+    <link rel="icon" sizes="180x180" href="https://canvascircle.art/icons/seller-portal-icon-180.png">
+    <meta name="apple-mobile-web-app-title" content="Canvas Circle Seller Portal">
+    <style>
+      :root {
+        --bg: #f7f3ed;
+        --card: rgba(255,255,255,0.94);
+        --text: #1f1a17;
+        --muted: #6f675e;
+        --line: #dbd1c4;
+        --shadow: 0 18px 40px rgba(35, 27, 20, 0.08);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #f7f3ed 0%, #f2ece3 100%);
+        color: var(--text);
+      }
+      .page {
+        max-width: 1160px;
+        margin: 0 auto;
+        padding: 28px 18px 48px;
+      }
+      .hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .hero h1 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(30px, 4vw, 42px);
+        line-height: 1;
+      }
+      .hero p {
+        margin: 10px 0 0;
+        color: var(--muted);
+      }
+      .toolbar {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        box-shadow: var(--shadow);
+        padding: 16px;
+        margin: 0 0 18px;
+      }
+
+      .facebook-compact {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 14px 8px 16px;
+        margin: 0 0 18px;
+        box-shadow: var(--shadow);
+      }
+
+      .facebook-compact[hidden] {
+        display: none;
+      }
+
+      .facebook-compact-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .facebook-compact-check {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #1f7a1f;
+        color: white;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .facebook-edit-link {
+        appearance: none;
+        background: transparent;
+        border: none;
+        color: var(--text);
+        text-decoration: underline;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 6px 8px;
+      }
+
+      .facebook-edit-link:hover {
+        opacity: 0.7;
+      }
+
+      .facebook-expanded[hidden] {
+        display: none;
+      }
+
+      .facebook-cancel {
+        background: white;
+      }
+
+      .facebook-cancel[hidden] {
+        display: none;
+      }
+      .filters {
+        display: grid;
+        grid-template-columns: 2fr repeat(3, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+      }
+      .filters input,
+      .filters select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 11px 12px;
+        font: inherit;
+        background: rgba(255,255,255,0.98);
+        color: var(--text);
+      }
+      .clear-button { white-space: nowrap; }
+      .filter-meta {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      #backToTop {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: none;
+        background: #1f1a17;
+        color: #fff;
+        box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        font-size: 20px;
+      }
+      #backToTop.show { display: flex; }
+      .status-banner {
+        margin-bottom: 18px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        white-space: pre-line;
+        box-shadow: var(--shadow);
+        display: none;
+      }
+      .status-banner.show { display: block; }
+
+      .renewal-banner {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px 16px;
+        margin-bottom: 18px;
+        box-shadow: var(--shadow);
+      }
+      .renewal-banner[hidden] { display: none; }
+      .renewal-banner.urgent { background: #fff4e2; border-color: #efd29d; }
+      .renewal-banner.expired { background: #fff2f2; border-color: #e0b9b9; }
+      .renewal-banner-content {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+      .renewal-banner-text { min-width: 0; }
+      .renewal-banner-title { font-weight: 700; font-size: 15px; }
+      .renewal-banner-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+      .renewal-banner-button { white-space: nowrap; }
+      .renewal-banner-status { font-size: 13px; min-height: 0; margin-top: 8px; }
+      .renewal-banner-status.is-visible { min-height: 16px; margin-top: 10px; }
+      .renewal-banner-status.ok { color: #1f7a1f; }
+      .renewal-banner-status.err { color: #c93f3f; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        transition: border-color 120ms ease, box-shadow 120ms ease;
+      }
+      .card.has-validation-error {
+        border-color: #c93f3f;
+        box-shadow: 0 0 0 3px rgba(201, 63, 63, 0.20), var(--shadow);
+      }
+      .card.is-dirty {
+        border-color: #d69b3a;
+        box-shadow: 0 0 0 2px rgba(214, 155, 58, 0.18), var(--shadow);
+      }
+      .card.is-dirty .listing-id::after {
+        content: ' • UNSAVED';
+        color: #b3791e;
+        font-weight: 700;
+      }
+      .save-all-bar {
+        position: fixed;
+        left: 16px;
+        right: 80px; /* leave room for the floating back-to-top button */
+        bottom: 16px;
+        background: #1f1a17;
+        color: #fff;
+        padding: 12px 18px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        box-shadow: 0 14px 30px rgba(0,0,0,0.28);
+        z-index: 1100;
+      }
+      .save-all-bar[hidden] { display: none; }
+      .save-all-bar .save-all-status {
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .save-all-bar .save-all-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .save-all-bar button {
+        border-radius: 999px;
+        padding: 9px 16px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid rgba(255,255,255,0.25);
+        background: transparent;
+        color: #fff;
+      }
+      .save-all-bar button.primary {
+        background: #f0c674;
+        border-color: #f0c674;
+        color: #1f1a17;
+      }
+      .save-all-bar button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .card img {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        height: 260px;
+        object-fit: contain;
+        background: #f2ece3;
+      }
+      .card-body {
+        padding: 18px;
+      }
+      .listing-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+        margin-bottom: 14px;
+      }
+      .listing-meta h2 {
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.05;
+      }
+      .listing-id {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 11px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        font-size: 12px;
+        font-weight: 700;
+        background: white;
+      }
+      .pill.pending { background: #fbf3df; }
+      .pill.sold { background: #f6e5e5; }
+      .pill.available { background: #edf6ee; }
+      .pill.delisted { background: #eee6e1; }
+      .pill.review { background: #f6efe3; }
+      .pill.approved { background: #edf6ee; }
+      .pill.rejected { background: #f6e5e5; }
+      .field { margin-bottom: 14px; }
+      .field label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .field input,
+      .field textarea,
+      .field select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 11px 12px;
+        font: inherit;
+        background: rgba(255,255,255,0.98);
+        color: var(--text);
+      }
+      .field input[type="file"] {
+        padding: 10px;
+        background: #fff;
+      }
+      .field textarea { min-height: 100px; resize: vertical; }
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+      }
+      button {
+        appearance: none;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 11px 14px;
+        font: inherit;
+        font-weight: 700;
+        background: white;
+        cursor: pointer;
+      }
+      button.primary {
+        background: #1f1a17;
+        border-color: #1f1a17;
+        color: white;
+      }
+      button:disabled { opacity: 0.55; cursor: wait; }
+      .small {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .meta-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+        justify-content: flex-end;
+      }
+
+      .facebook-tools {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin: 0 0 18px;
+      }
+
+      .location-toolbar { margin-bottom: 14px; }
+      .location-toolbar .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      .location-status { min-height: 16px; }
+      .location-status.ok { color: #1f7a1f; }
+      .location-status.err { color: #c93f3f; }
+
+      .location-compact {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 14px 8px 16px;
+        margin: 0 0 18px;
+        box-shadow: var(--shadow);
+      }
+      .location-compact[hidden] { display: none; }
+      .location-compact-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--text);
+        font-weight: 600;
+      }
+      .location-compact-check {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #1f7a1f;
+        color: white;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .location-compact-value {
+        font-weight: 700;
+      }
+      .location-edit-link {
+        appearance: none;
+        background: transparent;
+        border: none;
+        color: var(--text);
+        text-decoration: underline;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 6px 8px;
+      }
+      .location-edit-link:hover { opacity: 0.7; }
+      .location-expanded[hidden] { display: none; }
+      .location-cancel { background: white; }
+      .location-cancel[hidden] { display: none; }
+
+      /* === Sales post builder modal === */
+      .builder-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(20, 16, 12, 0.78);
+        z-index: 2500;
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        padding: 0;
+      }
+
+      .builder-modal[hidden] {
+        display: none;
+      }
+
+      .builder-modal-stage {
+        background: #fff;
+        width: 100%;
+        max-width: 880px;
+        max-height: 100vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .builder-modal-header {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .builder-modal-header h2 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 22px;
+      }
+
+      .builder-close {
+        appearance: none;
+        background: transparent;
+        border: none;
+        font-size: 28px;
+        line-height: 1;
+        padding: 4px 10px;
+        border-radius: 999px;
+        cursor: pointer;
+        color: var(--text);
+      }
+
+      .builder-close:hover {
+        background: rgba(0, 0, 0, 0.06);
+      }
+
+      .builder-modal-body {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .builder-step h3 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .builder-step-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+
+      .builder-quick-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .builder-pill {
+        appearance: none;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .builder-pill:hover {
+        background: white;
+        border-color: rgba(31, 26, 23, 0.4);
+      }
+
+      .builder-pill-primary {
+        background: #1f1a17;
+        color: #fff;
+        border-color: #1f1a17;
+      }
+
+      .builder-pill-primary:hover {
+        background: #2a2520;
+        border-color: #2a2520;
+      }
+
+      .builder-help {
+        margin: 0 0 10px;
+      }
+
+      .builder-textarea-label {
+        display: block;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin: 12px 0 4px;
+        font-weight: 700;
+      }
+
+      .builder-text-input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 14px;
+        line-height: 1.4;
+        resize: vertical;
+        background: rgba(255, 255, 255, 0.98);
+      }
+
+      .builder-listing-picker {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px;
+        max-height: 360px;
+        overflow-y: auto;
+        padding: 4px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(247, 243, 237, 0.6);
+      }
+
+      .builder-listing-tile {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 8px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: border-color 0.15s ease;
+      }
+
+      .builder-listing-tile:hover {
+        border-color: rgba(31, 26, 23, 0.4);
+      }
+
+      .builder-listing-tile.is-selected {
+        border-color: #1f1a17;
+        background: #f7f3ed;
+      }
+
+      .builder-listing-checkbox {
+        flex-shrink: 0;
+        margin: 2px 0 0;
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+
+      .builder-listing-thumb {
+        width: 56px;
+        height: 56px;
+        flex-shrink: 0;
+        object-fit: cover;
+        border-radius: 6px;
+        background: #f2ece3;
+      }
+
+      .builder-listing-meta {
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+
+      .builder-listing-meta .b-artist {
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .builder-listing-meta .b-title {
+        font-size: 12px;
+        color: var(--muted);
+        font-style: italic;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .builder-listing-meta .b-status {
+        margin-top: 4px;
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #edf6ee;
+        color: #1f7a1f;
+      }
+
+      .builder-listing-meta .b-status.b-status-sold {
+        background: #f6e5e5;
+        color: #c93f3f;
+      }
+
+      .builder-listing-meta .b-status.b-status-pending {
+        background: #fbf3df;
+        color: #7a4d00;
+      }
+
+      .builder-step-meta {
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .builder-generate {
+        font-size: 14px;
+      }
+
+      .builder-output-block {
+        margin-bottom: 18px;
+      }
+
+      .builder-output-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        margin-bottom: 8px;
+        font-weight: 700;
+      }
+
+      #builderTextOutput {
+        width: 100%;
+        min-height: 180px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        font: inherit;
+        font-size: 14px;
+        line-height: 1.4;
+        resize: vertical;
+        background: rgba(255, 255, 255, 0.98);
+        margin-bottom: 8px;
+      }
+
+      .builder-canvas-area {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .builder-canvas-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(247, 243, 237, 0.4);
+      }
+
+      .builder-canvas-card canvas {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 6px;
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+
+      .builder-canvas-card-actions {
+        margin-top: 10px;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      @media (max-width: 720px) {
+        .builder-modal-body {
+          padding: 14px;
+        }
+
+        .builder-listing-picker {
+          grid-template-columns: 1fr;
+          max-height: 320px;
+        }
+      }
+
+      .facebook-preview {
+        display: none;
+        margin: 0 0 18px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+      }
+
+      .facebook-preview.show {
+        display: block;
+      }
+
+      .facebook-preview textarea {
+        width: 100%;
+        min-height: 180px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        font: inherit;
+        resize: vertical;
+        background: rgba(255,255,255,0.98);
+        color: var(--text);
+      }
+
+      .empty {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        box-shadow: var(--shadow);
+        padding: 24px;
+      }
+
+      .portal-top-links {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .portal-top-link {
+        color: var(--text);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+        border-bottom: 1px solid rgba(31, 26, 23, 0.25);
+        white-space: nowrap;
+      }
+
+      .portal-top-link:hover {
+        border-bottom-color: rgba(31, 26, 23, 0.65);
+      }
+      @media (max-width: 720px) {
+        html, body {
+          width: 100%;
+          max-width: 100%;
+          overflow-x: hidden;
+        }
+
+        .page {
+          width: 100%;
+          max-width: 100%;
+          padding: 16px 12px 36px;
+        }
+
+        .hero {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .hero h1 {
+          font-size: 26px;
+          line-height: 1.05;
+        }
+
+        .filters {
+          grid-template-columns: 1fr;
+        }
+
+        .clear-button {
+          width: 100%;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .save-all-bar {
+          flex-direction: column;
+          align-items: stretch;
+          left: 8px;
+          right: 72px; /* leave room for the floating back-to-top button */
+          bottom: 8px;
+        }
+        .save-all-bar .save-all-actions {
+          justify-content: flex-end;
+        }
+
+        .card {
+          width: 100%;
+        }
+
+        .card img {
+          width: 100%;
+          max-width: 100%;
+          height: 240px;
+          object-fit: contain;
+        }
+
+        .listing-meta {
+          flex-direction: column;
+        }
+
+        .meta-row {
+          justify-content: flex-start;
+        }
+
+        input,
+        select,
+        textarea,
+        button {
+          font-size: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="hero">
+        <div>
+          <div style="display:flex; align-items:center; gap:16px; margin-bottom:8px;">
+            <img
+              src="https://lh3.googleusercontent.com/d/112ZH8_A5rMHgWLPrBoMq42QsnSeRtsEp=w800"
+              alt="Canvas Circle Logo"
+              referrerpolicy="no-referrer"
+              style="height:120px; width:auto;"
+            />
+            <h1><?= portalTitle ?></h1>
+          </div>
+          <p id="sellerSubtitle">Loading your listings...</p>
+          <div style="margin-top:12px;">
+            <button
+              id="addListingButton"
+              type="button"
+              style="
+                display:inline-block;
+                background:#111;
+                color:#fff;
+                padding:10px 14px;
+                border-radius:8px;
+                text-decoration:none;
+                font-size:14px;
+                font-weight:600;
+                border:none;
+                cursor:pointer;
+              "
+            >
+              ➕ Add New Listing
+            </button>
+          </div>
+        </div>
+        <div class="portal-top-links">
+          <a class="portal-top-link" href="https://canvascircle.art" target="_blank" rel="noopener noreferrer">View public catalog ↗</a>
+          <a class="portal-top-link" href="mailto:gjscuderi@gmail.com?subject=Canvas%20Circle%20—%20Question">Contact Admin</a>
+        </div>
+      </div>
+
+      <div id="statusBanner" class="status-banner"></div>
+
+      <div id="renewalBanner" class="renewal-banner" hidden>
+        <div class="renewal-banner-content">
+          <div class="renewal-banner-text">
+            <div class="renewal-banner-title" id="renewalBannerTitle"></div>
+            <div class="renewal-banner-sub" id="renewalBannerSub"></div>
+          </div>
+          <button id="renewAllButton" type="button" class="primary renewal-banner-button">Renew all my listings</button>
+        </div>
+        <div class="renewal-banner-status" id="renewalBannerStatus"></div>
+      </div>
+
+      <!-- Compact pill shown when profile is already saved. Click "Change" to expand. -->
+      <div id="facebookCompact" class="facebook-compact" hidden>
+        <span class="facebook-compact-label">
+          <span class="facebook-compact-check">✓</span>
+          Facebook profile saved
+        </span>
+        <button id="facebookEditButton" type="button" class="facebook-edit-link">Change</button>
+      </div>
+
+      <!-- Full prompt shown when no profile saved (or when user clicks Change). -->
+      <div id="facebookExpanded" class="toolbar facebook-expanded">
+        <div class="field">
+          <label>Facebook Profile Link</label>
+          <input id="globalFacebookUrl" placeholder="https://www.facebook.com/your.profile" />
+          <div class="small">Enter once. Applies to all listings.</div>
+        </div>
+
+        <div class="actions">
+          <button id="saveFacebookProfileButton" class="primary" type="button">
+            Save Facebook Profile Link
+          </button>
+          <button id="facebookCancelButton" type="button" class="facebook-cancel" hidden>Cancel</button>
+        </div>
+      </div>
+
+      <!-- Seller location — saved once, applied to every listing in the catalog. -->
+      <!-- Compact pill shown when a location is already saved. Click "Change" to expand. -->
+      <div id="locationCompact" class="location-compact" hidden>
+        <span class="location-compact-label">
+          <span class="location-compact-check">✓</span>
+          Location saved: <span id="locationCompactValue" class="location-compact-value"></span>
+        </span>
+        <button id="locationEditButton" type="button" class="location-edit-link">Change</button>
+      </div>
+
+      <!-- Full prompt shown when no location saved (or when seller clicks Change). -->
+      <div id="locationExpanded" class="toolbar location-toolbar location-expanded">
+        <div class="field">
+          <label>Your Location</label>
+          <input id="globalSellerLocation" placeholder="e.g. Central NJ" autocomplete="off" />
+          <div class="small">We'll show this as <em>Location: Central NJ</em> on each of your listings. Just type the place — no need to write "Located in&hellip;".</div>
+        </div>
+        <div class="actions">
+          <button id="saveSellerLocationButton" class="primary" type="button">Save Location</button>
+          <button id="locationCancelButton" type="button" class="location-cancel" hidden>Cancel</button>
+          <span id="saveSellerLocationStatus" class="small location-status"></span>
+        </div>
+      </div>
+
+      <div class="facebook-tools">
+        <button id="openBuilderButton" class="primary" type="button">🎨 Build Facebook Sales Post</button>
+      </div>
+
+      <div id="facebookPreview" class="facebook-preview">
+        <textarea id="facebookPreviewText" readonly></textarea>
+        <div class="actions">
+          <button id="copyPreviewButton" class="primary" type="button">Copy Text</button>
+          <button id="closePreviewButton" type="button">Close</button>
+        </div>
+      </div>
+      <div id="app"></div>
+    </div>
+
+    <!-- Sales post builder modal -->
+    <div id="builderModal" class="builder-modal" hidden role="dialog" aria-label="Build Facebook Sales Post">
+      <div class="builder-modal-stage">
+        <div class="builder-modal-header">
+          <h2>Build Facebook Sales Post</h2>
+          <button id="builderCloseButton" type="button" class="builder-close" aria-label="Close">×</button>
+        </div>
+        <div class="builder-modal-body">
+          <div class="builder-step">
+            <div class="builder-step-header">
+              <h3>Header & footer text</h3>
+              <button type="button" id="savePostTextsButton" class="builder-pill builder-pill-primary">Save</button>
+            </div>
+            <p class="builder-step-meta builder-help">
+              These paragraphs are added to the top and bottom of every generated post.
+              Saved across sessions — set once, edit anytime.
+            </p>
+            <label class="builder-textarea-label">Header (above all listings)</label>
+            <textarea id="postHeaderInput" class="builder-text-input" rows="2" placeholder="Optional intro paragraph"></textarea>
+            <label class="builder-textarea-label">Footer (below all listings)</label>
+            <textarea id="postFooterInput" class="builder-text-input" rows="2" placeholder="Optional closing paragraph"></textarea>
+            <div class="builder-step-meta" id="postTextsStatus"></div>
+          </div>
+
+          <div class="builder-step">
+            <div class="builder-step-header">
+              <h3>1. Pick listings</h3>
+              <div class="builder-quick-actions">
+                <button type="button" id="builderSelectAvailable" class="builder-pill">Available only</button>
+                <button type="button" id="builderSelectAll" class="builder-pill">Select all</button>
+                <button type="button" id="builderSelectNone" class="builder-pill">Clear</button>
+              </div>
+            </div>
+            <div id="builderListingPicker" class="builder-listing-picker"></div>
+            <div class="builder-step-meta" id="builderSelectionMeta">No listings selected.</div>
+          </div>
+
+          <div class="builder-step">
+            <div class="builder-step-header">
+              <h3>2. Generate</h3>
+            </div>
+            <button type="button" id="builderGenerateButton" class="primary builder-generate">Generate Sales Post</button>
+            <div class="builder-step-meta" id="builderGenerateStatus"></div>
+          </div>
+
+          <div class="builder-step builder-output" id="builderOutput" hidden>
+            <h3>3. Use it</h3>
+
+            <div class="builder-output-block">
+              <div class="builder-output-label">Facebook post text</div>
+              <textarea id="builderTextOutput" readonly></textarea>
+              <button type="button" id="builderCopyTextButton" class="primary">Copy Text</button>
+            </div>
+
+            <div class="builder-output-block">
+              <div class="builder-output-label" id="builderImagesLabel">Sales card images</div>
+              <div class="builder-canvas-area" id="builderCanvasArea"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button id="backToTop" type="button" aria-label="Back to top">↑</button>
+
+    <div id="saveAllBar" class="save-all-bar" hidden role="region" aria-label="Save all unsaved changes">
+      <span class="save-all-status" id="saveAllStatus">No unsaved changes</span>
+      <div class="save-all-actions">
+        <button type="button" id="discardAllButton">Discard all</button>
+        <button type="button" id="saveAllButton" class="primary">Save all changes</button>
+      </div>
+    </div>
+
+    <script>
+      const sellerToken = <?= JSON.stringify(sellerToken) ?>;
+      let bootstrap = null;
+      let isSaving = false;
+
+      // Tracks listing IDs whose card has unsaved edits.
+      const dirtyListingIds = new Set();
+
+      const facebookPreview = document.getElementById('facebookPreview');
+      const facebookPreviewText = document.getElementById('facebookPreviewText');
+      const copyPreviewButton = document.getElementById('copyPreviewButton');
+      const closePreviewButton = document.getElementById('closePreviewButton');
+      const addListingButton = document.getElementById('addListingButton');
+      const saveFacebookProfileButton = document.getElementById('saveFacebookProfileButton');
+      const saveSellerLocationButton = document.getElementById('saveSellerLocationButton');
+      const globalSellerLocationInput = document.getElementById('globalSellerLocation');
+      const saveSellerLocationStatus = document.getElementById('saveSellerLocationStatus');
+      const locationCompact = document.getElementById('locationCompact');
+      const locationCompactValue = document.getElementById('locationCompactValue');
+      const locationExpanded = document.getElementById('locationExpanded');
+      const locationEditButton = document.getElementById('locationEditButton');
+      const locationCancelButton = document.getElementById('locationCancelButton');
+      const saveAllBar = document.getElementById('saveAllBar');
+      const saveAllButton = document.getElementById('saveAllButton');
+      const saveAllStatus = document.getElementById('saveAllStatus');
+      const discardAllButton = document.getElementById('discardAllButton');
+      const GOOGLE_FORM_BASE_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfr5B0TPSlUfU-oeGcpi8Q8oLS-ePqVU4q_8mFrOPCHy5jc3Q/viewform?usp=pp_url';
+      const FORM_ENTRY_SELLER_NAME = 'entry.1308201518';
+      const FORM_ENTRY_SELLER_EMAIL = 'entry.2014146906';
+
+      let filteredListings = [];
+
+      function showBanner(message, isError = false) {
+        const banner = document.getElementById('statusBanner');
+        banner.textContent = message;
+        banner.classList.add('show');
+        banner.style.borderColor = isError ? '#c93f3f' : 'var(--line)';
+        banner.style.background = isError ? '#fff2f2' : 'var(--card)';
+        if (isError) {
+          // The banner sits near the top of the page — without this, sellers
+          // who clicked Save while scrolled down to a card never actually see
+          // the error message and think the button is broken.
+          banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+
+      function getSellerPrefillValues() {
+        const listings = bootstrap && bootstrap.listings ? bootstrap.listings : [];
+        const firstListing = listings.length ? listings[0] : {};
+
+        return {
+          sellerName: (bootstrap && bootstrap.sellerName) || firstListing.seller_name || '',
+          sellerEmail: firstListing.seller_email || ''
+        };
+      }
+
+      function buildPrefilledGoogleFormUrl() {
+        const values = getSellerPrefillValues();
+        const sellerName = encodeURIComponent(values.sellerName || '');
+        const sellerEmail = encodeURIComponent(values.sellerEmail || '');
+
+        return GOOGLE_FORM_BASE_URL
+          + '&' + FORM_ENTRY_SELLER_NAME + '=' + sellerName
+          + '&' + FORM_ENTRY_SELLER_EMAIL + '=' + sellerEmail;
+      }
+
+      function openPrefilledGoogleForm() {
+        if (!bootstrap || !bootstrap.listings || !bootstrap.listings.length) {
+          window.open('https://forms.gle/kGCJ12wq1WV78o759', '_blank');
+          return;
+        }
+
+        window.open(buildPrefilledGoogleFormUrl(), '_blank');
+      }
+
+      function render() {
+        const app = document.getElementById('app');
+        const subtitle = document.getElementById('sellerSubtitle');
+
+        if (!bootstrap || !bootstrap.listings || !bootstrap.listings.length) {
+          subtitle.textContent = 'No listings found for this private seller link.';
+          app.innerHTML = '<div class="empty"><strong>No listings found.</strong><p class="small">Run processArtworkSubmissions first so seller tokens are assigned, then reopen this link.</p></div>';
+          return;
+        }
+
+        subtitle.textContent = `Managing ${bootstrap.listings.length} listing${bootstrap.listings.length === 1 ? '' : 's'} for ${bootstrap.sellerName || 'this seller'}.`;
+
+        app.innerHTML = `
+          <div class="toolbar" id="portalTop">
+            <div class="filters">
+              <input type="text" id="searchInput" placeholder="Search title, artist, medium, listing ID...">
+              <select id="statusFilter">
+                <option value="">All statuses</option>
+                ${bootstrap.statusOptions.filter(option => option !== 'delisted').map(option => `<option value="${escapeAttr(option)}">${escapeHtml(statusLabel(option))}</option>`).join('')}
+              </select>
+              <select id="moderationFilter">
+                <option value="">All review states</option>
+                ${uniqueValues(bootstrap.listings, 'moderation_status').map(value => `<option value="${escapeAttr(value)}">${escapeHtml(labelize(value))}</option>`).join('')}
+              </select>
+              <select id="sortFilter">
+                <option value="listingAsc">Sort: Listing ID</option>
+                <option value="titleAsc">Title: A to Z</option>
+                <option value="artistAsc">Artist: A to Z</option>
+                <option value="priceDesc">Price: High to Low</option>
+                <option value="priceAsc">Price: Low to High</option>
+              </select>
+              <button type="button" class="clear-button" id="clearFiltersButton">Clear</button>
+            </div>
+            <div class="filter-meta" id="filterMeta"></div>
+          </div>
+          <div class="grid" id="listingGrid"></div>
+        `;
+
+        bindFilterActions();
+        applyFilters();
+      }
+
+      function bindFilterActions() {
+        ['searchInput', 'statusFilter', 'moderationFilter', 'sortFilter'].forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.addEventListener('input', applyFilters);
+          el.addEventListener('change', applyFilters);
+        });
+
+        const clearButton = document.getElementById('clearFiltersButton');
+        if (clearButton) {
+          clearButton.addEventListener('click', () => {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('moderationFilter').value = '';
+            document.getElementById('sortFilter').value = 'listingAsc';
+            applyFilters();
+          });
+        }
+      }
+
+      function applyFilters() {
+        const grid = document.getElementById('listingGrid');
+        const meta = document.getElementById('filterMeta');
+        if (!grid || !meta || !bootstrap || !bootstrap.listings) return;
+
+        const search = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+        const status = document.getElementById('statusFilter')?.value || '';
+        const moderation = document.getElementById('moderationFilter')?.value || '';
+        const sortMode = document.getElementById('sortFilter')?.value || 'listingAsc';
+
+        filteredListings = bootstrap.listings.filter((listing) => {
+          const searchable = [
+            listing.listing_id,
+            listing.artwork_title,
+            listing.artist_name,
+            listing.medium,
+            listing.price,
+            listing.status,
+            listing.moderation_status,
+            listing.seller_notes
+          ].join(' ').toLowerCase();
+
+          const matchesSearch = !search || searchable.includes(search);
+          const matchesStatus = !status || listing.status === status;
+          const matchesModeration = !moderation || listing.moderation_status === moderation;
+          return matchesSearch && matchesStatus && matchesModeration;
+        });
+
+        filteredListings.sort((a, b) => {
+          const priceA = parsePrice(a.price);
+          const priceB = parsePrice(b.price);
+          if (sortMode === 'titleAsc') return String(a.artwork_title || '').localeCompare(String(b.artwork_title || ''));
+          if (sortMode === 'artistAsc') return String(a.artist_name || '').localeCompare(String(b.artist_name || ''));
+          if (sortMode === 'priceDesc') return priceB - priceA;
+          if (sortMode === 'priceAsc') return priceA - priceB;
+          return String(a.listing_id || '').localeCompare(String(b.listing_id || ''));
+        });
+
+        grid.innerHTML = filteredListings.length
+          ? filteredListings.map(renderCard).join('')
+          : '<div class="empty"><strong>No matching listings.</strong><p class="small">Try clearing or changing your filters.</p></div>';
+
+        meta.textContent = `${filteredListings.length} of ${bootstrap.listings.length} listing${bootstrap.listings.length === 1 ? '' : 's'} shown`;
+
+        // Re-rendering cards from bootstrap resets every input to its saved value,
+        // so any prior dirty state no longer reflects reality.
+        clearAllDirty();
+
+        bindCardActions();
+      }
+
+      function renderCard(listing) {
+        const imageHtml = listing.source_image_url
+          ? `<img src="${escapeHtml(listing.source_image_url)}" alt="${escapeHtml(listing.artwork_title || listing.artist_name || 'Artwork')}" referrerpolicy="no-referrer" loading="lazy" />`
+          : '<div style="height:260px;display:flex;align-items:center;justify-content:center;background:#f2ece3;color:#6f675e;">No image</div>';
+
+        const moderationClass = (listing.moderation_status || 'pending_review').replace(/[^a-z0-9_-]/gi, '').toLowerCase();
+
+        return `
+          <div class="card" data-listing-id="${escapeHtml(listing.listing_id)}">
+            ${imageHtml}
+            <div class="card-body">
+              <div class="listing-meta">
+                <div>
+                  <h2>${escapeHtml(listing.artwork_title || 'Untitled')}</h2>
+                  <div class="listing-id">${escapeHtml(listing.listing_id)}</div>
+                </div>
+                <div class="meta-row">
+                  <span class="pill ${escapeHtml(listing.status)}">${escapeHtml(statusLabel(listing.status))}</span>
+                  <span class="pill review ${escapeHtml(moderationClass)}">${escapeHtml(listing.moderation_status || 'pending_review')}</span>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Artwork Title</label>
+                <input data-field="artwork_title" value="${escapeAttr(listing.artwork_title)}" />
+              </div>
+
+              <div class="field">
+                <label>Artist Name</label>
+                <input data-field="artist_name" value="${escapeAttr(listing.artist_name)}" />
+              </div>
+
+              <div class="field">
+                <label>Medium / Type</label>
+                <input data-field="medium" value="${escapeAttr(listing.medium)}" />
+              </div>
+
+              <div class="field">
+                <label>Artwork Size (inches)</label>
+                <input data-field="artwork_size_inches" value="${escapeAttr(listing.artwork_size_inches)}" />
+              </div>
+
+              <div class="field">
+                <label>Framed Size (inches)</label>
+                <input data-field="framed_size_inches" value="${escapeAttr(listing.framed_size_inches)}" />
+              </div>
+
+              <div class="field">
+                <label>Price (USD)</label>
+                <input data-field="price" value="${escapeAttr(listing.price)}" inputmode="decimal" placeholder="e.g. 1200 or $1,200" />
+              </div>
+
+              <div class="field">
+                <label>Shipping Included?</label>
+                <select data-field="shipping_included" required>
+                  <option value="" disabled ${!listing.shipping_included ? 'selected' : ''}>Select Yes or No</option>
+                  <option value="Yes" ${listing.shipping_included === 'Yes' ? 'selected' : ''}>Yes</option>
+                  <option value="No" ${listing.shipping_included === 'No' ? 'selected' : ''}>No</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label>Certificate of Authenticity Included?</label>
+                <select data-field="certificate_of_authenticity_included" required>
+                  <option value="" disabled ${!listing.certificate_of_authenticity_included ? 'selected' : ''}>Select Yes or No</option>
+                  <option value="Yes" ${listing.certificate_of_authenticity_included === 'Yes' ? 'selected' : ''}>Yes</option>
+                  <option value="No" ${listing.certificate_of_authenticity_included === 'No' ? 'selected' : ''}>No</option>
+                </select>
+              </div>
+
+              
+
+              <div class="field">
+                <label>Status</label>
+                <select data-field="status">
+                  ${bootstrap.statusOptions.map(option => `<option value="${escapeAttr(option)}" ${option === listing.status ? 'selected' : ''}>${escapeHtml(statusLabel(option))}</option>`).join('')}
+                </select>
+                <div class="small">Choosing "Remove from seller portal" will hide this listing from your portal. Email support if you need to bring it back.</div>
+              </div>
+
+              <div class="field">
+                <label>Seller Mood (optional)</label>
+                <select data-field="seller_mood">
+                  <option value="" ${!listing.seller_mood ? 'selected' : ''}>No mood set</option>
+                  ${(bootstrap.moodOptions || []).map(option => `<option value="${escapeAttr(option)}" ${option === listing.seller_mood ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
+                </select>
+                <div class="small">Shown in the public listing modal so buyers know your stance — e.g. "Open to Offers" or "Price Firm".</div>
+              </div>
+
+              <div class="field">
+                <label>Description / Seller Notes</label>
+                <textarea data-field="seller_notes">${escapeHtml(listing.seller_notes || '')}</textarea>
+              </div>
+
+              <div class="field">
+                <label>Replace Image</label>
+                <input type="file" data-field="new_image_file" accept="image/*" />
+                <div class="small">Upload one image from your phone or computer. JPG, PNG, or WEBP recommended. Large images may take longer to save.</div>
+              </div>
+
+              <div class="small">
+                ${listing.previous_price ? `Previous price: ${escapeHtml(listing.previous_price)}<br>` : ''}
+                ${listing.updated_at ? `Last updated: ${escapeHtml(new Date(listing.updated_at).toLocaleString())}` : ''}
+              </div>
+
+              <div class="actions">
+                <button class="primary save-button">Save changes</button>
+                <button class="reset-button" type="button">Reset</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function bindCardActions() {
+        document.querySelectorAll('.card').forEach(card => {
+          card.querySelector('.save-button').addEventListener('click', () => saveCard(card));
+          card.querySelector('.reset-button').addEventListener('click', () => {
+            const listingId = card.dataset.listingId;
+            const fresh = bootstrap.listings.find(x => x.listing_id === listingId);
+            if (!fresh) return;
+            card.outerHTML = renderCard(fresh);
+            bindCardActions();
+            markCardClean(listingId);
+          });
+
+          // Mark the card dirty as soon as the user touches any field, and
+          // also clear any lingering validation-error ring — once they're
+          // editing again the previous failure is no longer "live".
+          card.querySelectorAll('[data-field]').forEach(el => {
+            const handler = () => {
+              markCardDirty(card.dataset.listingId);
+              card.classList.remove('has-validation-error');
+            };
+            el.addEventListener('input', handler);
+            el.addEventListener('change', handler);
+          });
+        });
+        updateSaveAllBar();
+      }
+
+      function markCardDirty(listingId) {
+        if (!listingId) return;
+        dirtyListingIds.add(listingId);
+        const card = document.querySelector(`.card[data-listing-id="${cssEscape(listingId)}"]`);
+        if (card) card.classList.add('is-dirty');
+        updateSaveAllBar();
+      }
+
+      function markCardClean(listingId) {
+        if (!listingId) return;
+        dirtyListingIds.delete(listingId);
+        const card = document.querySelector(`.card[data-listing-id="${cssEscape(listingId)}"]`);
+        if (card) card.classList.remove('is-dirty');
+        updateSaveAllBar();
+      }
+
+      function clearAllDirty() {
+        dirtyListingIds.clear();
+        document.querySelectorAll('.card.is-dirty').forEach(card => card.classList.remove('is-dirty'));
+        updateSaveAllBar();
+      }
+
+      function cssEscape(value) {
+        if (window.CSS && CSS.escape) return CSS.escape(value);
+        return String(value).replace(/([^a-zA-Z0-9_-])/g, '\\$1');
+      }
+
+      function updateSaveAllBar() {
+        if (!saveAllBar) return;
+        const n = dirtyListingIds.size;
+        if (n === 0) {
+          saveAllBar.hidden = true;
+          return;
+        }
+        saveAllBar.hidden = false;
+        saveAllStatus.textContent = `${n} listing${n === 1 ? '' : 's'} with unsaved changes`;
+        saveAllButton.disabled = isSaving;
+        saveAllButton.textContent = isSaving ? 'Saving...' : `Save all changes (${n})`;
+        discardAllButton.disabled = isSaving;
+      }
+
+      async function extractCardPayload(card) {
+        const payload = { sellerToken, listingId: card.dataset.listingId };
+        const fields = Array.from(card.querySelectorAll('[data-field]'));
+
+        for (const el of fields) {
+          const fieldName = el.dataset.field;
+
+          if (el.type === 'file') {
+            const file = el.files && el.files[0];
+            if (file) {
+              const base64 = await fileToBase64(file);
+              payload.new_image_upload = {
+                name: file.name,
+                type: file.type || 'image/jpeg',
+                base64: base64
+              };
+            }
+            continue;
+          }
+
+          payload[fieldName] = el.value;
+        }
+        const globalFacebook = document.getElementById('globalFacebookUrl')?.value || '';
+        payload.seller_profile_url = globalFacebook;
+        return payload;
+      }
+
+      function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = String(reader.result || '');
+            const base64 = result.includes(',') ? result.split(',')[1] : result;
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // Promise wrapper around a single saveSellerListingUpdate call.
+      function saveSellerListingUpdatePromise(payload) {
+        return new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .saveSellerListingUpdate(payload);
+        });
+      }
+
+      function validateListingPayload(payload) {
+        // Shipping and COA must be Yes/No — empty/Unknown is no longer allowed.
+        if (payload.shipping_included !== 'Yes' && payload.shipping_included !== 'No') {
+          return 'Please select Yes or No for "Shipping Included" before saving.';
+        }
+        if (payload.certificate_of_authenticity_included !== 'Yes' && payload.certificate_of_authenticity_included !== 'No') {
+          return 'Please select Yes or No for "Certificate of Authenticity Included" before saving.';
+        }
+        // Price must be numeric — strip $/comma/space then check digits.
+        const priceCleaned = String(payload.price || '').replace(/[$,\s]/g, '').trim();
+        if (!priceCleaned) {
+          return 'Price is required.';
+        }
+        if (!/^\d+(\.\d+)?$/.test(priceCleaned)) {
+          return 'Price must be a number — no words or other characters. Examples: 1200, $1,200, 1200.50';
+        }
+        return null;
+      }
+
+      async function saveCard(card) {
+        if (isSaving) return;
+        isSaving = true;
+        const saveButton = card.querySelector('.save-button');
+        saveButton.disabled = true;
+        saveButton.textContent = 'Saving...';
+        updateSaveAllBar();
+        showBanner('Saving changes...');
+
+        try {
+          const payload = await extractCardPayload(card);
+          const validationError = validateListingPayload(payload);
+          if (validationError) {
+            isSaving = false;
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save changes';
+            updateSaveAllBar();
+            card.classList.add('has-validation-error');
+            showBanner(validationError, true);
+            return;
+          }
+          const nextBootstrap = await saveSellerListingUpdatePromise(payload);
+          bootstrap = nextBootstrap;
+          markCardClean(card.dataset.listingId);
+          isSaving = false;
+          showBanner('Saved. Content edits are marked pending review; status, price, and seller profile link changes update immediately.');
+          render();
+        } catch (error) {
+          isSaving = false;
+          saveButton.disabled = false;
+          saveButton.textContent = 'Save changes';
+          updateSaveAllBar();
+          showBanner(error && error.message ? error.message : 'Failed to save changes.', true);
+        }
+      }
+
+      async function saveAllDirty() {
+        if (isSaving) return;
+        if (dirtyListingIds.size === 0) return;
+
+        // Snapshot the IDs so removals during iteration don't break the loop.
+        const idsToSave = Array.from(dirtyListingIds);
+
+        // ---------- Phase 1: pre-validate every dirty card ----------
+        // If ANY listing fails validation, abort the entire save (don't write
+        // some good cards while leaving bad cards behind) and surface every
+        // error at once so the seller can fix them all in bulk.
+        const validationErrors = [];
+        const validatedItems = []; // [{ listingId, payload }]
+
+        for (const listingId of idsToSave) {
+          const card = document.querySelector(`.card[data-listing-id="${cssEscape(listingId)}"]`);
+          if (!card) {
+            validationErrors.push({ listingId, message: 'Card no longer in view — adjust filters and retry.' });
+            continue;
+          }
+          let payload;
+          try {
+            payload = await extractCardPayload(card);
+          } catch (error) {
+            validationErrors.push({
+              listingId,
+              message: (error && error.message) ? error.message : 'Could not read changes.'
+            });
+            continue;
+          }
+          const validationError = validateListingPayload(payload);
+          if (validationError) {
+            validationErrors.push({ listingId, message: validationError });
+            continue;
+          }
+          validatedItems.push({ listingId, payload });
+        }
+
+        if (validationErrors.length > 0) {
+          // Highlight every offending card so the seller can find them quickly.
+          // First clear stale highlights, then re-apply only to currently-bad cards.
+          document.querySelectorAll('.card.has-validation-error')
+            .forEach(c => c.classList.remove('has-validation-error'));
+          validationErrors.forEach(f => {
+            const c = document.querySelector(`.card[data-listing-id="${cssEscape(f.listingId)}"]`);
+            if (c) c.classList.add('has-validation-error');
+          });
+
+          const errorList = validationErrors
+            .map(f => `• ${f.listingId}: ${f.message}`)
+            .join('\n');
+          showBanner(
+            `Save All blocked. ${validationErrors.length} listing${validationErrors.length === 1 ? '' : 's'} need fixing first:\n${errorList}\n\nNothing was saved. The cards with the red outline below are the ones to fix.`,
+            true
+          );
+          return;
+        }
+
+        // ---------- Phase 2: actually save ----------
+        isSaving = true;
+        updateSaveAllBar();
+
+        const failures = [];
+        let savedCount = 0;
+        let latestBootstrap = bootstrap;
+
+        for (let i = 0; i < validatedItems.length; i++) {
+          const { listingId, payload } = validatedItems[i];
+
+          showBanner(`Saving ${i + 1} of ${validatedItems.length}...`);
+          saveAllStatus.textContent = `Saving ${i + 1} of ${validatedItems.length}...`;
+
+          try {
+            latestBootstrap = await saveSellerListingUpdatePromise(payload);
+            dirtyListingIds.delete(listingId);
+            savedCount++;
+          } catch (error) {
+            failures.push({
+              listingId,
+              message: (error && error.message) ? error.message : 'Save failed.'
+            });
+          }
+        }
+
+        bootstrap = latestBootstrap;
+        isSaving = false;
+
+        if (failures.length === 0) {
+          showBanner(`Saved ${savedCount} listing${savedCount === 1 ? '' : 's'}. Content edits are marked pending review; status, price, and seller profile link changes update immediately.`);
+        } else {
+          const failedIds = failures.map(f => f.listingId).join(', ');
+          showBanner(`Saved ${savedCount}. ${failures.length} failed: ${failedIds}. ${failures[0].message}`, true);
+        }
+
+        render();
+      }
+
+      function discardAllDirty() {
+        if (isSaving) return;
+        if (dirtyListingIds.size === 0) return;
+        const n = dirtyListingIds.size;
+        const ok = window.confirm(`Discard unsaved changes on ${n} listing${n === 1 ? '' : 's'}?`);
+        if (!ok) return;
+        clearAllDirty();
+        render();
+        showBanner('Unsaved changes discarded.');
+      }
+
+      function uniqueValues(listings, key) {
+        return Array.from(new Set(
+          listings
+            .map(item => String(item[key] || '').trim())
+            .filter(Boolean)
+        )).sort((a, b) => a.localeCompare(b));
+      }
+
+      function labelize(value) {
+        return String(value || '')
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, char => char.toUpperCase());
+      }
+
+      // Friendly display label for a listing status value. We keep the underlying
+      // stored value (e.g. "delisted") unchanged so there's no data migration —
+      // only the on-screen wording changes.
+      function statusLabel(value) {
+        const v = String(value || '').toLowerCase();
+        if (v === 'delisted') return 'Remove from seller portal';
+        return labelize(v);
+      }
+
+      function parsePrice(value) {
+        const cleaned = String(value || '').replace(/[$,]/g, '').trim();
+        const parsed = Number(cleaned);
+        return Number.isFinite(parsed) ? parsed : Infinity;
+      }
+
+      const backToTop = document.getElementById('backToTop');
+      window.addEventListener('scroll', () => {
+        if (!backToTop) return;
+        backToTop.classList.toggle('show', window.scrollY > 450);
+      });
+      if (backToTop) {
+        backToTop.addEventListener('click', () => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      }
+
+
+      function formatFacebookPrice(listing) {
+        const raw = String(listing.price || '').trim();
+        if (!raw) return 'Price on request';
+
+        const cleaned = raw.replace(/[$,]/g, '');
+        const num = Number(cleaned);
+
+        let priceText = raw;
+        if (Number.isFinite(num)) {
+          priceText = num % 1 === 0
+            ? `$${num.toLocaleString()}`
+            : `$${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        } else if (!raw.startsWith('$')) {
+          priceText = `$${raw}`;
+        }
+
+        const shipping = String(listing.shipping_included || '').trim().toLowerCase();
+
+        if (shipping === 'yes' || shipping === 'true' || shipping === '1') {
+          return `${priceText} shipped`;
+        }
+
+        if (shipping === 'no' || shipping === 'false' || shipping === '0') {
+          return `${priceText} + shipping`;
+        }
+
+        return priceText;
+      }
+
+      function truthyText(value) {
+        const v = String(value || '').trim().toLowerCase();
+        return v === 'true' || v === 'yes' || v === '1';
+      }
+
+      function cleanLine(value) {
+        return String(value || '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+
+      function buildFacebookPostForListing(listing, _includeNumber) {
+        // _includeNumber is ignored — sellers asked us to drop the numbering
+        // from the generated post text. The parameter remains in the signature
+        // for backwards compatibility with any old callers.
+        const artist = cleanLine(listing.artist_name);
+        const title = cleanLine(listing.artwork_title || 'Untitled');
+        const category = cleanLine(listing.artwork_category);
+
+        // Heading layout: artist on its own line, then "Title - Category" on
+        // the next line using a regular dash. If the artist is missing, the
+        // title (with optional category) becomes the only heading line.
+        const titleLine = category ? `${title} - ${category}` : title;
+        const lines = [];
+        if (artist) {
+          lines.push(artist);
+          lines.push(titleLine);
+        } else {
+          lines.push(titleLine || cleanLine(listing.listing_id));
+        }
+
+        // For sold listings, "SOLD" replaces the price/shipping line entirely —
+        // once it's sold the listed price isn't useful in the post.
+        const isSold = String(listing.status || '').toLowerCase() === 'sold';
+        if (isSold) {
+          lines.push('-SOLD');
+        } else {
+          lines.push(`-${formatFacebookPrice(listing)}`);
+        }
+
+        const medium = cleanLine(listing.medium);
+        if (medium) lines.push(`-${medium}`);
+
+        const artworkSize = cleanLine(listing.artwork_size_inches);
+        const framedSize = cleanLine(listing.framed_size_inches);
+        if (artworkSize && framedSize) {
+          lines.push(`-${artworkSize} artwork, ${framedSize} framed`);
+        } else if (artworkSize) {
+          lines.push(`-${artworkSize} artwork`);
+        } else if (framedSize) {
+          lines.push(`-${framedSize} framed`);
+        }
+
+        if (truthyText(listing.certificate_of_authenticity_included)) {
+          lines.push('-COA included');
+        } else {
+          // Explicitly call out missing COA so buyers don't have to ask.
+          // Skip only when the field is genuinely empty/unknown.
+          const coaText = String(listing.certificate_of_authenticity_included || '').trim().toLowerCase();
+          if (coaText === 'no' || coaText === 'false' || coaText === '0') {
+            lines.push('-No COA');
+          }
+        }
+
+        const notes = cleanLine(listing.seller_notes);
+        if (notes) lines.push(`-${notes}`);
+
+        return lines.filter(Boolean).join('\n');
+      }
+
+      async function copyTextToClipboard(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          return;
+        }
+
+        facebookPreviewText.value = text;
+        facebookPreview.classList.add('show');
+        facebookPreviewText.focus();
+        facebookPreviewText.select();
+        document.execCommand('copy');
+      }
+
+      function showFacebookPreview(text) {
+        facebookPreviewText.value = text;
+        facebookPreview.classList.add('show');
+        facebookPreview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      async function copyAndPreviewFacebookText(text, successMessage) {
+        showFacebookPreview(text);
+
+        try {
+          await copyTextToClipboard(text);
+          showBanner(successMessage || 'Facebook post text copied. Paste it into Facebook.');
+        } catch (error) {
+          showBanner('Could not auto-copy. Select the text below and copy it manually.', true);
+        }
+      }
+
+      function saveFacebookProfileOnly() {
+        const facebookUrl = document.getElementById('globalFacebookUrl')?.value || '';
+
+        if (!facebookUrl.trim()) {
+          showBanner('Please enter a Facebook profile link.', true);
+          return;
+        }
+
+        const firstListing = bootstrap && bootstrap.listings && bootstrap.listings.length
+          ? bootstrap.listings[0]
+          : null;
+
+        if (!firstListing) {
+          showBanner('No listings found to update.', true);
+          return;
+        }
+
+        showBanner('Saving Facebook profile link...');
+
+        // 🔥 IMPORTANT: send FULL payload so nothing gets erased
+        const payload = {
+          sellerToken: sellerToken,
+          listingId: firstListing.listing_id,
+          seller_profile_url: facebookUrl,
+
+          artwork_title: firstListing.artwork_title || '',
+          artist_name: firstListing.artist_name || '',
+          medium: firstListing.medium || '',
+          artwork_size_inches: firstListing.artwork_size_inches || '',
+          framed_size_inches: firstListing.framed_size_inches || '',
+          price: firstListing.price || '',
+          shipping_included: firstListing.shipping_included || '',
+          certificate_of_authenticity_included: firstListing.certificate_of_authenticity_included || '',
+          status: firstListing.status || '',
+          seller_notes: firstListing.seller_notes || ''
+        };
+
+        google.script.run
+          .withSuccessHandler((nextBootstrap) => {
+            bootstrap = nextBootstrap;
+            showBanner('Facebook profile link saved for all listings.');
+            render();
+            // Collapse the section now that a profile URL is saved.
+            updateFacebookSectionState();
+          })
+          .withFailureHandler((error) => {
+            showBanner(error && error.message ? error.message : 'Failed to save profile.', true);
+          })
+          .saveSellerListingUpdate(payload);
+      }
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function escapeAttr(value) {
+        return escapeHtml(value).replace(/'/g, '&#39;');
+      }
+
+
+      if (copyPreviewButton) {
+        copyPreviewButton.addEventListener('click', () => {
+          copyAndPreviewFacebookText(facebookPreviewText.value, 'Facebook post text copied.');
+        });
+      }
+
+      if (closePreviewButton) {
+        closePreviewButton.addEventListener('click', () => {
+          facebookPreview.classList.remove('show');
+        });
+      }
+
+      if (addListingButton) {
+        addListingButton.addEventListener('click', openPrefilledGoogleForm);
+      }
+      if (saveFacebookProfileButton) {
+        saveFacebookProfileButton.addEventListener('click', () => {
+          saveFacebookProfileOnly();
+        });
+      }
+
+      function getCurrentSavedLocation() {
+        return ((bootstrap && bootstrap.sellerLocation) || '').trim();
+      }
+
+      function showCompactLocation() {
+        if (!locationCompact || !locationExpanded) return;
+        const saved = getCurrentSavedLocation();
+        if (locationCompactValue) locationCompactValue.textContent = saved;
+        locationCompact.hidden = false;
+        locationExpanded.hidden = true;
+        if (locationCancelButton) locationCancelButton.hidden = true;
+      }
+
+      function showExpandedLocation(allowCancel) {
+        if (!locationCompact || !locationExpanded) return;
+        locationCompact.hidden = true;
+        locationExpanded.hidden = false;
+        if (locationCancelButton) locationCancelButton.hidden = !allowCancel;
+        if (globalSellerLocationInput) {
+          globalSellerLocationInput.focus();
+          globalSellerLocationInput.select && globalSellerLocationInput.select();
+        }
+      }
+
+      function updateLocationSectionState() {
+        if (getCurrentSavedLocation()) {
+          showCompactLocation();
+        } else {
+          showExpandedLocation(false);
+        }
+      }
+
+      function saveSellerLocation() {
+        if (!saveSellerLocationButton) return;
+        const value = (globalSellerLocationInput && globalSellerLocationInput.value || '').trim();
+        saveSellerLocationButton.disabled = true;
+        saveSellerLocationButton.textContent = 'Saving...';
+        if (saveSellerLocationStatus) {
+          saveSellerLocationStatus.textContent = '';
+          saveSellerLocationStatus.className = 'small location-status';
+        }
+        google.script.run
+          .withSuccessHandler((nextBootstrap) => {
+            bootstrap = nextBootstrap;
+            saveSellerLocationButton.disabled = false;
+            saveSellerLocationButton.textContent = 'Save Location';
+            const saved = (bootstrap && bootstrap.sellerLocation) || '';
+            if (globalSellerLocationInput) globalSellerLocationInput.value = saved;
+            if (saveSellerLocationStatus) {
+              saveSellerLocationStatus.textContent = saved
+                ? 'Saved — applied to all your listings.'
+                : 'Cleared from all your listings.';
+              saveSellerLocationStatus.className = 'small location-status ok';
+            }
+            // Collapse to the compact pill if a value is saved; expand if cleared.
+            updateLocationSectionState();
+            // Re-render listings so any catalog-bound state stays current.
+            render();
+          })
+          .withFailureHandler((error) => {
+            saveSellerLocationButton.disabled = false;
+            saveSellerLocationButton.textContent = 'Save Location';
+            if (saveSellerLocationStatus) {
+              saveSellerLocationStatus.textContent =
+                (error && error.message) ? error.message : 'Save failed.';
+              saveSellerLocationStatus.className = 'small location-status err';
+            }
+          })
+          .saveSellerLocation({ sellerToken: sellerToken, sellerLocation: value });
+      }
+
+      if (saveSellerLocationButton) {
+        saveSellerLocationButton.addEventListener('click', saveSellerLocation);
+      }
+
+      if (locationEditButton) {
+        locationEditButton.addEventListener('click', () => {
+          showExpandedLocation(true);
+        });
+      }
+
+      if (locationCancelButton) {
+        locationCancelButton.addEventListener('click', () => {
+          // Restore the input value to whatever's saved, clear the status, then collapse.
+          if (globalSellerLocationInput) globalSellerLocationInput.value = getCurrentSavedLocation();
+          if (saveSellerLocationStatus) {
+            saveSellerLocationStatus.textContent = '';
+            saveSellerLocationStatus.className = 'small location-status';
+          }
+          if (getCurrentSavedLocation()) {
+            showCompactLocation();
+          }
+        });
+      }
+
+      if (saveAllButton) {
+        saveAllButton.addEventListener('click', saveAllDirty);
+      }
+      if (discardAllButton) {
+        discardAllButton.addEventListener('click', discardAllDirty);
+      }
+
+      // Warn before navigating away with unsaved changes.
+      window.addEventListener('beforeunload', (event) => {
+        if (dirtyListingIds.size > 0 && !isSaving) {
+          event.preventDefault();
+          event.returnValue = '';
+          return '';
+        }
+      });
+
+      const facebookCompact = document.getElementById('facebookCompact');
+      const facebookExpanded = document.getElementById('facebookExpanded');
+      const facebookEditButton = document.getElementById('facebookEditButton');
+      const facebookCancelButton = document.getElementById('facebookCancelButton');
+
+      function getCurrentSavedProfileUrl() {
+        if (!bootstrap || !bootstrap.listings || !bootstrap.listings.length) return '';
+        return (bootstrap.listings[0].seller_profile_url || '').trim();
+      }
+
+      function showCompactFacebook() {
+        facebookCompact.hidden = false;
+        facebookExpanded.hidden = true;
+        if (facebookCancelButton) facebookCancelButton.hidden = true;
+      }
+
+      function showExpandedFacebook(allowCancel) {
+        facebookCompact.hidden = true;
+        facebookExpanded.hidden = false;
+        if (facebookCancelButton) facebookCancelButton.hidden = !allowCancel;
+        const input = document.getElementById('globalFacebookUrl');
+        if (input) {
+          input.focus();
+          input.select && input.select();
+        }
+      }
+
+      function updateFacebookSectionState() {
+        if (getCurrentSavedProfileUrl()) {
+          showCompactFacebook();
+        } else {
+          showExpandedFacebook(false);
+        }
+      }
+
+      // === Renewal banner ===
+      const renewalBanner = document.getElementById('renewalBanner');
+      const renewalBannerTitle = document.getElementById('renewalBannerTitle');
+      const renewalBannerSub = document.getElementById('renewalBannerSub');
+      const renewalBannerStatus = document.getElementById('renewalBannerStatus');
+      const renewAllButton = document.getElementById('renewAllButton');
+
+      function setRenewalStatus(msg, kind) {
+        if (!renewalBannerStatus) return;
+        renewalBannerStatus.textContent = msg || '';
+        renewalBannerStatus.className = 'renewal-banner-status ' + (msg ? 'is-visible ' : '') + (kind || '');
+      }
+
+      function summarizeRenewal() {
+        // Looks at current bootstrap.listings and returns a summary used to
+        // drive the banner display: { needsBanner, expiredCount, urgentCount,
+        // soonCount, minDaysLeft, totalRenewable }.
+        const listings = (bootstrap && bootstrap.listings) || [];
+        const windowDays = (bootstrap && bootstrap.renewalWindowDays) || 60;
+        const warnDays = (bootstrap && bootstrap.renewalWarningDays) || 7;
+
+        let expiredCount = 0;
+        let urgentCount = 0;
+        let totalRenewable = 0;
+        let minDaysLeft = Number.MAX_SAFE_INTEGER;
+
+        listings.forEach(l => {
+          const status = String(l.status || '').toLowerCase();
+          if (status === 'sold' || status === 'delisted') return;
+          totalRenewable++;
+          if (status === 'not_renewed') {
+            expiredCount++;
+            return;
+          }
+          const daysSince = (l.days_since_renewal === null || l.days_since_renewal === undefined)
+            ? 0
+            : l.days_since_renewal;
+          const daysLeft = Math.max(0, windowDays - daysSince);
+          if (daysLeft < minDaysLeft) minDaysLeft = daysLeft;
+          if (daysLeft <= warnDays) urgentCount++;
+        });
+
+        if (minDaysLeft === Number.MAX_SAFE_INTEGER) minDaysLeft = windowDays;
+        return {
+          needsBanner: expiredCount > 0 || urgentCount > 0,
+          expiredCount: expiredCount,
+          urgentCount: urgentCount,
+          minDaysLeft: minDaysLeft,
+          totalRenewable: totalRenewable,
+        };
+      }
+
+      function refreshRenewalBanner() {
+        if (!renewalBanner) return;
+        const s = summarizeRenewal();
+        renewalBanner.classList.remove('urgent', 'expired');
+
+        if (!s.needsBanner) {
+          renewalBanner.hidden = true;
+          return;
+        }
+        renewalBanner.hidden = false;
+
+        if (s.expiredCount > 0) {
+          renewalBanner.classList.add('expired');
+          renewalBannerTitle.textContent =
+            `${s.expiredCount} listing${s.expiredCount === 1 ? '' : 's'} expired and removed from the catalog`;
+          renewalBannerSub.textContent =
+            'Click Renew to bring them back to "Available" and republish them on canvascircle.art.';
+        } else {
+          renewalBanner.classList.add('urgent');
+          renewalBannerTitle.textContent =
+            `${s.urgentCount} listing${s.urgentCount === 1 ? '' : 's'} need renewal soon`;
+          renewalBannerSub.textContent =
+            `Earliest expires in ${s.minDaysLeft} day${s.minDaysLeft === 1 ? '' : 's'}. Renew now to keep them visible on the public catalog for another ${(bootstrap && bootstrap.renewalWindowDays) || 60} days.`;
+        }
+      }
+
+      function renewAllNow() {
+        if (!renewAllButton) return;
+        renewAllButton.disabled = true;
+        renewAllButton.textContent = 'Renewing...';
+        setRenewalStatus('', 'info');
+
+        google.script.run
+          .withSuccessHandler(result => {
+            renewAllButton.disabled = false;
+            renewAllButton.textContent = 'Renew all my listings';
+            const renewed = (result && result.renewedCount) || 0;
+            const revived = (result && result.revivedCount) || 0;
+            const parts = [`Renewed ${renewed} listing${renewed === 1 ? '' : 's'}.`];
+            if (revived > 0) parts.push(`${revived} brought back from "Not Renewed".`);
+            setRenewalStatus(parts.join(' '), 'ok');
+            // Reload bootstrap so the banner / per-listing dates refresh.
+            google.script.run
+              .withSuccessHandler(data => {
+                bootstrap = data;
+                refreshRenewalBanner();
+                render();
+              })
+              .withFailureHandler(() => {})
+              .getSellerPortalBootstrap(sellerToken);
+          })
+          .withFailureHandler(err => {
+            renewAllButton.disabled = false;
+            renewAllButton.textContent = 'Renew all my listings';
+            setRenewalStatus(
+              (err && err.message) ? err.message : 'Renewal failed.',
+              'err'
+            );
+          })
+          .renewSellerListings(sellerToken);
+      }
+
+      if (renewAllButton) renewAllButton.addEventListener('click', renewAllNow);
+
+      if (facebookEditButton) {
+        facebookEditButton.addEventListener('click', () => {
+          showExpandedFacebook(true);
+        });
+      }
+
+      if (facebookCancelButton) {
+        facebookCancelButton.addEventListener('click', () => {
+          // Restore the input value to whatever's saved, then collapse.
+          const input = document.getElementById('globalFacebookUrl');
+          if (input) input.value = getCurrentSavedProfileUrl();
+          if (getCurrentSavedProfileUrl()) {
+            showCompactFacebook();
+          }
+        });
+      }
+
+      // === Sales Post Builder ===
+      const builderModal = document.getElementById('builderModal');
+      const builderCloseButton = document.getElementById('builderCloseButton');
+      const openBuilderButton = document.getElementById('openBuilderButton');
+      const builderListingPicker = document.getElementById('builderListingPicker');
+      const builderSelectionMeta = document.getElementById('builderSelectionMeta');
+      const builderGenerateButton = document.getElementById('builderGenerateButton');
+      const builderGenerateStatus = document.getElementById('builderGenerateStatus');
+      const builderOutput = document.getElementById('builderOutput');
+      const builderTextOutput = document.getElementById('builderTextOutput');
+      const builderCopyTextButton = document.getElementById('builderCopyTextButton');
+      const builderCanvasArea = document.getElementById('builderCanvasArea');
+      const builderImagesLabel = document.getElementById('builderImagesLabel');
+      const builderSelectAvailable = document.getElementById('builderSelectAvailable');
+      const builderSelectAll = document.getElementById('builderSelectAll');
+      const builderSelectNone = document.getElementById('builderSelectNone');
+      const postHeaderInput = document.getElementById('postHeaderInput');
+      const postFooterInput = document.getElementById('postFooterInput');
+      const savePostTextsButton = document.getElementById('savePostTextsButton');
+      const postTextsStatus = document.getElementById('postTextsStatus');
+
+      function openBuilderModal() {
+        if (!bootstrap || !bootstrap.listings || !bootstrap.listings.length) {
+          showBanner('No listings to build a post from.', true);
+          return;
+        }
+        renderBuilderListingPicker();
+        // Pre-populate header/footer textareas from saved values.
+        if (postHeaderInput) postHeaderInput.value = (bootstrap && bootstrap.sellerPostHeader) || '';
+        if (postFooterInput) postFooterInput.value = (bootstrap && bootstrap.sellerPostFooter) || '';
+        if (postTextsStatus) postTextsStatus.textContent = '';
+        builderOutput.hidden = true;
+        builderGenerateStatus.textContent = '';
+        builderModal.hidden = false;
+        document.body.style.overflow = 'hidden';
+      }
+
+      function savePostTexts() {
+        if (!bootstrap || !bootstrap.sellerToken) {
+          if (postTextsStatus) postTextsStatus.textContent = 'No seller token loaded — refresh and retry.';
+          return;
+        }
+        const header = (postHeaderInput && postHeaderInput.value || '').trim();
+        const footer = (postFooterInput && postFooterInput.value || '').trim();
+
+        savePostTextsButton.disabled = true;
+        if (postTextsStatus) {
+          postTextsStatus.textContent = 'Saving header and footer...';
+        }
+
+        google.script.run
+          .withSuccessHandler((nextBootstrap) => {
+            bootstrap = nextBootstrap;
+            savePostTextsButton.disabled = false;
+            if (postTextsStatus) postTextsStatus.textContent = 'Saved. These will appear on every generated post.';
+          })
+          .withFailureHandler((error) => {
+            savePostTextsButton.disabled = false;
+            if (postTextsStatus) postTextsStatus.textContent = (error && error.message) ? error.message : 'Save failed.';
+          })
+          .saveSellerPostTexts({
+            sellerToken: sellerToken,
+            sellerPostHeader: header,
+            sellerPostFooter: footer,
+          });
+      }
+
+      function closeBuilderModal() {
+        builderModal.hidden = true;
+        document.body.style.overflow = '';
+      }
+
+      function renderBuilderListingPicker() {
+        builderListingPicker.innerHTML = '';
+        bootstrap.listings.forEach((listing, idx) => {
+          const tile = document.createElement('label');
+          tile.className = 'builder-listing-tile';
+          tile.dataset.listingId = listing.listing_id;
+
+          const status = String(listing.status || '').toLowerCase();
+          const statusClass = status === 'sold'
+            ? 'b-status b-status-sold'
+            : (status === 'pending' ? 'b-status b-status-pending' : 'b-status');
+
+          const checked = (status === 'available' || status === 'pending') ? 'checked' : '';
+
+          tile.innerHTML = `
+            <input type="checkbox" class="builder-listing-checkbox" data-listing-id="${escapeAttr(listing.listing_id)}" ${checked}>
+            ${listing.source_image_url
+              ? `<img class="builder-listing-thumb" src="${escapeHtml(listing.source_image_url)}" alt="" referrerpolicy="no-referrer" loading="lazy">`
+              : `<div class="builder-listing-thumb"></div>`}
+            <div class="builder-listing-meta">
+              <div class="b-artist">${escapeHtml(listing.artist_name || 'Unknown Artist')}</div>
+              <div class="b-title">${escapeHtml(listing.artwork_title || 'Untitled')}</div>
+              <span class="${statusClass}">${escapeHtml(listing.status || '')}</span>
+            </div>
+          `;
+          builderListingPicker.appendChild(tile);
+
+          if (checked) tile.classList.add('is-selected');
+        });
+
+        builderListingPicker.querySelectorAll('.builder-listing-checkbox').forEach(cb => {
+          cb.addEventListener('change', updateBuilderSelectionState);
+        });
+        updateBuilderSelectionState();
+      }
+
+      function updateBuilderSelectionState() {
+        const checkboxes = builderListingPicker.querySelectorAll('.builder-listing-checkbox');
+        let count = 0;
+        checkboxes.forEach(cb => {
+          const tile = cb.closest('.builder-listing-tile');
+          if (cb.checked) {
+            count++;
+            if (tile) tile.classList.add('is-selected');
+          } else if (tile) {
+            tile.classList.remove('is-selected');
+          }
+        });
+        const collageCount = Math.max(1, Math.ceil(count / 6));
+        builderSelectionMeta.textContent = count
+          ? `${count} listing${count === 1 ? '' : 's'} selected · ${collageCount} sales card image${collageCount === 1 ? '' : 's'} will be generated.`
+          : 'No listings selected.';
+        builderGenerateButton.disabled = count === 0;
+      }
+
+      function getSelectedBuilderListings() {
+        const ids = Array.from(builderListingPicker.querySelectorAll('.builder-listing-checkbox'))
+          .filter(cb => cb.checked)
+          .map(cb => cb.dataset.listingId);
+        const idSet = new Set(ids);
+        return bootstrap.listings.filter(l => idSet.has(l.listing_id));
+      }
+
+      function setBuilderCheckboxes(predicate) {
+        builderListingPicker.querySelectorAll('.builder-listing-checkbox').forEach(cb => {
+          const id = cb.dataset.listingId;
+          const listing = bootstrap.listings.find(l => l.listing_id === id);
+          cb.checked = predicate(listing);
+        });
+        updateBuilderSelectionState();
+      }
+
+      // === Image loading + canvas rendering ===
+
+      function loadImageForCanvas(url) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.referrerPolicy = 'no-referrer';
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error('Failed to load image: ' + url));
+          img.src = url;
+        });
+      }
+
+      function chunkListings(listings, size) {
+        const chunks = [];
+        for (let i = 0; i < listings.length; i += size) {
+          chunks.push(listings.slice(i, i + size));
+        }
+        return chunks;
+      }
+
+      function gridShapeFor(count) {
+        if (count <= 1) return { cols: 1, rows: 1 };
+        if (count <= 2) return { cols: 2, rows: 1 };
+        if (count <= 3) return { cols: 3, rows: 1 };
+        if (count <= 4) return { cols: 2, rows: 2 };
+        return { cols: 3, rows: 2 }; // 5–6
+      }
+
+      function truncateToWidth(ctx, text, maxWidth, ellipsis = '…') {
+        if (ctx.measureText(text).width <= maxWidth) return text;
+        let truncated = text;
+        while (truncated.length > 1 && ctx.measureText(truncated + ellipsis).width > maxWidth) {
+          truncated = truncated.slice(0, -1);
+        }
+        return truncated + ellipsis;
+      }
+
+      function drawCellHeader(ctx, x, y, width, height, listing) {
+        // Semi-transparent dark strip
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.62)';
+        ctx.fillRect(x, y, width, height);
+
+        const artist = String(listing.artist_name || 'Unknown Artist').trim();
+        const title = String(listing.artwork_title || 'Untitled').trim();
+        const text = artist + (title ? ' — ' + title : '');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '600 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+
+        const maxTextW = width - 28;
+        const drawText = truncateToWidth(ctx, text, maxTextW);
+        ctx.fillText(drawText, x + 14, y + height / 2);
+      }
+
+      function drawSoldOverlay(ctx, x, y, size) {
+        const bannerH = Math.round(size * 0.18);
+        const bannerY = y + size / 2 - bannerH / 2;
+
+        ctx.fillStyle = 'rgba(201, 63, 63, 0.92)';
+        ctx.fillRect(x, bannerY, size, bannerH);
+
+        ctx.fillStyle = '#ffffff';
+        const fontSize = Math.round(bannerH * 0.55);
+        ctx.font = `900 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif`;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+        const letterSpacing = 0.08;
+        const text = 'SOLD';
+        ctx.fillText(text, x + size / 2, bannerY + bannerH / 2 + 2);
+        ctx.textAlign = 'left';
+      }
+
+      function drawCell(ctx, listing, image, x, y, size, headerHeight) {
+        // Cell background (in case image fails or has transparency)
+        ctx.fillStyle = '#f3efe8';
+        ctx.fillRect(x, y, size, size);
+
+        // Object-fit: cover for the image
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, size, size);
+        ctx.clip();
+
+        if (image) {
+          const imgRatio = image.width / image.height;
+          let drawW, drawH, drawX, drawY;
+          if (imgRatio >= 1) {
+            // Landscape or square — fit height, crop sides
+            drawH = size;
+            drawW = size * imgRatio;
+            drawX = x - (drawW - size) / 2;
+            drawY = y;
+          } else {
+            // Portrait — fit width, crop top/bottom
+            drawW = size;
+            drawH = size / imgRatio;
+            drawX = x;
+            drawY = y - (drawH - size) / 2;
+          }
+          ctx.drawImage(image, drawX, drawY, drawW, drawH);
+        }
+        ctx.restore();
+
+        // Header strip on top
+        drawCellHeader(ctx, x, y, size, headerHeight, listing);
+
+        // Sold overlay if applicable
+        if (String(listing.status || '').toLowerCase() === 'sold') {
+          drawSoldOverlay(ctx, x, y, size);
+        }
+      }
+
+      async function renderCollage(listings) {
+        const cellSize = 600;
+        const padding = 14;
+        const headerHeight = 64;
+        const { cols, rows } = gridShapeFor(listings.length);
+
+        const canvasWidth = cols * cellSize + (cols + 1) * padding;
+        const canvasHeight = rows * cellSize + (rows + 1) * padding;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        const ctx = canvas.getContext('2d');
+
+        // Background
+        ctx.fillStyle = '#f7f3ed';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+        // Load images in parallel; tolerate failures
+        const loaded = await Promise.all(
+          listings.map(async (listing) => {
+            try {
+              const url = listing.source_image_url || '';
+              const image = url ? await loadImageForCanvas(url) : null;
+              return { listing, image };
+            } catch (err) {
+              return { listing, image: null };
+            }
+          })
+        );
+
+        loaded.forEach(({ listing, image }, i) => {
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const x = padding + col * (cellSize + padding);
+          const y = padding + row * (cellSize + padding);
+          drawCell(ctx, listing, image, x, y, cellSize, headerHeight);
+        });
+
+        return canvas;
+      }
+
+      function buildSalesText(listings) {
+        const body = listings.map((listing, idx) => buildFacebookPostForListing(listing, idx + 1)).join('\n\n');
+        // Use the LIVE textarea values rather than bootstrap so unsaved edits also appear.
+        const header = ((postHeaderInput && postHeaderInput.value) || '').trim();
+        const footer = ((postFooterInput && postFooterInput.value) || '').trim();
+        return [header, body, footer].filter(Boolean).join('\n\n');
+      }
+
+      function downloadCanvas(canvas, filename) {
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            showBanner('Could not export image. Try again.', true);
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }, 100);
+        }, 'image/png');
+      }
+
+      function safeFilenamePart(text) {
+        return String(text || 'seller').replace(/[^\w]+/g, '_').replace(/^_+|_+$/g, '') || 'seller';
+      }
+
+      async function generateSalesPost() {
+        const listings = getSelectedBuilderListings();
+        if (!listings.length) {
+          builderGenerateStatus.textContent = 'Select at least one listing first.';
+          return;
+        }
+
+        builderGenerateButton.disabled = true;
+        builderGenerateStatus.textContent = 'Generating sales card images...';
+        builderOutput.hidden = true;
+        builderCanvasArea.innerHTML = '';
+
+        // Build text first (instant)
+        builderTextOutput.value = buildSalesText(listings);
+
+        // Build collages
+        const chunks = chunkListings(listings, 6);
+        const sellerSlug = safeFilenamePart((bootstrap && bootstrap.sellerName) || 'seller');
+
+        try {
+          for (let i = 0; i < chunks.length; i++) {
+            const canvas = await renderCollage(chunks[i]);
+            const card = document.createElement('div');
+            card.className = 'builder-canvas-card';
+            card.appendChild(canvas);
+
+            const actions = document.createElement('div');
+            actions.className = 'builder-canvas-card-actions';
+
+            const downloadBtn = document.createElement('button');
+            downloadBtn.type = 'button';
+            downloadBtn.className = 'primary';
+            const filename = `${sellerSlug}_SalesPost_${i + 1}.png`;
+            downloadBtn.textContent = `Download ${filename}`;
+            downloadBtn.addEventListener('click', () => downloadCanvas(canvas, filename));
+
+            actions.appendChild(downloadBtn);
+            card.appendChild(actions);
+            builderCanvasArea.appendChild(card);
+          }
+
+          builderImagesLabel.textContent = `Sales card image${chunks.length === 1 ? '' : 's'} (${chunks.length})`;
+          builderOutput.hidden = false;
+          builderGenerateStatus.textContent = `Done. ${listings.length} listing${listings.length === 1 ? '' : 's'} → ${chunks.length} sales card${chunks.length === 1 ? '' : 's'}.`;
+          builderOutput.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (err) {
+          builderGenerateStatus.textContent = 'Error generating images: ' + (err && err.message ? err.message : err);
+        } finally {
+          builderGenerateButton.disabled = false;
+        }
+      }
+
+      if (openBuilderButton) openBuilderButton.addEventListener('click', openBuilderModal);
+      if (builderCloseButton) builderCloseButton.addEventListener('click', closeBuilderModal);
+      if (savePostTextsButton) savePostTextsButton.addEventListener('click', savePostTexts);
+      if (builderModal) {
+        builderModal.addEventListener('click', (event) => {
+          if (event.target === builderModal) closeBuilderModal();
+        });
+      }
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && builderModal && !builderModal.hidden) {
+          closeBuilderModal();
+        }
+      });
+      if (builderSelectAvailable) builderSelectAvailable.addEventListener('click', () => {
+        setBuilderCheckboxes(l => {
+          const s = String(l && l.status || '').toLowerCase();
+          return s === 'available' || s === 'pending';
+        });
+      });
+      if (builderSelectAll) builderSelectAll.addEventListener('click', () => setBuilderCheckboxes(() => true));
+      if (builderSelectNone) builderSelectNone.addEventListener('click', () => setBuilderCheckboxes(() => false));
+      if (builderGenerateButton) builderGenerateButton.addEventListener('click', generateSalesPost);
+      if (builderCopyTextButton) builderCopyTextButton.addEventListener('click', () => {
+        copyAndPreviewFacebookText(builderTextOutput.value, 'Sales post text copied. Paste it into your Facebook post.');
+      });
+
+      google.script.run
+        .withSuccessHandler((data) => {
+          bootstrap = data;
+          setTimeout(() => {
+            const input = document.getElementById('globalFacebookUrl');
+            if (input && bootstrap.listings && bootstrap.listings.length) {
+              input.value = bootstrap.listings[0].seller_profile_url || '';
+            }
+            updateFacebookSectionState();
+            if (globalSellerLocationInput) {
+              globalSellerLocationInput.value = (bootstrap && bootstrap.sellerLocation) || '';
+            }
+            updateLocationSectionState();
+            refreshRenewalBanner();
+          }, 0);
+
+          render();
+        })
+      
+        .withFailureHandler((error) => {
+          showBanner(error && error.message ? error.message : 'Could not load listings.', true);
+          document.getElementById('sellerSubtitle').textContent = 'Could not load your listings.';
+        })
+        .getSellerPortalBootstrap(sellerToken);
+    </script>
+  </body>
+</html>

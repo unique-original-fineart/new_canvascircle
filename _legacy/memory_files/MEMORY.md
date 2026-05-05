@@ -1,0 +1,7 @@
+- [GitHub repo for canvascircle.art](catalog_repo.md) — public catalog deploys from unique-original-fineart/art_catalog; admin actions trigger rebuild via repository_dispatch
+- [Catalog generator filename](catalog_generator_filename.md) — both local and repo now named `generate_catalog.py`; still must sync local → repo before changes go live
+- [Apps Script deployment config and auth model](apps_script_deployment.md) — Execute as Me + Anyone with Google account; admin gate via Session.getActiveUser; redeploy required for code changes
+- [Drive image URL quirk in Apps Script iframes](drive_image_iframe_quirk.md) — portals must use `lh3.googleusercontent.com/d/{id}=w{N}` URLs (not drive.google.com/thumbnail) — iOS Safari blocks the latter inside the iframe context
+- [Guy's role](guy_role.md) — solo dev/admin/seller for CanvasCircle.art, hands-on technical, comfortable with Apps Script and HTML/CSS/JS edits
+- [Staged deploy-and-verify between fixes](staged_deploy_verify.md) — finish one fix, deploy + verify in production, then proceed; don't batch unrelated changes
+- [Honest opinions and pushback welcomed](honest_opinions.md) — when Guy asks "what do you think", commit to a recommendation rather than enumerate options

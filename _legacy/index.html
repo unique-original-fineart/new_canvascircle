@@ -1,0 +1,4087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="assets/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unique Original Fine Art</title>
+    <style>
+        :root {
+            --bg: #0a0806;
+            --card: rgba(255,255,255,0.96);
+            --text: #1f1a17;
+            --text-on-dark: #f2ede5;
+            --muted: #6f675e;
+            --muted-on-dark: #a8a09a;
+            --line: #dbd1c4;
+            --line-on-dark: rgba(255,255,255,0.08);
+            --shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
+            --shadow-soft: 0 8px 22px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            color: var(--text-on-dark);
+            background:
+                radial-gradient(circle at 20% 0%, rgba(60, 50, 40, 0.4), transparent 55%),
+                linear-gradient(180deg, #0d0a08 0%, #050403 100%);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.45;
+        }
+
+        .page {
+            max-width: 1360px;
+            margin: 0 auto;
+            padding: 32px 28px 90px;
+        }
+
+        .hero {
+            padding: 4px 0 20px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--line-on-dark);
+        }
+        .banner-wrap {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0 0 20px;
+        }
+
+        .banner-logo {
+            max-width: 600px;
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .centered-link {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+
+        .hero-top {
+            display: grid;
+            grid-template-columns: 160px 1fr;
+            gap: 28px;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .brand-logo {
+            width: 150px;
+            max-width: 100%;
+            height: auto;
+            display: block;
+            filter: drop-shadow(0 8px 18px rgba(0,0,0,0.08));
+        }
+
+        .hero-copy {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-width: 0;
+            max-width: 760px;
+        }
+
+        h1 {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(28px, 4vw, 48px);
+            line-height: 0.96;
+            letter-spacing: -0.03em;
+            font-weight: 600;
+        }
+
+        .hero-sub {
+            max-width: 640px;
+            margin-top: 14px;
+            color: var(--muted-on-dark);
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .hero-links {
+            margin-top: 14px;
+        }
+
+        .hero-link {
+            color: var(--text-on-dark);
+            text-decoration: none;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        .hero-link:hover {
+            border-bottom-color: rgba(255, 255, 255, 0.65);
+        }
+
+        .stats-bar {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-top: 24px;
+            padding: 16px 22px;
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid rgba(219, 209, 196, 0.85);
+            border-radius: 18px;
+            box-shadow: var(--shadow-soft);
+            width: fit-content;
+            max-width: 100%;
+        }
+
+        .stat-chip {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 0 18px;
+        }
+
+        .stat-chip:first-child {
+            padding-left: 0;
+        }
+
+        .stat-chip:last-child {
+            padding-right: 0;
+        }
+
+        .stat-chip-label {
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .stat-chip-value {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 28px;
+            line-height: 1;
+        }
+
+        .stat-divider {
+            width: 1px;
+            align-self: stretch;
+            background: var(--line);
+            opacity: 0.9;
+        }
+
+        .section {
+            margin-top: 42px;
+        }
+
+        .section-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 20px;
+            margin-bottom: 18px;
+        }
+
+        .section h3 {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 30px;
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+            font-weight: 600;
+            color: var(--text-on-dark);
+        }
+
+        .section-note {
+            color: var(--muted-on-dark);
+            font-size: 14px;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: 2fr repeat(6, 1fr);
+            gap: 12px;
+            margin: 0 0 20px;
+        }
+
+        .filters input,
+        .filters select,
+        .download-saved-button {
+            width: 100%;
+            padding: 14px 15px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,0.92);
+            color: var(--text);
+            font-size: 14px;
+            box-shadow: var(--shadow-soft);
+        }
+
+        
+        .download-saved-button {
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .download-saved-button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 18px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .result-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .result-count,
+        .saved-count {
+            color: var(--muted-on-dark);
+            font-size: 14px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 28px;
+        }
+
+        .card {
+            background: var(--card);
+            color: var(--text);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(219, 209, 196, 0.85);
+            border-radius: 26px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 24px 48px rgba(35, 27, 20, 0.12);
+        }
+
+        .card:hover .art-img {
+            transform: scale(1.03);
+        }
+
+        .card.hidden {
+            display: none;
+        }
+
+        .card-image-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.6), rgba(239,232,220,0.9));
+            border-bottom: 1px solid var(--line);
+            padding: 22px;
+            aspect-ratio: 1 / 1;
+            overflow: hidden;
+        }
+
+        .image-open {
+            appearance: none;
+            border: none;
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            cursor: zoom-in;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .art-img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            display: block;
+            background: #f3efe8;
+            border: 6px solid white;
+            border-radius: 8px;
+            box-shadow:
+                0 2px 6px rgba(0,0,0,0.08),
+                0 12px 30px rgba(0,0,0,0.12);
+            transition: transform 0.4s ease;
+        }
+
+        .card-body {
+            padding: 22px 22px 24px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .artist-name {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 20px;
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+            font-weight: 600;
+        }
+
+        .artwork-title {
+            margin-top: 10px;
+            font-size: 16px;
+            font-style: italic;
+            color: var(--muted);
+        }
+
+        .price {
+            white-space: nowrap;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .price-drop-price {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            line-height: 1.05;
+        }
+
+        .price-drop-label {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 5px 9px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: 1px solid var(--line);
+            background: #fff4df;
+            color: #7a4d00;
+        }
+
+        .price-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .old-price {
+            color: var(--muted);
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: line-through;
+            text-decoration-thickness: 1.5px;
+        }
+
+        .new-price {
+            color: var(--text);
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+
+        .badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .badge,
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 7px 11px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,0.92);
+        }
+
+        .badge-muted {
+            color: var(--muted);
+        }
+
+        .artwork-category-badge {
+            background: #eef4ff;
+            color: #274060;
+            border-color: #cbd9ef;
+        }
+
+        .artwork-category-badge.category-unique {
+            background: #e6f5e8;
+            color: #1e5e2a;
+            border-color: #b8dfbf;
+        }
+
+        .price-drop-badge {
+            background: #fff4df;
+            color: #7a4d00;
+            border-color: #efd29d;
+        }
+
+        .status-available {
+            background: #edf6ee;
+        }
+
+        .status-pending {
+            background: #fbf3df;
+        }
+
+        .status-sold {
+            background: #f6e5e5;
+        }
+
+        .specs {
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid var(--line);
+        }
+
+        .spec-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 7px 0;
+        }
+
+        .spec-label {
+            color: var(--muted);
+            font-size: 13px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .spec-value {
+            text-align: right;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .seller {
+            margin-top: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .seller-label {
+            color: var(--muted);
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .seller-name {
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.2;
+            color: var(--text);
+        }
+
+        .seller-name a {
+            color: var(--text);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(31, 26, 23, 0.25);
+        }
+
+        .seller-name a:hover {
+            border-bottom-color: rgba(31, 26, 23, 0.65);
+        }
+
+        .seller-contact-note {
+            color: var(--muted);
+            font-size: 13px;
+            margin-top: 2px;
+        }
+
+        .listing-actions {
+            margin-top: 16px;
+        }
+
+        .save-listing-button,
+        .download-listing-button {
+            appearance: none;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,0.92);
+            color: var(--text);
+            padding: 10px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+        }
+        .contact-seller-button {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            margin-top: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: #1f1a17;
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid #1f1a17;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .contact-seller-button:hover {
+            transform: translateY(-1px);
+            opacity: 0.9;
+        }
+        .save-listing-button:hover,
+        .download-listing-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .save-listing-button.is-saved {
+            background: #1f1a17;
+            color: #ffffff;
+            border-color: #1f1a17;
+        }
+
+        .notes {
+            margin-top: 12px;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        #backToTop {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255, 255, 255, 0.95);
+            color: #1f1a17;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #backToTop:hover {
+            opacity: 0.88;
+        }
+
+        .lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(20, 16, 12, 0.92);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 3000;
+        }
+
+        .lightbox.is-open {
+            display: flex;
+        }
+
+        .lightbox-stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .lightbox-image {
+            max-width: min(92vw, 1400px);
+            max-height: 92vh;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 10px;
+            background: #ffffff;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+            touch-action: pinch-zoom;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255,255,255,0.14);
+            color: #ffffff;
+            font-size: 28px;
+            line-height: 1;
+            cursor: pointer;
+            z-index: 2100;
+        }
+
+        .lightbox-close:hover {
+            background: rgba(255,255,255,0.22);
+        }
+
+        .lightbox-hint {
+            position: absolute;
+            left: 50%;
+            bottom: 18px;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.78);
+            font-size: 13px;
+            letter-spacing: 0.02em;
+            text-align: center;
+            z-index: 2100;
+        }
+
+        
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(20, 16, 12, 0.50);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            padding: 20px;
+        }
+
+        .loading-overlay.is-open {
+            display: flex;
+        }
+
+        .loading-box {
+            background: rgba(255,255,255,0.96);
+            border: 1px solid rgba(219, 209, 196, 0.85);
+            border-radius: 20px;
+            box-shadow: 0 18px 40px rgba(35, 27, 20, 0.15);
+            padding: 22px 24px;
+            min-width: 260px;
+            text-align: center;
+        }
+
+        .loading-title {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 24px;
+            margin: 0 0 8px;
+        }
+
+        .loading-text {
+            color: var(--muted);
+            font-size: 14px;
+            margin: 0;
+        }
+
+        /* === Card layout (new compact summary) === */
+        .card-image-wrap {
+            position: relative;
+        }
+
+        .save-listing-button.corner-heart {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 38px;
+            height: 38px;
+            padding: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid rgba(219, 209, 196, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            line-height: 1;
+            color: #1f1a17;
+            cursor: pointer;
+            transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+            z-index: 5;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+
+        .save-listing-button.corner-heart:hover {
+            transform: scale(1.06);
+            background: white;
+        }
+
+        .save-listing-button.corner-heart.is-saved {
+            background: #1f1a17;
+            border-color: #1f1a17;
+            color: white;
+        }
+
+        .card-body .artist-name {
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-body .artwork-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: nowrap;
+        }
+
+        .card-price-row .price {
+            margin: 0;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .card-badge {
+            font-size: 10px;
+            padding: 3px 7px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+            flex-shrink: 1;
+        }
+
+        .price-with-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .sold-treatment .price {
+            color: var(--muted);
+            text-decoration: line-through;
+            text-decoration-thickness: 2px;
+        }
+
+        .sold-mark {
+            display: inline-flex;
+            align-items: center;
+            background: #c93f3f;
+            color: white;
+            padding: 3px 9px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .pending-mark {
+            display: inline-flex;
+            align-items: center;
+            background: #fbf3df;
+            color: #7a4d00;
+            padding: 3px 9px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .card-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .card-actions .contact-seller-button {
+            width: 100%;
+            justify-content: center;
+            margin-top: 0;
+        }
+
+        .show-more-button {
+            appearance: none;
+            border: 1px solid var(--line);
+            background: transparent;
+            color: var(--text);
+            padding: 9px 12px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+
+        .show-more-button:hover {
+            background: rgba(255,255,255,0.6);
+            border-color: rgba(31,26,23,0.4);
+        }
+
+        .show-more-button .chevron {
+            display: inline-block;
+            margin-left: 4px;
+            transform: translateY(1px);
+        }
+
+        /* === Empty state (no filter matches) === */
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 56px 24px;
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .empty-state[hidden] {
+            display: none;
+        }
+
+        .empty-state-title {
+            margin: 0 0 8px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text);
+            letter-spacing: -0.02em;
+        }
+
+        .empty-state-message {
+            margin: 0 0 20px;
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .empty-state-clear {
+            appearance: none;
+            border: 1px solid var(--line);
+            background: rgba(255,255,255,0.96);
+            color: var(--text);
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+
+        .empty-state-clear:hover {
+            background: white;
+            border-color: rgba(31,26,23,0.4);
+        }
+
+        /* === Detail modal === */
+        .detail-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(20, 16, 12, 0.78);
+            display: none;
+            align-items: stretch;
+            justify-content: center;
+            z-index: 2500;
+            padding: 0;
+        }
+
+        .detail-modal.is-open {
+            display: flex;
+        }
+
+        .detail-modal-stage {
+            position: relative;
+            background: #ffffff;
+            color: var(--text);
+            width: 100%;
+            max-width: 720px;
+            max-height: 100vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .detail-modal-close {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255,255,255,0.94);
+            color: #1f1a17;
+            font-size: 24px;
+            line-height: 1;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+            z-index: 10;
+        }
+
+        .detail-modal-close:hover {
+            background: white;
+        }
+
+        .modal-content-inner {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-image-wrap {
+            background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(239,232,220,0.9));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 28px 24px;
+            min-height: 320px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .modal-art-img {
+            max-width: 100%;
+            max-height: 460px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            background: #f3efe8;
+            border: 6px solid white;
+            border-radius: 8px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+        }
+
+        .image-open.modal-image-zoom {
+            width: auto;
+            height: auto;
+            max-width: 100%;
+        }
+
+        .modal-info {
+            padding: 22px 24px 28px;
+        }
+
+        .modal-header {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .modal-info .artist-name {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 22px;
+            line-height: 1.1;
+            letter-spacing: -0.025em;
+            font-weight: 600;
+        }
+
+        .modal-info .artwork-title {
+            margin-top: 6px;
+            font-size: 16px;
+            font-style: italic;
+            color: var(--muted);
+        }
+
+        .modal-price-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+            flex-wrap: nowrap;
+        }
+
+        .modal-price-row .price {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .modal-price-row .badge,
+        .modal-price-row .status-pill {
+            white-space: nowrap;
+        }
+
+        .modal-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .modal-badges:empty {
+            display: none;
+        }
+
+        .modal-specs {
+            margin-bottom: 16px;
+            border-top: 1px solid var(--line);
+            padding-top: 12px;
+        }
+
+        .modal-specs:empty {
+            display: none;
+            border-top: none;
+            padding-top: 0;
+        }
+
+        .modal-seller {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 16px 0;
+            border-top: 1px solid var(--line);
+        }
+
+        .modal-seller .seller-label {
+            color: var(--muted);
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .modal-seller-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .modal-seller .seller-name {
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.2;
+            color: var(--text);
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .modal-seller-row .contact-seller-button {
+            margin-top: 0;
+            flex-shrink: 0;
+        }
+
+
+        @media (max-width: 1200px) {
+            .filters {
+                grid-template-columns: 1fr 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 980px) {
+            .hero-top {
+                grid-template-columns: 90px 1fr;
+                gap: 18px;
+            }
+
+            .brand-logo {
+                width: 82px;
+            }
+
+            .stats-bar {
+                width: 100%;
+                min-width: 0;
+            }
+        }
+        @media (max-width: 720px) {
+            .banner-logo {
+                max-width: 90%;
+            }
+        }
+        @media (max-width: 720px) {
+            .page {
+                padding: 24px 16px 70px;
+            }
+
+            .hero {
+                padding: 0 0 12px;
+                margin-bottom: 24px;
+            }
+
+            .hero-top {
+                grid-template-columns: 1fr;
+                gap: 14px;
+                align-items: start;
+            }
+
+            .brand {
+                justify-content: flex-start;
+            }
+
+            .brand-logo {
+                width: 74px;
+                max-width: 50%;
+            }
+
+            .hero-copy {
+                max-width: 100%;
+            }
+
+            .hero-sub {
+                margin-top: 10px;
+                font-size: 15px;
+            }
+
+            .stats-bar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+                width: 100%;
+                padding: 16px 18px;
+            }
+
+            .stat-chip {
+                padding: 0;
+            }
+
+            .stat-divider {
+                width: 100%;
+                height: 1px;
+            }
+
+            .filters {
+                grid-template-columns: 1fr;
+                position: static;
+                background: transparent;
+                backdrop-filter: none;
+                padding: 0;
+                margin-bottom: 16px;
+                gap: 10px;
+            }
+
+            .filters input,
+            .filters select,
+            .download-saved-button {
+                padding: 12px 14px;
+                font-size: 16px;
+            }
+
+            .card-header {
+                flex-direction: column;
+            }
+
+            .price {
+                white-space: normal;
+            }
+
+            .price-drop-price,
+            .price-stack {
+                align-items: flex-start;
+            }
+
+            .seller-name {
+                font-size: 17px;
+            }
+
+            #backToTop {
+                bottom: 16px;
+                right: 16px;
+                width: 48px;
+                height: 48px;
+            }
+
+            .lightbox {
+                padding: 12px;
+            }
+
+            .lightbox-close {
+                top: 12px;
+                right: 12px;
+            }
+
+            .lightbox-hint {
+                bottom: 12px;
+                font-size: 12px;
+            }
+
+            /* === Mobile 2-up grid with rightsized cards ===
+               To switch to 3-up (compact), change `repeat(2, ...)` below to `repeat(3, ...)`.
+               To revert to 1-up, change to `1fr`.
+               Card-only rules use `.card .X` so modal contents render at modal-appropriate sizes. */
+            .grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 14px;
+            }
+
+            .card {
+                border-radius: 16px;
+            }
+
+            .card .card-image-wrap {
+                padding: 10px;
+            }
+
+            .card .art-img {
+                border-width: 3px;
+                border-radius: 6px;
+            }
+
+            .card .card-body {
+                padding: 12px;
+            }
+
+            .card .artist-name {
+                font-size: 14px;
+                line-height: 1.1;
+                letter-spacing: -0.025em;
+            }
+
+            .card .artwork-title {
+                font-size: 11px;
+                margin-top: 3px;
+            }
+
+            .card .card-price-row {
+                margin-top: 8px;
+                gap: 6px;
+            }
+
+            .card .price {
+                font-size: 13px;
+                margin: 0;
+            }
+
+            .card .price-drop-label {
+                font-size: 8px;
+                padding: 2px 5px;
+                letter-spacing: 0.04em;
+            }
+
+            .card .old-price {
+                font-size: 10px;
+            }
+
+            .card .new-price {
+                font-size: 13px;
+            }
+
+            .card .card-badge {
+                font-size: 9px;
+                padding: 2px 6px;
+            }
+
+            .card .sold-mark,
+            .card .pending-mark {
+                font-size: 10px;
+                padding: 2px 7px;
+            }
+
+            .card .save-listing-button.corner-heart {
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
+                top: 8px;
+                right: 8px;
+            }
+
+            .card .card-actions {
+                margin-top: 10px;
+                gap: 6px;
+            }
+
+            .card .contact-seller-button {
+                font-size: 11px;
+                padding: 8px 10px;
+            }
+
+            .card .show-more-button {
+                font-size: 11px;
+                padding: 7px 10px;
+            }
+
+            /* === Detail modal sizing on mobile === */
+            .detail-modal-stage {
+                max-width: none;
+                border-radius: 0;
+            }
+
+            .modal-image-wrap {
+                min-height: 240px;
+                padding: 18px;
+            }
+
+            .modal-art-img {
+                max-height: 320px;
+            }
+
+            .modal-info {
+                padding: 18px 18px 24px;
+            }
+
+            .modal-info .artist-name {
+                font-size: 18px;
+            }
+
+            .modal-info .artwork-title {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header class="hero">
+            <div class="banner-wrap">
+                <img src="https://raw.githubusercontent.com/unique-original-fineart/art_catalog/main/assets/logo.png" class="banner-logo" alt="Canvas Circle">
+            </div>
+
+            <div class="hero-links centered-link">
+                <a class="hero-link" href="guidelines.html">Buying/Shipping Guidelines</a>
+            </div>
+
+            <div class="stats-bar">
+                <div class="stat-chip">
+                    <span class="stat-chip-label">Available Listings</span>
+                    <span class="stat-chip-value">27</span>
+                </div>
+
+                <div class="stat-divider"></div>
+
+                <div class="stat-chip">
+                    <span class="stat-chip-label">Artists</span>
+                    <span class="stat-chip-value">14</span>
+                </div>
+
+                <div class="stat-divider"></div>
+
+                <div class="stat-chip">
+                    <span class="stat-chip-label">Sellers</span>
+                    <span class="stat-chip-value">3</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="section" id="full-catalog">
+            <div class="section-heading">
+                <h3>Full Catalog</h3>
+                <div class="section-note">Browse by seller, artist, category, price, recency, or saved listings</div>
+            </div>
+
+            <div class="filters">
+                <input type="text" id="searchInput" placeholder="Search artist, title, seller...">
+                <select id="savedFilter">
+                    <option value="">All Listings</option>
+                    <option value="saved">Saved Only</option>
+                    <option value="priceDrops">Price Drops</option>
+                </select>
+                <select id="sellerFilter"><option value="">All Sellers</option><option value="gino difilippo jr.">Gino DiFilippo Jr.</option><option value="guy scuderi">Guy Scuderi</option><option value="nathaniel jones">Nathaniel Jones</option></select>
+                <select id="artistFilter"><option value="">All Artists</option><option value="ashton howard">Ashton Howard</option><option value="chris derubeis">Chris DeRubeis</option><option value="crisx">CrisX</option><option value="david le batard (lebo)">David Le Batard (Lebo)</option><option value="jeff vermeeren">Jeff Vermeeren</option><option value="jon rattenbury">Jon Rattenbury</option><option value="justin strom">Justin Strom</option><option value="kre8">Kre8</option><option value="matt beyrer">Matt Beyrer</option><option value="michael godard">Michael Godard</option><option value="oz">Oz</option><option value="peter max">Peter Max</option><option value="romero britto">Romero Britto</option><option value="ziggy o’leary">Ziggy O’Leary</option></select>
+                <select id="categoryFilter">
+                    <option value="">Artwork Category</option>
+                    <option value="unique/original">Unique/Original</option>
+                    <option value="limited edition">Limited Edition</option>
+                </select>
+                <select id="priceFilter">
+                    <option value="">All Prices</option>
+                    <option value="under1000">Under $1,000</option>
+                    <option value="1000to2499">$1,000–$2,499</option>
+                    <option value="2500to4999">$2,500–$4,999</option>
+                    <option value="5000plus">$5,000+</option>
+                    <option value="unknown">Price on Request / Unknown</option>
+                </select>
+                <select id="sortFilter">
+                    <option value="newest">Sort: Newest</option>
+                    <option value="oldest">Sort: Oldest</option>
+                    <option value="priceDesc">Price: High to Low</option>
+                    <option value="priceAsc">Price: Low to High</option>
+                    <option value="artistAsc">Artist: A to Z</option>
+                    <option value="artistDesc">Artist: Z to A</option>
+                </select>
+            </div>
+
+            <div class="result-row">
+                <div class="result-meta">
+                    <div class="result-count" id="resultCount"></div>
+                    <div class="saved-count" id="savedCount"></div>
+                </div>
+                
+            </div>
+
+            <div class="grid" id="catalogGrid">
+                
+    <article class="card"
+        data-listing-id="listing_0001"
+        data-artist="chris derubeis"
+        data-seller="guy scuderi"
+        data-medium="mixed media on metal"
+        data-category="unique/original"
+        data-status="available"
+        data-price="995.0"
+        data-price-band="under1000"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="0.0"
+        data-search="chris derubeis mini elements mixed media on metal unique/original guy scuderi available entire set of 4 artworks!">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1HgdHdvOvOtymo4C1KglavoaqLFEwxHm_&sz=w600" data-alt="Mini Elements" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1HgdHdvOvOtymo4C1KglavoaqLFEwxHm_&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1HgdHdvOvOtymo4C1KglavoaqLFEwxHm_&sz=w1200"
+                class="art-img"
+                alt="Mini Elements"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0001" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Chris DeRubeis</h2>
+            <div class="artwork-title">Mini Elements</div>
+
+            <div class="card-price-row">
+                <div class="price">$995</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://facebook.com/guyscuderi" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0001" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1HgdHdvOvOtymo4C1KglavoaqLFEwxHm_&sz=w1200" data-alt="Mini Elements" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1HgdHdvOvOtymo4C1KglavoaqLFEwxHm_&sz=w1200" class="modal-art-img" alt="Mini Elements">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Chris DeRubeis</h2>
+                        <div class="artwork-title">Mini Elements</div>
+                        <div class="modal-price-row">
+                            <div class="price">$995</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Mixed Media on Metal</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">11&quot; x 12&quot;</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">23&quot; x 24&quot;</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Guy Scuderi</span>
+                    <a href="https://facebook.com/guyscuderi" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">Entire set of 4 artworks!</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0002"
+        data-artist="kre8"
+        data-seller="nathaniel jones"
+        data-medium="acrylic painting on canvas"
+        data-category="unique/original"
+        data-status="available"
+        data-price="2500.0"
+        data-price-band="2500to4999"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="1.0"
+        data-search="kre8 baby blue acrylic painting on canvas unique/original nathaniel jones available a unique work">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1UvqzSUimkfp5qdVNIVFnJACDbFkKDXui&sz=w600" data-alt="Baby Blue" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1UvqzSUimkfp5qdVNIVFnJACDbFkKDXui&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1UvqzSUimkfp5qdVNIVFnJACDbFkKDXui&sz=w1200"
+                class="art-img"
+                alt="Baby Blue"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0002" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Kre8</h2>
+            <div class="artwork-title">Baby Blue</div>
+
+            <div class="card-price-row">
+                <div class="price">$2,500</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0002" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1UvqzSUimkfp5qdVNIVFnJACDbFkKDXui&sz=w1200" data-alt="Baby Blue" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1UvqzSUimkfp5qdVNIVFnJACDbFkKDXui&sz=w1200" class="modal-art-img" alt="Baby Blue">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Kre8</h2>
+                        <div class="artwork-title">Baby Blue</div>
+                        <div class="modal-price-row">
+                            <div class="price">$2,500</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Acrylic painting on canvas</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">20 x 20</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">24.5 x 24.5</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0003"
+        data-artist="oz"
+        data-seller="gino difilippo jr."
+        data-medium="mixed media painting on canvas"
+        data-category="unique/original"
+        data-status="available"
+        data-price="4749.0"
+        data-price-band="2500to4999"
+        data-price-drop="false"
+        data-shipping="false"
+        data-coa="true"
+        data-newest="2.0"
+        data-search="oz butterflies dream mixed media painting on canvas unique/original gino difilippo jr. available unique work">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1g13a5Y4Z-vuy32aY6SrkW_Nf960syuX5&sz=w600" data-alt="Butterflies Dream" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1g13a5Y4Z-vuy32aY6SrkW_Nf960syuX5&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1g13a5Y4Z-vuy32aY6SrkW_Nf960syuX5&sz=w1200"
+                class="art-img"
+                alt="Butterflies Dream"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0003" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Oz</h2>
+            <div class="artwork-title">Butterflies Dream</div>
+
+            <div class="card-price-row">
+                <div class="price">$4,749</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/ginodifilippojr" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0003" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1g13a5Y4Z-vuy32aY6SrkW_Nf960syuX5&sz=w1200" data-alt="Butterflies Dream" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1g13a5Y4Z-vuy32aY6SrkW_Nf960syuX5&sz=w1200" class="modal-art-img" alt="Butterflies Dream">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Oz</h2>
+                        <div class="artwork-title">Butterflies Dream</div>
+                        <div class="modal-price-row">
+                            <div class="price">$4,749</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge badge-muted">Shipping Extra</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Mixed Media painting on canvas</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">15&quot; x 15&quot;</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">21&quot; x 21&quot;</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Gino DiFilippo Jr.</span>
+                    <a href="https://www.facebook.com/ginodifilippojr" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">Unique Work</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0004"
+        data-artist="kre8"
+        data-seller="nathaniel jones"
+        data-medium="acrylic painting on canvas"
+        data-category="unique/original"
+        data-status="available"
+        data-price="2750.0"
+        data-price-band="2500to4999"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="3.0"
+        data-search="kre8 tiny red acrylic painting on canvas unique/original nathaniel jones available a unique work.    nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1lXKFhdL2T_CeJQE-iKezmeHOQdkZ-OlT&sz=w600" data-alt="Tiny Red" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1lXKFhdL2T_CeJQE-iKezmeHOQdkZ-OlT&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1lXKFhdL2T_CeJQE-iKezmeHOQdkZ-OlT&sz=w1200"
+                class="art-img"
+                alt="Tiny Red"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0004" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Kre8</h2>
+            <div class="artwork-title">Tiny Red</div>
+
+            <div class="card-price-row">
+                <div class="price">$2,750</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0004" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1lXKFhdL2T_CeJQE-iKezmeHOQdkZ-OlT&sz=w1200" data-alt="Tiny Red" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1lXKFhdL2T_CeJQE-iKezmeHOQdkZ-OlT&sz=w1200" class="modal-art-img" alt="Tiny Red">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Kre8</h2>
+                        <div class="artwork-title">Tiny Red</div>
+                        <div class="modal-price-row">
+                            <div class="price">$2,750</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Acrylic painting on canvas</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">20 x 20</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">24.5 x 24.5</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work.    Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0005"
+        data-artist="kre8"
+        data-seller="nathaniel jones"
+        data-medium="acrylic painting on canvas"
+        data-category="unique/original"
+        data-status="available"
+        data-price="3500.0"
+        data-price-band="2500to4999"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="4.0"
+        data-search="kre8 the love acrylic painting on canvas unique/original nathaniel jones available a unique work.  full insurance included. nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1r5RTc2o8-qzdpeaNT0UGtV04D7Y-OPi3&sz=w600" data-alt="The Love" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1r5RTc2o8-qzdpeaNT0UGtV04D7Y-OPi3&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1r5RTc2o8-qzdpeaNT0UGtV04D7Y-OPi3&sz=w1200"
+                class="art-img"
+                alt="The Love"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0005" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Kre8</h2>
+            <div class="artwork-title">The Love</div>
+
+            <div class="card-price-row">
+                <div class="price">$3,500</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0005" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1r5RTc2o8-qzdpeaNT0UGtV04D7Y-OPi3&sz=w1200" data-alt="The Love" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1r5RTc2o8-qzdpeaNT0UGtV04D7Y-OPi3&sz=w1200" class="modal-art-img" alt="The Love">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Kre8</h2>
+                        <div class="artwork-title">The Love</div>
+                        <div class="modal-price-row">
+                            <div class="price">$3,500</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Acrylic painting on canvas</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">24 x 24</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">28.75 x 28.75</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work.  Full insurance included. Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0006"
+        data-artist="crisx"
+        data-seller="nathaniel jones"
+        data-medium="candy-color paint, urethane and enamel on brushed metal surface."
+        data-category="unique/original"
+        data-status="available"
+        data-price="1000.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="5.0"
+        data-search="crisx mini silver rose candy-color paint, urethane and enamel on brushed metal surface. unique/original nathaniel jones available a unique work.  full insurance included. nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1YuEO8pSji3XzjkxaVekZj4XkMuvG_5i5&sz=w600" data-alt="Mini Silver Rose" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1YuEO8pSji3XzjkxaVekZj4XkMuvG_5i5&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1YuEO8pSji3XzjkxaVekZj4XkMuvG_5i5&sz=w1200"
+                class="art-img"
+                alt="Mini Silver Rose"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0006" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">CrisX</h2>
+            <div class="artwork-title">Mini Silver Rose</div>
+
+            <div class="card-price-row">
+                <div class="price">$1,000</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0006" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1YuEO8pSji3XzjkxaVekZj4XkMuvG_5i5&sz=w1200" data-alt="Mini Silver Rose" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1YuEO8pSji3XzjkxaVekZj4XkMuvG_5i5&sz=w1200" class="modal-art-img" alt="Mini Silver Rose">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">CrisX</h2>
+                        <div class="artwork-title">Mini Silver Rose</div>
+                        <div class="modal-price-row">
+                            <div class="price">$1,000</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Candy-color paint, urethane and enamel on brushed metal surface.</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">12 x 12</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">23 x 23</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work.  Full insurance included. Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0007"
+        data-artist="peter max"
+        data-seller="nathaniel jones"
+        data-medium="mixed media with acrylic painting and color lithography on paper."
+        data-category="unique/original"
+        data-status="available"
+        data-price="2300.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="6.0"
+        data-search="peter max the love on blends 2006 mixed media with acrylic painting and color lithography on paper. unique/original nathaniel jones available from 2006.  a unique work.  hand signed in acrylic by artist.  full insurance included. nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=146XVnd6lANzKtwNq9SzAQrYpjXzXIRc3&sz=w600" data-alt="The Love on Blends 2006" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=146XVnd6lANzKtwNq9SzAQrYpjXzXIRc3&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=146XVnd6lANzKtwNq9SzAQrYpjXzXIRc3&sz=w1200"
+                class="art-img"
+                alt="The Love on Blends 2006"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0007" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Peter Max</h2>
+            <div class="artwork-title">The Love on Blends 2006</div>
+
+            <div class="card-price-row">
+                <div class="price">$2,300</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0007" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=146XVnd6lANzKtwNq9SzAQrYpjXzXIRc3&sz=w1200" data-alt="The Love on Blends 2006" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=146XVnd6lANzKtwNq9SzAQrYpjXzXIRc3&sz=w1200" class="modal-art-img" alt="The Love on Blends 2006">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Peter Max</h2>
+                        <div class="artwork-title">The Love on Blends 2006</div>
+                        <div class="modal-price-row">
+                            <div class="price">$2,300</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Mixed media with acrylic painting and color lithography on paper.</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">10 x 8</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">23.5 x 21.5</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">From 2006.  A unique work.  Hand signed in acrylic by artist.  Full insurance included. Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0008"
+        data-artist="ashton howard"
+        data-seller="nathaniel jones"
+        data-medium="acrylic painting on canvas"
+        data-category="unique/original"
+        data-status="available"
+        data-price="3500.0"
+        data-price-band="2500to4999"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="7.0"
+        data-search="ashton howard dancing light acrylic painting on canvas unique/original nathaniel jones available a unique work.  full insurance included. nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=11fz1XnLsdzASagjIqnUyVHT-ig0yuPsj&sz=w600" data-alt="Dancing Light" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=11fz1XnLsdzASagjIqnUyVHT-ig0yuPsj&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=11fz1XnLsdzASagjIqnUyVHT-ig0yuPsj&sz=w1200"
+                class="art-img"
+                alt="Dancing Light"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0008" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Ashton Howard</h2>
+            <div class="artwork-title">Dancing Light</div>
+
+            <div class="card-price-row">
+                <div class="price">$3,500</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0008" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=11fz1XnLsdzASagjIqnUyVHT-ig0yuPsj&sz=w1200" data-alt="Dancing Light" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=11fz1XnLsdzASagjIqnUyVHT-ig0yuPsj&sz=w1200" class="modal-art-img" alt="Dancing Light">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Ashton Howard</h2>
+                        <div class="artwork-title">Dancing Light</div>
+                        <div class="modal-price-row">
+                            <div class="price">$3,500</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Acrylic painting on canvas</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">40 x 16</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">49.25 x 25.25</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work.  Full insurance included. Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0009"
+        data-artist="justin strom"
+        data-seller="nathaniel jones"
+        data-medium="mixed media, acrylic, painting on canvas, raised bubbles, ink and epoxy."
+        data-category="unique/original"
+        data-status="available"
+        data-price="900.0"
+        data-price-band="under1000"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="8.0"
+        data-search="justin strom center of attention mixed media, acrylic, painting on canvas, raised bubbles, ink and epoxy. unique/original nathaniel jones available a unique work.  full insurance included. nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1aj32cPTM0SZfItq_FZ2rWaTtSJEEyq9W&sz=w600" data-alt="Center of Attention" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1aj32cPTM0SZfItq_FZ2rWaTtSJEEyq9W&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1aj32cPTM0SZfItq_FZ2rWaTtSJEEyq9W&sz=w1200"
+                class="art-img"
+                alt="Center of Attention"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0009" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Justin Strom</h2>
+            <div class="artwork-title">Center of Attention</div>
+
+            <div class="card-price-row">
+                <div class="price">$900</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0009" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1aj32cPTM0SZfItq_FZ2rWaTtSJEEyq9W&sz=w1200" data-alt="Center of Attention" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1aj32cPTM0SZfItq_FZ2rWaTtSJEEyq9W&sz=w1200" class="modal-art-img" alt="Center of Attention">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Justin Strom</h2>
+                        <div class="artwork-title">Center of Attention</div>
+                        <div class="modal-price-row">
+                            <div class="price">$900</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Mixed media, acrylic, painting on canvas, raised bubbles, ink and epoxy.</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">16 x 16</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">None</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work.  Full insurance included. Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0010"
+        data-artist="matt beyrer"
+        data-seller="nathaniel jones"
+        data-medium="oil painting on wood"
+        data-category="unique/original"
+        data-status="available"
+        data-price="1800.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="false"
+        data-newest="9.0"
+        data-search="matt beyrer falling grace oil painting on wood unique/original nathaniel jones available a unique work.  full insurance included. park west appraisal included, but paper coa was misplaced and not included.  this artwork is in my park west clarity account and digital ownership can be transferred if desired. nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1mBuJE_fVA4qB9x9fBijC979BB8P2IaIt&sz=w600" data-alt="Falling Grace" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1mBuJE_fVA4qB9x9fBijC979BB8P2IaIt&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1mBuJE_fVA4qB9x9fBijC979BB8P2IaIt&sz=w1200"
+                class="art-img"
+                alt="Falling Grace"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0010" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Matt Beyrer</h2>
+            <div class="artwork-title">Falling Grace</div>
+
+            <div class="card-price-row">
+                <div class="price">$1,800</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0010" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1mBuJE_fVA4qB9x9fBijC979BB8P2IaIt&sz=w1200" data-alt="Falling Grace" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1mBuJE_fVA4qB9x9fBijC979BB8P2IaIt&sz=w1200" class="modal-art-img" alt="Falling Grace">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Matt Beyrer</h2>
+                        <div class="artwork-title">Falling Grace</div>
+                        <div class="modal-price-row">
+                            <div class="price">$1,800</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Oil Painting on wood</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">36 x 18</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">46.25 x 28.25</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work.  Full insurance included. Park West appraisal included, but paper COA was misplaced and not included.  This artwork is in my Park West clarity account and digital ownership can be transferred if desired. Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0012"
+        data-artist="romero britto"
+        data-seller="nathaniel jones"
+        data-medium="3d, hand embellished, mixed-media construction, with acrylic paint, oil pen drawing and hand applied diamond dust in color serigraph."
+        data-category="unique/original"
+        data-status="available"
+        data-price="2200.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="11.0"
+        data-search="romero britto holidays xxv 3d, hand embellished, mixed-media construction, with acrylic paint, oil pen drawing and hand applied diamond dust in color serigraph. unique/original nathaniel jones available a unique work, and overpainted.  full insurance included. nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=16_YPOxYjayx3YBI0E-4RW7ef5Q1gw83s&sz=w600" data-alt="Holidays XXV" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=16_YPOxYjayx3YBI0E-4RW7ef5Q1gw83s&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=16_YPOxYjayx3YBI0E-4RW7ef5Q1gw83s&sz=w1200"
+                class="art-img"
+                alt="Holidays XXV"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0012" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Romero Britto</h2>
+            <div class="artwork-title">Holidays XXV</div>
+
+            <div class="card-price-row">
+                <div class="price">$2,200</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0012" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=16_YPOxYjayx3YBI0E-4RW7ef5Q1gw83s&sz=w1200" data-alt="Holidays XXV" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=16_YPOxYjayx3YBI0E-4RW7ef5Q1gw83s&sz=w1200" class="modal-art-img" alt="Holidays XXV">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Romero Britto</h2>
+                        <div class="artwork-title">Holidays XXV</div>
+                        <div class="modal-price-row">
+                            <div class="price">$2,200</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">3D, Hand Embellished, mixed-media construction, with acrylic paint, oil pen drawing and hand applied diamond dust in color Serigraph.</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">13 x 15.25</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">21 x 23</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work, and overpainted.  Full insurance included. Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0013"
+        data-artist="romero britto"
+        data-seller="nathaniel jones"
+        data-medium="mixed media painting on three-dimensional paper construction, with acrylic paint, oil pen drawing and hand-applied diamond dust on color serigraph."
+        data-category="unique/original"
+        data-status="available"
+        data-price="4000.0"
+        data-price-band="2500to4999"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="12.0"
+        data-search="romero britto mona lisa mixed media painting on three-dimensional paper construction, with acrylic paint, oil pen drawing and hand-applied diamond dust on color serigraph. unique/original nathaniel jones available a unique work.  full insurance included. nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1QefYQBHL2a4rl7w38KXYFEXIrokHyU35&sz=w600" data-alt="Mona Lisa" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1QefYQBHL2a4rl7w38KXYFEXIrokHyU35&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1QefYQBHL2a4rl7w38KXYFEXIrokHyU35&sz=w1200"
+                class="art-img"
+                alt="Mona Lisa"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0013" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Romero Britto</h2>
+            <div class="artwork-title">Mona Lisa</div>
+
+            <div class="card-price-row">
+                <div class="price">$4,000</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0013" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1QefYQBHL2a4rl7w38KXYFEXIrokHyU35&sz=w1200" data-alt="Mona Lisa" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1QefYQBHL2a4rl7w38KXYFEXIrokHyU35&sz=w1200" class="modal-art-img" alt="Mona Lisa">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Romero Britto</h2>
+                        <div class="artwork-title">Mona Lisa</div>
+                        <div class="modal-price-row">
+                            <div class="price">$4,000</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Mixed media painting on three-dimensional paper construction, with acrylic paint, oil pen drawing and hand-applied diamond dust on color serigraph.</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">28.5 x 22.5</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">37 x 30.75</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work.  Full insurance included. Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0014"
+        data-artist="peter max"
+        data-seller="nathaniel jones"
+        data-medium="mixed media with acrylic painting and color lithography on paper.  signed in acrylic."
+        data-category="unique/original"
+        data-status="available"
+        data-price="1100.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="13.0"
+        data-search="peter max liberty head ii on blends mixed media with acrylic painting and color lithography on paper.  signed in acrylic. unique/original nathaniel jones available a unique work.  full insurance included.  from 2006.nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1P9P_xCcEZuTi7zuA3KkU-rlSMf5oThVN&sz=w600" data-alt="Liberty Head II on Blends" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1P9P_xCcEZuTi7zuA3KkU-rlSMf5oThVN&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1P9P_xCcEZuTi7zuA3KkU-rlSMf5oThVN&sz=w1200"
+                class="art-img"
+                alt="Liberty Head II on Blends"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0014" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Peter Max</h2>
+            <div class="artwork-title">Liberty Head II on Blends</div>
+
+            <div class="card-price-row">
+                <div class="price">$1,100</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0014" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1P9P_xCcEZuTi7zuA3KkU-rlSMf5oThVN&sz=w1200" data-alt="Liberty Head II on Blends" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1P9P_xCcEZuTi7zuA3KkU-rlSMf5oThVN&sz=w1200" class="modal-art-img" alt="Liberty Head II on Blends">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Peter Max</h2>
+                        <div class="artwork-title">Liberty Head II on Blends</div>
+                        <div class="modal-price-row">
+                            <div class="price">$1,100</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Mixed media with acrylic painting and color lithography on paper.  Signed in acrylic.</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">10 x 8</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">23.5 x 21.5</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work.  Full insurance included.  From 2006.Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0015"
+        data-artist="crisx"
+        data-seller="nathaniel jones"
+        data-medium="candy-color paint, urethane and enamel on a brushed metal surface. hand-signed in pigment lower right by the artist."
+        data-category="unique/original"
+        data-status="available"
+        data-price="1000.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="14.0"
+        data-search="crisx mini red rose candy-color paint, urethane and enamel on a brushed metal surface. hand-signed in pigment lower right by the artist. unique/original nathaniel jones available a unique work.  full insurance included.nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1pegSWGzu-BLwpNBp4p68yxrpkpMmM-tE&sz=w600" data-alt="Mini Red Rose" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1pegSWGzu-BLwpNBp4p68yxrpkpMmM-tE&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1pegSWGzu-BLwpNBp4p68yxrpkpMmM-tE&sz=w1200"
+                class="art-img"
+                alt="Mini Red Rose"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0015" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">CrisX</h2>
+            <div class="artwork-title">Mini Red Rose</div>
+
+            <div class="card-price-row">
+                <div class="price">$1,000</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0015" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1pegSWGzu-BLwpNBp4p68yxrpkpMmM-tE&sz=w1200" data-alt="Mini Red Rose" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1pegSWGzu-BLwpNBp4p68yxrpkpMmM-tE&sz=w1200" class="modal-art-img" alt="Mini Red Rose">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">CrisX</h2>
+                        <div class="artwork-title">Mini Red Rose</div>
+                        <div class="modal-price-row">
+                            <div class="price">$1,000</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Candy-Color paint, urethane and enamel on a brushed metal surface. Hand-signed in pigment lower right by the artist.</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">12 1/8 x 12</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">23 x 23</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work.  Full insurance included.Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0016"
+        data-artist="kre8"
+        data-seller="nathaniel jones"
+        data-medium="mixed media with acrylic painting and giclee on canvas. hand-signed in pigment lower left by the artist."
+        data-category="unique/original"
+        data-status="available"
+        data-price="3000.0"
+        data-price-band="2500to4999"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="15.0"
+        data-search="kre8 day dream mixed media with acrylic painting and giclee on canvas. hand-signed in pigment lower left by the artist. unique/original nathaniel jones available a unique work. from 2019. full insurance included.nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1Qm4Mh6VJpBIE9ql66Q2akMS85DLulsjl&sz=w600" data-alt="Day Dream" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1Qm4Mh6VJpBIE9ql66Q2akMS85DLulsjl&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1Qm4Mh6VJpBIE9ql66Q2akMS85DLulsjl&sz=w1200"
+                class="art-img"
+                alt="Day Dream"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0016" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Kre8</h2>
+            <div class="artwork-title">Day Dream</div>
+
+            <div class="card-price-row">
+                <div class="price">$3,000</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0016" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1Qm4Mh6VJpBIE9ql66Q2akMS85DLulsjl&sz=w1200" data-alt="Day Dream" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1Qm4Mh6VJpBIE9ql66Q2akMS85DLulsjl&sz=w1200" class="modal-art-img" alt="Day Dream">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Kre8</h2>
+                        <div class="artwork-title">Day Dream</div>
+                        <div class="modal-price-row">
+                            <div class="price">$3,000</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Mixed media with acrylic painting and giclee on canvas. Hand-signed in pigment lower left by the artist.</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">16 x 20</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">18.75 x 33</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work. From 2019. Full insurance included.Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0017"
+        data-artist="kre8"
+        data-seller="nathaniel jones"
+        data-medium="mixed media with acrylic painting and giclee on canvas. hand-signed in pigment lower left by the artist"
+        data-category="unique/original"
+        data-status="available"
+        data-price="3000.0"
+        data-price-band="2500to4999"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="false"
+        data-newest="16.0"
+        data-search="kre8 day dream mixed media with acrylic painting and giclee on canvas. hand-signed in pigment lower left by the artist unique/original nathaniel jones available unique work. from 2019. full insurance included.  park west appraisal included.  paper coa was misplaced, but this artwork is in my clarity account, and digital ownership can be transferred through park west.">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1_rm097VDwuX0qIX4icTNW1b7ekVEXq8S&sz=w600" data-alt="Day Dream" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1_rm097VDwuX0qIX4icTNW1b7ekVEXq8S&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1_rm097VDwuX0qIX4icTNW1b7ekVEXq8S&sz=w1200"
+                class="art-img"
+                alt="Day Dream"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0017" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Kre8</h2>
+            <div class="artwork-title">Day Dream</div>
+
+            <div class="card-price-row">
+                <div class="price">$3,000</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0017" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1_rm097VDwuX0qIX4icTNW1b7ekVEXq8S&sz=w1200" data-alt="Day Dream" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1_rm097VDwuX0qIX4icTNW1b7ekVEXq8S&sz=w1200" class="modal-art-img" alt="Day Dream">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Kre8</h2>
+                        <div class="artwork-title">Day Dream</div>
+                        <div class="modal-price-row">
+                            <div class="price">$3,000</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Mixed media with acrylic painting and giclee on canvas. Hand-signed in pigment lower left by the artist</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">16 x 20</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">29 x 33</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">Unique work. From 2019. Full insurance included.  Park West appraisal included.  Paper COA was misplaced, but this artwork is in my Clarity account, and digital ownership can be transferred through Park West.</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0018"
+        data-artist="kre8"
+        data-seller="nathaniel jones"
+        data-medium="mixed media with acrylic painting and giclee on canvas. hand-signed in pigment lower left by the artist"
+        data-category="unique/original"
+        data-status="available"
+        data-price="3000.0"
+        data-price-band="2500to4999"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="17.0"
+        data-search="kre8 day dream mixed media with acrylic painting and giclee on canvas. hand-signed in pigment lower left by the artist unique/original nathaniel jones available unique work. full insurance included. from 2020.nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1bCF8yT7Ib8vwL4QeiqG7fBf_OtybZeXd&sz=w600" data-alt="Day Dream" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1bCF8yT7Ib8vwL4QeiqG7fBf_OtybZeXd&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1bCF8yT7Ib8vwL4QeiqG7fBf_OtybZeXd&sz=w1200"
+                class="art-img"
+                alt="Day Dream"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0018" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Kre8</h2>
+            <div class="artwork-title">Day Dream</div>
+
+            <div class="card-price-row">
+                <div class="price">$3,000</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0018" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1bCF8yT7Ib8vwL4QeiqG7fBf_OtybZeXd&sz=w1200" data-alt="Day Dream" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1bCF8yT7Ib8vwL4QeiqG7fBf_OtybZeXd&sz=w1200" class="modal-art-img" alt="Day Dream">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Kre8</h2>
+                        <div class="artwork-title">Day Dream</div>
+                        <div class="modal-price-row">
+                            <div class="price">$3,000</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Mixed media with acrylic painting and giclee on canvas. Hand-signed in pigment lower left by the artist</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">16 x 20</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">24.5 x 28</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">Unique work. Full insurance included. From 2020.Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0019"
+        data-artist="ziggy o’leary"
+        data-seller="nathaniel jones"
+        data-medium="acrylic painting on canvas on a board."
+        data-category="unique/original"
+        data-status="available"
+        data-price="1100.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="18.0"
+        data-search="ziggy o’leary the pink heart acrylic painting on canvas on a board. unique/original nathaniel jones available a unique work. full insurance include included. from 2024.nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1uAEERj3yTp3lKzlwrmHthw_lX18rE-Tc&sz=w600" data-alt="The Pink Heart" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1uAEERj3yTp3lKzlwrmHthw_lX18rE-Tc&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1uAEERj3yTp3lKzlwrmHthw_lX18rE-Tc&sz=w1200"
+                class="art-img"
+                alt="The Pink Heart"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0019" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Ziggy O’Leary</h2>
+            <div class="artwork-title">The Pink Heart</div>
+
+            <div class="card-price-row">
+                <div class="price">$1,100</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0019" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1uAEERj3yTp3lKzlwrmHthw_lX18rE-Tc&sz=w1200" data-alt="The Pink Heart" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1uAEERj3yTp3lKzlwrmHthw_lX18rE-Tc&sz=w1200" class="modal-art-img" alt="The Pink Heart">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Ziggy O’Leary</h2>
+                        <div class="artwork-title">The Pink Heart</div>
+                        <div class="modal-price-row">
+                            <div class="price">$1,100</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Acrylic painting on canvas on a board.</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">16 x 12</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">26 x 22</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work. Full insurance include included. From 2024.Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0020"
+        data-artist="ziggy o’leary"
+        data-seller="nathaniel jones"
+        data-medium="acrylic painting on board"
+        data-category="unique/original"
+        data-status="available"
+        data-price="1100.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="19.0"
+        data-search="ziggy o’leary neon peace, love and happiness acrylic painting on board unique/original nathaniel jones available unique work. full insurance included. from 2024.nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1d0AZFUOoo1dwdFlqEQr8aKOJfgzJZisT&sz=w600" data-alt="Neon Peace, Love and Happiness" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1d0AZFUOoo1dwdFlqEQr8aKOJfgzJZisT&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1d0AZFUOoo1dwdFlqEQr8aKOJfgzJZisT&sz=w1200"
+                class="art-img"
+                alt="Neon Peace, Love and Happiness"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0020" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Ziggy O’Leary</h2>
+            <div class="artwork-title">Neon Peace, Love and Happiness</div>
+
+            <div class="card-price-row">
+                <div class="price">$1,100</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0020" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1d0AZFUOoo1dwdFlqEQr8aKOJfgzJZisT&sz=w1200" data-alt="Neon Peace, Love and Happiness" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1d0AZFUOoo1dwdFlqEQr8aKOJfgzJZisT&sz=w1200" class="modal-art-img" alt="Neon Peace, Love and Happiness">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Ziggy O’Leary</h2>
+                        <div class="artwork-title">Neon Peace, Love and Happiness</div>
+                        <div class="modal-price-row">
+                            <div class="price">$1,100</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Acrylic painting on board</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">12 x 16</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">21 7/8 x 25 7/8</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">Unique work. Full insurance included. From 2024.Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0021"
+        data-artist="peter max"
+        data-seller="nathaniel jones"
+        data-medium="mixed media with acrylic painting and collage on paper from the peter max studio. signed in acrylic by the artist."
+        data-category="unique/original"
+        data-status="available"
+        data-price="1800.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="false"
+        data-newest="20.0"
+        data-search="peter max libery head ii collage (large) mixed media with acrylic painting and collage on paper from the peter max studio. signed in acrylic by the artist. unique/original nathaniel jones available a unique work.  appraisal included.  paper coa misplaced, but digital ownership through park west transfer is available upon request as this artwork is in my clarity account.  from 1997.">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1eAFlFUyp05RUuWzn_TYSieUrUFTF9ILh&sz=w600" data-alt="Libery Head II Collage (Large)" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1eAFlFUyp05RUuWzn_TYSieUrUFTF9ILh&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1eAFlFUyp05RUuWzn_TYSieUrUFTF9ILh&sz=w1200"
+                class="art-img"
+                alt="Libery Head II Collage (Large)"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0021" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Peter Max</h2>
+            <div class="artwork-title">Libery Head II Collage (Large)</div>
+
+            <div class="card-price-row">
+                <div class="price">$1,800</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0021" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1eAFlFUyp05RUuWzn_TYSieUrUFTF9ILh&sz=w1200" data-alt="Libery Head II Collage (Large)" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1eAFlFUyp05RUuWzn_TYSieUrUFTF9ILh&sz=w1200" class="modal-art-img" alt="Libery Head II Collage (Large)">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Peter Max</h2>
+                        <div class="artwork-title">Libery Head II Collage (Large)</div>
+                        <div class="modal-price-row">
+                            <div class="price">$1,800</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Mixed media with acrylic painting and collage on paper from the Peter Max Studio. Signed in acrylic by the artist.</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">14 x 12.5</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">23.25 x 21.5</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work.  Appraisal included.  Paper COA misplaced, but digital ownership through Park West transfer is available upon request as this artwork is in my Clarity account.  From 1997.</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0022"
+        data-artist="jeff vermeeren"
+        data-seller="nathaniel jones"
+        data-medium="original mixed media on aluminum"
+        data-category="unique/original"
+        data-status="available"
+        data-price="2200.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="21.0"
+        data-search="jeff vermeeren edge of truth original mixed media on aluminum unique/original nathaniel jones available a unique work. full insurance included. artwork from 2024.  nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1aDZF0bcZAFlMRwIsUHvBkf3TqPVe_srY&sz=w600" data-alt="Edge of Truth" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1aDZF0bcZAFlMRwIsUHvBkf3TqPVe_srY&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1aDZF0bcZAFlMRwIsUHvBkf3TqPVe_srY&sz=w1200"
+                class="art-img"
+                alt="Edge of Truth"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0022" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Jeff Vermeeren</h2>
+            <div class="artwork-title">Edge of Truth</div>
+
+            <div class="card-price-row">
+                <div class="price">$2,200</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0022" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1aDZF0bcZAFlMRwIsUHvBkf3TqPVe_srY&sz=w1200" data-alt="Edge of Truth" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1aDZF0bcZAFlMRwIsUHvBkf3TqPVe_srY&sz=w1200" class="modal-art-img" alt="Edge of Truth">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Jeff Vermeeren</h2>
+                        <div class="artwork-title">Edge of Truth</div>
+                        <div class="modal-price-row">
+                            <div class="price">$2,200</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Original mixed media on aluminum</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">25.75 x 17.75</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">35 x 27</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work. Full insurance included. Artwork from 2024.  Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0023"
+        data-artist="jeff vermeeren"
+        data-seller="nathaniel jones"
+        data-medium="original mixed media painting on aluminum"
+        data-category="unique/original"
+        data-status="available"
+        data-price="2000.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="22.0"
+        data-search="jeff vermeeren aquarius beluga hope original mixed media painting on aluminum unique/original nathaniel jones available a unique work.  full insurance included. artwork from 2023.nbjones85@gmail.com">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=160IXwbuy0C6qcZ4pFNMrwcp41ahStEHa&sz=w600" data-alt="Aquarius Beluga Hope" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=160IXwbuy0C6qcZ4pFNMrwcp41ahStEHa&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=160IXwbuy0C6qcZ4pFNMrwcp41ahStEHa&sz=w1200"
+                class="art-img"
+                alt="Aquarius Beluga Hope"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0023" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Jeff Vermeeren</h2>
+            <div class="artwork-title">Aquarius Beluga Hope</div>
+
+            <div class="card-price-row">
+                <div class="price">$2,000</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0023" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=160IXwbuy0C6qcZ4pFNMrwcp41ahStEHa&sz=w1200" data-alt="Aquarius Beluga Hope" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=160IXwbuy0C6qcZ4pFNMrwcp41ahStEHa&sz=w1200" class="modal-art-img" alt="Aquarius Beluga Hope">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Jeff Vermeeren</h2>
+                        <div class="artwork-title">Aquarius Beluga Hope</div>
+                        <div class="modal-price-row">
+                            <div class="price">$2,000</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Original mixed media painting on aluminum</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">25.75 x 17.75</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">28 x 20</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Nathaniel Jones</span>
+                    <a href="https://www.facebook.com/nathaniel.jones.94" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">A unique work.  Full insurance included. Artwork from 2023.Nbjones85@gmail.com</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0024"
+        data-artist="ashton howard"
+        data-seller="guy scuderi"
+        data-medium="limited edition dye sublimation on aluminum"
+        data-category="limited edition"
+        data-status="available"
+        data-price="350.0"
+        data-price-band="under1000"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="23.0"
+        data-search="ashton howard desert calm limited edition dye sublimation on aluminum limited edition guy scuderi available really shines in the light. hand signed limited edition. in great condition at a great price!">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1_C3Dyu3vfPLhQBM-f1Xn-QBqi2c3TQn8&sz=w600" data-alt="Desert Calm" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1_C3Dyu3vfPLhQBM-f1Xn-QBqi2c3TQn8&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1_C3Dyu3vfPLhQBM-f1Xn-QBqi2c3TQn8&sz=w1200"
+                class="art-img"
+                alt="Desert Calm"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0024" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Ashton Howard</h2>
+            <div class="artwork-title">Desert Calm</div>
+
+            <div class="card-price-row">
+                <div class="price">$350</div>
+                <span class="badge artwork-category-badge card-badge category-limited">Limited Edition</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://facebook.com/guyscuderi" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0024" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1_C3Dyu3vfPLhQBM-f1Xn-QBqi2c3TQn8&sz=w1200" data-alt="Desert Calm" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1_C3Dyu3vfPLhQBM-f1Xn-QBqi2c3TQn8&sz=w1200" class="modal-art-img" alt="Desert Calm">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Ashton Howard</h2>
+                        <div class="artwork-title">Desert Calm</div>
+                        <div class="modal-price-row">
+                            <div class="price">$350</div>
+                            <span class="badge artwork-category-badge card-badge category-limited">Limited Edition</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Limited edition dye sublimation on aluminum</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">10.5” x 10.5”</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">12” x 12”</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Guy Scuderi</span>
+                    <a href="https://facebook.com/guyscuderi" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">Really shines in the light. Hand signed limited edition. In great condition at a great price!</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0025"
+        data-artist="michael godard"
+        data-seller="guy scuderi"
+        data-medium="limited edition seriolithograph on paper"
+        data-category="limited edition"
+        data-status="available"
+        data-price="600.0"
+        data-price-band="under1000"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="24.0"
+        data-search="michael godard grape toast limited edition seriolithograph on paper limited edition guy scuderi available been sold out for years and hard to find!!-hand signed limited edition #22/395. seriolithograph on wove paper (combination of serigraphy + lithography for added depth and texture).">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1CZwVAC3LMz5d_8Ocv8txhyFdJoNpPW5A&sz=w600" data-alt="Grape Toast" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1CZwVAC3LMz5d_8Ocv8txhyFdJoNpPW5A&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1CZwVAC3LMz5d_8Ocv8txhyFdJoNpPW5A&sz=w1200"
+                class="art-img"
+                alt="Grape Toast"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0025" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Michael Godard</h2>
+            <div class="artwork-title">Grape Toast</div>
+
+            <div class="card-price-row">
+                <div class="price">$600</div>
+                <span class="badge artwork-category-badge card-badge category-limited">Limited Edition</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://facebook.com/guyscuderi" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0025" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1CZwVAC3LMz5d_8Ocv8txhyFdJoNpPW5A&sz=w1200" data-alt="Grape Toast" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1CZwVAC3LMz5d_8Ocv8txhyFdJoNpPW5A&sz=w1200" class="modal-art-img" alt="Grape Toast">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Michael Godard</h2>
+                        <div class="artwork-title">Grape Toast</div>
+                        <div class="modal-price-row">
+                            <div class="price">$600</div>
+                            <span class="badge artwork-category-badge card-badge category-limited">Limited Edition</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Limited edition seriolithograph on paper</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">16” x 20”</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">28” x 31”</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Guy Scuderi</span>
+                    <a href="https://facebook.com/guyscuderi" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">Been sold out for years and hard to find!!-Hand signed limited edition #22/395. Seriolithograph on wove paper (combination of serigraphy + lithography for added depth and texture).</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0026"
+        data-artist="peter max"
+        data-seller="guy scuderi"
+        data-medium="limited edition serigraph on paper"
+        data-category="limited edition"
+        data-status="available"
+        data-price="1625.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="25.0"
+        data-search="peter max better world limited edition serigraph on paper limited edition guy scuderi available hors commerce edition of 50. hand signed in pencil by peter max. comes with a coa and appraisal. in great condition. gallery retail: $3600">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1q6dpUEejaTem6Sw2LvUq2O2Qj2HG1R3M&sz=w600" data-alt="Better World" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1q6dpUEejaTem6Sw2LvUq2O2Qj2HG1R3M&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1q6dpUEejaTem6Sw2LvUq2O2Qj2HG1R3M&sz=w1200"
+                class="art-img"
+                alt="Better World"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0026" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Peter Max</h2>
+            <div class="artwork-title">Better World</div>
+
+            <div class="card-price-row">
+                <div class="price">$1,625</div>
+                <span class="badge artwork-category-badge card-badge category-limited">Limited Edition</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://facebook.com/guyscuderi" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0026" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1q6dpUEejaTem6Sw2LvUq2O2Qj2HG1R3M&sz=w1200" data-alt="Better World" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1q6dpUEejaTem6Sw2LvUq2O2Qj2HG1R3M&sz=w1200" class="modal-art-img" alt="Better World">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Peter Max</h2>
+                        <div class="artwork-title">Better World</div>
+                        <div class="modal-price-row">
+                            <div class="price">$1,625</div>
+                            <span class="badge artwork-category-badge card-badge category-limited">Limited Edition</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Limited edition Serigraph on paper</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">11” x 26.25”</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">23” x 38”</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Guy Scuderi</span>
+                    <a href="https://facebook.com/guyscuderi" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">Hors commerce edition of 50. Hand signed in pencil by Peter Max. Comes with a COA and appraisal. In great condition. Gallery retail: $3600</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0027"
+        data-artist="david le batard (lebo)"
+        data-seller="guy scuderi"
+        data-medium="limited edition caldograph"
+        data-category="limited edition"
+        data-status="available"
+        data-price="625.0"
+        data-price-band="under1000"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="false"
+        data-newest="26.0"
+        data-search="david le batard (lebo) ray of hope limited edition caldograph limited edition guy scuderi available beautiful brand new custom frame. no paperwork but comes with a pw registration sticker on verso. in great condition.">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1pSfbmpm2VP6esbSUWvArJW8edMyh3fTZ&sz=w600" data-alt="Ray of Hope" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=1pSfbmpm2VP6esbSUWvArJW8edMyh3fTZ&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=1pSfbmpm2VP6esbSUWvArJW8edMyh3fTZ&sz=w1200"
+                class="art-img"
+                alt="Ray of Hope"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0027" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">David Le Batard (Lebo)</h2>
+            <div class="artwork-title">Ray of Hope</div>
+
+            <div class="card-price-row">
+                <div class="price">$625</div>
+                <span class="badge artwork-category-badge card-badge category-limited">Limited Edition</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://facebook.com/guyscuderi" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0027" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=1pSfbmpm2VP6esbSUWvArJW8edMyh3fTZ&sz=w1200" data-alt="Ray of Hope" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=1pSfbmpm2VP6esbSUWvArJW8edMyh3fTZ&sz=w1200" class="modal-art-img" alt="Ray of Hope">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">David Le Batard (Lebo)</h2>
+                        <div class="artwork-title">Ray of Hope</div>
+                        <div class="modal-price-row">
+                            <div class="price">$625</div>
+                            <span class="badge artwork-category-badge card-badge category-limited">Limited Edition</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">Limited Edition Caldograph</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">17” x 17”</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">24” x 24”</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Guy Scuderi</span>
+                    <a href="https://facebook.com/guyscuderi" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">Beautiful brand new custom frame. No paperwork but comes with a PW registration sticker on verso. In great condition.</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+
+    <article class="card"
+        data-listing-id="listing_0028"
+        data-artist="jon rattenbury"
+        data-seller="guy scuderi"
+        data-medium="3dimensional acrylic/epoxy on aluminum"
+        data-category="unique/original"
+        data-status="available"
+        data-price="2250.0"
+        data-price-band="1000to2499"
+        data-price-drop="false"
+        data-shipping="true"
+        data-coa="true"
+        data-newest="27.0"
+        data-search="jon rattenbury new beginnings 3dimensional acrylic/epoxy on aluminum unique/original guy scuderi available gorgeous original. the tree really pops off the artwork in 3d! comes with an older appraisal. retails for over $6k!">
+
+        <div class="card-image-wrap">
+            
+        <button class="image-open" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=13BHVjT0r474qkCyDVdWFr1YPJEPFw0D-&sz=w600" data-alt="New Beginnings" aria-label="Open artwork image">
+            <img
+                src="https://drive.google.com/thumbnail?id=13BHVjT0r474qkCyDVdWFr1YPJEPFw0D-&sz=w600"
+                data-fullsrc="https://drive.google.com/thumbnail?id=13BHVjT0r474qkCyDVdWFr1YPJEPFw0D-&sz=w1200"
+                class="art-img"
+                alt="New Beginnings"
+                loading="lazy"
+                decoding="async"
+            >
+        </button>
+        
+            <button class="save-listing-button corner-heart" type="button" data-listing-id="listing_0028" aria-label="Save listing">♡</button>
+        </div>
+
+        <div class="card-body">
+            <h2 class="artist-name">Jon Rattenbury</h2>
+            <div class="artwork-title">New Beginnings</div>
+
+            <div class="card-price-row">
+                <div class="price">$2,250</div>
+                <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+            </div>
+
+            <div class="card-actions">
+                <a href="https://facebook.com/guyscuderi" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                <button class="show-more-button" type="button" data-listing-id="listing_0028" aria-label="Show more details">Show More <span class="chevron">▾</span></button>
+            </div>
+        </div>
+
+        <template class="modal-content-template">
+            <div class="modal-content-inner">
+                <div class="modal-image-wrap">
+                    <button class="image-open modal-image-zoom" type="button" data-fullsrc="https://drive.google.com/thumbnail?id=13BHVjT0r474qkCyDVdWFr1YPJEPFw0D-&sz=w1200" data-alt="New Beginnings" aria-label="Open artwork image">
+                        <img src="https://drive.google.com/thumbnail?id=13BHVjT0r474qkCyDVdWFr1YPJEPFw0D-&sz=w1200" class="modal-art-img" alt="New Beginnings">
+                    </button>
+                </div>
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 class="artist-name">Jon Rattenbury</h2>
+                        <div class="artwork-title">New Beginnings</div>
+                        <div class="modal-price-row">
+                            <div class="price">$2,250</div>
+                            <span class="badge artwork-category-badge card-badge category-unique">Unique/Original</span>
+                            
+                        </div>
+                    </div>
+
+                    <div class="modal-badges"><span class="badge">Shipping Included</span><span class="badge">COA Included</span></div>
+
+                    <div class="modal-specs"><div class="spec-row"><span class="spec-label">Type</span><span class="spec-value">3Dimensional Acrylic/Epoxy on Aluminum</span></div><div class="spec-row"><span class="spec-label">Artwork Size</span><span class="spec-value">24&quot; x 24&quot;</span></div><div class="spec-row"><span class="spec-label">Framed Size</span><span class="spec-value">30&quot; x 30&quot;</span></div></div>
+
+                    
+            <div class="modal-seller">
+                <span class="seller-label">Seller</span>
+                <div class="modal-seller-row">
+                    <span class="seller-name">Guy Scuderi</span>
+                    <a href="https://facebook.com/guyscuderi" target="_blank" rel="noopener noreferrer" class="contact-seller-button">Contact Seller</a>
+                </div>
+            </div>
+        
+
+                    <p class="notes">Gorgeous original. The tree really pops off the artwork in 3D! Comes with an older appraisal. Retails for over $6K!</p>
+                </div>
+            </div>
+        </template>
+    </article>
+    
+                <div class="empty-state" id="emptyState" hidden>
+                    <h3 class="empty-state-title">No listings match your filters</h3>
+                    <p class="empty-state-message">Try clearing or adjusting your filters above.</p>
+                    <button class="empty-state-clear" id="clearFiltersFromEmpty" type="button">Clear all filters</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <button id="backToTop" aria-label="Back to top">↑</button>
+
+    <div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
+        <div class="loading-box">
+            <h4 class="loading-title" id="loadingTitle">Preparing PDF...</h4>
+            <p class="loading-text" id="loadingText">Please wait while your download is generated.</p>
+        </div>
+    </div>
+
+    <div class="lightbox" id="lightbox" aria-hidden="true">
+        <button class="lightbox-close" id="lightboxClose" aria-label="Close image viewer">×</button>
+        <div class="lightbox-stage" id="lightboxStage">
+            <img class="lightbox-image" id="lightboxImage" src="" alt="">
+        </div>
+        <div class="lightbox-hint">Tap outside or × to close. Pinch to zoom on mobile.</div>
+    </div>
+
+    <div class="detail-modal" id="detailModal" aria-hidden="true" role="dialog" aria-label="Listing details">
+        <div class="detail-modal-stage">
+            <button class="detail-modal-close" id="detailModalClose" aria-label="Close listing details">×</button>
+            <div class="detail-modal-content" id="detailModalContent"></div>
+        </div>
+    </div>
+
+
+    <script>
+        const STORAGE_KEY = "savedListings";
+
+        const searchInput = document.getElementById("searchInput");
+        const savedFilter = document.getElementById("savedFilter");
+        const sellerFilter = document.getElementById("sellerFilter");
+        const artistFilter = document.getElementById("artistFilter");
+        const categoryFilter = document.getElementById("categoryFilter");
+        const priceFilter = document.getElementById("priceFilter");
+        const sortFilter = document.getElementById("sortFilter");
+        const grid = document.getElementById("catalogGrid");
+        const cards = Array.from(document.querySelectorAll("#catalogGrid .card"));
+        const resultCount = document.getElementById("resultCount");
+        const savedCount = document.getElementById("savedCount");
+        const backToTop = document.getElementById("backToTop");
+        const emptyState = document.getElementById("emptyState");
+        const clearFiltersFromEmpty = document.getElementById("clearFiltersFromEmpty");
+
+        const lightbox = document.getElementById("lightbox");
+        const lightboxImage = document.getElementById("lightboxImage");
+        const lightboxClose = document.getElementById("lightboxClose");
+        const lightboxStage = document.getElementById("lightboxStage");
+        const imageButtons = Array.from(document.querySelectorAll(".image-open"));
+        const saveButtons = Array.from(document.querySelectorAll(".save-listing-button"));
+
+
+        const loadingOverlay = document.getElementById("loadingOverlay");
+        const loadingTitle = document.getElementById("loadingTitle");
+        const loadingText = document.getElementById("loadingText");
+
+        function setLoadingState(isOpen, title = "Preparing Image...", text = "Please wait while your download is generated.") {
+            loadingOverlay.classList.toggle("is-open", isOpen);
+            loadingOverlay.setAttribute("aria-hidden", isOpen ? "false" : "true");
+            loadingTitle.textContent = title;
+            loadingText.textContent = text;
+            document.body.style.overflow = isOpen ? "hidden" : "";
+        }
+
+        function getSavedListings() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                const parsed = raw ? JSON.parse(raw) : [];
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function setSavedListings(savedIds) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedIds));
+        }
+
+        function isSaved(listingId) {
+            return getSavedListings().includes(listingId);
+        }
+
+        function updateSavedButtons() {
+            const savedIds = getSavedListings();
+            // Re-query each call so save buttons rendered inside the modal also sync.
+            const allSaveButtons = document.querySelectorAll(".save-listing-button");
+            allSaveButtons.forEach((button) => {
+                const id = button.dataset.listingId;
+                const saved = savedIds.includes(id);
+                button.classList.toggle("is-saved", saved);
+                const isCornerHeart = button.classList.contains("corner-heart");
+                button.textContent = isCornerHeart
+                    ? (saved ? "♥" : "♡")
+                    : (saved ? "♥ Saved" : "♡ Save Listing");
+                button.setAttribute("aria-pressed", saved ? "true" : "false");
+            });
+            savedCount.textContent = `${savedIds.length} saved`;
+        }
+
+        function toggleSavedListing(listingId) {
+            const savedIds = getSavedListings();
+            const index = savedIds.indexOf(listingId);
+
+            if (index >= 0) {
+                savedIds.splice(index, 1);
+            } else {
+                savedIds.push(listingId);
+            }
+
+            setSavedListings(savedIds);
+            updateSavedButtons();
+
+            
+            if (savedFilter.value === "saved") {
+                applyFilters();
+            }
+        }
+
+        function matchesPriceBand(priceBand, filterBand) {
+            if (!filterBand) return true;
+            return priceBand === filterBand;
+        }
+
+        function sortCards(visibleCards) {
+            const mode = sortFilter.value;
+
+            visibleCards.sort((a, b) => {
+                const priceA = Number(a.dataset.price || -1);
+                const priceB = Number(b.dataset.price || -1);
+                const newestA = Number(a.dataset.newest || 0);
+                const newestB = Number(b.dataset.newest || 0);
+                const artistA = (a.dataset.artist || "").toLowerCase();
+                const artistB = (b.dataset.artist || "").toLowerCase();
+
+                if (mode === "newest") return newestB - newestA;
+                if (mode === "oldest") return newestA - newestB;
+
+                if (mode === "priceDesc") {
+                    const safeA = priceA === -1 ? -Infinity : priceA;
+                    const safeB = priceB === -1 ? -Infinity : priceB;
+                    return safeB - safeA;
+                }
+
+                if (mode === "priceAsc") {
+                    const safeA = priceA === -1 ? Infinity : priceA;
+                    const safeB = priceB === -1 ? Infinity : priceB;
+                    return safeA - safeB;
+                }
+
+                if (mode === "artistAsc") return artistA.localeCompare(artistB);
+                if (mode === "artistDesc") return artistB.localeCompare(artistA);
+
+                return 0;
+            });
+
+            visibleCards.forEach(card => grid.appendChild(card));
+        }
+
+        function applyFilters() {
+            const search = searchInput.value.trim().toLowerCase();
+            const savedOnly = savedFilter.value === "saved";
+            const priceDropsOnly = savedFilter.value === "priceDrops";
+            const seller = sellerFilter.value;
+            const artist = artistFilter.value;
+            const category = categoryFilter.value;
+            const priceBand = priceFilter.value;
+            const savedIds = getSavedListings();
+
+            let visibleCards = [];
+
+            cards.forEach(card => {
+                const listingId = card.dataset.listingId || "";
+                const sellerValue = card.dataset.seller || "";
+                const artistValue = card.dataset.artist || "";
+                const categoryValue = card.dataset.category || "";
+                const cardPriceBand = card.dataset.priceBand || "";
+                const fullText = card.dataset.search || "";
+                const isPriceDrop = card.dataset.priceDrop === "true";
+
+                const matchesSearch = !search || fullText.includes(search);
+                const matchesSaved = !savedOnly || savedIds.includes(listingId);
+                const matchesPriceDrop = !priceDropsOnly || isPriceDrop;
+                const matchesSeller = !seller || sellerValue === seller;
+                const matchesArtist = !artist || artistValue === artist;
+                const matchesCategory = !category || categoryValue === category;
+                const matchesPrice = matchesPriceBand(cardPriceBand, priceBand);
+
+                const visible = matchesSearch && matchesSaved && matchesPriceDrop && matchesSeller && matchesArtist && matchesCategory && matchesPrice;
+                card.classList.toggle("hidden", !visible);
+
+                if (visible) {
+                    visibleCards.push(card);
+                }
+            });
+
+            sortCards(visibleCards);
+            resultCount.textContent = `${visibleCards.length} listing${visibleCards.length === 1 ? "" : "s"} shown`;
+            emptyState.hidden = visibleCards.length > 0;
+        }
+
+        function clearAllFilters() {
+            searchInput.value = "";
+            savedFilter.value = "";
+            sellerFilter.value = "";
+            artistFilter.value = "";
+            categoryFilter.value = "";
+            priceFilter.value = "";
+            sortFilter.value = "newest";
+            applyFilters();
+        }
+
+
+
+        
+
+
+    
+
+        function openLightbox(src, alt) {
+            lightboxImage.src = src;
+            lightboxImage.alt = alt || "Artwork";
+            lightbox.classList.add("is-open");
+            lightbox.setAttribute("aria-hidden", "false");
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeLightbox() {
+            lightbox.classList.remove("is-open");
+            lightbox.setAttribute("aria-hidden", "true");
+            lightboxImage.src = "";
+            lightboxImage.alt = "";
+            // Don't unlock body scroll if the detail modal is still open behind us.
+            if (!detailModal.classList.contains("is-open")) {
+                document.body.style.overflow = "";
+            }
+        }
+
+        // === Detail modal ===
+        const detailModal = document.getElementById("detailModal");
+        const detailModalContent = document.getElementById("detailModalContent");
+        const detailModalClose = document.getElementById("detailModalClose");
+
+        function openDetailModal(card) {
+            if (!card) return;
+            const template = card.querySelector(".modal-content-template");
+            if (!template) return;
+            detailModalContent.innerHTML = "";
+            detailModalContent.appendChild(template.content.cloneNode(true));
+            detailModal.classList.add("is-open");
+            detailModal.setAttribute("aria-hidden", "false");
+            const stage = detailModal.querySelector(".detail-modal-stage");
+            if (stage) stage.scrollTop = 0;
+            document.body.style.overflow = "hidden";
+            // Sync save button state for the freshly-cloned modal save button.
+            updateSavedButtons();
+        }
+
+        function closeDetailModal() {
+            detailModal.classList.remove("is-open");
+            detailModal.setAttribute("aria-hidden", "true");
+            detailModalContent.innerHTML = "";
+            // Don't unlock body scroll if the lightbox is still open.
+            if (!lightbox.classList.contains("is-open")) {
+                document.body.style.overflow = "";
+            }
+        }
+
+        // Delegated click handler — covers buttons in cards and inside the modal.
+        document.addEventListener("click", (event) => {
+            const imgBtn = event.target.closest(".image-open");
+            if (imgBtn) {
+                event.preventDefault();
+                openLightbox(imgBtn.dataset.fullsrc, imgBtn.dataset.alt);
+                return;
+            }
+
+            const saveBtn = event.target.closest(".save-listing-button");
+            if (saveBtn) {
+                event.preventDefault();
+                toggleSavedListing(saveBtn.dataset.listingId);
+                return;
+            }
+
+            const showMoreBtn = event.target.closest(".show-more-button");
+            if (showMoreBtn) {
+                event.preventDefault();
+                const card = showMoreBtn.closest(".card");
+                openDetailModal(card);
+                return;
+            }
+        });
+
+        detailModalClose.addEventListener("click", closeDetailModal);
+
+        detailModal.addEventListener("click", (event) => {
+            if (event.target === detailModal) {
+                closeDetailModal();
+            }
+        });
+
+        lightboxClose.addEventListener("click", closeLightbox);
+
+        lightbox.addEventListener("click", (event) => {
+            if (event.target === lightbox || event.target === lightboxStage) {
+                closeLightbox();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            if (lightbox.classList.contains("is-open")) {
+                closeLightbox();
+                return;
+            }
+            if (detailModal.classList.contains("is-open")) {
+                closeDetailModal();
+            }
+        });
+
+        window.addEventListener("scroll", () => {
+            if (window.scrollY > 400) {
+                backToTop.style.display = "flex";
+            } else {
+                backToTop.style.display = "none";
+            }
+        });
+
+        backToTop.addEventListener("click", () => {
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+        });
+
+        [searchInput, savedFilter, sellerFilter, artistFilter, categoryFilter, priceFilter, sortFilter].forEach((el) => {
+            el.addEventListener("input", applyFilters);
+            el.addEventListener("change", applyFilters);
+        });
+
+        clearFiltersFromEmpty.addEventListener("click", clearAllFilters);
+
+        updateSavedButtons();
+        applyFilters();
+    </script>
+</body>
+</html>

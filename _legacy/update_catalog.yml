@@ -1,0 +1,55 @@
+name: Update Catalog
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"  # runs every 30 minutes
+  workflow_dispatch:       # allows manual trigger
+  repository_dispatch:
+    types: [rebuild-catalog]
+
+permissions:
+  contents: write
+
+# Only one catalog build can be running at a time. If a new dispatch (or
+# scheduled / manual run) arrives while a build is still in progress, the
+# in-flight one is cancelled and the new run takes over. This stops the
+# "two builds racing on the gh-pages push" failures we'd see when many
+# listings were approved in quick succession.
+concurrency:
+  group: catalog-rebuild
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run catalog generator
+        run: |
+          python generate_catalog.py \
+            --sheet-id 11Z2k_ifdiv-De1Yp_ioMF63C_WF_Tx3Dv3GTBlswfYs \
+            --gid 740566 \
+            --output index.html \
+            --title "Canvas Circle | Fine Art Marketplace"
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add index.html guidelines.html
+
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Auto-update catalog"
+            git push
+          fi

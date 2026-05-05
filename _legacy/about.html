@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="assets/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unique Original Fine Art — About</title>
+    <style>
+        :root {
+            --bg: #f5f1ea;
+            --card: rgba(255,255,255,0.86);
+            --text: #1f1a17;
+            --muted: #6f675e;
+            --line: #dbd1c4;
+            --shadow-soft: 0 8px 22px rgba(35, 27, 20, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(255,255,255,0.7), transparent 35%),
+                linear-gradient(180deg, #f7f3ed 0%, #f2ece3 100%);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.6;
+        }
+
+        .page {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 32px 20px 80px;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 24px;
+            align-items: center;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--line);
+            margin-bottom: 28px;
+        }
+
+        .brand-logo {
+            width: 108px;
+            max-width: 100%;
+            height: auto;
+            display: block;
+            filter: drop-shadow(0 8px 18px rgba(0,0,0,0.08));
+        }
+
+        .hero-copy h1 {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(30px, 4vw, 48px);
+            line-height: 1.02;
+            letter-spacing: -0.03em;
+            font-weight: 600;
+        }
+
+        .hero-sub {
+            margin-top: 14px;
+            color: var(--muted);
+            max-width: 720px;
+            font-size: 16px;
+        }
+
+        .hero-links {
+            margin-top: 14px;
+        }
+
+        .hero-link {
+            color: var(--text);
+            text-decoration: none;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(31, 26, 23, 0.25);
+        }
+
+        .hero-link:hover {
+            border-bottom-color: rgba(31, 26, 23, 0.65);
+        }
+
+        .section {
+            background: var(--card);
+            border: 1px solid rgba(219, 209, 196, 0.85);
+            border-radius: 22px;
+            padding: 24px 28px 26px;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 20px;
+        }
+
+        .section h2 {
+            margin: 0 0 16px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 30px;
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+            font-weight: 600;
+        }
+
+        .section p {
+            margin: 0 0 14px;
+            font-size: 16px;
+            line-height: 1.65;
+        }
+
+        .section p.lede {
+            font-size: 18px;
+            color: var(--text);
+        }
+
+        .section p:last-child {
+            margin-bottom: 0;
+        }
+
+        .section ul {
+            margin: 14px 0 18px;
+            padding-left: 22px;
+        }
+
+        .section li {
+            margin-bottom: 8px;
+            font-size: 16px;
+            line-height: 1.55;
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+            margin-top: 16px;
+        }
+
+        .feature {
+            background: rgba(255,255,255,0.6);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 16px 18px;
+        }
+
+        .feature h3 {
+            margin: 0 0 6px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .feature p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--muted);
+        }
+
+        .footer-link {
+            margin-top: 28px;
+            text-align: center;
+        }
+
+        .footer-link a {
+            color: var(--text);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(31, 26, 23, 0.25);
+        }
+
+        .footer-link a:hover {
+            border-bottom-color: rgba(31, 26, 23, 0.65);
+        }
+
+        @media (max-width: 720px) {
+            .page {
+                padding: 24px 16px 70px;
+            }
+
+            .hero {
+                grid-template-columns: 1fr;
+                gap: 14px;
+                align-items: start;
+            }
+
+            .brand-logo {
+                width: 78px;
+            }
+
+            .section {
+                padding: 20px 18px 22px;
+            }
+
+            .section h2 {
+                font-size: 26px;
+            }
+
+            .feature-list {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header class="hero">
+            <div>
+                <img src="assets/logo.png" class="brand-logo" alt="Canvas Circle">
+            </div>
+            <div class="hero-copy">
+                <h1>About Canvas Circle</h1>
+                <div class="hero-sub">
+                    A modern art marketplace built for social selling.
+                </div>
+                <div class="hero-links">
+                    <a class="hero-link" href="index.html">Back to catalog</a>
+                </div>
+            </div>
+        </header>
+
+        <section class="section">
+            <p class="lede">Canvas Circle is a modern art marketplace built for social selling.</p>
+            <p>Today, a large portion of art resale happens across Facebook groups and online communities. While these spaces are active and valuable, they're often unstructured. Listings can be inconsistent, incomplete, and difficult to navigate. Important details get lost, and both buyers and sellers spend unnecessary time managing the process.</p>
+            <p>There's also the constant pressure to stay visible by bumping posts, reposting listings, and competing with ever-changing algorithms just to be seen.</p>
+            <p><strong>Canvas Circle brings structure to that environment.</strong></p>
+            <p>It provides a simple, consistent way to create clean, organized listings that include all the information buyers actually need without unnecessary clutter. Instead of relying on individual posts, listings live in a centralized online catalog. Sellers can direct buyers to their listings through a clean, filterable interface — making it easier for buyers to browse, compare, and engage without the noise of social feeds.</p>
+            <p>Canvas Circle acts as a marketplace, but transactions stay direct. We don't process payments, handle logistics, or sit in the middle of transactions. Instead, we provide the infrastructure that helps buyers and sellers connect more efficiently, while maintaining the flexibility and independence of social selling.</p>
+        </section>
+
+        <section class="section">
+            <h2>Why Canvas Circle Exists</h2>
+            <p><em>Better listings lead to better outcomes.</em></p>
+            <p>When listings are clear, complete, and consistent:</p>
+            <ul>
+                <li>Buyers can quickly find relevant works</li>
+                <li>Sellers receive more serious inquiries</li>
+                <li>Less time is spent reformatting, reposting, and competing for visibility</li>
+            </ul>
+            <p>Canvas Circle reduces the friction of social selling by replacing scattered posts with a structured, centralized experience.</p>
+        </section>
+
+        <section class="section">
+            <h2>What Makes Canvas Circle Different</h2>
+            <p>Canvas Circle is designed around how art is actually bought and sold today.</p>
+            <div class="feature-list">
+                <div class="feature">
+                    <h3>Structured Listings</h3>
+                    <p>Every listing follows a clean, consistent format that highlights what matters most.</p>
+                </div>
+                <div class="feature">
+                    <h3>Centralized Catalog</h3>
+                    <p>All listings live in one place, making it easy for buyers to browse and filter.</p>
+                </div>
+                <div class="feature">
+                    <h3>Built for Social Use</h3>
+                    <p>Sellers can easily direct buyers to their listings without relying on constant reposting.</p>
+                </div>
+                <div class="feature">
+                    <h3>Direct Transactions</h3>
+                    <p>Buyers and sellers connect directly, with no fees or intermediaries.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>A Better Way to Sell Art Online</h2>
+            <p>Canvas Circle doesn't replace social platforms — it complements them.</p>
+            <p>By combining structured listings with a centralized catalog, it transforms fragmented, feed-based selling into a more organized, efficient, and professional marketplace experience.</p>
+        </section>
+
+        <div class="footer-link">
+            <a href="index.html">Return to the art catalog</a>
+        </div>
+    </div>
+</body>
+</html>
