@@ -45,7 +45,7 @@
     nav a:hover { color: var(--accent); }
 
     main {
-      max-width: 460px;
+      max-width: 900px;
       margin: 40px auto;
       padding: 0 16px 64px;
     }
@@ -56,7 +56,11 @@
       border-radius: 14px;
       padding: 28px;
       box-shadow: var(--shadow);
+      max-width: 460px;
+      margin: 0 auto;
+      transition: max-width .15s ease;
     }
+    .card.is-wide { max-width: 900px; }
     h1 {
       margin: 0 0 6px;
       font-family: Georgia, "Times New Roman", serif;
@@ -165,6 +169,102 @@
     .quicklinks a .arrow { color: var(--muted); }
 
     .small { color: var(--muted); font-size: 12px; }
+
+    /* ------ Dashboard ------ */
+    .dash-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap;
+      margin: 18px 0 10px;
+    }
+    .dash-head h2 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .dash-head .count { color: var(--muted); font-weight: 400; }
+
+    button.btn-primary {
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    button.btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+    button.btn-secondary {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      background: #fff;
+      color: var(--fg);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    button.btn-secondary:hover, a.btn-secondary:hover { border-color: var(--accent); }
+
+    .listing-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .listing-row {
+      display: grid;
+      grid-template-columns: 72px 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      background: #fff;
+    }
+    .listing-row .thumb {
+      width: 72px; height: 72px;
+      border-radius: 8px;
+      background: #f0ede6;
+      overflow: hidden;
+      position: relative;
+    }
+    .listing-row .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .listing-row .thumb.is-sold::after {
+      content: "SOLD";
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(168,40,31,.55);
+      color: #fff; font-weight: 800; font-size: 11px; letter-spacing: 2px;
+    }
+    .listing-row .meta .artist { font-weight: 600; font-size: 14px; line-height: 1.3; }
+    .listing-row .meta .title  { color: var(--muted); font-size: 13px; }
+    .listing-row .meta .badges { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .listing-row .meta .price  { font-weight: 600; font-size: 14px; }
+    .pill {
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: 999px; border: 1px solid var(--card-line);
+      background: #efe9d8; color: #6a4c00;
+    }
+    .pill.status-available { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
+    .pill.status-sold      { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
+    .pill.status-pending   { background: #fce6c4; color: #7a4a00; border-color: #f1c98a; }
+    .pill.status-delisted, .pill.status-not_renewed, .pill.status-rejected, .pill.status-pending_review {
+      background: #ececec; color: #4a4a4a; border-color: #d4d4d4;
+    }
+    .listing-row .actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    @media (max-width: 600px) {
+      .listing-row { grid-template-columns: 56px 1fr; }
+      .listing-row .thumb { width: 56px; height: 56px; }
+      .listing-row .actions { grid-column: 1 / -1; justify-content: flex-start; padding-top: 4px; }
+    }
+    .empty-state {
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--card-line);
+      border-radius: 10px;
+      font-size: 14px;
+    }
 
     footer {
       text-align: center;
@@ -304,12 +404,21 @@
           <button type="button" class="ghost" id="signout-btn">Sign out</button>
         </div>
 
-        <h1 style="font-size: 20px;">Your seller portal</h1>
-        <p class="lede">More tools coming soon.</p>
+        <div class="dash-head">
+          <h2>Your listings <span class="count" id="listings-count"></span></h2>
+          <button type="button" class="btn-primary" id="add-listing-btn" disabled
+                  title="Coming soon — add a new listing">+ Add new listing</button>
+        </div>
 
-        <div class="quicklinks">
+        <div id="listings-loading" class="empty-state" hidden>Loading your listings&hellip;</div>
+        <div id="listings-error"   class="banner error" hidden></div>
+        <div id="listings-empty"   class="empty-state" hidden>
+          You don't have any listings yet. Once you add one, it'll show up here.
+        </div>
+        <div id="listings-list" class="listing-list" hidden></div>
+
+        <div class="quicklinks" style="margin-top: 18px;">
           <a href="/">View public catalog <span class="arrow">→</span></a>
-          <!-- Phase 2.2 will add: Manage your listings, Add a new listing, Sales-post builder -->
         </div>
       </section>
 
@@ -324,14 +433,17 @@
   </footer>
 
   <script type="module">
-    import { supabase, currentProfile } from "/lib/supabase.js";
+    import { supabase, currentProfile, publicImageUrl } from "/lib/supabase.js";
 
     // -----------------------------------------------------------------------
     // View switching
     // -----------------------------------------------------------------------
     const views = Array.from(document.querySelectorAll("[data-view]"));
+    const $card = document.querySelector(".card");
     function showView(name) {
       for (const el of views) el.hidden = (el.dataset.view !== name);
+      // Account view = wide card (dashboard); auth views = narrow card.
+      $card.classList.toggle("is-wide", name === "account");
       window.scrollTo({ top: 0 });
     }
     document.querySelectorAll("[data-go]").forEach(b => {
@@ -537,6 +649,98 @@
       $whoEmail.textContent = session.user.email || "";
       const profile = await currentProfile();
       $whoName.textContent = profile?.display_name || "Welcome";
+      await loadDashboardListings(session.user.id);
+    }
+
+    // -----------------------------------------------------------------------
+    // Dashboard — load + render listings owned by the signed-in user
+    // -----------------------------------------------------------------------
+    const $listingsLoading = document.getElementById("listings-loading");
+    const $listingsError   = document.getElementById("listings-error");
+    const $listingsEmpty   = document.getElementById("listings-empty");
+    const $listingsList    = document.getElementById("listings-list");
+    const $listingsCount   = document.getElementById("listings-count");
+
+    function escapeHtml(s) {
+      return String(s ?? "").replace(/[&<>"']/g, c => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+      }[c]));
+    }
+
+    function statusLabel(s) {
+      const map = {
+        available: "Available", pending: "Pending", sold: "Sold",
+        delisted: "Delisted", not_renewed: "Not renewed",
+        pending_review: "Pending review", rejected: "Rejected",
+      };
+      return map[s] || s || "";
+    }
+
+    function renderListingRow(l) {
+      const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
+      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      const price  = Number(l.asking_price_usd || 0).toLocaleString();
+      const isSold = l.status === "sold";
+      const row = document.createElement("div");
+      row.className = "listing-row";
+      row.innerHTML = `
+        <div class="thumb${isSold ? " is-sold" : ""}">
+          ${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}
+        </div>
+        <div class="meta">
+          <div class="artist">${escapeHtml(l.artist_name || "Unknown")}</div>
+          <div class="title">${escapeHtml(l.artwork_title || "")}</div>
+          <div class="badges">
+            <span class="price">$${price}</span>
+            <span class="pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>
+            ${l.artwork_category ? `<span class="pill">${escapeHtml(l.artwork_category)}</span>` : ""}
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-secondary" disabled title="Coming soon">Edit</button>
+          <a class="btn-secondary" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View</a>
+        </div>
+      `;
+      return row;
+    }
+
+    async function loadDashboardListings(userId) {
+      $listingsLoading.hidden = false;
+      $listingsError.hidden   = true;
+      $listingsEmpty.hidden   = true;
+      $listingsList.hidden    = true;
+      $listingsList.innerHTML = "";
+      $listingsCount.textContent = "";
+
+      const { data, error } = await supabase
+        .from("listings")
+        .select(`
+          listing_id, artist_name, artwork_title, artwork_category,
+          asking_price_usd, status, created_at,
+          listing_images ( storage_path, position )
+        `)
+        .eq("seller_id", userId)
+        .order("created_at", { ascending: false });
+
+      $listingsLoading.hidden = true;
+
+      if (error) {
+        console.error("[dashboard] listings load failed", error);
+        $listingsError.textContent = error.message || "Could not load your listings.";
+        $listingsError.hidden = false;
+        return;
+      }
+
+      const rows = data || [];
+      $listingsCount.textContent = rows.length ? `(${rows.length})` : "";
+      if (rows.length === 0) {
+        $listingsEmpty.hidden = false;
+        return;
+      }
+      const frag = document.createDocumentFragment();
+      for (const l of rows) frag.appendChild(renderListingRow(l));
+      $listingsList.appendChild(frag);
+      $listingsList.hidden = false;
     }
 
     $signoutBtn.addEventListener("click", async () => {
