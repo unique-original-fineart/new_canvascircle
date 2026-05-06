@@ -3,12 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sign in — CanvasCircle</title>
+  <title>CanvasCircle — Original & Resold Fine Art</title>
 
   <link rel="icon" href="/assets/favicon.ico" />
   <link rel="manifest" href="/assets/manifest.webmanifest" />
   <meta name="theme-color" content="#1a1a1a" />
-  <meta name="robots" content="noindex" />
+
+  <!-- Open Graph -->
+  <meta property="og:title"       content="CanvasCircle — Original & Resold Fine Art" />
+  <meta property="og:description" content="A curated catalog of original and resold fine art from independent collectors and artists." />
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://canvascircle.art" />
+  <meta property="og:image"       content="https://canvascircle.art/assets/og-image.png" />
+  <meta name="twitter:card"       content="summary_large_image" />
 
   <style>
     :root {
@@ -20,7 +27,6 @@
       --card-line: #e8e4dc;
       --shadow:    0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
       --green:     #2a7a3e;
-      --red:       #a8281f;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
@@ -30,272 +36,80 @@
       color: var(--fg);
       line-height: 1.5;
     }
-    a { color: var(--accent); }
-
-    header.site {
+    header {
       padding: 18px 16px;
       border-bottom: 1px solid var(--card-line);
       background: #fff;
       display: flex; align-items: center; justify-content: space-between;
     }
-    header.site .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); }
-    header.site img    { height: 32px; width: 32px; border-radius: 6px; }
-    header.site .title { font-weight: 600; font-size: 18px; }
+    header .brand { display: flex; align-items: center; gap: 10px; }
+    header img    { height: 32px; width: 32px; border-radius: 6px; }
+    header .title { font-weight: 600; font-size: 18px; letter-spacing: .2px; }
     nav a { color: var(--fg); text-decoration: none; margin-left: 16px; font-size: 14px; }
     nav a:hover { color: var(--accent); }
 
     main {
-      max-width: 900px;
-      margin: 40px auto;
-      padding: 0 16px 64px;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+    }
+    .hero {
+      text-align: center;
+      padding: 24px 16px 16px;
+    }
+    .hero img.hero-logo {
+      display: block;
+      margin: 0 auto;
+      max-width: 280px;
+      width: 60vw;
+      max-height: 140px;
+      height: auto;
+      object-fit: contain;
     }
 
-    .card {
+    /* ---- Filter toolbar ---- */
+    .toolbar {
       background: var(--card-bg);
       border: 1px solid var(--card-line);
-      border-radius: 14px;
-      padding: 28px;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
       box-shadow: var(--shadow);
-      max-width: 460px;
-      margin: 0 auto;
-      transition: max-width .15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
-    .card.is-wide { max-width: 900px; }
-    h1 {
-      margin: 0 0 6px;
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: 26px;
-      font-weight: 600;
-    }
-    .lede { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
-
-    .field { margin-bottom: 12px; }
-    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-    input[type="email"], input[type="password"], input[type="text"] {
-      width: 100%;
-      padding: 11px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--card-line);
-      background: #fff;
-      color: var(--fg);
-      font-size: 15px;
-      font-family: inherit;
-    }
-    /* Password field with a Show/Hide toggle */
-    .pw-wrap { position: relative; }
-    .pw-wrap input { padding-right: 60px; }
-    .pw-wrap .pw-toggle {
-      position: absolute;
-      top: 50%; right: 8px;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: var(--muted);
-      font-size: 13px;
-      font-family: inherit;
-      cursor: pointer;
-      padding: 4px 8px;
-    }
-    .pw-wrap .pw-toggle:hover { color: var(--fg); }
-    input:focus {
-      outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(184,134,11,.15);
-    }
-
-    button.primary {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--accent);
-      background: var(--accent);
-      color: #fff;
-      font-size: 15px;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      margin-top: 6px;
-    }
-    button.primary:hover  { filter: brightness(.95); }
-    button.primary:disabled { opacity: .6; cursor: not-allowed; }
-    button.ghost {
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--card-line);
-      background: #fff;
-      color: var(--muted);
-      font-size: 13px;
-      font-family: inherit;
-      cursor: pointer;
-    }
-    button.ghost:hover { color: var(--fg); border-color: #ccc; }
-    button.linklike {
-      background: none;
-      border: none;
-      color: var(--accent);
-      font-size: 14px;
-      font-family: inherit;
-      cursor: pointer;
-      padding: 0;
-    }
-    button.linklike:hover { text-decoration: underline; }
-
-    .form-foot {
-      margin-top: 14px;
-      display: flex; justify-content: space-between; align-items: center;
-      gap: 10px; flex-wrap: wrap;
-      font-size: 14px;
-      color: var(--muted);
-    }
-
-    .banner {
-      margin-top: 14px;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 13px;
-      border: 1px solid var(--card-line);
-      background: #fbf6e9;
-      color: #5a4400;
-    }
-    .banner.success { background: #e9f6ec; border-color: #b9deca; color: var(--green); }
-    .banner.error   { background: #fef6f5; border-color: #f1c4be; color: var(--red); }
-    .banner.info    { background: #eaf1fb; border-color: #cad9ee; color: #1f4583; }
-
-    .signed-in-row {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 12px; flex-wrap: wrap;
-      padding-bottom: 14px; margin-bottom: 14px;
-      border-bottom: 1px solid var(--card-line);
-    }
-    .signed-in-row .who .name  { font-weight: 600; }
-    .signed-in-row .who .email { color: var(--muted); font-size: 13px; }
-
-    .quicklinks { display: grid; gap: 8px; margin-top: 6px; }
-    .quicklinks a {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 14px;
-      border-radius: 10px;
-      border: 1px solid var(--card-line);
-      background: #fff;
-      color: var(--fg);
-      text-decoration: none;
-      font-size: 14px;
-    }
-    .quicklinks a:hover { border-color: var(--accent); }
-    .quicklinks a .arrow { color: var(--muted); }
-
-    .small { color: var(--muted); font-size: 12px; }
-
-    /* ------ Dashboard ------ */
-    .dash-head {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 12px; flex-wrap: wrap;
-      margin: 18px 0 10px;
-    }
-    .dash-head h2 {
-      margin: 0;
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: 20px;
-      font-weight: 600;
-    }
-    .dash-head .count { color: var(--muted); font-weight: 400; }
-
-    button.btn-primary {
-      padding: 9px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--accent);
-      background: var(--accent);
-      color: #fff;
-      font-size: 13px;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-    }
-    button.btn-primary:disabled { opacity: .55; cursor: not-allowed; }
-    button.btn-secondary {
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--card-line);
-      background: #fff;
-      color: var(--fg);
-      font-size: 13px;
-      font-family: inherit;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-block;
-    }
-    button.btn-secondary:hover, a.btn-secondary:hover { border-color: var(--accent); }
-
-    .listing-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
-    .listing-row {
-      display: grid;
-      grid-template-columns: 72px 1fr auto;
-      gap: 14px;
-      align-items: center;
-      padding: 10px;
-      border: 1px solid var(--card-line);
-      border-radius: 10px;
-      background: #fff;
-    }
-    .listing-row .thumb {
-      width: 72px; height: 72px;
-      border-radius: 8px;
-      background: #f0ede6;
-      overflow: hidden;
-      position: relative;
-    }
-    .listing-row .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .listing-row .thumb.is-sold::after {
-      content: "SOLD";
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(168,40,31,.55);
-      color: #fff; font-weight: 800; font-size: 11px; letter-spacing: 2px;
-    }
-    .listing-row .meta .artist { font-weight: 600; font-size: 14px; line-height: 1.3; }
-    .listing-row .meta .title  { color: var(--muted); font-size: 13px; }
-    .listing-row .meta .badges { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-    .listing-row .meta .price  { font-weight: 600; font-size: 14px; }
-    .pill {
-      font-size: 10px; font-weight: 700; padding: 2px 7px;
-      border-radius: 999px; border: 1px solid var(--card-line);
-      background: #efe9d8; color: #6a4c00;
-    }
-    .pill.status-available { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
-    .pill.status-sold      { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
-    .pill.status-pending   { background: #fce6c4; color: #7a4a00; border-color: #f1c98a; }
-    .pill.status-delisted, .pill.status-not_renewed, .pill.status-rejected, .pill.status-pending_review {
-      background: #ececec; color: #4a4a4a; border-color: #d4d4d4;
-    }
-    .listing-row .actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-    @media (max-width: 600px) {
-      .listing-row { grid-template-columns: 56px 1fr; }
-      .listing-row .thumb { width: 56px; height: 56px; }
-      .listing-row .actions { grid-column: 1 / -1; justify-content: flex-start; padding-top: 4px; }
-    }
-    .empty-state {
-      padding: 32px 16px;
-      text-align: center;
-      color: var(--muted);
-      border: 1px dashed var(--card-line);
-      border-radius: 10px;
-      font-size: 14px;
-    }
-
-    /* ------ Filter toolbar (dashboard) ------ */
-    .dash-toolbar {
+    .toolbar-row {
       display: grid;
       gap: 8px;
       grid-template-columns: 1fr;
-      margin: 8px 0 12px;
     }
+    .toolbar-row.search-row {
+      grid-template-columns: 1fr auto;
+    }
+    .toolbar-row.filter-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    /* On wider screens, fit each filter at no less than 150px so labels don't
+       get clipped. The grid wraps to a second row if needed instead of
+       squeezing everything. */
     @media (min-width: 720px) {
-      .dash-toolbar {
-        grid-template-columns: 2fr 1fr 1fr auto;
-        align-items: center;
+      .toolbar-row.filter-row {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       }
     }
-    .dash-toolbar input[type="search"], .dash-toolbar select {
+    .price-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      grid-column: span 2;
+    }
+    @media (min-width: 720px) {
+      .price-pair { grid-column: span 2; min-width: 200px; }
+    }
+    .toolbar input[type="search"],
+    .toolbar input[type="number"],
+    .toolbar select {
       width: 100%;
       padding: 9px 12px;
       border-radius: 8px;
@@ -304,154 +118,68 @@
       color: var(--fg);
       font-size: 14px;
       font-family: inherit;
-      min-width: 0;
+      min-width: 0;          /* let grid items shrink properly */
     }
-    .dash-toolbar select { padding-right: 24px; }
-    .dash-toolbar input:focus, .dash-toolbar select:focus {
-      outline: none; border-color: var(--accent);
+    /* Use the browser-native dropdown arrow (smaller, well-positioned).
+       Just make sure the text doesn't run under it. */
+    .toolbar select { padding-right: 24px; }
+    .toolbar input[type="number"] { -moz-appearance: textfield; }
+    .toolbar input[type="number"]::-webkit-outer-spin-button,
+    .toolbar input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none; margin: 0;
+    }
+    .toolbar input:focus,
+    .toolbar select:focus {
+      outline: none;
+      border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(184,134,11,.15);
     }
-
-    /* ------ Editable listing card ------ */
-    .listing-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-line);
-      border-radius: 12px;
-      padding: 14px;
-      transition: box-shadow .15s ease, border-color .15s ease;
-    }
-    .listing-card.is-dirty       { border-color: #d69b3a; box-shadow: 0 0 0 2px rgba(214,155,58,.18); }
-    .listing-card.has-error      { border-color: #c93f3f; box-shadow: 0 0 0 3px rgba(201,63,63,.20); }
-    .listing-card .card-head {
-      display: grid;
-      grid-template-columns: 80px 1fr auto;
-      gap: 12px; align-items: center;
-      margin-bottom: 10px;
-    }
-    .listing-card .card-thumb {
-      width: 80px; height: 80px;
-      border-radius: 8px; background: #f0ede6;
-      overflow: hidden; position: relative;
-    }
-    .listing-card .card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .listing-card .card-thumb.is-sold::after {
-      content: "SOLD"; position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(168,40,31,.55); color: #fff;
-      font-weight: 800; font-size: 12px; letter-spacing: 2px;
-    }
-    .listing-card .head-meta .id-line {
-      font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace;
-    }
-    .listing-card .head-meta .id-line .dirty-flag {
-      color: #b97f17; font-weight: 700; margin-left: 6px;
-    }
-    .listing-card .head-meta .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
-    .listing-card .head-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-
-    .listing-card .form-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-    @media (min-width: 640px) {
-      .listing-card .form-grid { grid-template-columns: 1fr 1fr; }
-      .listing-card .form-grid .span-2 { grid-column: 1 / -1; }
-    }
-    .listing-card .form-grid label { font-size: 12px; margin-bottom: 3px; }
-    .listing-card .form-grid input,
-    .listing-card .form-grid select,
-    .listing-card .form-grid textarea {
-      width: 100%;
-      padding: 8px 10px;
-      border-radius: 7px;
+    .toolbar .clear-btn {
+      padding: 9px 14px;
+      border-radius: 8px;
       border: 1px solid var(--card-line);
       background: #fff;
-      color: var(--fg);
-      font-size: 14px;
-      font-family: inherit;
-      min-width: 0;
-    }
-    .listing-card .form-grid select { padding-right: 24px; }
-    .listing-card .form-grid textarea { min-height: 84px; resize: vertical; }
-    .listing-card .form-grid input:focus,
-    .listing-card .form-grid select:focus,
-    .listing-card .form-grid textarea:focus {
-      outline: none; border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(184,134,11,.15);
-    }
-
-    /* ------ Save All sticky bar ------ */
-    .save-all-bar {
-      position: fixed; left: 0; right: 0; bottom: 0;
-      background: #1f1a17; color: #fff;
-      padding: 10px 16px;
-      display: none;
-      align-items: center; justify-content: space-between;
-      gap: 12px; flex-wrap: wrap;
-      z-index: 50;
-      box-shadow: 0 -2px 10px rgba(0,0,0,.18);
-    }
-    .save-all-bar.visible { display: flex; }
-    .save-all-bar .count { font-size: 14px; opacity: .9; }
-    .save-all-bar .actions { display: flex; gap: 8px; }
-    .save-all-bar .btn-discard {
-      padding: 8px 14px; border-radius: 8px;
-      background: transparent; color: #fff;
-      border: 1px solid rgba(255,255,255,.3);
-      font-size: 13px; cursor: pointer; font-family: inherit;
-    }
-    .save-all-bar .btn-discard:hover { border-color: rgba(255,255,255,.6); }
-    .save-all-bar .btn-save-all {
-      padding: 8px 14px; border-radius: 8px;
-      background: var(--accent); color: #fff;
-      border: 1px solid var(--accent);
-      font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
-    }
-    .save-all-bar .btn-save-all:disabled { opacity: .55; cursor: not-allowed; }
-
-    /* Account view banner — sits above the listings */
-    #dashboard-banner.banner { display: block; margin: 0 0 12px; white-space: pre-line; }
-
-    /* ------ Tab strip ------ */
-    .tab-strip {
-      display: flex;
-      gap: 4px;
-      border-bottom: 1px solid var(--card-line);
-      margin: 6px 0 14px;
-    }
-    .tab-btn {
-      background: none;
-      border: none;
-      padding: 10px 16px 12px;
-      margin-bottom: -1px;
-      font-size: 14px;
-      font-family: inherit;
-      font-weight: 500;
       color: var(--muted);
       cursor: pointer;
-      border-bottom: 2px solid transparent;
+      font-size: 13px;
+      font-family: inherit;
+      white-space: nowrap;
     }
-    .tab-btn:hover { color: var(--fg); }
-    .tab-btn.is-active {
+    .toolbar .clear-btn:hover {
       color: var(--fg);
-      font-weight: 600;
-      border-bottom-color: var(--accent);
+      border-color: #ccc;
     }
-    .tab-panel { display: none; }
-    .tab-panel.is-active { display: block; }
+    .stats {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 0 4px 12px;
+    }
 
-    /* ------ Saved-listings grid ------ */
-    .saved-grid {
+    /* ---- Status / empty ---- */
+    #status, .empty {
+      margin: 24px auto;
+      max-width: 540px;
+      padding: 16px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--card-line);
+      color: var(--muted);
+      text-align: center;
+      font-size: 14px;
+    }
+    #status.error { color: #a8281f; border-color: #f1c4be; background: #fef6f5; }
+    .empty .empty-title { color: var(--fg); font-weight: 600; margin-bottom: 4px; }
+
+    /* ---- Grid + cards ---- */
+    .grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
-    @media (min-width: 720px)  { .saved-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
-    @media (min-width: 1000px) { .saved-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (min-width: 720px)  { .grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+    @media (min-width: 1000px) { .grid { grid-template-columns: repeat(4, 1fr); } }
 
-    .saved-card-wrap { position: relative; }
-    .saved-card {
+    .card {
       background: var(--card-bg);
       border: 1px solid var(--card-line);
       border-radius: 10px;
@@ -462,232 +190,74 @@
       text-decoration: none;
       transition: transform .15s ease, box-shadow .15s ease;
     }
-    .saved-card:hover, .saved-card:focus-visible {
+    .card:hover, .card:focus-visible {
       transform: translateY(-1px);
       box-shadow: 0 4px 10px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06);
     }
-    .saved-card .img {
-      aspect-ratio: 1/1; background: #f0ede6; overflow: hidden; position: relative;
-    }
-    .saved-card .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .saved-card.is-sold .img::after {
-      content: "SOLD"; position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(168,40,31,.55); color: #fff;
-      font-weight: 800; font-size: 22px; letter-spacing: 3px;
-    }
-    .saved-card .body { padding: 10px 12px 12px; }
-    .saved-card .artist { font-weight: 600; font-size: 14px; line-height: 1.3; }
-    .saved-card .title  {
-      color: var(--muted); font-size: 13px; margin-top: 2px;
-      overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
-      -webkit-line-clamp: 1; -webkit-box-orient: vertical;
-    }
-    .saved-card .row {
-      margin-top: 6px;
-      display: flex; align-items: center; justify-content: space-between; gap: 6px;
-    }
-    .saved-card .price { font-weight: 600; font-size: 14px; }
-    .saved-card.is-sold .price { color: var(--muted); text-decoration: line-through; }
-    .saved-card-wrap .unsave-btn {
+    .card .img { aspect-ratio: 1/1; background: #f0ede6; overflow: hidden; position: relative; }
+    .card .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    /* Heart/save button — sits as a sibling of the card link to avoid
+       button-inside-anchor weirdness. The wrap takes the grid slot; the
+       link fills it; the heart absolutely-positions itself. */
+    .card-wrap { position: relative; }
+    .card-wrap .heart-btn {
       position: absolute;
       top: 8px; right: 8px;
       display: inline-flex; align-items: center; gap: 4px;
-      background: #fff;
-      color: #c93f3f;
-      border: 1px solid var(--card-line);
+      background: rgba(255,255,255,.92);
+      color: #555;
+      border: none;
       border-radius: 999px;
       padding: 4px 9px 4px 8px;
-      font: 600 12px inherit;
+      font: 600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       cursor: pointer;
       box-shadow: 0 1px 3px rgba(0,0,0,.18);
+      transition: transform .12s ease, background .12s ease;
       z-index: 2;
-      transition: transform .12s ease;
     }
-    .saved-card-wrap .unsave-btn:hover { transform: scale(1.06); }
-    .saved-card-wrap .unsave-btn[disabled] { opacity: .55; cursor: progress; }
+    .card-wrap .heart-btn:hover { transform: scale(1.06); background: #fff; }
+    .card-wrap .heart-btn .heart-glyph { font-size: 14px; line-height: 1; }
+    .card-wrap .heart-btn.is-saved { background: #fff; }
+    .card-wrap .heart-btn.is-saved .heart-glyph { color: #c93f3f; }
+    .card-wrap .heart-btn[disabled] { opacity: .55; cursor: progress; }
+    .card .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; }
+    .card .artist {
+      font-weight: 600; font-size: 14px; line-height: 1.25;
+      overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+      -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    }
+    .card .title {
+      color: var(--muted); font-size: 13px; line-height: 1.25;
+      overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+      -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    }
+    .card .price-row {
+      margin-top: 4px;
+      display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    }
+    .card .price-row .left  { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; }
+    .card .price-row .pills { display: inline-flex; align-items: center; gap: 4px; flex-wrap: nowrap; }
+    .card .price  { font-weight: 600; font-size: 14px; white-space: nowrap; }
+    .card .prev   { color: var(--muted); text-decoration: line-through; font-size: 12px; }
+    .card .cat    {
+      font-size: 10px; font-weight: 700; letter-spacing: .3px;
+      padding: 3px 7px; border-radius: 999px;
+      background: #efe9d8; color: #6a4c00; border: 1px solid #e3d8b1;
+      white-space: nowrap; line-height: 1.2;
+    }
+    .card .cat.unique  { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
+    .card .cat.edition { background: #d6e6f7; color: #1f4a78; border-color: #a8c8e3; }
+    .card .cat.sold    { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
 
-    /* ------ New listing form ------ */
-    .nl-head {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 10px; margin: 4px 0 14px;
+    /* Smaller artist + price text on tight mobile so the row fits */
+    @media (max-width: 480px) {
+      .card .artist { font-size: 13px; }
+      .card .title  { font-size: 12px; }
+      .card .price  { font-size: 13px; }
+      .card .cat    { font-size: 9px; padding: 2px 6px; }
     }
-    .nl-head h2 {
-      margin: 0;
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: 22px; font-weight: 600;
-    }
-    .nl-image-zone {
-      border: 2px dashed var(--card-line);
-      border-radius: 12px;
-      padding: 14px;
-      text-align: center;
-      background: #fbf9f4;
-      transition: border-color .15s ease, background .15s ease;
-      cursor: pointer;
-    }
-    .nl-image-zone:hover { border-color: var(--accent); background: #fbf6e9; }
-    .nl-image-zone.has-file { padding: 0; background: #fff; cursor: default; }
-    .nl-image-zone input[type=file] { display: none; }
-    .nl-image-zone .placeholder {
-      padding: 30px 16px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-    .nl-image-zone .placeholder strong { color: var(--fg); display: block; margin-bottom: 4px; }
-    .nl-preview-wrap { position: relative; }
-    .nl-preview-wrap img {
-      width: 100%; max-height: 360px; object-fit: contain;
-      display: block; border-radius: 10px; background: #f0ede6;
-    }
-    .nl-preview-wrap .nl-replace-btn {
-      position: absolute; bottom: 10px; right: 10px;
-      padding: 6px 12px; border-radius: 8px;
-      background: rgba(0,0,0,.65); color: #fff;
-      border: none; font-size: 12px; font-family: inherit; cursor: pointer;
-    }
-    .nl-form-grid {
-      display: grid; gap: 12px; grid-template-columns: 1fr; margin-top: 14px;
-    }
-    @media (min-width: 640px) {
-      .nl-form-grid { grid-template-columns: 1fr 1fr; }
-      .nl-form-grid .span-2 { grid-column: 1 / -1; }
-    }
-    .nl-form-grid label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-    .nl-form-grid label .required { color: var(--red); margin-left: 2px; }
-    .nl-form-grid input,
-    .nl-form-grid select,
-    .nl-form-grid textarea {
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--card-line);
-      background: #fff;
-      color: var(--fg);
-      font-size: 14px;
-      font-family: inherit;
-      min-width: 0;
-    }
-    .nl-form-grid select { padding-right: 24px; }
-    .nl-form-grid textarea { min-height: 100px; resize: vertical; }
-    .nl-form-grid input:focus, .nl-form-grid select:focus, .nl-form-grid textarea:focus {
-      outline: none; border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(184,134,11,.15);
-    }
-    .nl-actions {
-      display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;
-      flex-wrap: wrap;
-    }
-
-    /* ------ Sales post builder ------ */
-    .sp-step {
-      background: #fff;
-      border: 1px solid var(--card-line);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 14px;
-    }
-    .sp-step h3 {
-      margin: 0 0 10px;
-      font-size: 15px; font-weight: 600;
-    }
-    .sp-step .help { color: var(--muted); font-size: 13px; margin: -6px 0 10px; }
-    .sp-step textarea {
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--card-line);
-      background: #fff;
-      font-size: 14px;
-      font-family: inherit;
-      min-height: 70px; resize: vertical;
-      margin-bottom: 8px;
-    }
-    .sp-step textarea:focus {
-      outline: none; border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(184,134,11,.15);
-    }
-    .sp-text-status { font-size: 12px; color: var(--muted); margin-left: 10px; }
-    .sp-text-status.ok  { color: var(--green); }
-    .sp-text-status.err { color: var(--red); }
-
-    .sp-quick-selects {
-      display: flex; gap: 6px; flex-wrap: wrap;
-      margin-bottom: 10px;
-    }
-    .sp-listings {
-      max-height: 360px;
-      overflow-y: auto;
-      border: 1px solid var(--card-line);
-      border-radius: 8px;
-      background: #fbf9f4;
-    }
-    .sp-listing-row {
-      display: grid;
-      grid-template-columns: 28px 56px 1fr auto;
-      gap: 10px;
-      align-items: center;
-      padding: 8px 10px;
-      border-bottom: 1px solid var(--card-line);
-      cursor: pointer;
-    }
-    .sp-listing-row:last-child { border-bottom: none; }
-    .sp-listing-row:hover { background: #fff; }
-    .sp-listing-row input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; }
-    .sp-listing-row .sp-thumb {
-      width: 56px; height: 56px;
-      border-radius: 6px; background: #f0ede6;
-      overflow: hidden; position: relative;
-    }
-    .sp-listing-row .sp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .sp-listing-row .sp-thumb.is-sold::after {
-      content: "SOLD"; position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(168,40,31,.55); color: #fff;
-      font-size: 9px; font-weight: 800; letter-spacing: 1px;
-    }
-    .sp-listing-row .sp-meta .sp-artist { font-size: 13px; font-weight: 600; line-height: 1.2; }
-    .sp-listing-row .sp-meta .sp-title  { font-size: 12px; color: var(--muted); }
-    .sp-listing-row .sp-price { font-size: 13px; font-weight: 600; }
-
-    .sp-selected-count { color: var(--muted); font-size: 13px; margin-top: 8px; }
-
-    .sp-output { margin-top: 14px; }
-    .sp-output h3 { margin: 14px 0 8px; font-size: 15px; }
-    .sp-output textarea {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--card-line);
-      font-size: 14px; font-family: inherit;
-      min-height: 240px;
-      background: #fff;
-    }
-    .sp-output textarea:focus {
-      outline: none; border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(184,134,11,.15);
-    }
-    .sp-collages {
-      display: flex; flex-direction: column; gap: 16px;
-      margin-top: 8px;
-    }
-    .sp-collage {
-      border: 1px solid var(--card-line);
-      border-radius: 10px;
-      padding: 10px;
-      background: #fff;
-    }
-    .sp-collage img {
-      width: 100%; height: auto; display: block;
-      border-radius: 6px;
-    }
-    .sp-collage .sp-collage-actions {
-      display: flex; gap: 8px; align-items: center;
-      margin-top: 8px;
-    }
-    .sp-collage .sp-collage-label {
-      font-size: 13px; color: var(--muted);
-    }
+    .card.is-sold .price { color: var(--muted); text-decoration: line-through; }
 
     footer {
       text-align: center;
@@ -697,15 +267,35 @@
       border-top: 1px solid var(--card-line);
       background: #fff;
     }
+
+    /* Back to top */
+    #back-to-top {
+      position: fixed;
+      bottom: 20px; right: 20px;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      border: 1px solid var(--card-line);
+      background: #fff;
+      color: var(--fg);
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 100;
+      transition: opacity .15s ease;
+    }
+    #back-to-top.visible { display: flex; }
+    #back-to-top:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
   </style>
 </head>
 <body>
 
-  <header class="site">
-    <a class="brand" href="/">
+  <header>
+    <div class="brand">
       <img src="/assets/CanvasCircleLogo.png" alt="CanvasCircle" />
       <span class="title">CanvasCircle</span>
-    </a>
+    </div>
     <nav>
       <a href="/">Catalog</a>
       <a href="/portal/" class="cc-auth-link">Log In</a>
@@ -717,1862 +307,346 @@
   <script type="module" src="/lib/nav-auth.js"></script>
 
   <main>
-    <div class="card">
+    <section class="hero">
+      <img class="hero-logo" src="/assets/logo.png" alt="CanvasCircle" />
+    </section>
 
-      <!-- ============ SIGN IN ============ -->
-      <section data-view="signin">
-        <h1>Sign in</h1>
-        <p class="lede">Sign in to your CanvasCircle account.</p>
-
-        <form id="signin-form" autocomplete="on">
-          <div class="field">
-            <label for="signin-email">Email</label>
-            <input type="email" id="signin-email" required autocomplete="email" placeholder="you@example.com" />
-          </div>
-          <div class="field">
-            <label for="signin-password">Password</label>
-            <div class="pw-wrap">
-              <input type="password" id="signin-password" required autocomplete="current-password" />
-              <button type="button" class="pw-toggle" data-target="signin-password">Show</button>
-            </div>
-          </div>
-          <button type="submit" class="primary" id="signin-btn">Sign in</button>
-        </form>
-
-        <div class="form-foot">
-          <button type="button" class="linklike" data-go="forgot">Forgot password?</button>
-          <span>New here?
-            <button type="button" class="linklike" data-go="signup">Create an account</button>
-          </span>
+    <form class="toolbar" id="toolbar" autocomplete="off">
+      <div class="toolbar-row search-row">
+        <input type="search" id="q" placeholder="Search artist or title&hellip;" />
+        <button type="button" class="clear-btn" id="clear">Clear</button>
+      </div>
+      <div class="toolbar-row filter-row">
+        <select id="f-category" title="Category">
+          <option value="">All categories</option>
+          <option value="Unique/Original">Unique/Original</option>
+          <option value="Limited Edition">Limited Edition</option>
+        </select>
+        <select id="f-status" title="Status">
+          <option value="available" selected>Available</option>
+          <option value="sold">Sold</option>
+        </select>
+        <select id="f-seller" title="Seller">
+          <option value="">All sellers</option>
+        </select>
+        <select id="f-artist" title="Artist">
+          <option value="">All artists</option>
+        </select>
+        <div class="price-pair">
+          <input type="number" id="f-min" placeholder="Min $" min="0" step="50" />
+          <input type="number" id="f-max" placeholder="Max $" min="0" step="50" />
         </div>
+        <select id="f-sort" title="Sort">
+          <option value="newest">Newest first</option>
+          <option value="price-asc">Price: low to high</option>
+          <option value="price-desc">Price: high to low</option>
+        </select>
+      </div>
+    </form>
 
-        <div id="banner-signin" class="banner" hidden></div>
-        <button type="button" class="ghost" id="signin-reset-btn" hidden style="margin-top: 10px;">Reset and retry</button>
-
-        <p class="small" style="margin-top: 18px;">
-          <strong>First time signing in?</strong> If you submitted listings under the old form, your account already exists but doesn't have a password yet. Click <em>Forgot password</em> to set one.
-        </p>
-      </section>
-
-      <!-- ============ CREATE ACCOUNT ============ -->
-      <section data-view="signup" hidden>
-        <h1>Create your account</h1>
-        <p class="lede">Sign up to save listings, sell your art, or both.</p>
-
-        <form id="signup-form" autocomplete="on">
-          <div class="field">
-            <label for="signup-name">Display name</label>
-            <input type="text" id="signup-name" required autocomplete="name" placeholder="Your name as it'll appear on the site" />
-          </div>
-          <div class="field">
-            <label for="signup-email">Email</label>
-            <input type="email" id="signup-email" required autocomplete="email" />
-          </div>
-          <div class="field">
-            <label for="signup-password">Password</label>
-            <div class="pw-wrap">
-              <input type="password" id="signup-password" required autocomplete="new-password" minlength="8" placeholder="At least 8 characters" />
-              <button type="button" class="pw-toggle" data-target="signup-password">Show</button>
-            </div>
-          </div>
-          <button type="submit" class="primary" id="signup-btn">Create account</button>
-        </form>
-
-        <div class="form-foot">
-          <span>Already have an account?
-            <button type="button" class="linklike" data-go="signin">Sign in</button>
-          </span>
-        </div>
-
-        <div id="banner-signup" class="banner" hidden></div>
-      </section>
-
-      <!-- ============ FORGOT PASSWORD ============ -->
-      <section data-view="forgot" hidden>
-        <h1>Reset your password</h1>
-        <p class="lede">Enter your email and we'll send you a link to set a new password.</p>
-
-        <form id="forgot-form" autocomplete="on">
-          <div class="field">
-            <label for="forgot-email">Email</label>
-            <input type="email" id="forgot-email" required autocomplete="email" />
-          </div>
-          <button type="submit" class="primary" id="forgot-btn">Send reset link</button>
-        </form>
-
-        <div class="form-foot">
-          <button type="button" class="linklike" data-go="signin">Back to sign in</button>
-        </div>
-
-        <div id="banner-forgot" class="banner" hidden></div>
-      </section>
-
-      <!-- ============ SET NEW PASSWORD (after clicking reset email) ============ -->
-      <section data-view="recovery" hidden>
-        <h1>Set a new password</h1>
-        <p class="lede">Choose a new password to finish signing in.</p>
-
-        <form id="recovery-form" autocomplete="on">
-          <div class="field">
-            <label for="rec-password">New password</label>
-            <div class="pw-wrap">
-              <input type="password" id="rec-password" required autocomplete="new-password" minlength="8" />
-              <button type="button" class="pw-toggle" data-target="rec-password">Show</button>
-            </div>
-          </div>
-          <div class="field">
-            <label for="rec-password-2">Confirm new password</label>
-            <div class="pw-wrap">
-              <input type="password" id="rec-password-2" required autocomplete="new-password" minlength="8" />
-              <button type="button" class="pw-toggle" data-target="rec-password-2">Show</button>
-            </div>
-          </div>
-          <button type="submit" class="primary" id="recovery-btn">Update password &amp; sign in</button>
-        </form>
-
-        <div id="banner-recovery" class="banner" hidden></div>
-      </section>
-
-      <!-- ============ SIGNED IN ============ -->
-      <section data-view="account" hidden>
-        <div class="signed-in-row">
-          <div class="who">
-            <div class="name" id="who-name">&nbsp;</div>
-            <div class="email" id="who-email">&nbsp;</div>
-          </div>
-          <button type="button" class="ghost" id="signout-btn">Sign out</button>
-        </div>
-
-        <!-- Tabs -->
-        <div class="tab-strip" role="tablist">
-          <button type="button" class="tab-btn is-active" data-tab="your-listings" role="tab">Your listings</button>
-          <button type="button" class="tab-btn" data-tab="saved-listings" role="tab">Saved listings <span id="saved-count-badge" class="count" style="margin-left:4px;"></span></button>
-        </div>
-
-        <!-- Tab: Your listings -->
-        <div class="tab-panel is-active" data-tab-panel="your-listings">
-          <div class="dash-head">
-            <h2>Your listings <span class="count" id="listings-count"></span></h2>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button type="button" class="btn-secondary" id="sales-post-btn" data-go="sales-post">Build Facebook Sales Post</button>
-              <button type="button" class="btn-primary" id="add-listing-btn" data-go="new-listing">+ Add new listing</button>
-            </div>
-          </div>
-
-          <form class="dash-toolbar" id="dash-toolbar" autocomplete="off" onsubmit="return false;">
-            <input type="search" id="dash-q" placeholder="Search title, artist, medium, notes&hellip;" />
-            <select id="dash-status">
-              <option value="">All statuses</option>
-              <option value="available">Available</option>
-              <option value="pending">Pending</option>
-              <option value="sold">Sold</option>
-              <option value="delisted">Delisted</option>
-              <option value="not_renewed">Not renewed</option>
-              <option value="pending_review">Pending review</option>
-            </select>
-            <select id="dash-sort">
-              <option value="newest">Newest first</option>
-              <option value="title-asc">Title A→Z</option>
-              <option value="artist-asc">Artist A→Z</option>
-              <option value="price-desc">Price high→low</option>
-              <option value="price-asc">Price low→high</option>
-            </select>
-            <button type="button" class="btn-secondary" id="dash-clear">Clear</button>
-          </form>
-
-          <div id="dashboard-banner" class="banner" hidden></div>
-          <div id="listings-loading" class="empty-state" hidden>Loading your listings&hellip;</div>
-          <div id="listings-error"   class="banner error" hidden></div>
-          <div id="listings-empty"   class="empty-state" hidden>
-            You don't have any listings yet. Once you add one, it'll show up here.
-          </div>
-          <div id="listings-no-match" class="empty-state" hidden>
-            No listings match your filters.
-          </div>
-          <div id="listings-list" class="listing-list" hidden></div>
-        </div>
-
-        <!-- Tab: Saved listings -->
-        <div class="tab-panel" data-tab-panel="saved-listings">
-          <div class="dash-head">
-            <h2>Saved listings <span class="count" id="saved-listings-count"></span></h2>
-          </div>
-          <div id="saved-loading" class="empty-state" hidden>Loading your saved listings&hellip;</div>
-          <div id="saved-empty"   class="empty-state" hidden>
-            You haven't saved any listings yet. Click the heart on any listing in the catalog to save it here.
-          </div>
-          <div id="saved-grid" class="saved-grid" hidden></div>
-        </div>
-
-        <div class="quicklinks" style="margin-top: 18px;">
-          <a href="/">View public catalog <span class="arrow">→</span></a>
-        </div>
-      </section>
-
-      <!-- ============ NEW LISTING ============ -->
-      <section data-view="new-listing" hidden>
-        <div class="nl-head">
-          <h2>Add a new listing</h2>
-          <button type="button" class="ghost" data-go="account">← Back to dashboard</button>
-        </div>
-
-        <form id="new-listing-form" autocomplete="off">
-          <label class="nl-image-zone" id="nl-image-zone">
-            <input type="file" id="nl-image" accept="image/*" />
-            <div class="placeholder" id="nl-placeholder">
-              <strong>Upload artwork image</strong>
-              One image per listing. We'll compress it for you.
-            </div>
-            <div class="nl-preview-wrap" id="nl-preview-wrap" hidden>
-              <img id="nl-preview" alt="Selected artwork preview" />
-              <button type="button" class="nl-replace-btn" id="nl-replace-btn">Replace</button>
-            </div>
-          </label>
-
-          <div class="nl-form-grid">
-            <div>
-              <label for="nl-title">Artwork name<span class="required">*</span></label>
-              <input type="text" id="nl-title" required />
-            </div>
-            <div>
-              <label for="nl-artist">Artist name<span class="required">*</span></label>
-              <input type="text" id="nl-artist" required />
-            </div>
-            <div>
-              <label for="nl-medium">Medium / Type<span class="required">*</span></label>
-              <input type="text" id="nl-medium" required placeholder="e.g. Acrylic on canvas" />
-            </div>
-            <div>
-              <label for="nl-category">Unique/Original or Limited Edition<span class="required">*</span></label>
-              <select id="nl-category" required>
-                <option value="" disabled selected>Choose…</option>
-                <option value="Unique/Original">Unique/Original</option>
-                <option value="Limited Edition">Limited Edition</option>
-              </select>
-            </div>
-            <div>
-              <label for="nl-size">Artwork size (inches)<span class="required">*</span></label>
-              <input type="text" id="nl-size" required placeholder="e.g. 20 x 20" />
-            </div>
-            <div>
-              <label for="nl-framed">Frame size (inches)</label>
-              <input type="text" id="nl-framed" placeholder="e.g. 24 x 24 (optional)" />
-            </div>
-            <div>
-              <label for="nl-price">Price (USD)<span class="required">*</span></label>
-              <input type="text" inputmode="decimal" id="nl-price" required placeholder="e.g. 1200" />
-            </div>
-            <div>
-              <label for="nl-shipping">Shipping included?<span class="required">*</span></label>
-              <select id="nl-shipping" required>
-                <option value="" disabled selected>Choose…</option>
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-              </select>
-            </div>
-            <div>
-              <label for="nl-coa">Certificate of Authenticity included?<span class="required">*</span></label>
-              <select id="nl-coa" required>
-                <option value="" disabled selected>Choose…</option>
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-              </select>
-            </div>
-            <div class="span-2">
-              <label for="nl-description">Seller notes / Description</label>
-              <textarea id="nl-description" rows="4" placeholder="Condition, provenance, why you're selling, anything buyers should know."></textarea>
-            </div>
-          </div>
-
-          <div id="banner-new-listing" class="banner" hidden></div>
-
-          <div class="nl-actions">
-            <button type="button" class="btn-secondary" data-go="account">Cancel</button>
-            <button type="submit" class="btn-primary" id="nl-submit-btn">Submit listing</button>
-          </div>
-
-          <p class="small" style="margin-top: 14px;">
-            New listings go to the admin for review before appearing in the public catalog. Trusted sellers are auto-approved.
-          </p>
-        </form>
-      </section>
-
-      <!-- ============ SALES POST BUILDER ============ -->
-      <section data-view="sales-post" hidden>
-        <div class="nl-head">
-          <h2>Build Facebook Sales Post</h2>
-          <button type="button" class="ghost" data-go="account">← Back to dashboard</button>
-        </div>
-
-        <!-- Step 1: Header / Footer -->
-        <div class="sp-step">
-          <h3>1. Header &amp; Footer</h3>
-          <p class="help">Optional intro and closing for your post. Saved to your seller profile so you can reuse them.</p>
-          <label for="sp-header" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Header</label>
-          <textarea id="sp-header" placeholder="e.g. Hi all — fresh listings posted on CanvasCircle below."></textarea>
-          <label for="sp-footer" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Footer</label>
-          <textarea id="sp-footer" placeholder="e.g. PM me with questions. Accept Venmo / PayPal G&S. Local pickup welcome."></textarea>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <button type="button" class="btn-primary" id="sp-save-text-btn">Save header &amp; footer</button>
-            <span class="sp-text-status" id="sp-text-status"></span>
-          </div>
-        </div>
-
-        <!-- Step 2: Pick listings -->
-        <div class="sp-step">
-          <h3>2. Pick listings</h3>
-          <div class="sp-quick-selects">
-            <button type="button" class="btn-secondary" id="sp-select-available">Available only</button>
-            <button type="button" class="btn-secondary" id="sp-select-all">Select all</button>
-            <button type="button" class="btn-secondary" id="sp-select-none">Clear</button>
-          </div>
-          <div class="sp-listings" id="sp-listings"></div>
-          <div class="sp-selected-count" id="sp-selected-count">0 selected</div>
-        </div>
-
-        <!-- Step 3: Generate -->
-        <div class="sp-step">
-          <h3>3. Generate</h3>
-          <p class="help">Builds the post text and collage images. Up to 6 listings per collage; download each PNG and attach to your Facebook post.</p>
-          <button type="button" class="btn-primary" id="sp-generate-btn">Generate post + images</button>
-          <span class="sp-text-status" id="sp-generate-status"></span>
-        </div>
-
-        <!-- Output -->
-        <div class="sp-output" id="sp-output" hidden>
-          <h3>Generated post text</h3>
-          <textarea id="sp-text" readonly></textarea>
-          <div style="display:flex; gap:8px; margin-top:8px;">
-            <button type="button" class="btn-primary" id="sp-copy-btn">Copy text</button>
-            <span class="sp-text-status" id="sp-copy-status"></span>
-          </div>
-
-          <h3 style="margin-top: 22px;">Collage images</h3>
-          <div class="sp-collages" id="sp-collages"></div>
-        </div>
-      </section>
-
+    <div id="stats" class="stats" hidden></div>
+    <div id="status">Loading catalog&hellip;</div>
+    <div id="grid" class="grid" hidden></div>
+    <div id="sentinel" aria-hidden="true" style="height: 1px;"></div>
+    <div id="empty" class="empty" hidden>
+      <div class="empty-title">No listings match your filters</div>
+      <div>Try clearing one or two of them.</div>
     </div>
   </main>
 
-  <div class="save-all-bar" id="save-all-bar" role="status" aria-live="polite">
-    <div class="count" id="save-all-count">0 unsaved changes</div>
-    <div class="actions">
-      <button type="button" class="btn-discard" id="discard-all-btn">Discard all</button>
-      <button type="button" class="btn-save-all" id="save-all-btn">Save all</button>
-    </div>
-  </div>
+  <button type="button" id="back-to-top" aria-label="Back to top" hidden>↑</button>
 
   <footer>
     &copy; CanvasCircle.
     <a href="/about.html" style="color:inherit;">About</a> &middot;
     <a href="/guidelines.html" style="color:inherit;">Guidelines</a> &middot;
-    <a href="/" style="color:inherit;">Catalog</a>
+    <a href="/portal/" style="color:inherit;" class="cc-auth-link">Log In</a>
   </footer>
 
   <script type="module">
-    import { supabase, currentProfile, publicImageUrl, compressImage } from "/lib/supabase.js";
-    import { getSavedListings, toggleSave, clearSavesCache } from "/lib/saves.js";
+    import { supabase, publicImageUrl } from "/lib/supabase.js";
+    import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
+    import { showAuthPrompt } from "/lib/auth-prompt.js";
 
-    // -----------------------------------------------------------------------
-    // View switching
-    // -----------------------------------------------------------------------
-    const views = Array.from(document.querySelectorAll("[data-view]"));
-    const $card = document.querySelector(".card");
-    function showView(name) {
-      for (const el of views) el.hidden = (el.dataset.view !== name);
-      // Account view = wide card (dashboard); auth views = narrow card.
-      $card.classList.toggle("is-wide", name === "account");
-      window.scrollTo({ top: 0 });
-    }
-    document.querySelectorAll("[data-go]").forEach(b => {
-      b.addEventListener("click", () => {
-        clearAllBanners();
-        showView(b.dataset.go);
-      });
-    });
+    const $status   = document.getElementById("status");
+    const $grid     = document.getElementById("grid");
+    const $empty    = document.getElementById("empty");
+    const $stats    = document.getElementById("stats");
+    const $sentinel = document.getElementById("sentinel");
+    const $back     = document.getElementById("back-to-top");
+    const $q        = document.getElementById("q");
+    const $cat      = document.getElementById("f-category");
+    const $statusF  = document.getElementById("f-status");
+    const $seller   = document.getElementById("f-seller");
+    const $artist   = document.getElementById("f-artist");
+    const $min      = document.getElementById("f-min");
+    const $max      = document.getElementById("f-max");
+    const $sort     = document.getElementById("f-sort");
+    const $clear    = document.getElementById("clear");
 
-    // Password show/hide toggles
-    document.querySelectorAll(".pw-toggle").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const id = btn.dataset.target;
-        const input = document.getElementById(id);
-        if (!input) return;
-        const isPw = input.type === "password";
-        input.type = isPw ? "text" : "password";
-        btn.textContent = isPw ? "Hide" : "Show";
-      });
-    });
+    const PAGE_SIZE = 16;
 
-    function setBanner(name, text, kind /* 'success' | 'error' | 'info' */) {
-      const $b = document.getElementById("banner-" + name);
-      if (!$b) return;
-      $b.textContent = text;
-      $b.className = "banner" + (kind ? " " + kind : "");
-      $b.hidden = false;
-    }
-    function clearBanner(name) {
-      const $b = document.getElementById("banner-" + name);
-      if ($b) $b.hidden = true;
-    }
-    function clearAllBanners() {
-      document.querySelectorAll(".banner").forEach(b => (b.hidden = true));
-    }
+    let allListings   = [];
+    let filteredRows  = [];
+    let renderedCount = 0;
+    let userSavesSet  = null;     // Set<listing_id> of saves for current user, or null if unsigned
 
-    // -----------------------------------------------------------------------
-    // Defensive: clear all Supabase auth state (localStorage + signOut local)
-    // so a hung previous attempt can't poison the next sign-in.
-    // -----------------------------------------------------------------------
-    function nukeAuthState() {
-      try {
-        for (const k of Object.keys(localStorage)) {
-          if (k.startsWith("sb-") || k.includes("supabase")) localStorage.removeItem(k);
-        }
-      } catch (e) { /* ignore */ }
-      // Best-effort local-only signOut. Don't await; if it hangs we don't care.
-      try { supabase.auth.signOut({ scope: "local" }); } catch {}
-    }
-
-    // -----------------------------------------------------------------------
-    // Sign in
-    // -----------------------------------------------------------------------
-    const $signinForm = document.getElementById("signin-form");
-    const $signinBtn  = document.getElementById("signin-btn");
-    const $signinResetBtn = document.getElementById("signin-reset-btn");
-    $signinResetBtn.addEventListener("click", () => {
-      nukeAuthState();
-      window.location.reload();
-    });
-
-    $signinForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      clearBanner("signin");
-      $signinResetBtn.hidden = true;
-      const email    = document.getElementById("signin-email").value.trim();
-      const password = document.getElementById("signin-password").value;
-      $signinBtn.disabled = true; $signinBtn.textContent = "Signing in…";
-
-      console.log("[signin] submit", email);
-      const TIMEOUT_MS = 10000;
-      const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("TIMEOUT")), TIMEOUT_MS)
-      );
-
-      try {
-        const result = await Promise.race([
-          supabase.auth.signInWithPassword({ email, password }),
-          timeout,
-        ]);
-        console.log("[signin] result:", result);
-        if (result?.error) throw result.error;
-        // onAuthStateChange will flip to the account view.
-      } catch (err) {
-        console.error("[signin] failed:", err);
-        if (err.message === "TIMEOUT") {
-          setBanner(
-            "signin",
-            "Sign-in stuck (a previous auth attempt left bad state). Click 'Reset and retry' to clear it and try again — no browser restart needed.",
-            "error"
-          );
-          $signinResetBtn.hidden = false;
-        } else {
-          setBanner("signin", err.message || "Could not sign in.", "error");
-        }
-      } finally {
-        $signinBtn.disabled = false; $signinBtn.textContent = "Sign in";
-      }
-    });
-
-    // -----------------------------------------------------------------------
-    // Sign up
-    // -----------------------------------------------------------------------
-    const $signupForm = document.getElementById("signup-form");
-    const $signupBtn  = document.getElementById("signup-btn");
-    $signupForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      clearBanner("signup");
-      const name     = document.getElementById("signup-name").value.trim();
-      const email    = document.getElementById("signup-email").value.trim();
-      const password = document.getElementById("signup-password").value;
-      $signupBtn.disabled = true; $signupBtn.textContent = "Creating account…";
-      try {
-        const { data, error } = await supabase.auth.signUp({
-          email, password,
-          options: {
-            data: { display_name: name },
-            emailRedirectTo: window.location.origin + "/portal/",
-          },
-        });
-        if (error) throw error;
-        // Supabase requires email confirmation by default. Tell the user.
-        if (data.session) {
-          // (Edge case: confirmation disabled — already signed in.)
-          setBanner("signup", "Account created. Signing you in…", "success");
-        } else {
-          setBanner(
-            "signup",
-            "Almost done — check your email and click the confirmation link to finish creating your account.",
-            "success"
-          );
-        }
-      } catch (err) {
-        console.error(err);
-        const msg = (err.message || "").toLowerCase();
-        if (msg.includes("already registered") || msg.includes("user already")) {
-          setBanner("signup", "An account with this email already exists. Try signing in or reset your password.", "error");
-        } else {
-          setBanner("signup", err.message || "Could not create the account.", "error");
-        }
-      } finally {
-        $signupBtn.disabled = false; $signupBtn.textContent = "Create account";
-      }
-    });
-
-    // -----------------------------------------------------------------------
-    // Forgot password — sends a recovery email.
-    // -----------------------------------------------------------------------
-    const $forgotForm = document.getElementById("forgot-form");
-    const $forgotBtn  = document.getElementById("forgot-btn");
-    $forgotForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      clearBanner("forgot");
-      const email = document.getElementById("forgot-email").value.trim();
-      $forgotBtn.disabled = true; $forgotBtn.textContent = "Sending…";
-      try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin + "/portal/",
-        });
-        if (error) throw error;
-        setBanner(
-          "forgot",
-          "Check your email for a link to set your password. After clicking it, you'll come back here to choose a new one.",
-          "success"
-        );
-      } catch (err) {
-        console.error(err);
-        setBanner("forgot", err.message || "Could not send the reset link.", "error");
-      } finally {
-        $forgotBtn.disabled = false; $forgotBtn.textContent = "Send reset link";
-      }
-    });
-
-    // -----------------------------------------------------------------------
-    // Set a new password (after clicking the recovery email link).
-    // The recovery view becomes active when supabase fires PASSWORD_RECOVERY
-    // (handled in the auth state listener below).
-    // -----------------------------------------------------------------------
-    const $recoveryForm = document.getElementById("recovery-form");
-    const $recoveryBtn  = document.getElementById("recovery-btn");
-    $recoveryForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      clearBanner("recovery");
-      const p1 = document.getElementById("rec-password").value;
-      const p2 = document.getElementById("rec-password-2").value;
-      if (p1.length < 8) {
-        setBanner("recovery", "Password must be at least 8 characters.", "error");
-        return;
-      }
-      if (p1 !== p2) {
-        setBanner("recovery", "The two passwords don't match.", "error");
-        return;
-      }
-
-      // Diagnostics so we can debug if this path hangs again.
-      console.log("[recovery] submit clicked");
-      const sessionAtSubmit = await supabase.auth.getSession();
-      console.log("[recovery] session before updateUser:", sessionAtSubmit?.data?.session ? "present" : "MISSING");
-      if (!sessionAtSubmit?.data?.session) {
-        setBanner(
-          "recovery",
-          "Your reset link looks expired. Click 'Forgot password' again to get a fresh email.",
-          "error"
-        );
-        return;
-      }
-
-      $recoveryBtn.disabled = true; $recoveryBtn.textContent = "Updating…";
-
-      // Timeout so the UI never gets stuck. updateUser shouldn't take more than
-      // a couple seconds in practice; 15s is generous.
-      const TIMEOUT_MS = 15000;
-      const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Timed out waiting for Supabase. Check your connection and try again.")), TIMEOUT_MS)
-      );
-
-      try {
-        const result = await Promise.race([
-          supabase.auth.updateUser({ password: p1 }),
-          timeout,
-        ]);
-        console.log("[recovery] updateUser result:", result);
-        if (result?.error) throw result.error;
-        setBanner("recovery", "Password updated. Welcome.", "success");
-        await refreshAccountView();
-        showView("account");
-      } catch (err) {
-        console.error("[recovery] updateUser failed:", err);
-        setBanner("recovery", err.message || "Could not update the password.", "error");
-      } finally {
-        $recoveryBtn.disabled = false; $recoveryBtn.textContent = "Update password & sign in";
-      }
-    });
-
-    // -----------------------------------------------------------------------
-    // Signed-in account view
-    // -----------------------------------------------------------------------
-    const $whoName    = document.getElementById("who-name");
-    const $whoEmail   = document.getElementById("who-email");
-    const $signoutBtn = document.getElementById("signout-btn");
-
-    async function refreshAccountView() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-      $whoEmail.textContent = session.user.email || "";
-      const profile = await currentProfile();
-      $whoName.textContent = profile?.display_name || "Welcome";
-      await loadDashboardListings(session.user.id);
-      // Fire-and-forget the saved-listings fetch so the badge count populates.
-      loadSavedListings(true);
-    }
-
-    // -----------------------------------------------------------------------
-    // Dashboard — load + render editable listings owned by the signed-in user
-    // -----------------------------------------------------------------------
-    const $listingsLoading = document.getElementById("listings-loading");
-    const $listingsError   = document.getElementById("listings-error");
-    const $listingsEmpty   = document.getElementById("listings-empty");
-    const $listingsNoMatch = document.getElementById("listings-no-match");
-    const $listingsList    = document.getElementById("listings-list");
-    const $listingsCount   = document.getElementById("listings-count");
-    const $dashBanner      = document.getElementById("dashboard-banner");
-    const $dashQ           = document.getElementById("dash-q");
-    const $dashStatus      = document.getElementById("dash-status");
-    const $dashSort        = document.getElementById("dash-sort");
-    const $dashClear       = document.getElementById("dash-clear");
-    const $saveAllBar      = document.getElementById("save-all-bar");
-    const $saveAllCount    = document.getElementById("save-all-count");
-    const $saveAllBtn      = document.getElementById("save-all-btn");
-    const $discardAllBtn   = document.getElementById("discard-all-btn");
-
-    let allListings = [];                // bootstrap copy from server
-    const dirtyIds  = new Set();         // listing_ids with unsaved changes
-    let currentUserId = null;
-
-    // ----- Helpers -----
     function escapeHtml(s) {
       return String(s ?? "").replace(/[&<>"']/g, c => ({
         "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
       }[c]));
     }
 
-    function statusLabel(s) {
-      const map = {
-        available: "Available", pending: "Pending", sold: "Sold",
-        delisted: "Delisted", not_renewed: "Not renewed",
-        pending_review: "Pending review", rejected: "Rejected",
-      };
-      return map[s] || s || "";
-    }
-
-    function fmtArtworkSize(h, w, d) {
-      const parts = [];
-      if (h != null) parts.push(h);
-      if (w != null) parts.push(w);
-      if (d != null) parts.push(d);
-      return parts.length ? parts.join(" x ") : "";
-    }
-
-    // Parse strings like "20 x 20", "12 1/8 x 12", "11\" x 26.25\""
-    function parseNumberToken(token) {
-      let t = (token || "").trim();
-      for (const ch of ['"', '”', '“', "'", "’", "‘"]) t = t.replaceAll(ch, "");
-      t = t.replace(/[.,]+$/, "").trim();
-      if (!t) return null;
-      const parts = t.split(/\s+/);
-      try {
-        if (parts.length === 2 && parts[1].includes("/")) {
-          const whole = parseFloat(parts[0]);
-          const [n, d] = parts[1].split("/").map(Number);
-          if (Number.isFinite(whole) && d) return whole + n / d;
-        }
-        if (parts.length === 1 && parts[0].includes("/")) {
-          const [n, d] = parts[0].split("/").map(Number);
-          if (d) return n / d;
-        }
-        const v = parseFloat(t);
-        return Number.isFinite(v) ? v : null;
-      } catch { return null; }
-    }
-    function parseArtworkSize(s) {
-      if (!s) return [null, null, null];
-      const cleaned = String(s).replace(/×/g, "x").replace(/X/g, "x");
-      const parts = cleaned.split("x").map(parseNumberToken);
-      while (parts.length < 3) parts.push(null);
-      return parts.slice(0, 3);
-    }
-
-    function parsePrice(s) {
-      if (s == null || s === "") return null;
-      const cleaned = String(s).replace(/[$,\s]/g, "");
-      if (!/^[0-9]*\.?[0-9]+$/.test(cleaned)) return NaN;
-      return parseFloat(cleaned);
-    }
-
-    // ----- Card rendering -----
-    function renderEditCard(l) {
-      const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
-      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
-      const isSold = l.status === "sold";
-      const card = document.createElement("div");
-      card.className = "listing-card";
-      card.dataset.listingId = l.listing_id;
-
-      const sizeStr = fmtArtworkSize(l.height_in, l.width_in, l.depth_in);
-
-      card.innerHTML = `
-        <div class="card-head">
-          <div class="card-thumb${isSold ? " is-sold" : ""}">
-            ${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}
-          </div>
-          <div class="head-meta">
-            <div class="id-line">
-              ${l.listing_id.slice(0,8)}…
-              <span class="dirty-flag" hidden>• UNSAVED</span>
-            </div>
-            <div class="pills">
-              <span class="pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>
-              ${l.moderation_status && l.moderation_status !== "approved"
-                ? `<span class="pill">${escapeHtml(l.moderation_status)}</span>` : ""}
-            </div>
-          </div>
-          <div class="head-actions">
-            <a class="btn-secondary" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View</a>
-            <button type="button" class="btn-secondary" data-action="reset">Reset</button>
-            <button type="button" class="btn-primary" data-action="save">Save</button>
-          </div>
-        </div>
-
-        <div class="form-grid">
-          <div>
-            <label>Artwork title</label>
-            <input type="text" data-field="artwork_title" value="${escapeHtml(l.artwork_title || "")}" />
-          </div>
-          <div>
-            <label>Artist name</label>
-            <input type="text" data-field="artist_name" value="${escapeHtml(l.artist_name || "")}" />
-          </div>
-          <div>
-            <label>Medium / Type</label>
-            <input type="text" data-field="medium" value="${escapeHtml(l.medium || "")}" />
-          </div>
-          <div>
-            <label>Unique/Original or Limited Edition</label>
-            <select data-field="artwork_category">
-              <option value="Unique/Original" ${l.artwork_category === "Unique/Original" ? "selected" : ""}>Unique/Original</option>
-              <option value="Limited Edition" ${l.artwork_category === "Limited Edition" ? "selected" : ""}>Limited Edition</option>
-            </select>
-          </div>
-          <div>
-            <label>Artwork size (inches)</label>
-            <input type="text" data-field="artwork_size" value="${escapeHtml(sizeStr)}" placeholder="e.g. 20 x 20" />
-          </div>
-          <div>
-            <label>Frame size (inches)</label>
-            <input type="text" data-field="framed_size" value="${escapeHtml(l.framed_size || "")}" placeholder="e.g. 24 x 24" />
-          </div>
-          <div>
-            <label>Price (USD)</label>
-            <input type="text" inputmode="decimal" data-field="asking_price_usd" value="${l.asking_price_usd ?? ""}" placeholder="e.g. 1200" />
-          </div>
-          <div>
-            <label>Shipping included?</label>
-            <select data-field="shipping_offered" required>
-              <option value="" disabled ${!l.shipping_offered ? "selected" : ""}>Choose…</option>
-              <option value="Yes" ${l.shipping_offered === "Yes" ? "selected" : ""}>Yes</option>
-              <option value="No"  ${l.shipping_offered === "No"  ? "selected" : ""}>No</option>
-            </select>
-          </div>
-          <div>
-            <label>Certificate of Authenticity included?</label>
-            <select data-field="coa_included" required>
-              <option value="" disabled ${!l.coa_included ? "selected" : ""}>Choose…</option>
-              <option value="Yes" ${l.coa_included === "Yes" ? "selected" : ""}>Yes</option>
-              <option value="No"  ${l.coa_included === "No"  ? "selected" : ""}>No</option>
-            </select>
-          </div>
-          <div>
-            <label>Status</label>
-            <select data-field="status">
-              <option value="available" ${l.status === "available" ? "selected" : ""}>Available</option>
-              <option value="pending"   ${l.status === "pending"   ? "selected" : ""}>Pending</option>
-              <option value="sold"      ${l.status === "sold"      ? "selected" : ""}>Sold</option>
-              <option value="delisted"  ${l.status === "delisted"  ? "selected" : ""}>Delisted</option>
-            </select>
-          </div>
-          <div>
-            <label>Seller mood</label>
-            <select data-field="seller_mood">
-              <option value="" ${!l.seller_mood ? "selected" : ""}>No mood set</option>
-              <option value="Open to Offers"      ${l.seller_mood === "Open to Offers" ? "selected" : ""}>Open to Offers</option>
-              <option value="Price Firm"          ${l.seller_mood === "Price Firm" ? "selected" : ""}>Price Firm</option>
-              <option value="Motivated to Sell"   ${l.seller_mood === "Motivated to Sell" ? "selected" : ""}>Motivated to Sell</option>
-              <option value="Testing the Market"  ${l.seller_mood === "Testing the Market" ? "selected" : ""}>Testing the Market</option>
-            </select>
-          </div>
-          <div class="span-2">
-            <label>Seller notes / Description</label>
-            <textarea data-field="description" rows="4">${escapeHtml(l.description || "")}</textarea>
-          </div>
-        </div>
-      `;
-
-      bindCardEvents(card, l);
-      return card;
-    }
-
-    // ----- Per-card events -----
-    function bindCardEvents(card, listing) {
-      const id = card.dataset.listingId;
-
-      // Mark dirty on any input/change
-      card.querySelectorAll("[data-field]").forEach(el => {
-        const evt = (el.tagName === "SELECT") ? "change" : "input";
-        el.addEventListener(evt, () => markDirty(card, true));
-      });
-
-      card.querySelector("[data-action=save]").addEventListener("click", () => saveCard(card));
-      card.querySelector("[data-action=reset]").addEventListener("click", () => resetCard(card, listing));
-    }
-
-    function markDirty(card, dirty) {
-      const id = card.dataset.listingId;
-      if (dirty) dirtyIds.add(id); else dirtyIds.delete(id);
-      card.classList.toggle("is-dirty", dirty);
-      card.classList.remove("has-error");
-      const flag = card.querySelector(".dirty-flag");
-      if (flag) flag.hidden = !dirty;
-      refreshSaveAllBar();
-    }
-
-    function readCardPayload(card) {
-      const get = (f) => card.querySelector(`[data-field="${f}"]`)?.value ?? "";
-      const payload = {
-        artwork_title:    get("artwork_title").trim(),
-        artist_name:      get("artist_name").trim(),
-        medium:           get("medium").trim() || null,
-        artwork_category: get("artwork_category"),
-        framed_size:      get("framed_size").trim() || null,
-        shipping_offered: get("shipping_offered"),
-        coa_included:     get("coa_included"),
-        status:           get("status"),
-        seller_mood:      get("seller_mood") || null,
-        description:      get("description").trim() || null,
-      };
-      // size text → numeric h/w/d
-      const [h, w, d] = parseArtworkSize(get("artwork_size"));
-      payload.height_in = h;
-      payload.width_in  = w;
-      payload.depth_in  = d;
-      // price
-      const price = parsePrice(get("asking_price_usd"));
-      payload.asking_price_usd = price;
-      return payload;
-    }
-
-    function validatePayload(p) {
-      const errs = [];
-      if (!p.artwork_title)    errs.push("Artwork title is required.");
-      if (!p.artist_name)      errs.push("Artist name is required.");
-      if (!p.artwork_category) errs.push("Pick Unique/Original or Limited Edition.");
-      if (p.shipping_offered !== "Yes" && p.shipping_offered !== "No")
-        errs.push("Pick Yes or No for Shipping Included.");
-      if (p.coa_included !== "Yes" && p.coa_included !== "No")
-        errs.push("Pick Yes or No for COA Included.");
-      if (p.asking_price_usd == null || Number.isNaN(p.asking_price_usd) || p.asking_price_usd < 0)
-        errs.push("Price must be a number — no words or other characters.");
-      return errs;
-    }
-
-    function showDashBanner(text, kind) {
-      $dashBanner.textContent = text;
-      $dashBanner.className = "banner" + (kind ? " " + kind : "");
-      $dashBanner.hidden = false;
-      $dashBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-    function clearDashBanner() {
-      $dashBanner.hidden = true;
-      $dashBanner.textContent = "";
-    }
-
-    async function saveCard(card) {
-      clearDashBanner();
-      const id = card.dataset.listingId;
-      const payload = readCardPayload(card);
-      const errs = validatePayload(payload);
-      if (errs.length) {
-        card.classList.add("has-error");
-        showDashBanner(errs.join("\n"), "error");
-        return false;
-      }
-      const saveBtn = card.querySelector("[data-action=save]");
-      const orig = saveBtn.textContent;
-      saveBtn.disabled = true; saveBtn.textContent = "Saving…";
-      try {
-        const { error } = await supabase
-          .from("listings")
-          .update(payload)
-          .eq("listing_id", id);
-        if (error) throw error;
-        // update bootstrap copy
-        const idx = allListings.findIndex(x => x.listing_id === id);
-        if (idx >= 0) Object.assign(allListings[idx], payload);
-        markDirty(card, false);
-        card.classList.remove("has-error");
-        showDashBanner("Saved.", "success");
-        return true;
-      } catch (err) {
-        console.error("[saveCard] failed:", err);
-        card.classList.add("has-error");
-        showDashBanner("Could not save: " + (err.message || err), "error");
-        return false;
-      } finally {
-        saveBtn.disabled = false; saveBtn.textContent = orig;
-      }
-    }
-
-    function resetCard(card, listing) {
-      const fresh = allListings.find(x => x.listing_id === listing.listing_id) || listing;
-      const newCard = renderEditCard(fresh);
-      card.replaceWith(newCard);
-      dirtyIds.delete(listing.listing_id);
-      refreshSaveAllBar();
-    }
-
-    // ----- Save All / Discard All -----
-    function refreshSaveAllBar() {
-      const n = dirtyIds.size;
-      if (n === 0) { $saveAllBar.classList.remove("visible"); return; }
-      $saveAllCount.textContent = n + " unsaved change" + (n === 1 ? "" : "s");
-      $saveAllBar.classList.add("visible");
-    }
-
-    $saveAllBtn.addEventListener("click", async () => {
-      clearDashBanner();
-      const dirtyCards = Array.from(document.querySelectorAll(".listing-card.is-dirty"));
-      if (!dirtyCards.length) return;
-
-      // Two-phase: validate everything first, then save only if all pass.
-      const allErrors = [];
-      const errCards = [];
-      for (const c of dirtyCards) {
-        c.classList.remove("has-error");
-        const p = readCardPayload(c);
-        const errs = validatePayload(p);
-        if (errs.length) {
-          errCards.push(c);
-          allErrors.push(`${c.dataset.listingId.slice(0,8)}…: ${errs.join(" ")}`);
-        }
-      }
-      if (allErrors.length) {
-        for (const c of errCards) c.classList.add("has-error");
-        showDashBanner(allErrors.join("\n"), "error");
-        return;
-      }
-
-      $saveAllBtn.disabled = true; $saveAllBtn.textContent = "Saving…";
-      let okCount = 0, failCount = 0;
-      for (let i = 0; i < dirtyCards.length; i++) {
-        $saveAllBtn.textContent = `Saving ${i+1} of ${dirtyCards.length}…`;
-        const ok = await saveCard(dirtyCards[i]);
-        if (ok) okCount++; else failCount++;
-      }
-      $saveAllBtn.disabled = false; $saveAllBtn.textContent = "Save all";
-      showDashBanner(
-        failCount
-          ? `Saved ${okCount}, ${failCount} failed. Fix errors and try again.`
-          : `Saved ${okCount} listing${okCount === 1 ? "" : "s"}.`,
-        failCount ? "error" : "success"
-      );
-    });
-
-    $discardAllBtn.addEventListener("click", () => {
-      const n = dirtyIds.size;
-      if (!n) return;
-      if (!confirm(`Discard unsaved changes on ${n} listing${n === 1 ? "" : "s"}?`)) return;
-      // Re-render every dirty card from bootstrap
-      for (const id of Array.from(dirtyIds)) {
-        const card = document.querySelector(`.listing-card[data-listing-id="${id}"]`);
-        const listing = allListings.find(x => x.listing_id === id);
-        if (card && listing) resetCard(card, listing);
-      }
-      dirtyIds.clear();
-      refreshSaveAllBar();
-      clearDashBanner();
-    });
-
-    // ----- Filtering -----
-    function applyFilters() {
-      const q   = $dashQ.value.trim().toLowerCase();
-      const stf = $dashStatus.value;
-      const so  = $dashSort.value;
-
-      let rows = allListings.slice();
-      if (stf) rows = rows.filter(l => l.status === stf);
-      if (q) {
-        rows = rows.filter(l => {
-          const hay = `${l.artwork_title || ""} ${l.artist_name || ""} ${l.medium || ""} ${l.description || ""} ${l.status || ""}`.toLowerCase();
-          return hay.includes(q);
-        });
-      }
-      const cmp = {
-        "newest":     (a,b) => new Date(b.created_at) - new Date(a.created_at),
-        "title-asc":  (a,b) => (a.artwork_title || "").localeCompare(b.artwork_title || ""),
-        "artist-asc": (a,b) => (a.artist_name || "").localeCompare(b.artist_name || ""),
-        "price-desc": (a,b) => Number(b.asking_price_usd||0) - Number(a.asking_price_usd||0),
-        "price-asc":  (a,b) => Number(a.asking_price_usd||0) - Number(b.asking_price_usd||0),
-      };
-      rows.sort(cmp[so] || cmp["newest"]);
-
-      // Re-render grid (NB: this discards in-progress edits — we wipe dirty state here,
-      // matching the legacy behavior. The Save All bar disappears with it.)
-      dirtyIds.clear();
-      refreshSaveAllBar();
-
-      $listingsList.innerHTML = "";
-      $listingsCount.textContent = `(${rows.length}${rows.length === allListings.length ? "" : " of " + allListings.length})`;
-      if (rows.length === 0 && allListings.length > 0) {
-        $listingsNoMatch.hidden = false;
-        $listingsList.hidden = true;
-        return;
-      }
-      $listingsNoMatch.hidden = true;
-      const frag = document.createDocumentFragment();
-      for (const l of rows) frag.appendChild(renderEditCard(l));
-      $listingsList.appendChild(frag);
-      $listingsList.hidden = false;
-    }
-
-    [$dashQ, $dashStatus, $dashSort].forEach(el => el.addEventListener("input", applyFilters));
-    $dashClear.addEventListener("click", () => {
-      $dashQ.value = ""; $dashStatus.value = ""; $dashSort.value = "newest";
-      applyFilters();
-    });
-
-    // ----- Initial load -----
-    async function loadDashboardListings(userId) {
-      currentUserId = userId;
-      $listingsLoading.hidden = false;
-      $listingsError.hidden   = true;
-      $listingsEmpty.hidden   = true;
-      $listingsNoMatch.hidden = true;
-      $listingsList.hidden    = true;
-      $listingsList.innerHTML = "";
-      $listingsCount.textContent = "";
-      dirtyIds.clear();
-      refreshSaveAllBar();
-
-      const { data, error } = await supabase
-        .from("listings")
-        .select(`
-          listing_id, seller_id, artist_name, artwork_title, artwork_category,
-          medium, height_in, width_in, depth_in, framed_size, description,
-          asking_price_usd, previous_price_usd, price_updated_at,
-          shipping_offered, coa_included, status, moderation_status,
-          seller_mood, last_renewed_at, created_at,
-          listing_images ( storage_path, position )
-        `)
-        .eq("seller_id", userId)
-        .order("created_at", { ascending: false });
-
-      $listingsLoading.hidden = true;
-
-      if (error) {
-        console.error("[dashboard] listings load failed", error);
-        $listingsError.textContent = error.message || "Could not load your listings.";
-        $listingsError.hidden = false;
-        return;
-      }
-
-      allListings = data || [];
-      if (allListings.length === 0) {
-        $listingsEmpty.hidden = false;
-        $listingsCount.textContent = "";
-        return;
-      }
-      applyFilters();
-    }
-
-    // Warn before navigation if there are unsaved changes
-    window.addEventListener("beforeunload", (e) => {
-      if (dirtyIds.size > 0) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    });
-
-    // -----------------------------------------------------------------------
-    // Tabs (Your listings / Saved listings)
-    // -----------------------------------------------------------------------
-    const $tabBtns   = document.querySelectorAll(".tab-btn[data-tab]");
-    const $tabPanels = document.querySelectorAll("[data-tab-panel]");
-
-    function activateTab(name) {
-      for (const b of $tabBtns)   b.classList.toggle("is-active", b.dataset.tab === name);
-      for (const p of $tabPanels) p.classList.toggle("is-active", p.dataset.tabPanel === name);
-      if (name === "saved-listings") loadSavedListings();
-    }
-    $tabBtns.forEach(b => b.addEventListener("click", () => activateTab(b.dataset.tab)));
-
-    // -----------------------------------------------------------------------
-    // Saved listings tab — render rows from lib/saves.js
-    // -----------------------------------------------------------------------
-    const $savedLoading = document.getElementById("saved-loading");
-    const $savedEmpty   = document.getElementById("saved-empty");
-    const $savedGrid    = document.getElementById("saved-grid");
-    const $savedCount   = document.getElementById("saved-listings-count");
-    const $savedBadge   = document.getElementById("saved-count-badge");
-
-    function renderSavedCard(l) {
-      const images   = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
-      const imgUrl   = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
-      const isSold   = l.status === "sold";
-      const price    = Number(l.asking_price_usd || 0).toLocaleString();
-      const saveCnt  = Number(l.save_count || 0);
-
+    function renderCard(listing) {
+      const images = (listing.listing_images || []).slice().sort((a,b) => a.position - b.position);
+      const firstPath = images[0]?.storage_path;
       const wrap = document.createElement("div");
-      wrap.className = "saved-card-wrap";
-      wrap.dataset.listingId = l.listing_id;
-
+      wrap.className = "card-wrap";
+      wrap.dataset.listingId = listing.listing_id;
       const card = document.createElement("a");
-      card.className = "saved-card" + (isSold ? " is-sold" : "");
-      card.href = `/listing.html?id=${l.listing_id}`;
+      card.className = "card" + (listing.status === "sold" ? " is-sold" : "");
+      card.href = `/listing.html?id=${listing.listing_id}`;
+      const imgUrl = firstPath ? publicImageUrl(firstPath) : "";
+      const price  = Number(listing.asking_price_usd || 0).toLocaleString();
+      const prev   = listing.previous_price_usd
+                      && Number(listing.previous_price_usd) > Number(listing.asking_price_usd)
+                      ? Number(listing.previous_price_usd).toLocaleString()
+                      : null;
+      const catCls   = listing.artwork_category === "Unique/Original" ? " unique"
+                     : listing.artwork_category === "Limited Edition" ? " edition" : "";
+      const catLabel = listing.artwork_category || "";
+      const isSold   = listing.status === "sold";
+      const saved    = !!(userSavesSet && userSavesSet.has(listing.listing_id));
+      const saveN    = Number(listing.save_count || 0);
       card.innerHTML = `
         <div class="img">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}</div>
         <div class="body">
-          <div class="artist">${escapeHtml(l.artist_name || "Unknown")}</div>
-          <div class="title">${escapeHtml(l.artwork_title || "")}</div>
-          <div class="row">
-            <span class="price">$${price}</span>
-            <span class="pill" title="Total saves">♥ ${saveCnt}</span>
+          <div class="artist">${escapeHtml(listing.artist_name || "Unknown")}</div>
+          <div class="title">${escapeHtml(listing.artwork_title || "")}</div>
+          <div class="price-row">
+            <span class="left">
+              <span class="price">$${price}</span>${prev ? `<span class="prev">$${prev}</span>` : ""}
+            </span>
+            <span class="pills">
+              ${isSold ? `<span class="cat sold">SOLD</span>` : ""}
+              ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
+            </span>
           </div>
         </div>`;
-
-      const unsave = document.createElement("button");
-      unsave.type = "button";
-      unsave.className = "unsave-btn";
-      unsave.title = "Remove from saved";
-      unsave.innerHTML = `<span style="font-size:14px;line-height:1;">♥</span><span>Saved</span>`;
-
+      const heart = document.createElement("button");
+      heart.type = "button";
+      heart.className = "heart-btn" + (saved ? " is-saved" : "");
+      heart.setAttribute("aria-label", saved ? "Unsave" : "Save listing");
+      heart.innerHTML = `<span class="heart-glyph">${saved ? "♥" : "♡"}</span><span class="heart-count">${saveN}</span>`;
       wrap.appendChild(card);
-      wrap.appendChild(unsave);
+      wrap.appendChild(heart);
       return wrap;
     }
 
-    let savedListingsCache = null;
-    async function loadSavedListings(force = false) {
-      if (!force && savedListingsCache) {
-        // Re-render from cache for instant tab switch
-        rerenderSavedListings(savedListingsCache);
+    // Event delegation: heart clicks anywhere in the grid
+    async function onHeartClick(btn) {
+      const wrap = btn.closest(".card-wrap");
+      if (!wrap) return;
+      const id = wrap.dataset.listingId;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        showAuthPrompt({ message: "Sign up to save listings. Same account also lets you sell — no commitment." });
         return;
       }
-      $savedLoading.hidden = false;
-      $savedEmpty.hidden   = true;
-      $savedGrid.hidden    = true;
-      $savedGrid.innerHTML = "";
-
-      const items = await getSavedListings();
-      savedListingsCache = items;
-      rerenderSavedListings(items);
-    }
-
-    function rerenderSavedListings(items) {
-      $savedLoading.hidden = true;
-      $savedCount.textContent = items.length ? `(${items.length})` : "";
-      $savedBadge.textContent = items.length ? `(${items.length})` : "";
-      if (!items.length) {
-        $savedEmpty.hidden = false;
-        $savedGrid.hidden  = true;
-        return;
-      }
-      $savedEmpty.hidden = true;
-      $savedGrid.innerHTML = "";
-      const frag = document.createDocumentFragment();
-      for (const l of items) frag.appendChild(renderSavedCard(l));
-      $savedGrid.appendChild(frag);
-      $savedGrid.hidden = false;
-    }
-
-    // Unsave button delegation
-    $savedGrid.addEventListener("click", async (e) => {
-      const btn = e.target.closest(".unsave-btn");
-      if (!btn) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const wrap = btn.closest(".saved-card-wrap");
-      const id = wrap?.dataset?.listingId;
-      if (!id) return;
       btn.disabled = true;
+      const $glyph = btn.querySelector(".heart-glyph");
+      const $count = btn.querySelector(".heart-count");
+      const wasSaved = btn.classList.contains("is-saved");
+      // Optimistic UI
+      btn.classList.toggle("is-saved", !wasSaved);
+      $glyph.textContent = !wasSaved ? "♥" : "♡";
+      $count.textContent = String(Math.max(0, Number($count.textContent || 0) + (wasSaved ? -1 : 1)));
       try {
-        await toggleSave(id);
-        // Drop from cache + UI
-        if (savedListingsCache) {
-          savedListingsCache = savedListingsCache.filter(l => l.listing_id !== id);
-        }
-        wrap.remove();
-        const remaining = $savedGrid.querySelectorAll(".saved-card-wrap").length;
-        $savedCount.textContent = remaining ? `(${remaining})` : "";
-        $savedBadge.textContent = remaining ? `(${remaining})` : "";
-        if (remaining === 0) {
-          $savedEmpty.hidden = false;
-          $savedGrid.hidden  = true;
+        const nowSaved = await toggleSave(id);
+        // Sync the in-memory listing record so re-renders are correct
+        const rec = allListings.find(l => l.listing_id === id);
+        if (rec) {
+          rec.save_count = Math.max(0, Number(rec.save_count || 0) + (nowSaved ? 1 : -1));
         }
       } catch (err) {
-        console.error("[unsave] failed:", err);
+        console.error("[heart] toggle failed:", err);
+        // Revert
+        btn.classList.toggle("is-saved", wasSaved);
+        $glyph.textContent = wasSaved ? "♥" : "♡";
+        $count.textContent = String(Math.max(0, Number($count.textContent || 0) + (wasSaved ? 1 : -1)));
+      } finally {
         btn.disabled = false;
-        alert("Couldn't remove from saved: " + (err.message || err));
-      }
-    });
-
-    // Reset saved cache when user signs out (so a different user later
-    // doesn't see stale saved data).
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") {
-        savedListingsCache = null;
-        clearSavesCache();
-        $savedBadge.textContent = "";
-        // If we're currently on the saved-listings tab, clear it visually too.
-        $savedGrid.innerHTML = "";
-        $savedGrid.hidden = true;
-        $savedEmpty.hidden = true;
-      }
-    });
-
-    // -----------------------------------------------------------------------
-    // New listing form
-    // -----------------------------------------------------------------------
-    const $nlForm        = document.getElementById("new-listing-form");
-    const $nlImageZone   = document.getElementById("nl-image-zone");
-    const $nlImageInput  = document.getElementById("nl-image");
-    const $nlPlaceholder = document.getElementById("nl-placeholder");
-    const $nlPreviewWrap = document.getElementById("nl-preview-wrap");
-    const $nlPreview     = document.getElementById("nl-preview");
-    const $nlReplaceBtn  = document.getElementById("nl-replace-btn");
-    const $nlSubmitBtn   = document.getElementById("nl-submit-btn");
-
-    let nlSelectedFile = null;
-
-    function nlReset() {
-      $nlForm.reset();
-      nlSelectedFile = null;
-      $nlPreview.src = "";
-      $nlPreviewWrap.hidden = true;
-      $nlPlaceholder.hidden = false;
-      $nlImageZone.classList.remove("has-file");
-      clearBanner("new-listing");
-    }
-
-    $nlImageInput.addEventListener("change", (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      if (!file.type.startsWith("image/")) {
-        setBanner("new-listing", "Please choose an image file (jpg, png, etc.).", "error");
-        $nlImageInput.value = "";
-        return;
-      }
-      // Quick sanity-cap on input size before compression: 25MB
-      if (file.size > 25 * 1024 * 1024) {
-        setBanner("new-listing", "That image is over 25MB. Try a smaller file.", "error");
-        $nlImageInput.value = "";
-        return;
-      }
-      nlSelectedFile = file;
-      $nlPreview.src = URL.createObjectURL(file);
-      $nlPlaceholder.hidden = true;
-      $nlPreviewWrap.hidden = false;
-      $nlImageZone.classList.add("has-file");
-      clearBanner("new-listing");
-    });
-
-    // Replace button — re-opens picker
-    $nlReplaceBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      $nlImageInput.value = "";
-      $nlImageInput.click();
-    });
-
-    // Reset form whenever we navigate AWAY from the new-listing view
-    document.querySelectorAll("[data-go]").forEach((b) => {
-      b.addEventListener("click", () => {
-        // If leaving new-listing → wipe form so next open is clean
-        if (b.dataset.go !== "new-listing") nlReset();
-      });
-    });
-
-    // -----------------------------------------------------------------------
-    // Sales-post builder
-    // -----------------------------------------------------------------------
-    const $spHeader        = document.getElementById("sp-header");
-    const $spFooter        = document.getElementById("sp-footer");
-    const $spSaveTextBtn   = document.getElementById("sp-save-text-btn");
-    const $spTextStatus    = document.getElementById("sp-text-status");
-    const $spListings      = document.getElementById("sp-listings");
-    const $spSelectedCount = document.getElementById("sp-selected-count");
-    const $spGenerateBtn   = document.getElementById("sp-generate-btn");
-    const $spOutput        = document.getElementById("sp-output");
-    const $spText          = document.getElementById("sp-text");
-    const $spCopyBtn       = document.getElementById("sp-copy-btn");
-    const $spCopyStatus    = document.getElementById("sp-copy-status");
-    const $spSelAvailable  = document.getElementById("sp-select-available");
-    const $spSelAll        = document.getElementById("sp-select-all");
-    const $spSelNone       = document.getElementById("sp-select-none");
-
-    let spInitialized = false;
-
-    // Open the sales-post view: load profile header/footer, render listing checkboxes.
-    async function enterSalesPost() {
-      // Reset output
-      $spOutput.hidden = true;
-      $spText.value = "";
-      $spCopyStatus.textContent = "";
-      $spCopyStatus.className = "sp-text-status";
-
-      const profile = await currentProfile();
-      $spHeader.value = profile?.post_header || "";
-      $spFooter.value = profile?.post_footer || "";
-      $spTextStatus.textContent = "";
-      $spTextStatus.className   = "sp-text-status";
-
-      // Render checkbox list of listings (newest first)
-      const rows = (allListings || []).slice().sort(
-        (a,b) => new Date(b.created_at) - new Date(a.created_at)
-      );
-      $spListings.innerHTML = "";
-      const frag = document.createDocumentFragment();
-      for (const l of rows) {
-        const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
-        const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
-        const isSold = l.status === "sold";
-        const row = document.createElement("label");
-        row.className = "sp-listing-row";
-        row.innerHTML = `
-          <input type="checkbox" data-id="${l.listing_id}" data-status="${l.status}" />
-          <div class="sp-thumb${isSold ? " is-sold" : ""}">
-            ${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}
-          </div>
-          <div class="sp-meta">
-            <div class="sp-artist">${escapeHtml(l.artist_name || "Unknown")}</div>
-            <div class="sp-title">${escapeHtml(l.artwork_title || "")}</div>
-          </div>
-          <div class="sp-price">${isSold ? "SOLD" : ("$" + Number(l.asking_price_usd || 0).toLocaleString())}</div>
-        `;
-        frag.appendChild(row);
-      }
-      $spListings.appendChild(frag);
-
-      // Wire listening for checkboxes (re-bound on every entry)
-      $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => {
-        cb.addEventListener("change", updateSpSelectedCount);
-      });
-      updateSpSelectedCount();
-      spInitialized = true;
-    }
-
-    function updateSpSelectedCount() {
-      const n = $spListings.querySelectorAll("input[type=checkbox]:checked").length;
-      $spSelectedCount.textContent = `${n} selected`;
-    }
-
-    // Hook the data-go listener so when user enters the sales-post view, we init it.
-    document.querySelectorAll('[data-go="sales-post"]').forEach((b) => {
-      b.addEventListener("click", () => { enterSalesPost(); });
-    });
-
-    // Save header / footer to profile
-    $spSaveTextBtn.addEventListener("click", async () => {
-      $spTextStatus.textContent = "Saving…";
-      $spTextStatus.className = "sp-text-status";
-      $spSaveTextBtn.disabled = true;
-      try {
-        const { error } = await supabase
-          .from("profiles")
-          .update({
-            post_header: $spHeader.value,
-            post_footer: $spFooter.value,
-          })
-          .eq("user_id", currentUserId);
-        if (error) throw error;
-        $spTextStatus.textContent = "Saved.";
-        $spTextStatus.className = "sp-text-status ok";
-      } catch (err) {
-        console.error("[sales-post] save header/footer failed:", err);
-        $spTextStatus.textContent = "Could not save: " + (err.message || err);
-        $spTextStatus.className = "sp-text-status err";
-      } finally {
-        $spSaveTextBtn.disabled = false;
-      }
-    });
-
-    // Quick selects
-    $spSelAvailable.addEventListener("click", () => {
-      $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => {
-        cb.checked = (cb.dataset.status === "available");
-      });
-      updateSpSelectedCount();
-    });
-    $spSelAll.addEventListener("click", () => {
-      $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => { cb.checked = true; });
-      updateSpSelectedCount();
-    });
-    $spSelNone.addEventListener("click", () => {
-      $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => { cb.checked = false; });
-      updateSpSelectedCount();
-    });
-
-    // Build the text post
-    function buildPostBlockForListing(l) {
-      const lines = [];
-      const artistTitle = [l.artist_name, l.artwork_title].filter(Boolean).join(" – ");
-      lines.push(artistTitle || "(untitled)");
-
-      // Category line
-      if (l.artwork_category) lines.push(l.artwork_category);
-
-      // Price line — bakes shipping into it.
-      //   shipping included → "$1,200 shipped"
-      //   not included      → "$1,200 + shipping"
-      //   sold              → "-SOLD"
-      if (l.status === "sold") {
-        lines.push("-SOLD");
-      } else {
-        const priceNum = Number(l.asking_price_usd || 0);
-        const priceStr = "$" + priceNum.toLocaleString();
-        const shipSuffix = l.shipping_offered === "Yes" ? " shipped" : " + shipping";
-        lines.push(priceStr + shipSuffix);
-      }
-
-      // COA
-      lines.push(l.coa_included === "Yes" ? "COA included" : "No COA");
-
-      // Mood
-      if (l.seller_mood) lines.push(l.seller_mood);
-
-      // Description
-      if (l.description) lines.push(l.description);
-
-      return lines.join("\n");
-    }
-
-    function buildFullPostText(selectedListings, header, footer) {
-      const parts = [];
-      if (header && header.trim()) parts.push(header.trim());
-      for (const l of selectedListings) {
-        parts.push(buildPostBlockForListing(l));
-      }
-      if (footer && footer.trim()) parts.push(footer.trim());
-      return parts.join("\n\n");
-    }
-
-    // -- Collage rendering ---------------------------------------------------
-    const COLLAGE_CELL_W   = 600;
-    const COLLAGE_CELL_H   = 600;
-    const COLLAGE_HEADER_H = 64;
-    const COLLAGE_PADDING  = 14;
-    const COLLAGE_MAX_PER  = 6;
-
-    function gridShapeFor(n) {
-      if (n <= 1) return [1, 1];
-      if (n === 2) return [2, 1];
-      if (n === 3) return [3, 1];
-      if (n === 4) return [2, 2];
-      return [3, 2]; // 5 or 6
-    }
-
-    function chunkArr(arr, size) {
-      const out = [];
-      for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-      return out;
-    }
-
-    function loadCanvasImage(url) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload  = () => resolve(img);
-        img.onerror = () => reject(new Error("img-load-failed: " + url));
-        img.src = url;
-      });
-    }
-
-    function fitText(ctx, text, maxWidth) {
-      // Truncate with ellipsis to fit maxWidth.
-      if (ctx.measureText(text).width <= maxWidth) return text;
-      let s = text;
-      while (s.length > 1 && ctx.measureText(s + "…").width > maxWidth) s = s.slice(0, -1);
-      return s + "…";
-    }
-
-    async function drawCellOnCanvas(ctx, listing, x, y) {
-      // Header strip (dark bar with artist – title)
-      ctx.fillStyle = "#1f1a17";
-      ctx.fillRect(x, y, COLLAGE_CELL_W, COLLAGE_HEADER_H);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "600 28px Georgia, 'Times New Roman', serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      const headerText = [listing.artist_name, listing.artwork_title].filter(Boolean).join(" – ");
-      ctx.fillText(fitText(ctx, headerText, COLLAGE_CELL_W - 24),
-                   x + COLLAGE_CELL_W / 2,
-                   y + COLLAGE_HEADER_H / 2);
-
-      // Image area background
-      const imgY = y + COLLAGE_HEADER_H;
-      ctx.fillStyle = "#f0ede6";
-      ctx.fillRect(x, imgY, COLLAGE_CELL_W, COLLAGE_CELL_H);
-
-      // Draw image cover-fitted
-      const images = (listing.listing_images || []).slice().sort((a,b) => a.position - b.position);
-      const path   = images[0]?.storage_path;
-      if (path) {
-        try {
-          const img = await loadCanvasImage(publicImageUrl(path));
-          const ratio = Math.max(COLLAGE_CELL_W / img.naturalWidth, COLLAGE_CELL_H / img.naturalHeight);
-          const dw = img.naturalWidth * ratio;
-          const dh = img.naturalHeight * ratio;
-          const dx = x + (COLLAGE_CELL_W - dw) / 2;
-          const dy = imgY + (COLLAGE_CELL_H - dh) / 2;
-          // Clip to cell bounds
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(x, imgY, COLLAGE_CELL_W, COLLAGE_CELL_H);
-          ctx.clip();
-          ctx.drawImage(img, dx, dy, dw, dh);
-          ctx.restore();
-        } catch (e) {
-          console.warn("[collage] image load failed", e);
-          // Leave the placeholder background in place
-        }
-      }
-
-      // SOLD overlay
-      if (listing.status === "sold") {
-        ctx.fillStyle = "rgba(168, 40, 31, 0.55)";
-        ctx.fillRect(x, imgY, COLLAGE_CELL_W, COLLAGE_CELL_H);
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "800 110px Georgia, 'Times New Roman', serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.shadowColor = "rgba(0,0,0,.35)";
-        ctx.shadowBlur  = 10;
-        ctx.fillText("SOLD", x + COLLAGE_CELL_W / 2, imgY + COLLAGE_CELL_H / 2);
-        ctx.shadowBlur = 0;
       }
     }
 
-    async function buildCollageCanvas(chunkOfListings) {
-      const n = chunkOfListings.length;
-      const [cols, rows] = gridShapeFor(n);
-      const cellTotalH = COLLAGE_CELL_H + COLLAGE_HEADER_H;
-      const W = COLLAGE_PADDING + cols * COLLAGE_CELL_W + (cols - 1) * COLLAGE_PADDING + COLLAGE_PADDING;
-      const H = COLLAGE_PADDING + rows * cellTotalH    + (rows - 1) * COLLAGE_PADDING + COLLAGE_PADDING;
-      const canvas = document.createElement("canvas");
-      canvas.width  = W;
-      canvas.height = H;
-      const ctx = canvas.getContext("2d");
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, W, H);
-      for (let i = 0; i < n; i++) {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const x = COLLAGE_PADDING + col * (COLLAGE_CELL_W + COLLAGE_PADDING);
-        const y = COLLAGE_PADDING + row * (cellTotalH    + COLLAGE_PADDING);
-        await drawCellOnCanvas(ctx, chunkOfListings[i], x, y);
+    function populateOptions(selectEl, values) {
+      const seen = new Set();
+      const opts = [];
+      for (const v of values) {
+        if (!v) continue;
+        const key = String(v).trim();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        opts.push(key);
       }
-      return canvas;
-    }
-
-    function slugifyName(s) {
-      return String(s || "seller").toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "")
-        || "seller";
-    }
-
-    async function renderCollages(selected, sellerSlug) {
-      const $collages = document.getElementById("sp-collages");
-      $collages.innerHTML = "";
-      const chunks = chunkArr(selected, COLLAGE_MAX_PER);
-      for (let idx = 0; idx < chunks.length; idx++) {
-        const wrap = document.createElement("div");
-        wrap.className = "sp-collage";
-        wrap.innerHTML = `
-          <div class="sp-collage-label">Collage ${idx + 1} of ${chunks.length} — ${chunks[idx].length} listing${chunks[idx].length === 1 ? "" : "s"}</div>
-          <div class="sp-collage-img"></div>
-          <div class="sp-collage-actions">
-            <button type="button" class="btn-primary" data-download>Download PNG</button>
-            <span class="sp-text-status sp-collage-msg"></span>
-          </div>
-        `;
-        $collages.appendChild(wrap);
-
-        const $msg = wrap.querySelector(".sp-collage-msg");
-        $msg.textContent = "Rendering…";
-        $msg.className = "sp-text-status";
-
-        try {
-          const canvas = await buildCollageCanvas(chunks[idx]);
-          // Show as <img> from data URL — easier to right-click-save in addition
-          // to the explicit Download button.
-          const dataUrl = canvas.toDataURL("image/png");
-          const previewImg = document.createElement("img");
-          previewImg.alt = `Collage ${idx + 1}`;
-          previewImg.src = dataUrl;
-          wrap.querySelector(".sp-collage-img").appendChild(previewImg);
-          $msg.textContent = "";
-
-          wrap.querySelector("[data-download]").addEventListener("click", () => {
-            // Use the same data URL; trigger a download.
-            const a = document.createElement("a");
-            a.href = dataUrl;
-            a.download = `${sellerSlug}_SalesPost_${idx + 1}.png`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-          });
-        } catch (err) {
-          console.error("[collage] failed:", err);
-          $msg.textContent = "Couldn't render this collage. " + (err.message || err);
-          $msg.className = "sp-text-status err";
-        }
+      opts.sort((a, b) => a.localeCompare(b));
+      // keep the first option (the "All …") and append the rest
+      const first = selectEl.querySelector("option");
+      selectEl.innerHTML = "";
+      if (first) selectEl.appendChild(first);
+      for (const o of opts) {
+        const opt = document.createElement("option");
+        opt.value = o;
+        opt.textContent = o;
+        selectEl.appendChild(opt);
       }
     }
 
-    $spGenerateBtn.addEventListener("click", async () => {
-      const $genStatus = document.getElementById("sp-generate-status");
-      $genStatus.textContent = "";
-      $genStatus.className = "sp-text-status";
+    function applyFilters() {
+      const q     = $q.value.trim().toLowerCase();
+      const cat   = $cat.value;
+      const stf   = $statusF.value;
+      const sel   = $seller.value;
+      const art   = $artist.value;
+      const minP  = Number($min.value);
+      const maxP  = Number($max.value);
+      const so    = $sort.value;
+      const hasMin = $min.value !== "" && !isNaN(minP);
+      const hasMax = $max.value !== "" && !isNaN(maxP);
 
-      const checked = Array.from($spListings.querySelectorAll("input[type=checkbox]:checked"));
-      if (!checked.length) {
-        $genStatus.textContent = "Pick at least one listing first.";
-        $genStatus.className = "sp-text-status err";
-        return;
-      }
-      const ids = new Set(checked.map((c) => c.dataset.id));
-      // Preserve the order they appear in the picker (newest first)
-      const selected = (allListings || []).filter((l) => ids.has(l.listing_id))
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-      // 1) Text
-      const text = buildFullPostText(selected, $spHeader.value, $spFooter.value);
-      $spText.value = text;
-      $spOutput.hidden = false;
-      $spCopyStatus.textContent = "";
-      $spCopyStatus.className = "sp-text-status";
-      $spOutput.scrollIntoView({ behavior: "smooth", block: "start" });
-
-      // 2) Collages — async; show progress text in the meantime.
-      $spGenerateBtn.disabled = true;
-      $spGenerateBtn.textContent = "Rendering images…";
-      try {
-        const profile = await currentProfile();
-        const slug = slugifyName(profile?.display_name);
-        await renderCollages(selected, slug);
-        $genStatus.textContent = `Rendered ${Math.ceil(selected.length / COLLAGE_MAX_PER)} collage image${selected.length > COLLAGE_MAX_PER ? "s" : ""}.`;
-        $genStatus.className = "sp-text-status ok";
-      } catch (err) {
-        console.error("[generate] failed:", err);
-        $genStatus.textContent = "Generation failed: " + (err.message || err);
-        $genStatus.className = "sp-text-status err";
-      } finally {
-        $spGenerateBtn.disabled = false;
-        $spGenerateBtn.textContent = "Generate post + images";
-      }
-    });
-
-    $spCopyBtn.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText($spText.value);
-        $spCopyStatus.textContent = "Copied to clipboard.";
-        $spCopyStatus.className = "sp-text-status ok";
-      } catch (err) {
-        // Fallback: select the text
-        $spText.select();
-        $spCopyStatus.textContent = "Couldn't auto-copy — text is selected, hit Cmd/Ctrl+C.";
-        $spCopyStatus.className = "sp-text-status err";
-      }
-    });
-
-    $nlForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      clearBanner("new-listing");
-
-      // Read fields
-      const title    = document.getElementById("nl-title").value.trim();
-      const artist   = document.getElementById("nl-artist").value.trim();
-      const medium   = document.getElementById("nl-medium").value.trim();
-      const category = document.getElementById("nl-category").value;
-      const sizeStr  = document.getElementById("nl-size").value.trim();
-      const framed   = document.getElementById("nl-framed").value.trim();
-      const priceStr = document.getElementById("nl-price").value.trim();
-      const shipping = document.getElementById("nl-shipping").value;
-      const coa      = document.getElementById("nl-coa").value;
-      const desc     = document.getElementById("nl-description").value.trim();
-
-      // Validate
-      const errs = [];
-      if (!title)    errs.push("Artwork name is required.");
-      if (!artist)   errs.push("Artist name is required.");
-      if (!medium)   errs.push("Medium / Type is required.");
-      if (category !== "Unique/Original" && category !== "Limited Edition")
-        errs.push("Pick Unique/Original or Limited Edition.");
-      if (!sizeStr)  errs.push("Artwork size is required.");
-      const price = parsePrice(priceStr);
-      if (price == null || Number.isNaN(price) || price < 0)
-        errs.push("Price must be a number — no words or other characters.");
-      if (shipping !== "Yes" && shipping !== "No")
-        errs.push("Pick Yes or No for Shipping Included.");
-      if (coa !== "Yes" && coa !== "No")
-        errs.push("Pick Yes or No for COA Included.");
-      if (!nlSelectedFile)
-        errs.push("Upload one image of the artwork.");
-
-      if (errs.length) {
-        setBanner("new-listing", errs.join("\n"), "error");
-        return;
-      }
-
-      const [h, w, d] = parseArtworkSize(sizeStr);
-
-      // Look up trusted-seller flag — auto-approve trusted sellers, queue others.
-      const profile  = await currentProfile();
-      const isTrusted = !!profile?.is_trusted;
-      const status            = isTrusted ? "available" : "pending_review";
-      const moderation_status = isTrusted ? "approved"  : "pending";
-
-      $nlSubmitBtn.disabled = true; $nlSubmitBtn.textContent = "Saving…";
-      try {
-        // 1) Insert the listing row first — we need its UUID for the image path.
-        $nlSubmitBtn.textContent = "Saving listing…";
-        const insertPayload = {
-          seller_id:        currentUserId,
-          artwork_title:    title,
-          artist_name:      artist,
-          medium:           medium,
-          artwork_category: category,
-          height_in:        h,
-          width_in:         w,
-          depth_in:         d,
-          framed_size:      framed || null,
-          asking_price_usd: price,
-          shipping_offered: shipping,
-          coa_included:     coa,
-          description:      desc || null,
-          status:           status,
-          moderation_status: moderation_status,
-        };
-        const { data: inserted, error: insertErr } = await supabase
-          .from("listings")
-          .insert(insertPayload)
-          .select("listing_id")
-          .single();
-        if (insertErr) throw insertErr;
-        const newId = inserted.listing_id;
-
-        // 2) Compress + upload the image.
-        $nlSubmitBtn.textContent = "Compressing image…";
-        const blob = await compressImage(nlSelectedFile, 1500, 0.85);
-        $nlSubmitBtn.textContent = "Uploading image…";
-        const path = `${newId}/0-${Date.now()}.jpg`;
-        const { error: uploadErr } = await supabase.storage
-          .from("listing-images")
-          .upload(path, blob, { contentType: "image/jpeg", upsert: false });
-        if (uploadErr) throw uploadErr;
-
-        // 3) Insert the listing_images row so the catalog can render it.
-        const { error: imgRowErr } = await supabase
-          .from("listing_images")
-          .insert({ listing_id: newId, storage_path: path, position: 0 });
-        if (imgRowErr) throw imgRowErr;
-
-        // Success — show banner on the dashboard and reload listings.
-        nlReset();
-        showView("account");
-        await loadDashboardListings(currentUserId);
-        showDashBanner(
-          isTrusted
-            ? "Listing created and live on the catalog."
-            : "Listing submitted. The admin will review it before it appears in the public catalog.",
-          "success"
-        );
-      } catch (err) {
-        console.error("[new-listing] failed:", err);
-        setBanner("new-listing", "Could not create the listing: " + (err.message || err), "error");
-      } finally {
-        $nlSubmitBtn.disabled = false; $nlSubmitBtn.textContent = "Submit listing";
-      }
-    });
-
-    $signoutBtn.addEventListener("click", async () => {
-      if (dirtyIds.size > 0 &&
-          !confirm(`You have ${dirtyIds.size} unsaved listing change${dirtyIds.size === 1 ? "" : "s"}. Sign out anyway?`)) {
-        return;
-      }
-      dirtyIds.clear();
-      refreshSaveAllBar();
-      await supabase.auth.signOut();
-      clearAllBanners();
-      showView("signin");
-    });
-
-    // -----------------------------------------------------------------------
-    // Auth state controller — decides which view to show.
-    // -----------------------------------------------------------------------
-    let inRecoveryFlow = false;
-
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        inRecoveryFlow = true;
-        showView("recovery");
-        return;
-      }
-      if (event === "SIGNED_IN" && !inRecoveryFlow) {
-        await refreshAccountView();
-        showView("account");
-        return;
-      }
-      if (event === "SIGNED_OUT") {
-        inRecoveryFlow = false;
-        showView("signin");
-        return;
-      }
-    });
-
-    // Initial view on first load.
-    //
-    // Important: we DO NOT auto-wipe localStorage when no session is found —
-    // that would destroy a perfectly good persisted session whenever the user
-    // revisits /portal/ after browsing elsewhere. We just show the sign-in
-    // form. If the page is genuinely stuck (rare), the "Reset and retry"
-    // button is still available as a manual escape hatch.
-    (async () => {
-      try {
-        const sessionResult = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("init-timeout")), 5000)),
-        ]);
-        const session = sessionResult?.data?.session;
-        if (session?.user) {
-          await refreshAccountView();
-          showView("account");
+      let rows = allListings.filter(l => {
+        if (cat && l.artwork_category !== cat) return false;
+        // Default to available; explicit Sold filter shows only sold; no "all" option.
+        if (stf === "sold") {
+          if (l.status !== "sold") return false;
         } else {
-          showView("signin");
+          // "available" (or any other value) = only available listings
+          if (l.status !== "available") return false;
         }
-      } catch (e) {
-        console.warn("[init] getSession timed out — showing sign-in (use 'Reset and retry' if it persists)");
-        showView("signin");
+        if (sel && (l.profiles?.display_name || "") !== sel) return false;
+        if (art && (l.artist_name || "") !== art) return false;
+        const p = Number(l.asking_price_usd || 0);
+        if (hasMin && p < minP) return false;
+        if (hasMax && p > maxP) return false;
+        if (q) {
+          const hay = `${l.artist_name || ""} ${l.artwork_title || ""}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      if (so === "price-asc")      rows.sort((a,b) => Number(a.asking_price_usd||0) - Number(b.asking_price_usd||0));
+      else if (so === "price-desc") rows.sort((a,b) => Number(b.asking_price_usd||0) - Number(a.asking_price_usd||0));
+      else                          rows.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+      // Reset incremental render state and draw the first batch.
+      filteredRows  = rows;
+      renderedCount = 0;
+      $grid.innerHTML = "";
+      renderNextBatch();
+
+      $stats.hidden = false;
+      $stats.textContent = `Showing ${rows.length} of ${allListings.length} listing${allListings.length === 1 ? "" : "s"}`;
+      $grid.hidden  = rows.length === 0;
+      $empty.hidden = rows.length !== 0;
+    }
+
+    function renderNextBatch() {
+      const end = Math.min(renderedCount + PAGE_SIZE, filteredRows.length);
+      const frag = document.createDocumentFragment();
+      for (let i = renderedCount; i < end; i++) frag.appendChild(renderCard(filteredRows[i]));
+      $grid.appendChild(frag);
+      renderedCount = end;
+    }
+
+    async function loadCatalog() {
+      const [listingsResp, savesResp] = await Promise.all([
+        supabase
+          .from("listings")
+          .select(`
+            listing_id, artist_name, artwork_title, artwork_category,
+            asking_price_usd, previous_price_usd, status, created_at, save_count,
+            listing_images ( storage_path, position ),
+            profiles!listings_seller_id_fkey ( display_name )
+          `)
+          .eq("moderation_status", "approved")
+          .in("status", ["available", "pending", "sold"])
+          .order("created_at", { ascending: false }),
+        getCurrentUserSaves(),
+      ]);
+      userSavesSet = savesResp; // Set or null
+      const { data: listings, error } = listingsResp;
+
+      if (error) {
+        console.error(error);
+        $status.textContent = "Could not load the catalog. Please try again later.";
+        $status.classList.add("error");
+        return;
       }
-    })();
+      if (!listings || listings.length === 0) {
+        $status.textContent = "The catalog is empty right now — check back soon.";
+        return;
+      }
+      allListings = listings;
+      populateOptions($seller, listings.map(l => l.profiles?.display_name));
+      populateOptions($artist, listings.map(l => l.artist_name));
+      $status.hidden = true;
+      applyFilters();
+    }
+
+    // Heart click delegation
+    document.getElementById("grid").addEventListener("click", (e) => {
+      const btn = e.target.closest(".heart-btn");
+      if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
+        onHeartClick(btn);
+      }
+    });
+
+    [$q, $cat, $statusF, $seller, $artist, $min, $max, $sort]
+      .forEach(el => el.addEventListener("input", applyFilters));
+    $clear.addEventListener("click", () => {
+      $q.value = "";
+      $cat.value = "";
+      $statusF.value = "available";
+      $seller.value = "";
+      $artist.value = "";
+      $min.value = "";
+      $max.value = "";
+      $sort.value = "newest";
+      applyFilters();
+    });
+
+    // Incremental render — observe the sentinel below the grid.
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && renderedCount < filteredRows.length) {
+            renderNextBatch();
+          }
+        }
+      }, { rootMargin: "400px 0px" });
+      io.observe($sentinel);
+    } else {
+      // Fallback: render everything if IntersectionObserver isn't available.
+      window.addEventListener("scroll", () => {
+        if (renderedCount < filteredRows.length &&
+            window.innerHeight + window.scrollY >= document.body.offsetHeight - 600) {
+          renderNextBatch();
+        }
+      });
+    }
+
+    // Back-to-top button
+    function onScroll() {
+      if (window.scrollY > 400) $back.classList.add("visible");
+      else                       $back.classList.remove("visible");
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    $back.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+
+    loadCatalog();
   </script>
 </body>
 </html>
