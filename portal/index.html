@@ -1539,6 +1539,7 @@
       if (!session?.user) return;
       $whoEmail.textContent = session.user.email || "";
       const profile = await currentProfile();
+      currentProfileCached = profile;          // cache for trust check on save
       $whoName.textContent = profile?.display_name || "Welcome";
       // Reveal Admin tab if this user is admin.
       const $adminBtn = document.getElementById("admin-tab-btn");
@@ -1572,6 +1573,24 @@
     let allListings = [];                // bootstrap copy from server
     const dirtyIds  = new Set();         // listing_ids with unsaved changes
     let currentUserId = null;
+    let currentProfileCached = null;     // cached profile, refreshed on dashboard load
+
+    // Fields that change a listing's *content* (vs. its logistics like price /
+    // status / shipping). For non-trusted sellers, edits to any of these
+    // re-queue the listing for admin moderation.
+    const CONTENT_FIELDS = [
+      "artwork_title", "artist_name", "medium", "description",
+      "artwork_category", "height_in", "width_in", "depth_in", "framed_size",
+    ];
+    function listingHasContentEdits(payload, bootstrap) {
+      if (!bootstrap) return false;
+      for (const f of CONTENT_FIELDS) {
+        const a = payload[f] ?? null;
+        const b = bootstrap[f] ?? null;
+        if (a !== b) return true;
+      }
+      return false;
+    }
 
     // ----- Helpers -----
     function escapeHtml(s) {
@@ -1826,6 +1845,28 @@
           catch (e) { console.warn("[replace-image] old cleanup failed:", e); }
         }
 
+        // Non-trusted sellers: a fresh image counts as a content edit and
+        // re-queues the listing for admin moderation.
+        const isTrusted = !!currentProfileCached?.is_trusted;
+        let needsReview = false;
+        if (!isTrusted) {
+          const { error: modErr } = await supabase
+            .from("listings")
+            .update({ moderation_status: "pending" })
+            .eq("listing_id", id);
+          if (!modErr) {
+            needsReview = true;
+            const idx2 = allListings.findIndex(x => x.listing_id === id);
+            if (idx2 >= 0) allListings[idx2].moderation_status = "pending";
+            const pillsEl = card.querySelector(".head-meta .pills");
+            if (pillsEl && !pillsEl.querySelector('.pill[data-mod="pending"]')) {
+              const p = document.createElement("span");
+              p.className = "pill"; p.dataset.mod = "pending"; p.textContent = "pending";
+              pillsEl.appendChild(p);
+            }
+          }
+        }
+
         // Update local + bootstrap state so thumb + future renders are correct.
         listing.listing_images = [{ storage_path: newPath, position: 0 }];
         const idx = allListings.findIndex(x => x.listing_id === id);
@@ -1836,8 +1877,13 @@
         if ($thumb) {
           $thumb.innerHTML = `<img src="${publicImageUrl(newPath)}" alt="" decoding="async" />`;
         }
-        setStatus("Updated.", "ok");
-        setTimeout(() => setStatus(""), 3000);
+        setStatus(
+          needsReview
+            ? "Updated. Pending admin review — listing returns to the catalog once approved."
+            : "Updated.",
+          "ok"
+        );
+        setTimeout(() => setStatus(""), 5000);
       } catch (err) {
         console.error("[replaceCardImage] failed:", err);
         setStatus("Failed: " + (err.message || err), "err");
@@ -1950,6 +1996,19 @@
         showDashBanner(errs.join("\n"), "error");
         return false;
       }
+
+      // Non-trusted sellers: content edits re-queue the listing for admin
+      // moderation. Logistics changes (price, status, shipping, mood) don't.
+      let needsReview = false;
+      const isTrusted = !!currentProfileCached?.is_trusted;
+      if (!isTrusted) {
+        const bootstrap = allListings.find(x => x.listing_id === id);
+        if (listingHasContentEdits(payload, bootstrap)) {
+          payload.moderation_status = "pending";
+          needsReview = true;
+        }
+      }
+
       const saveBtn = card.querySelector("[data-action=save]");
       const orig = saveBtn.textContent;
       saveBtn.disabled = true; saveBtn.textContent = "Saving…";
@@ -1970,7 +2029,21 @@
         if (idx >= 0) Object.assign(allListings[idx], payload);
         markDirty(card, false);
         card.classList.remove("has-error");
-        showDashBanner("Saved.", "success");
+        // Re-render the moderation pill on this card to reflect new state.
+        if (needsReview) {
+          const pillsEl = card.querySelector(".head-meta .pills");
+          if (pillsEl && !pillsEl.querySelector('.pill[data-mod="pending"]')) {
+            const p = document.createElement("span");
+            p.className = "pill"; p.dataset.mod = "pending"; p.textContent = "pending";
+            pillsEl.appendChild(p);
+          }
+        }
+        showDashBanner(
+          needsReview
+            ? "Saved. Your edits are pending admin review — the listing will return to the public catalog once approved."
+            : "Saved.",
+          "success"
+        );
         return true;
       } catch (err) {
         console.error("[saveCard] failed:", err);
