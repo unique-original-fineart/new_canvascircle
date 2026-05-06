@@ -265,9 +265,10 @@
       background: #efe9d8; color: #6a4c00; border: 1px solid #e3d8b1;
       white-space: nowrap; line-height: 1.2;
     }
-    .card .cat.unique  { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
-    .card .cat.edition { background: #d6e6f7; color: #1f4a78; border-color: #a8c8e3; }
-    .card .cat.sold    { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
+    .card .cat.unique     { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
+    .card .cat.edition    { background: #d6e6f7; color: #1f4a78; border-color: #a8c8e3; }
+    .card .cat.sold       { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
+    .card .cat.not-renewed{ background: #fff4e2; color: #5a4400; border-color: #f0d6a3; }
 
     /* Pills always live on their own row below the price — keeps card heights
        uniform whether or not there's a price drop / strikethrough showing. */
@@ -363,6 +364,7 @@
         <select id="f-status" title="Status">
           <option value="available" selected>Available</option>
           <option value="sold">Sold</option>
+          <option value="not_renewed">Not renewed</option>
         </select>
         <select id="f-seller" title="Seller">
           <option value="">All sellers</option>
@@ -453,10 +455,11 @@
       const catCls   = listing.artwork_category === "Unique/Original" ? " unique"
                      : listing.artwork_category === "Limited Edition" ? " edition" : "";
       const catLabel = listing.artwork_category || "";
-      const isSold   = listing.status === "sold";
+      const isSold       = listing.status === "sold";
+      const isNotRenewed = listing.status === "not_renewed";
       const saved    = !!(userSavesSet && userSavesSet.has(listing.listing_id));
       const saveN    = Number(listing.save_count || 0);
-      const shipSuffix = !isSold
+      const shipSuffix = (!isSold && !isNotRenewed)
         ? (listing.shipping_offered === "Yes" ? " shipped" : " + shipping")
         : "";
       card.innerHTML = `
@@ -470,6 +473,7 @@
             </span>
             <span class="pills">
               ${isSold ? `<span class="cat sold">SOLD</span>` : ""}
+              ${isNotRenewed ? `<span class="cat not-renewed">NOT RENEWED</span>` : ""}
               ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
             </span>
           </div>
@@ -558,11 +562,12 @@
 
       let rows = allListings.filter(l => {
         if (cat && l.artwork_category !== cat) return false;
-        // Default to available; explicit Sold filter shows only sold; no "all" option.
+        // Status filter: explicit Sold or Not renewed; otherwise default to Available.
         if (stf === "sold") {
           if (l.status !== "sold") return false;
+        } else if (stf === "not_renewed") {
+          if (l.status !== "not_renewed") return false;
         } else {
-          // "available" (or any other value) = only available listings
           if (l.status !== "available") return false;
         }
         if (sel && (l.profiles?.display_name || "") !== sel) return false;
@@ -613,7 +618,7 @@
             profiles!listings_seller_id_fkey!inner ( display_name, account_status )
           `)
           .eq("moderation_status", "approved")
-          .in("status", ["available", "pending", "sold"])
+          .in("status", ["available", "pending", "sold", "not_renewed"])
           .eq("profiles.account_status", "active")
           .order("created_at", { ascending: false }),
         getCurrentUserSaves(),

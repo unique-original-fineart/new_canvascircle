@@ -185,6 +185,17 @@
       color: #5a4400;
       line-height: 1.45;
     }
+    .not-renewed-warning {
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      background: #fff4e2;
+      border: 1px solid #f0d6a3;
+      border-radius: 10px;
+      color: #5a4400;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .not-renewed-warning strong { display: block; margin-bottom: 4px; font-size: 15px; }
     .buying-tips-nudge a { color: var(--accent); font-weight: 600; }
     .buying-tips-nudge a:hover { text-decoration: underline; }
 
@@ -454,6 +465,12 @@
           <div class="details">
             <div class="artist">${escapeHtml(l.artist_name || "Unknown artist")}</div>
             <div class="title">${escapeHtml(l.artwork_title || "")}</div>
+
+            ${l.status === "not_renewed" ? `
+              <div class="not-renewed-warning">
+                <strong>This listing hasn't been renewed in 60+ days.</strong>
+                Availability is unknown — the seller may not respond promptly. Reach out to confirm the artwork is still for sale before committing.
+              </div>` : ""}
 
             <div class="price-row">
               <span class="price">${fmtPrice(l.asking_price_usd)}</span>
