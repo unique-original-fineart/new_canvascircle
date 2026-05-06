@@ -1143,8 +1143,8 @@
               <option value="available">Available</option>
               <option value="pending">Pending</option>
               <option value="sold">Sold</option>
+              <option value="not_renewed">Not renewed (expired)</option>
               <option value="delisted">Delisted</option>
-              <option value="not_renewed">Not renewed</option>
               <option value="pending_review">Pending review</option>
             </select>
             <select id="dash-sort">
@@ -1231,6 +1231,18 @@
             <div id="mod-empty" class="empty-state" hidden>No listings pending review.</div>
             <div id="mod-list" class="mod-list" hidden></div>
             <div id="admin-banner" class="banner" hidden style="margin-top: 10px; white-space: pre-line;"></div>
+          </section>
+
+          <section class="admin-section">
+            <h3>Expiring soon <span class="count" id="expiring-count"></span></h3>
+            <p class="help">Listings within 7 days of the 60-day renewal cutoff (or already expired). Click "Extend" to reset a listing's clock; "Run expiration check" flips long-overdue available listings to <em>not_renewed</em>.</p>
+            <div style="margin-bottom: 10px;">
+              <button type="button" class="btn-secondary" id="run-expiry-btn">Run expiration check now</button>
+              <span id="run-expiry-status" class="sp-text-status" style="margin-left: 10px;"></span>
+            </div>
+            <div id="expiring-loading" class="empty-state" hidden>Loading…</div>
+            <div id="expiring-empty"   class="empty-state" hidden>Nothing expiring soon.</div>
+            <div id="expiring-list"   class="all-listings-list" hidden></div>
           </section>
 
           <section class="admin-section">
@@ -2005,6 +2017,9 @@
         <div class="card-footer">
           <a class="view-link" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View on catalog ↗</a>
           <div class="actions">
+            ${l.status === "not_renewed"
+              ? `<button type="button" class="btn-primary" data-action="renew" style="background:#1f5b32; border-color:#1f5b32;">Renew</button>`
+              : ""}
             <button type="button" class="btn-danger" data-action="remove" title="Permanently delete this listing">Remove</button>
             <button type="button" class="btn-secondary" data-action="reset">Reset</button>
             <button type="button" class="btn-primary" data-action="save">Save</button>
@@ -2030,6 +2045,7 @@
       card.querySelector("[data-action=reset]").addEventListener("click", () => resetCard(card, listing));
       card.querySelector("[data-action=remove]")?.addEventListener("click", () => removeCard(card, listing));
       card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => toggleSaversList(card, listing));
+      card.querySelector("[data-action=renew]")?.addEventListener("click", () => renewCard(card, listing));
 
       // Replace image flow — button opens hidden file picker; on change we
       // compress + upload + swap the listing_images row + refresh the thumb.
@@ -2190,6 +2206,53 @@
         return `<li>${escapeHtml(name)} <span class="small">· ${escapeHtml(date)}</span></li>`;
       }).join("");
       $list.innerHTML = `<strong>Saved by</strong><ul>${items}</ul>`;
+    }
+
+    async function renewCard(card, listing) {
+      const id = card.dataset.listingId;
+      const renewBtn = card.querySelector("[data-action=renew]");
+      if (renewBtn) { renewBtn.disabled = true; renewBtn.textContent = "Renewing…"; }
+      try {
+        const payload = {
+          last_renewed_at: new Date().toISOString(),
+          renewal_warning_sent_at: null,
+          status: "available",
+        };
+        const { error } = await supabase
+          .from("listings")
+          .update(payload)
+          .eq("listing_id", id);
+        if (error) throw error;
+        // Update bootstrap copy and re-render the card so it picks up new state.
+        const idx = allListings.findIndex(x => x.listing_id === id);
+        if (idx >= 0) Object.assign(allListings[idx], payload);
+        Object.assign(listing, payload);
+        const newCard = renderEditCard(allListings[idx] || listing);
+        card.replaceWith(newCard);
+        showDashBanner("Listing renewed and back on the public catalog.", "success");
+        refreshNotRenewedBanner();
+      } catch (err) {
+        console.error("[renewCard] failed:", err);
+        showDashBanner("Could not renew: " + (err.message || err), "error");
+        if (renewBtn) { renewBtn.disabled = false; renewBtn.textContent = "Renew"; }
+      }
+    }
+
+    function refreshNotRenewedBanner() {
+      // Show a yellow info banner above the listings if any of the seller's
+      // listings are in 'not_renewed' state.
+      const expired = allListings.filter(l => l.status === "not_renewed");
+      if (!expired.length) {
+        clearDashBanner();
+        return;
+      }
+      const n = expired.length;
+      $dashBanner.textContent =
+        `You have ${n} listing${n === 1 ? "" : "s"} that ${n === 1 ? "hasn't" : "haven't"} been renewed in 60+ days. ` +
+        `${n === 1 ? "It's" : "They're"} hidden from the public catalog with a "Not Renewed" warning. ` +
+        `Click Renew on each card to bring ${n === 1 ? "it" : "them"} back to active.`;
+      $dashBanner.className = "banner";  // default yellow info style
+      $dashBanner.hidden = false;
     }
 
     async function removeCard(card, listing) {
@@ -2516,6 +2579,7 @@
         return;
       }
       applyFilters();
+      refreshNotRenewedBanner();
     }
 
     // Warn before navigation if there are unsaved changes
@@ -2570,8 +2634,137 @@
 
     async function loadAdminTab() {
       $adminBanner.hidden = true;
-      await Promise.all([loadModerationQueue(), loadSellers(), loadAllListings()]);
+      await Promise.all([loadModerationQueue(), loadSellers(), loadAllListings(), loadExpiring()]);
     }
+
+    // -----------------------------------------------------------------------
+    // Admin "Expiring soon" panel
+    // -----------------------------------------------------------------------
+    const RENEWAL_WINDOW_DAYS  = 60;
+    const RENEWAL_WARNING_DAYS = 7;
+    const $expiringList    = document.getElementById("expiring-list");
+    const $expiringCount   = document.getElementById("expiring-count");
+    const $expiringLoading = document.getElementById("expiring-loading");
+    const $expiringEmpty   = document.getElementById("expiring-empty");
+    const $runExpiryBtn    = document.getElementById("run-expiry-btn");
+    const $runExpiryStatus = document.getElementById("run-expiry-status");
+
+    async function loadExpiring() {
+      $expiringLoading.hidden = false;
+      $expiringEmpty.hidden   = true;
+      $expiringList.hidden    = true;
+      $expiringList.innerHTML = "";
+      // Anything available + not yet expired but past warning threshold,
+      // PLUS anything already not_renewed.
+      const warnSinceISO = new Date(Date.now() - (RENEWAL_WINDOW_DAYS - RENEWAL_WARNING_DAYS) * 86400000).toISOString();
+      const { data, error } = await supabase
+        .from("listings")
+        .select(`
+          listing_id, artist_name, artwork_title, status, last_renewed_at, created_at,
+          listing_images ( storage_path, position ),
+          profiles!listings_seller_id_fkey ( display_name, contact_email )
+        `)
+        .or(`status.eq.not_renewed,and(status.eq.available,last_renewed_at.lt.${warnSinceISO})`)
+        .order("last_renewed_at", { ascending: true });
+      $expiringLoading.hidden = true;
+      if (error) {
+        setAdminBanner("Could not load expiring listings: " + (error.message || error), "error");
+        return;
+      }
+      const rows = data || [];
+      $expiringCount.textContent = rows.length ? `(${rows.length})` : "";
+      if (!rows.length) { $expiringEmpty.hidden = false; return; }
+      const frag = document.createDocumentFragment();
+      for (const l of rows) frag.appendChild(renderExpiringRow(l));
+      $expiringList.appendChild(frag);
+      $expiringList.hidden = false;
+    }
+
+    function renderExpiringRow(l) {
+      const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
+      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      const seller = l.profiles?.display_name || "Unknown";
+      const email  = l.profiles?.contact_email || "";
+      const renewedAt = l.last_renewed_at ? new Date(l.last_renewed_at) : new Date(l.created_at);
+      const daysSinceRenew = Math.floor((Date.now() - renewedAt.getTime()) / 86400000);
+      const daysLeft = RENEWAL_WINDOW_DAYS - daysSinceRenew;
+      let statusText;
+      if (l.status === "not_renewed") statusText = `<span style="color:#8a1f1a;font-weight:600;">Expired</span>`;
+      else if (daysLeft <= 0)         statusText = `<span style="color:#8a1f1a;font-weight:600;">Overdue ${-daysLeft}d</span>`;
+      else                            statusText = `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
+
+      const row = document.createElement("div");
+      row.className = "all-listing-row";
+      row.dataset.listingId = l.listing_id;
+      row.innerHTML = `
+        <div class="al-thumb">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}</div>
+        <div class="al-meta">
+          <strong>${escapeHtml(l.artist_name || "Unknown")} – ${escapeHtml(l.artwork_title || "")}</strong>
+          <div class="sub">
+            ${escapeHtml(seller)}${email ? ` · ${escapeHtml(email)}` : ""}
+            · last renewed ${daysSinceRenew}d ago
+            · ${statusText}
+          </div>
+        </div>
+        <div class="al-controls">
+          <a class="view-link" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View ↗</a>
+          <button type="button" class="btn-suspend" data-action="extend">Extend</button>
+        </div>
+      `;
+      row.querySelector("[data-action=extend]").addEventListener("click", () => extendRenewal(row, l));
+      return row;
+    }
+
+    async function extendRenewal(row, listing) {
+      try {
+        const payload = {
+          last_renewed_at: new Date().toISOString(),
+          renewal_warning_sent_at: null,
+        };
+        if (listing.status === "not_renewed") payload.status = "available";
+        const { error } = await supabase
+          .from("listings")
+          .update(payload)
+          .eq("listing_id", listing.listing_id);
+        if (error) throw error;
+        row.remove();
+        const remaining = $expiringList.querySelectorAll(".all-listing-row").length;
+        $expiringCount.textContent = remaining ? `(${remaining})` : "";
+        if (remaining === 0) { $expiringEmpty.hidden = false; $expiringList.hidden = true; }
+        setAdminBanner(`Extended renewal for "${listing.artist_name} – ${listing.artwork_title}".`, "success");
+      } catch (err) {
+        console.error("[extendRenewal] failed:", err);
+        setAdminBanner("Could not extend: " + (err.message || err), "error");
+      }
+    }
+
+    $runExpiryBtn.addEventListener("click", async () => {
+      $runExpiryBtn.disabled = true;
+      $runExpiryStatus.textContent = "Running…";
+      $runExpiryStatus.className = "sp-text-status";
+      try {
+        const cutoffISO = new Date(Date.now() - RENEWAL_WINDOW_DAYS * 86400000).toISOString();
+        const { data, error } = await supabase
+          .from("listings")
+          .update({ status: "not_renewed" })
+          .eq("status", "available")
+          .lt("last_renewed_at", cutoffISO)
+          .select("listing_id");
+        if (error) throw error;
+        const n = (data || []).length;
+        $runExpiryStatus.textContent = n
+          ? `Expired ${n} listing${n === 1 ? "" : "s"}.`
+          : "Nothing to expire.";
+        $runExpiryStatus.className = "sp-text-status ok";
+        await loadExpiring();
+      } catch (err) {
+        console.error("[runExpiry] failed:", err);
+        $runExpiryStatus.textContent = "Failed: " + (err.message || err);
+        $runExpiryStatus.className = "sp-text-status err";
+      } finally {
+        $runExpiryBtn.disabled = false;
+      }
+    });
 
     async function loadModerationQueue() {
       $modLoading.hidden = false;
