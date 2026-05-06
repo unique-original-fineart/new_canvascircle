@@ -373,6 +373,34 @@
       color: #b97f17; font-weight: 700; font-size: 11px; margin-top: 4px;
     }
 
+    /* Per-listing metrics row (saves + views) */
+    .card-metrics {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      font-size: 12px; color: var(--muted);
+      padding: 4px 0;
+    }
+    .card-metrics .metric {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: none; border: none;
+      padding: 0; font: inherit;
+    }
+    .card-metrics .metric.is-clickable {
+      cursor: pointer; color: var(--accent); font-weight: 600;
+    }
+    .card-metrics .metric.is-clickable:hover { text-decoration: underline; }
+    .card-metrics .metric .icon { font-size: 14px; line-height: 1; }
+    .savers-list {
+      background: #fbf9f4;
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+    .savers-list strong { display: block; margin-bottom: 4px; font-size: 12px; color: var(--muted); }
+    .savers-list ul { margin: 0; padding-left: 18px; }
+    .savers-list li { margin-bottom: 2px; }
+    .savers-list .small { color: var(--muted); font-size: 11px; }
+
     /* Form is single-column inside the narrower 2-up cards. */
     .listing-card .form-grid {
       display: grid;
@@ -1663,6 +1691,9 @@
 
       const sizeStr = fmtArtworkSize(l.height_in, l.width_in, l.depth_in);
 
+      const saveCnt = Number(l.save_count || 0);
+      const viewCnt = Number(l.view_count || 0);
+
       card.innerHTML = `
         <div class="card-head">
           <div class="card-thumb${isSold ? " is-sold" : ""}">
@@ -1672,11 +1703,19 @@
             <div class="pills">
               <span class="pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>
               ${l.moderation_status && l.moderation_status !== "approved"
-                ? `<span class="pill">${escapeHtml(l.moderation_status)}</span>` : ""}
+                ? `<span class="pill" data-mod="${escapeHtml(l.moderation_status)}">${escapeHtml(l.moderation_status)}</span>` : ""}
             </div>
             <div class="dirty-flag" hidden>• UNSAVED</div>
           </div>
         </div>
+
+        <div class="card-metrics">
+          <button type="button" class="metric ${saveCnt > 0 ? "is-clickable" : ""}" data-action="show-savers" ${saveCnt === 0 ? "disabled" : ""}>
+            <span class="icon">♥</span> ${saveCnt} ${saveCnt === 1 ? "save" : "saves"}
+          </button>
+          <span class="metric"><span class="icon">👁</span> ${viewCnt} ${viewCnt === 1 ? "view" : "views"}</span>
+        </div>
+        <div class="savers-list" data-savers-list hidden></div>
 
         <div class="form-grid">
           <div>
@@ -1783,6 +1822,7 @@
       card.querySelector("[data-action=save]").addEventListener("click", () => saveCard(card));
       card.querySelector("[data-action=reset]").addEventListener("click", () => resetCard(card, listing));
       card.querySelector("[data-action=remove]")?.addEventListener("click", () => removeCard(card, listing));
+      card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => toggleSaversList(card, listing));
 
       // Replace image flow — button opens hidden file picker; on change we
       // compress + upload + swap the listing_images row + refresh the thumb.
@@ -1890,6 +1930,40 @@
       } finally {
         $btn.disabled = false;
       }
+    }
+
+    // Click "♥ N saves" → expand a list of who saved this listing.
+    // RLS policy `saved_listings_select_seller` lets the seller read these
+    // rows for their own listings only. Buyers' broader save sets stay private.
+    async function toggleSaversList(card, listing) {
+      const $list = card.querySelector("[data-savers-list]");
+      if (!$list) return;
+      // Toggle off if already open.
+      if (!$list.hidden) { $list.hidden = true; $list.innerHTML = ""; return; }
+      $list.hidden = false;
+      $list.innerHTML = `<span class="small">Loading…</span>`;
+      const { data, error } = await supabase
+        .from("saved_listings")
+        .select(`created_at, profiles ( display_name )`)
+        .eq("listing_id", listing.listing_id)
+        .order("created_at", { ascending: false });
+      if (error) {
+        $list.innerHTML = `<span class="small">Couldn't load: ${escapeHtml(error.message || error)}</span>`;
+        return;
+      }
+      const rows = data || [];
+      if (rows.length === 0) {
+        $list.innerHTML = `<span class="small">No saves yet.</span>`;
+        return;
+      }
+      const items = rows.map(r => {
+        const name = r.profiles?.display_name || "Someone";
+        const date = r.created_at
+          ? new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+          : "";
+        return `<li>${escapeHtml(name)} <span class="small">· ${escapeHtml(date)}</span></li>`;
+      }).join("");
+      $list.innerHTML = `<strong>Saved by</strong><ul>${items}</ul>`;
     }
 
     async function removeCard(card, listing) {
@@ -2194,6 +2268,7 @@
           asking_price_usd, previous_price_usd, price_updated_at,
           shipping_offered, coa_included, status, moderation_status,
           seller_mood, last_renewed_at, created_at,
+          save_count, view_count,
           listing_images ( storage_path, position )
         `)
         .eq("seller_id", userId)
