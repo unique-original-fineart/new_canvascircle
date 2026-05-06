@@ -1,4 +1,21 @@
 <!doctype html>
+<!--
+==============================================================================
+  ACCOUNT PORTAL  (SIGNED-IN USERS — /portal/index.html)
+  ===========================================================================
+  This is the file served at:
+      https://canvascircle.art/portal/
+      https://new-canvascircle.pages.dev/portal/
+
+  Includes: sign in / sign up / forgot password, listings dashboard,
+  saved listings tab, new-listing form, Facebook sales-post builder.
+
+  *** DO NOT confuse with /index.html (the public catalog homepage). ***
+  If you find yourself copy/pasting and you see filter toolbar with
+  Min$/Max$ inputs or a hero <img> in this file — STOP, you've grabbed
+  the wrong one.
+==============================================================================
+-->
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -226,7 +243,16 @@
     }
     button.btn-secondary:hover, a.btn-secondary:hover { border-color: var(--accent); }
 
-    .listing-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    /* 2-up grid on every viewport ≥ 400px; 1-up only on the narrowest phones. */
+    .listing-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    @media (min-width: 400px) {
+      .listing-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    }
     .listing-row {
       display: grid;
       grid-template-columns: 72px 1fr auto;
@@ -317,19 +343,21 @@
       background: var(--card-bg);
       border: 1px solid var(--card-line);
       border-radius: 12px;
-      padding: 14px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
       transition: box-shadow .15s ease, border-color .15s ease;
     }
     .listing-card.is-dirty       { border-color: #d69b3a; box-shadow: 0 0 0 2px rgba(214,155,58,.18); }
     .listing-card.has-error      { border-color: #c93f3f; box-shadow: 0 0 0 3px rgba(201,63,63,.20); }
     .listing-card .card-head {
       display: grid;
-      grid-template-columns: 80px 1fr auto;
-      gap: 12px; align-items: center;
-      margin-bottom: 10px;
+      grid-template-columns: 64px 1fr;
+      gap: 10px; align-items: center;
     }
     .listing-card .card-thumb {
-      width: 80px; height: 80px;
+      width: 64px; height: 64px;
       border-radius: 8px; background: #f0ede6;
       overflow: hidden; position: relative;
     }
@@ -338,48 +366,83 @@
       content: "SOLD"; position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
       background: rgba(168,40,31,.55); color: #fff;
-      font-weight: 800; font-size: 12px; letter-spacing: 2px;
+      font-weight: 800; font-size: 10px; letter-spacing: 1.5px;
     }
-    .listing-card .head-meta .id-line {
-      font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace;
+    .listing-card .head-meta .pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .listing-card .head-meta .dirty-flag {
+      color: #b97f17; font-weight: 700; font-size: 11px; margin-top: 4px;
     }
-    .listing-card .head-meta .id-line .dirty-flag {
-      color: #b97f17; font-weight: 700; margin-left: 6px;
-    }
-    .listing-card .head-meta .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
-    .listing-card .head-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
+    /* Form is single-column inside the narrower 2-up cards. */
     .listing-card .form-grid {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 10px;
+      gap: 8px;
     }
-    @media (min-width: 640px) {
-      .listing-card .form-grid { grid-template-columns: 1fr 1fr; }
-      .listing-card .form-grid .span-2 { grid-column: 1 / -1; }
-    }
+    .listing-card .form-grid .span-2 { grid-column: 1 / -1; }
     .listing-card .form-grid label { font-size: 12px; margin-bottom: 3px; }
     .listing-card .form-grid input,
     .listing-card .form-grid select,
     .listing-card .form-grid textarea {
       width: 100%;
-      padding: 8px 10px;
+      padding: 7px 10px;
       border-radius: 7px;
       border: 1px solid var(--card-line);
       background: #fff;
       color: var(--fg);
-      font-size: 14px;
+      font-size: 13px;
       font-family: inherit;
       min-width: 0;
     }
     .listing-card .form-grid select { padding-right: 24px; }
-    .listing-card .form-grid textarea { min-height: 84px; resize: vertical; }
+    .listing-card .form-grid textarea { min-height: 70px; resize: vertical; }
     .listing-card .form-grid input:focus,
     .listing-card .form-grid select:focus,
     .listing-card .form-grid textarea:focus {
       outline: none; border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(184,134,11,.15);
     }
+
+    /* Footer: View on left, Reset/Save/Remove on right. */
+    .listing-card .card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; flex-wrap: wrap;
+      padding-top: 8px;
+      border-top: 1px solid var(--card-line);
+    }
+    .listing-card .card-footer .view-link {
+      color: var(--accent); font-size: 13px; font-weight: 600;
+      text-decoration: none; white-space: nowrap;
+    }
+    .listing-card .card-footer .view-link:hover { text-decoration: underline; }
+    .listing-card .card-footer .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .listing-card .btn-danger {
+      padding: 7px 11px; border-radius: 7px;
+      border: 1px solid #e8b3ad;
+      background: #fef6f5; color: #8a1f1a;
+      font-size: 12px; font-weight: 600; font-family: inherit;
+      cursor: pointer;
+    }
+    .listing-card .btn-danger:hover { background: #fbe4e0; }
+
+    /* Back-to-top button (portal) — lifted to clear the Save All bar. */
+    #portal-back-to-top {
+      position: fixed;
+      bottom: 80px; right: 20px;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      border: 1px solid var(--card-line);
+      background: #fff;
+      color: var(--fg);
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 60;
+    }
+    #portal-back-to-top.visible { display: flex; }
+    #portal-back-to-top:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 
     /* ------ Save All sticky bar ------ */
     .save-all-bar {
@@ -847,6 +910,7 @@
         <div class="tab-strip" role="tablist">
           <button type="button" class="tab-btn is-active" data-tab="your-listings" role="tab">Your listings</button>
           <button type="button" class="tab-btn" data-tab="saved-listings" role="tab">Saved listings <span id="saved-count-badge" class="count" style="margin-left:4px;"></span></button>
+          <button type="button" class="tab-btn" data-tab="profile" role="tab">Profile</button>
         </div>
 
         <!-- Tab: Your listings -->
@@ -890,6 +954,41 @@
             No listings match your filters.
           </div>
           <div id="listings-list" class="listing-list" hidden></div>
+        </div>
+
+        <!-- Tab: Profile -->
+        <div class="tab-panel" data-tab-panel="profile">
+          <div class="dash-head">
+            <h2>Your profile</h2>
+          </div>
+          <p class="lede" style="margin-bottom: 14px;">
+            These details appear on every listing you post. The Facebook URL powers the "Message on Facebook" button; the email powers the "Email Seller" button. Buyers see your display name and location next to the price.
+          </p>
+          <form id="profile-form" autocomplete="off" onsubmit="return false;" style="display: grid; gap: 12px;">
+            <div class="field">
+              <label for="prof-name">Display name</label>
+              <input type="text" id="prof-name" placeholder="Your name as buyers will see it" />
+            </div>
+            <div class="field">
+              <label for="prof-fb">Facebook profile URL</label>
+              <input type="url" id="prof-fb" placeholder="https://facebook.com/your.profile" />
+            </div>
+            <div class="field">
+              <label for="prof-loc">Location</label>
+              <input type="text" id="prof-loc" placeholder="e.g. Central NJ 08852" />
+            </div>
+            <div class="field">
+              <label for="prof-email">Contact email</label>
+              <input type="email" id="prof-email" placeholder="you@example.com" />
+              <p class="small" style="margin: 4px 0 0;">
+                Shown on your listings via the Email Seller button. Leave blank if you don't want your email exposed publicly.
+              </p>
+            </div>
+            <div>
+              <button type="button" class="btn-primary" id="profile-save-btn">Save profile</button>
+              <span id="profile-status" class="sp-text-status" style="margin-left: 10px;"></span>
+            </div>
+          </form>
         </div>
 
         <!-- Tab: Saved listings -->
@@ -1062,6 +1161,8 @@
       <button type="button" class="btn-save-all" id="save-all-btn">Save all</button>
     </div>
   </div>
+
+  <button type="button" id="portal-back-to-top" aria-label="Back to top" hidden>↑</button>
 
   <footer>
     &copy; CanvasCircle.
@@ -1435,20 +1536,12 @@
             ${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}
           </div>
           <div class="head-meta">
-            <div class="id-line">
-              ${l.listing_id.slice(0,8)}…
-              <span class="dirty-flag" hidden>• UNSAVED</span>
-            </div>
             <div class="pills">
               <span class="pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>
               ${l.moderation_status && l.moderation_status !== "approved"
                 ? `<span class="pill">${escapeHtml(l.moderation_status)}</span>` : ""}
             </div>
-          </div>
-          <div class="head-actions">
-            <a class="btn-secondary" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View</a>
-            <button type="button" class="btn-secondary" data-action="reset">Reset</button>
-            <button type="button" class="btn-primary" data-action="save">Save</button>
+            <div class="dirty-flag" hidden>• UNSAVED</div>
           </div>
         </div>
 
@@ -1506,7 +1599,7 @@
               <option value="available" ${l.status === "available" ? "selected" : ""}>Available</option>
               <option value="pending"   ${l.status === "pending"   ? "selected" : ""}>Pending</option>
               <option value="sold"      ${l.status === "sold"      ? "selected" : ""}>Sold</option>
-              <option value="delisted"  ${l.status === "delisted"  ? "selected" : ""}>Delisted</option>
+              ${l.status === "delisted" ? `<option value="delisted" selected>Delisted (legacy)</option>` : ""}
             </select>
           </div>
           <div>
@@ -1522,6 +1615,15 @@
           <div class="span-2">
             <label>Seller notes / Description</label>
             <textarea data-field="description" rows="4">${escapeHtml(l.description || "")}</textarea>
+          </div>
+        </div>
+
+        <div class="card-footer">
+          <a class="view-link" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View on catalog ↗</a>
+          <div class="actions">
+            <button type="button" class="btn-danger" data-action="remove" title="Permanently delete this listing">Remove</button>
+            <button type="button" class="btn-secondary" data-action="reset">Reset</button>
+            <button type="button" class="btn-primary" data-action="save">Save</button>
           </div>
         </div>
       `;
@@ -1542,6 +1644,41 @@
 
       card.querySelector("[data-action=save]").addEventListener("click", () => saveCard(card));
       card.querySelector("[data-action=reset]").addEventListener("click", () => resetCard(card, listing));
+      card.querySelector("[data-action=remove]")?.addEventListener("click", () => removeCard(card, listing));
+    }
+
+    async function removeCard(card, listing) {
+      const id = card.dataset.listingId;
+      const label = `${listing.artist_name || "Unknown"} — ${listing.artwork_title || "Untitled"}`;
+      if (!confirm(`Remove "${label}" from your portal?\n\nThis permanently deletes the listing and its image. This cannot be undone.`)) {
+        return;
+      }
+      const removeBtn = card.querySelector("[data-action=remove]");
+      removeBtn.disabled = true;
+      removeBtn.textContent = "Removing…";
+      try {
+        // Delete the storage objects first (best-effort — if it fails, the
+        // DB delete still proceeds and orphaned files can be cleaned later).
+        const images = listing.listing_images || [];
+        const paths = images.map(i => i.storage_path).filter(p => p && !/^https?:\/\//i.test(p));
+        if (paths.length) {
+          try { await supabase.storage.from("listing-images").remove(paths); } catch (e) { console.warn("[remove] storage cleanup failed:", e); }
+        }
+        // Delete the listing row — listing_images and saved_listings cascade.
+        const { error } = await supabase.from("listings").delete().eq("listing_id", id);
+        if (error) throw error;
+        // Remove from in-memory bootstrap and re-render filters.
+        allListings = allListings.filter(x => x.listing_id !== id);
+        dirtyIds.delete(id);
+        refreshSaveAllBar();
+        applyFilters();
+        showDashBanner(`Removed "${label}".`, "success");
+      } catch (err) {
+        console.error("[removeCard] failed:", err);
+        showDashBanner("Could not remove the listing: " + (err.message || err), "error");
+        removeBtn.disabled = false;
+        removeBtn.textContent = "Remove";
+      }
     }
 
     function markDirty(card, dirty) {
@@ -1820,8 +1957,70 @@
       for (const b of $tabBtns)   b.classList.toggle("is-active", b.dataset.tab === name);
       for (const p of $tabPanels) p.classList.toggle("is-active", p.dataset.tabPanel === name);
       if (name === "saved-listings") loadSavedListings();
+      if (name === "profile")        loadProfileForm();
     }
     $tabBtns.forEach(b => b.addEventListener("click", () => activateTab(b.dataset.tab)));
+
+    // -----------------------------------------------------------------------
+    // Profile tab — load / save FB URL, location, display name, contact email
+    // -----------------------------------------------------------------------
+    const $profName     = document.getElementById("prof-name");
+    const $profFb       = document.getElementById("prof-fb");
+    const $profLoc      = document.getElementById("prof-loc");
+    const $profEmail    = document.getElementById("prof-email");
+    const $profSaveBtn  = document.getElementById("profile-save-btn");
+    const $profStatus   = document.getElementById("profile-status");
+
+    async function loadProfileForm() {
+      const profile = await currentProfile();
+      if (!profile) return;
+      $profName.value  = profile.display_name || "";
+      $profFb.value    = profile.facebook_profile_url || "";
+      $profLoc.value   = profile.location || "";
+      $profEmail.value = profile.contact_email || "";
+      $profStatus.textContent = "";
+      $profStatus.className = "sp-text-status";
+    }
+
+    $profSaveBtn.addEventListener("click", async () => {
+      $profStatus.textContent = "Saving…";
+      $profStatus.className = "sp-text-status";
+      $profSaveBtn.disabled = true;
+      try {
+        const payload = {
+          display_name:         $profName.value.trim() || null,
+          facebook_profile_url: $profFb.value.trim()   || null,
+          location:             $profLoc.value.trim()  || null,
+          contact_email:        $profEmail.value.trim()|| null,
+        };
+        const { error } = await supabase
+          .from("profiles")
+          .update(payload)
+          .eq("user_id", currentUserId);
+        if (error) throw error;
+        $profStatus.textContent = "Saved.";
+        $profStatus.className = "sp-text-status ok";
+        // Refresh the signed-in chip in the dashboard header
+        if (payload.display_name) $whoName.textContent = payload.display_name;
+      } catch (err) {
+        console.error("[profile] save failed:", err);
+        $profStatus.textContent = "Could not save: " + (err.message || err);
+        $profStatus.className = "sp-text-status err";
+      } finally {
+        $profSaveBtn.disabled = false;
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Back-to-top button (portal)
+    // -----------------------------------------------------------------------
+    const $portalBack = document.getElementById("portal-back-to-top");
+    function onPortalScroll() {
+      if (window.scrollY > 400) $portalBack.classList.add("visible");
+      else                      $portalBack.classList.remove("visible");
+    }
+    window.addEventListener("scroll", onPortalScroll, { passive: true });
+    $portalBack.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 
     // -----------------------------------------------------------------------
     // Saved listings tab — render rows from lib/saves.js
