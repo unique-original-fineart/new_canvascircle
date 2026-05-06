@@ -1335,7 +1335,24 @@
       window.scrollTo({ top: 0 });
     }
     document.querySelectorAll("[data-go]").forEach(b => {
-      b.addEventListener("click", () => {
+      b.addEventListener("click", (e) => {
+        // Profile-completeness gate: trying to post a listing without a
+        // display name + at least one contact channel redirects them to the
+        // Profile tab in edit mode with an explanation.
+        if (b.dataset.go === "new-listing"
+            && !isProfileCompleteForSelling(currentProfileCached)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          activateTab("profile");
+          // Force into edit mode so they can fill it in immediately.
+          if (typeof setProfileEditMode === "function") setProfileEditMode(true);
+          if ($profStatus) {
+            $profStatus.textContent =
+              "Before posting a listing, fill in your Facebook profile URL or contact email so buyers can reach you.";
+            $profStatus.className = "sp-text-status err";
+          }
+          return;
+        }
         clearAllBanners();
         showView(b.dataset.go);
       });
@@ -1629,6 +1646,18 @@
         if (a !== b) return true;
       }
       return false;
+    }
+
+    // A profile is "complete enough to post listings" if the seller has a
+    // display name AND at least one contact channel (Facebook URL or email).
+    // Buyers who only save listings don't need this — the gate only fires
+    // when someone tries to create a listing.
+    function isProfileCompleteForSelling(profile) {
+      if (!profile) return false;
+      if (!String(profile.display_name || "").trim()) return false;
+      const hasFb    = !!String(profile.facebook_profile_url || "").trim();
+      const hasEmail = !!String(profile.contact_email        || "").trim();
+      return hasFb || hasEmail;
     }
 
     // ----- Helpers -----
@@ -2509,11 +2538,19 @@
       const joined = profile.created_at
         ? new Date(profile.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
         : "—";
+      // Flag sellers who have listings but are missing contact info — the
+      // gate prevents new submissions, but legacy listings might still be up.
+      const incomplete = listingCount > 0 && !isProfileCompleteForSelling(profile);
       row.innerHTML = `
         <div class="seller-info">
-          <strong>${escapeHtml(profile.display_name || "(no name)")}${profile.is_admin ? ` <span class="pill">admin</span>` : ""}</strong>
+          <strong>
+            ${escapeHtml(profile.display_name || "(no name)")}
+            ${profile.is_admin ? ` <span class="pill">admin</span>` : ""}
+            ${incomplete ? ` <span class="pill" style="background:#f3d6d3;color:#8a1f1a;border-color:#e8b3ad;">incomplete profile</span>` : ""}
+          </strong>
           <div class="small">
-            ${escapeHtml(profile.contact_email || "")}
+            ${escapeHtml(profile.contact_email || "(no email)")}
+            ${profile.facebook_profile_url ? ` · FB ✓` : ` · no FB`}
             ${profile.location ? ` · ${escapeHtml(profile.location)}` : ""}
             · ${listingCount} listing${listingCount === 1 ? "" : "s"}
             · joined ${joined}
