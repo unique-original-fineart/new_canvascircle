@@ -1,4 +1,21 @@
 <!doctype html>
+<!--
+==============================================================================
+  CATALOG  (PUBLIC HOMEPAGE — root /index.html)
+  ===========================================================================
+  This is the file served at:
+      https://canvascircle.art/
+      https://new-canvascircle.pages.dev/
+
+  *** DO NOT confuse with /portal/index.html ***
+  /portal/index.html is the signed-in account portal (sign in, dashboard,
+  saved listings, sales-post builder). They share <header>/<footer> for
+  consistency but the bodies are completely different.
+
+  If you find yourself copy/pasting and you see "Your listings" or
+  "Saved listings" tabs in this file — STOP, you've grabbed the wrong one.
+==============================================================================
+-->
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -232,12 +249,17 @@
       overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
       -webkit-line-clamp: 1; -webkit-box-orient: vertical;
     }
+    /* Price + pills row.
+       Desktop:  [price ......... pills]   (single row)
+       Mobile:   [price]                   (price gets full width)
+                 [pills...]                 (pills wrap to row 2) */
     .card .price-row {
       margin-top: 4px;
       display: flex; align-items: center; justify-content: space-between; gap: 6px;
+      flex-wrap: wrap;
     }
     .card .price-row .left  { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; }
-    .card .price-row .pills { display: inline-flex; align-items: center; gap: 4px; flex-wrap: nowrap; }
+    .card .price-row .pills { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
     .card .price  { font-weight: 600; font-size: 14px; white-space: nowrap; }
     .card .prev   { color: var(--muted); text-decoration: line-through; font-size: 12px; }
     .card .cat    {
@@ -250,7 +272,15 @@
     .card .cat.edition { background: #d6e6f7; color: #1f4a78; border-color: #a8c8e3; }
     .card .cat.sold    { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
 
-    /* Smaller artist + price text on tight mobile so the row fits */
+    /* On mobile, force pills to a separate row below the price. Without this,
+       a price + strikethrough prev + sold pill + category pill collide into
+       overlapping text on a 180px-wide card. */
+    @media (max-width: 600px) {
+      .card .price-row .pills {
+        flex: 0 0 100%;
+        justify-content: flex-start;
+      }
+    }
     @media (max-width: 480px) {
       .card .artist { font-size: 13px; }
       .card .title  { font-size: 12px; }
@@ -258,6 +288,20 @@
       .card .cat    { font-size: 9px; padding: 2px 6px; }
     }
     .card.is-sold .price { color: var(--muted); text-decoration: line-through; }
+
+    /* Show Details CTA — small text at the bottom of the card body so users
+       know the card is clickable. The whole card is the link target; this is
+       just a visual affordance. */
+    .card .cta {
+      margin-top: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      text-align: right;
+      letter-spacing: .2px;
+    }
+    .card .cta::after { content: " →"; }
+    .card:hover .cta { text-decoration: underline; }
 
     footer {
       text-align: center;
@@ -432,6 +476,7 @@
               ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
             </span>
           </div>
+          <div class="cta">Show details</div>
         </div>`;
       const heart = document.createElement("button");
       heart.type = "button";
