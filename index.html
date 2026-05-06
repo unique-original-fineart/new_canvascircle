@@ -610,10 +610,11 @@
             asking_price_usd, previous_price_usd, status, created_at, save_count,
             shipping_offered,
             listing_images ( storage_path, position ),
-            profiles!listings_seller_id_fkey ( display_name )
+            profiles!listings_seller_id_fkey!inner ( display_name, account_status )
           `)
           .eq("moderation_status", "approved")
           .in("status", ["available", "pending", "sold"])
+          .eq("profiles.account_status", "active")
           .order("created_at", { ascending: false }),
         getCurrentUserSaves(),
       ]);

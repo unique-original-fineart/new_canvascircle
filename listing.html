@@ -373,7 +373,7 @@
             seller_mood, last_renewed_at, created_at, seller_id, save_count,
             listing_images ( storage_path, position ),
             profiles!listings_seller_id_fkey (
-              display_name, location, facebook_profile_url, contact_email
+              display_name, location, facebook_profile_url, contact_email, account_status
             )
           `)
           .eq("listing_id", id)
@@ -390,6 +390,14 @@
         return;
       }
       if (!data) {
+        $status.textContent = "This listing isn't available.";
+        return;
+      }
+      // Hide the listing if the seller's account isn't active. Admins viewing
+      // their own seller's profile from the admin tab see this same gate —
+      // they should manage suspended sellers from /portal/, not the public page.
+      const sellerStatus = data.profiles?.account_status || "active";
+      if (sellerStatus !== "active") {
         $status.textContent = "This listing isn't available.";
         return;
       }
