@@ -1935,6 +1935,10 @@
     // Click "♥ N saves" → expand a list of who saved this listing.
     // RLS policy `saved_listings_select_seller` lets the seller read these
     // rows for their own listings only. Buyers' broader save sets stay private.
+    //
+    // Implementation note: saved_listings.user_id and profiles.user_id both
+    // reference auth.users(id) but there's no direct FK between them, so we
+    // can't use PostgREST's nested-select. We do two queries and merge.
     async function toggleSaversList(card, listing) {
       const $list = card.querySelector("[data-savers-list]");
       if (!$list) return;
@@ -1942,22 +1946,37 @@
       if (!$list.hidden) { $list.hidden = true; $list.innerHTML = ""; return; }
       $list.hidden = false;
       $list.innerHTML = `<span class="small">Loading…</span>`;
-      const { data, error } = await supabase
+
+      // 1) saved_listings rows for this listing.
+      const { data: saves, error: savesErr } = await supabase
         .from("saved_listings")
-        .select(`created_at, profiles ( display_name )`)
+        .select("user_id, created_at")
         .eq("listing_id", listing.listing_id)
         .order("created_at", { ascending: false });
-      if (error) {
-        $list.innerHTML = `<span class="small">Couldn't load: ${escapeHtml(error.message || error)}</span>`;
+      if (savesErr) {
+        $list.innerHTML = `<span class="small">Couldn't load: ${escapeHtml(savesErr.message || savesErr)}</span>`;
         return;
       }
-      const rows = data || [];
+      const rows = saves || [];
       if (rows.length === 0) {
         $list.innerHTML = `<span class="small">No saves yet.</span>`;
         return;
       }
+
+      // 2) profiles for those user_ids (in one batch).
+      const userIds = [...new Set(rows.map(r => r.user_id))];
+      const { data: profs, error: profErr } = await supabase
+        .from("profiles")
+        .select("user_id, display_name")
+        .in("user_id", userIds);
+      if (profErr) {
+        $list.innerHTML = `<span class="small">Couldn't load: ${escapeHtml(profErr.message || profErr)}</span>`;
+        return;
+      }
+      const profByUser = Object.fromEntries((profs || []).map(p => [p.user_id, p]));
+
       const items = rows.map(r => {
-        const name = r.profiles?.display_name || "Someone";
+        const name = profByUser[r.user_id]?.display_name || "Someone";
         const date = r.created_at
           ? new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
           : "";
