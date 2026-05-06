@@ -647,6 +647,70 @@
     }
     .seller-row label.toggle input { width: 16px; height: 16px; cursor: pointer; }
 
+    /* ------ Admin all-listings view ------ */
+    .admin-toolbar {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    @media (min-width: 720px) {
+      .admin-toolbar { grid-template-columns: 2fr 1fr 1fr 1fr auto; align-items: center; }
+    }
+    .admin-toolbar input[type="search"], .admin-toolbar select {
+      width: 100%; padding: 8px 11px;
+      border-radius: 8px; border: 1px solid var(--card-line);
+      background: #fff; color: var(--fg);
+      font-size: 13px; font-family: inherit; min-width: 0;
+    }
+    .admin-toolbar select { padding-right: 24px; }
+    .admin-toolbar input:focus, .admin-toolbar select:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(184,134,11,.15);
+    }
+
+    .all-listings-list { display: flex; flex-direction: column; gap: 8px; }
+    .all-listing-row {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      gap: 10px; align-items: start;
+      padding: 10px;
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      background: #fff;
+    }
+    @media (min-width: 720px) {
+      .all-listing-row { grid-template-columns: 56px 2fr 1fr auto; align-items: center; }
+    }
+    .all-listing-row .al-thumb {
+      width: 56px; height: 56px; border-radius: 7px; background: #f0ede6;
+      overflow: hidden; position: relative;
+    }
+    .all-listing-row .al-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .all-listing-row .al-meta strong { display: block; font-size: 14px; line-height: 1.25; }
+    .all-listing-row .al-meta .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .all-listing-row .al-meta .pills { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+    .all-listing-row .al-controls {
+      display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+      margin-top: 4px;
+    }
+    .all-listing-row .al-controls select {
+      padding: 5px 8px; border-radius: 6px;
+      border: 1px solid var(--card-line); background: #fff;
+      font-size: 12px; font-family: inherit; min-width: 0;
+    }
+    .all-listing-row .al-controls .view-link {
+      color: var(--accent); font-size: 12px; font-weight: 600;
+      text-decoration: none; white-space: nowrap;
+    }
+    .all-listing-row .al-controls .view-link:hover { text-decoration: underline; }
+    .all-listing-row .al-controls .btn-danger {
+      padding: 5px 10px; border-radius: 6px;
+      border: 1px solid #e8b3ad; background: #fef6f5; color: #8a1f1a;
+      font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
+    }
+    .all-listing-row .al-controls .btn-danger:hover { background: #fbe4e0; }
+
     /* ------ Saved-listings grid ------ */
     .saved-grid {
       display: grid;
@@ -1171,9 +1235,42 @@
 
           <section class="admin-section">
             <h3>Sellers <span class="count" id="sellers-count"></span></h3>
-            <p class="help">Toggle "Trusted" so a seller's new listings auto-publish without admin review.</p>
+            <p class="help">Toggle "Trusted" so a seller's new listings auto-publish without admin review. Suspend or ban accounts that violate marketplace rules.</p>
             <div id="sellers-loading" class="empty-state" hidden>Loading…</div>
             <div id="sellers-list" hidden></div>
+          </section>
+
+          <section class="admin-section">
+            <h3>All listings <span class="count" id="all-listings-count"></span></h3>
+            <p class="help">Every listing in the catalog. Filter, change moderation or status, or remove a problem listing. For deeper field edits use the Your listings tab or SQL editor.</p>
+
+            <form class="admin-toolbar" id="all-toolbar" onsubmit="return false;">
+              <input type="search" id="all-q" placeholder="Search title, artist, medium…" />
+              <select id="all-seller" title="Seller">
+                <option value="">All sellers</option>
+              </select>
+              <select id="all-status" title="Status">
+                <option value="">All statuses</option>
+                <option value="available">Available</option>
+                <option value="pending">Pending</option>
+                <option value="sold">Sold</option>
+                <option value="delisted">Delisted</option>
+                <option value="not_renewed">Not renewed</option>
+                <option value="rejected">Rejected</option>
+                <option value="pending_review">Pending review</option>
+              </select>
+              <select id="all-mod" title="Moderation">
+                <option value="">All moderation</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <button type="button" class="btn-secondary" id="all-clear">Clear</button>
+            </form>
+
+            <div id="all-listings-loading" class="empty-state" hidden>Loading…</div>
+            <div id="all-listings-empty"   class="empty-state" hidden>No listings match.</div>
+            <div id="all-listings-list" class="all-listings-list" hidden></div>
           </section>
         </div>
 
@@ -2473,7 +2570,7 @@
 
     async function loadAdminTab() {
       $adminBanner.hidden = true;
-      await Promise.all([loadModerationQueue(), loadSellers()]);
+      await Promise.all([loadModerationQueue(), loadSellers(), loadAllListings()]);
     }
 
     async function loadModerationQueue() {
@@ -2739,6 +2836,193 @@
         setAdminBanner("Could not ban: " + (err.message || err), "error");
       }
     }
+
+    // -----------------------------------------------------------------------
+    // Admin "All listings" section
+    // -----------------------------------------------------------------------
+    const $allListingsLoading = document.getElementById("all-listings-loading");
+    const $allListingsEmpty   = document.getElementById("all-listings-empty");
+    const $allListingsList    = document.getElementById("all-listings-list");
+    const $allListingsCount   = document.getElementById("all-listings-count");
+    const $allQ      = document.getElementById("all-q");
+    const $allSeller = document.getElementById("all-seller");
+    const $allStatus = document.getElementById("all-status");
+    const $allMod    = document.getElementById("all-mod");
+    const $allClear  = document.getElementById("all-clear");
+
+    let allAdminListings = [];
+
+    async function loadAllListings() {
+      $allListingsLoading.hidden = false;
+      $allListingsEmpty.hidden   = true;
+      $allListingsList.hidden    = true;
+      $allListingsList.innerHTML = "";
+
+      const { data, error } = await supabase
+        .from("listings")
+        .select(`
+          listing_id, artist_name, artwork_title, artwork_category,
+          asking_price_usd, status, moderation_status, created_at,
+          listing_images ( storage_path, position ),
+          profiles!listings_seller_id_fkey ( display_name, account_status )
+        `)
+        .order("created_at", { ascending: false });
+      $allListingsLoading.hidden = true;
+      if (error) {
+        setAdminBanner("Could not load listings: " + (error.message || error), "error");
+        return;
+      }
+      allAdminListings = data || [];
+
+      // Populate the seller filter from the unique sellers in this dataset.
+      const names = new Set();
+      for (const l of allAdminListings) {
+        const n = l.profiles?.display_name?.trim();
+        if (n) names.add(n);
+      }
+      const sortedNames = [...names].sort((a, b) => a.localeCompare(b));
+      $allSeller.innerHTML = `<option value="">All sellers</option>` +
+        sortedNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join("");
+
+      applyAllListingsFilter();
+    }
+
+    function applyAllListingsFilter() {
+      const q   = $allQ.value.trim().toLowerCase();
+      const sel = $allSeller.value;
+      const stf = $allStatus.value;
+      const mod = $allMod.value;
+      let rows = allAdminListings.slice();
+      if (sel) rows = rows.filter(l => (l.profiles?.display_name || "") === sel);
+      if (stf) rows = rows.filter(l => l.status === stf);
+      if (mod) rows = rows.filter(l => l.moderation_status === mod);
+      if (q) {
+        rows = rows.filter(l => {
+          const hay = `${l.artist_name || ""} ${l.artwork_title || ""}`.toLowerCase();
+          return hay.includes(q);
+        });
+      }
+      $allListingsCount.textContent = rows.length === allAdminListings.length
+        ? `(${rows.length})`
+        : `(${rows.length} of ${allAdminListings.length})`;
+      $allListingsList.innerHTML = "";
+      if (rows.length === 0) {
+        $allListingsEmpty.hidden = false;
+        $allListingsList.hidden = true;
+        return;
+      }
+      $allListingsEmpty.hidden = true;
+      const frag = document.createDocumentFragment();
+      for (const l of rows) frag.appendChild(renderAllListingRow(l));
+      $allListingsList.appendChild(frag);
+      $allListingsList.hidden = false;
+    }
+
+    function renderAllListingRow(l) {
+      const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
+      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      const seller = l.profiles?.display_name || "Unknown seller";
+      const sellerStatus = l.profiles?.account_status || "active";
+      const days = Math.max(0, Math.floor((Date.now() - new Date(l.created_at).getTime()) / 86400000));
+
+      const row = document.createElement("div");
+      row.className = "all-listing-row";
+      row.dataset.listingId = l.listing_id;
+      row.innerHTML = `
+        <div class="al-thumb">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />` : ""}</div>
+        <div class="al-meta">
+          <strong>${escapeHtml(l.artist_name || "Unknown")} – ${escapeHtml(l.artwork_title || "")}</strong>
+          <div class="sub">
+            ${escapeHtml(seller)}${sellerStatus !== "active" ? ` · <span style="color:#8a1f1a;">${escapeHtml(sellerStatus)}</span>` : ""}
+            · $${Number(l.asking_price_usd || 0).toLocaleString()}
+            · ${days === 0 ? "today" : days + "d ago"}
+          </div>
+          <div class="pills">
+            <span class="pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>
+            ${l.moderation_status && l.moderation_status !== "approved"
+              ? `<span class="pill">${escapeHtml(l.moderation_status)}</span>` : ""}
+          </div>
+        </div>
+        <div class="al-controls">
+          <a class="view-link" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View ↗</a>
+          <select data-action="set-mod" title="Moderation">
+            <option value="approved" ${l.moderation_status === "approved" ? "selected" : ""}>Approved</option>
+            <option value="pending"  ${l.moderation_status === "pending"  ? "selected" : ""}>Pending</option>
+            <option value="rejected" ${l.moderation_status === "rejected" ? "selected" : ""}>Rejected</option>
+          </select>
+          <select data-action="set-status" title="Status">
+            <option value="available" ${l.status === "available" ? "selected" : ""}>Available</option>
+            <option value="pending"   ${l.status === "pending"   ? "selected" : ""}>Pending</option>
+            <option value="sold"      ${l.status === "sold"      ? "selected" : ""}>Sold</option>
+            <option value="delisted"  ${l.status === "delisted"  ? "selected" : ""}>Delisted</option>
+            <option value="rejected"  ${l.status === "rejected"  ? "selected" : ""}>Rejected</option>
+            <option value="pending_review" ${l.status === "pending_review" ? "selected" : ""}>Pending review</option>
+          </select>
+          <button type="button" class="btn-danger" data-action="remove">Remove</button>
+        </div>
+      `;
+      row.querySelector("[data-action=set-mod]").addEventListener("change", (e) => updateAdminListing(row, l, { moderation_status: e.target.value }));
+      row.querySelector("[data-action=set-status]").addEventListener("change", (e) => updateAdminListing(row, l, { status: e.target.value }));
+      row.querySelector("[data-action=remove]").addEventListener("click", () => removeAdminListing(row, l));
+      return row;
+    }
+
+    async function updateAdminListing(row, listing, payload) {
+      try {
+        const { error } = await supabase
+          .from("listings")
+          .update(payload)
+          .eq("listing_id", listing.listing_id);
+        if (error) throw error;
+        Object.assign(listing, payload);
+        const idx = allAdminListings.findIndex(x => x.listing_id === listing.listing_id);
+        if (idx >= 0) Object.assign(allAdminListings[idx], payload);
+        // Update the visible pill on the row without a full re-render.
+        const pills = row.querySelector(".pills");
+        if (pills) {
+          pills.innerHTML = `
+            <span class="pill status-${listing.status}">${escapeHtml(statusLabel(listing.status))}</span>
+            ${listing.moderation_status && listing.moderation_status !== "approved"
+              ? `<span class="pill">${escapeHtml(listing.moderation_status)}</span>` : ""}
+          `;
+        }
+        setAdminBanner(`Updated: ${listing.artist_name} – ${listing.artwork_title}.`, "success");
+        if (payload.moderation_status) refreshModerationBadge();
+      } catch (err) {
+        console.error("[updateAdminListing] failed:", err);
+        setAdminBanner("Could not update: " + (err.message || err), "error");
+      }
+    }
+
+    async function removeAdminListing(row, listing) {
+      const label = `${listing.artist_name || "Unknown"} – ${listing.artwork_title || "Untitled"}`;
+      if (!confirm(`Remove "${label}"?\n\nDeletes the listing + image permanently. Cannot be undone.`)) return;
+      try {
+        const paths = (listing.listing_images || [])
+          .map(i => i.storage_path)
+          .filter(p => p && !/^https?:\/\//i.test(p));
+        if (paths.length) {
+          try { await supabase.storage.from("listing-images").remove(paths); }
+          catch (e) { console.warn("[removeAdminListing] storage cleanup failed:", e); }
+        }
+        const { error } = await supabase.from("listings").delete().eq("listing_id", listing.listing_id);
+        if (error) throw error;
+        allAdminListings = allAdminListings.filter(x => x.listing_id !== listing.listing_id);
+        row.remove();
+        setAdminBanner(`Removed "${label}".`, "success");
+        applyAllListingsFilter(); // refresh count
+        refreshModerationBadge();
+      } catch (err) {
+        console.error("[removeAdminListing] failed:", err);
+        setAdminBanner("Could not remove: " + (err.message || err), "error");
+      }
+    }
+
+    [$allQ, $allSeller, $allStatus, $allMod].forEach(el => el.addEventListener("input", applyAllListingsFilter));
+    $allClear.addEventListener("click", () => {
+      $allQ.value = ""; $allSeller.value = ""; $allStatus.value = ""; $allMod.value = "";
+      applyAllListingsFilter();
+    });
 
     async function reinstateSeller(profile) {
       const wasBanned = profile.account_status === "banned";
