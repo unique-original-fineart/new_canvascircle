@@ -273,14 +273,11 @@
     .card .cat.edition { background: #d6e6f7; color: #1f4a78; border-color: #a8c8e3; }
     .card .cat.sold    { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
 
-    /* On mobile, force pills to a separate row below the price. Without this,
-       a price + strikethrough prev + sold pill + category pill collide into
-       overlapping text on a 180px-wide card. */
-    @media (max-width: 600px) {
-      .card .price-row .pills {
-        flex: 0 0 100%;
-        justify-content: flex-start;
-      }
+    /* Pills always live on their own row below the price — keeps card heights
+       uniform whether or not there's a price drop / strikethrough showing. */
+    .card .price-row .pills {
+      flex: 0 0 100%;
+      justify-content: flex-start;
     }
     @media (max-width: 480px) {
       .card .artist { font-size: 13px; }

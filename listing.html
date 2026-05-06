@@ -354,7 +354,7 @@
           .from("listings")
           .select(`
             listing_id, artist_name, artwork_title, artwork_category, medium, year_created,
-            height_in, width_in, depth_in, condition_notes, provenance, description,
+            height_in, width_in, depth_in, framed_size, condition_notes, provenance, description,
             asking_price_usd, previous_price_usd, price_updated_at,
             shipping_offered, coa_included, status, moderation_status,
             seller_mood, last_renewed_at, created_at, seller_id, save_count,
@@ -381,6 +381,24 @@
         return;
       }
       render(data, userSaves);
+      logListingView(data);
+    }
+
+    // Log a single view of this listing — fire-and-forget, never blocks the
+    // render. Skip if the current user IS the seller (we don't count owner
+    // views). Anonymous viewers are tracked with a null user id.
+    async function logListingView(listing) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && user.id === listing.seller_id) return;  // skip seller's own
+        await supabase.from("listing_views").insert({
+          listing_id:     listing.listing_id,
+          viewer_user_id: user?.id || null,
+        });
+      } catch (e) {
+        // Don't surface errors — view tracking is non-essential.
+        console.warn("[view] log failed:", e);
+      }
     }
 
     function render(l, userSaves) {
@@ -433,7 +451,8 @@
 
             <div class="meta">
               <dl>
-                ${dims        ? `<dt>Artwork size</dt><dd>${escapeHtml(dims)}</dd>` : ""}
+                ${dims        ? `<dt>Artwork Size (Inches)</dt><dd>${escapeHtml(dims.replace(/ in$/, ""))}</dd>` : ""}
+                ${l.framed_size ? `<dt>Frame Size (Inches)</dt><dd>${escapeHtml(l.framed_size)}</dd>` : ""}
                 ${l.medium    ? `<dt>Medium</dt><dd>${escapeHtml(l.medium)}</dd>` : ""}
                 ${l.year_created ? `<dt>Year</dt><dd>${escapeHtml(l.year_created)}</dd>` : ""}
                 <dt>Shipping included</dt><dd>${escapeHtml(l.shipping_offered || "—")}</dd>
