@@ -175,6 +175,19 @@
     .seller-actions a.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
     .seller-actions a:hover  { filter: brightness(.97); }
 
+    .buying-tips-nudge {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #fbf6e9;
+      border: 1px solid #e9dcad;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #5a4400;
+      line-height: 1.45;
+    }
+    .buying-tips-nudge a { color: var(--accent); font-weight: 600; }
+    .buying-tips-nudge a:hover { text-decoration: underline; }
+
     .listed-line { color: var(--muted); font-size: 13px; margin-top: 14px; }
 
     /* Lightbox */
@@ -471,6 +484,10 @@
                 ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">Message on Facebook</a>` : ""}
                 ${seller.contact_email ? `<a id="email-seller-link" href="#" target="_blank" rel="noopener">Email Seller</a>` : ""}
               </div>
+              ${(fbUrl || seller.contact_email) ? `
+                <div class="buying-tips-nudge">
+                  Before you reach out — <a href="/guidelines.html" target="_blank" rel="noopener">read the buying tips ↗</a> for a smoother, safer transaction.
+                </div>` : ""}
             </div>
 
             ${days != null ? `<div class="listed-line">Listed ${days === 0 ? "today" : days === 1 ? "1 day ago" : `${days} days ago`}.</div>` : ""}
