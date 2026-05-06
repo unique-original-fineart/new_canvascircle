@@ -260,7 +260,8 @@
     }
     .card .price-row .left  { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; }
     .card .price-row .pills { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-    .card .price  { font-weight: 600; font-size: 14px; white-space: nowrap; }
+    .card .price  { font-weight: 600; font-size: 14px; white-space: nowrap; color: var(--fg); }
+    .card .price .ship-suffix { font-weight: 500; font-size: 12px; color: var(--fg); }
     .card .prev   { color: var(--muted); text-decoration: line-through; font-size: 12px; }
     .card .cat    {
       font-size: 10px; font-weight: 700; letter-spacing: .3px;
@@ -462,14 +463,17 @@
       const isSold   = listing.status === "sold";
       const saved    = !!(userSavesSet && userSavesSet.has(listing.listing_id));
       const saveN    = Number(listing.save_count || 0);
+      const shipSuffix = !isSold
+        ? (listing.shipping_offered === "Yes" ? " shipped" : " + shipping")
+        : "";
       card.innerHTML = `
-        <div class="img">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}</div>
+        <div class="img">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />` : ""}</div>
         <div class="body">
           <div class="artist">${escapeHtml(listing.artist_name || "Unknown")}</div>
           <div class="title">${escapeHtml(listing.artwork_title || "")}</div>
           <div class="price-row">
             <span class="left">
-              <span class="price">$${price}</span>${prev ? `<span class="prev">$${prev}</span>` : ""}
+              <span class="price">$${price}<span class="ship-suffix">${shipSuffix}</span></span>${prev ? `<span class="prev">$${prev}</span>` : ""}
             </span>
             <span class="pills">
               ${isSold ? `<span class="cat sold">SOLD</span>` : ""}
@@ -611,6 +615,7 @@
           .select(`
             listing_id, artist_name, artwork_title, artwork_category,
             asking_price_usd, previous_price_usd, status, created_at, save_count,
+            shipping_offered,
             listing_images ( storage_path, position ),
             profiles!listings_seller_id_fkey ( display_name )
           `)

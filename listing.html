@@ -215,7 +215,7 @@
   <script type="module" src="/lib/nav-auth.js"></script>
 
   <main>
-    <a class="back" href="/">&larr; Back to catalog</a>
+    <a class="back" id="back-link" href="/">&larr; Back to catalog</a>
     <div id="status">Loading listing&hellip;</div>
     <div id="content" hidden></div>
   </main>
@@ -245,6 +245,34 @@
       const params = new URLSearchParams(window.location.search);
       return params.get("id");
     }
+
+    // Smart back link — if the user came from /portal/, sending them back via
+    // history preserves their tab + scroll position. Otherwise the link
+    // remains "Back to catalog" pointing at /.
+    (function setupBackLink() {
+      const $back = document.getElementById("back-link");
+      if (!$back) return;
+      const fromPortal = (() => {
+        try {
+          const r = document.referrer;
+          if (!r) return false;
+          const ru = new URL(r);
+          return ru.origin === window.location.origin && ru.pathname.startsWith("/portal");
+        } catch { return false; }
+      })();
+      if (fromPortal) {
+        $back.textContent = "← Back to your portal";
+        $back.href = "/portal/";
+        $back.addEventListener("click", (e) => {
+          // Use history.back so the user lands on the exact tab/scroll they
+          // left, but keep href as /portal/ as a fallback for new tabs etc.
+          if (window.history.length > 1) {
+            e.preventDefault();
+            window.history.back();
+          }
+        });
+      }
+    })();
 
     function escapeHtml(s) {
       return String(s ?? "").replace(/[&<>"']/g, c => ({
@@ -398,7 +426,8 @@
                 ? `<span class="badge ${l.artwork_category === "Unique/Original" ? "cat-unique"
                     : l.artwork_category === "Limited Edition" ? "cat-edition" : ""}">${escapeHtml(l.artwork_category)}</span>`
                 : ""}
-              <span class="badge ${sb.cls}">${escapeHtml(sb.label)}</span>
+              ${l.status !== "available"
+                ? `<span class="badge ${sb.cls}">${escapeHtml(sb.label)}</span>` : ""}
               ${l.seller_mood ? `<span class="badge mood">${escapeHtml(l.seller_mood)}</span>` : ""}
             </div>
 

@@ -380,6 +380,14 @@
       gap: 8px;
     }
     .listing-card .form-grid .span-2 { grid-column: 1 / -1; }
+    .listing-card .replace-image-row {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .listing-card .replace-image-row .replace-status {
+      font-size: 11px; color: var(--muted);
+    }
+    .listing-card .replace-image-row .replace-status.err { color: var(--red); }
+    .listing-card .replace-image-row .replace-status.ok  { color: var(--green); }
     .listing-card .form-grid label { font-size: 12px; margin-bottom: 3px; }
     .listing-card .form-grid input,
     .listing-card .form-grid select,
@@ -783,7 +791,9 @@
     <div class="card">
 
       <!-- ============ SIGN IN ============ -->
-      <section data-view="signin">
+      <!-- Starts hidden so signed-in users don't see a flash of the form
+           while the page checks the session. JS init reveals the right view. -->
+      <section data-view="signin" hidden>
         <h1>Sign in</h1>
         <p class="lede">Sign in to your CanvasCircle account.</p>
 
@@ -1616,6 +1626,11 @@
             <label>Seller notes / Description</label>
             <textarea data-field="description" rows="4">${escapeHtml(l.description || "")}</textarea>
           </div>
+          <div class="span-2 replace-image-row">
+            <button type="button" class="btn-secondary" data-action="replace-image-btn">Replace image</button>
+            <input type="file" accept="image/*" data-action="replace-image-input" hidden />
+            <span class="replace-status"></span>
+          </div>
         </div>
 
         <div class="card-footer">
@@ -1645,6 +1660,86 @@
       card.querySelector("[data-action=save]").addEventListener("click", () => saveCard(card));
       card.querySelector("[data-action=reset]").addEventListener("click", () => resetCard(card, listing));
       card.querySelector("[data-action=remove]")?.addEventListener("click", () => removeCard(card, listing));
+
+      // Replace image flow — button opens hidden file picker; on change we
+      // compress + upload + swap the listing_images row + refresh the thumb.
+      const $replaceBtn   = card.querySelector("[data-action=replace-image-btn]");
+      const $replaceInput = card.querySelector("[data-action=replace-image-input]");
+      $replaceBtn?.addEventListener("click", () => $replaceInput?.click());
+      $replaceInput?.addEventListener("change", async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file) return;
+        await replaceCardImage(card, listing, file);
+      });
+    }
+
+    async function replaceCardImage(card, listing, file) {
+      const id = card.dataset.listingId;
+      const $status = card.querySelector(".replace-status");
+      const $btn    = card.querySelector("[data-action=replace-image-btn]");
+      function setStatus(text, kind) {
+        $status.textContent = text;
+        $status.className = "replace-status" + (kind ? " " + kind : "");
+      }
+      try {
+        if (!file.type.startsWith("image/")) throw new Error("Pick an image file.");
+        if (file.size > 25 * 1024 * 1024)    throw new Error("Image is over 25MB.");
+        $btn.disabled = true;
+        setStatus("Compressing…");
+        const blob = await compressImage(file, 1200, 0.80);
+        setStatus("Uploading…");
+        const newPath = `${id}/0-${Date.now()}.jpg`;
+        const { error: uploadErr } = await supabase.storage
+          .from("listing-images")
+          .upload(newPath, blob, { contentType: "image/jpeg", upsert: false });
+        if (uploadErr) throw uploadErr;
+
+        // Update existing listing_images row (or insert if none).
+        const { data: rows } = await supabase
+          .from("listing_images")
+          .select("id, storage_path")
+          .eq("listing_id", id)
+          .order("position", { ascending: true })
+          .limit(1);
+        const oldPath = rows?.[0]?.storage_path;
+        if (rows && rows.length) {
+          const { error } = await supabase
+            .from("listing_images")
+            .update({ storage_path: newPath })
+            .eq("id", rows[0].id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from("listing_images")
+            .insert({ listing_id: id, storage_path: newPath, position: 0 });
+          if (error) throw error;
+        }
+
+        // Best-effort cleanup of the old file (skip if external URL).
+        if (oldPath && !/^https?:\/\//i.test(oldPath)) {
+          try { await supabase.storage.from("listing-images").remove([oldPath]); }
+          catch (e) { console.warn("[replace-image] old cleanup failed:", e); }
+        }
+
+        // Update local + bootstrap state so thumb + future renders are correct.
+        listing.listing_images = [{ storage_path: newPath, position: 0 }];
+        const idx = allListings.findIndex(x => x.listing_id === id);
+        if (idx >= 0) allListings[idx].listing_images = [{ storage_path: newPath, position: 0 }];
+
+        // Repaint the card thumb immediately.
+        const $thumb = card.querySelector(".card-thumb");
+        if ($thumb) {
+          $thumb.innerHTML = `<img src="${publicImageUrl(newPath)}" alt="" decoding="async" />`;
+        }
+        setStatus("Updated.", "ok");
+        setTimeout(() => setStatus(""), 3000);
+      } catch (err) {
+        console.error("[replaceCardImage] failed:", err);
+        setStatus("Failed: " + (err.message || err), "err");
+      } finally {
+        $btn.disabled = false;
+      }
     }
 
     async function removeCard(card, listing) {
@@ -1754,13 +1849,19 @@
       const saveBtn = card.querySelector("[data-action=save]");
       const orig = saveBtn.textContent;
       saveBtn.disabled = true; saveBtn.textContent = "Saving…";
+
+      // Timeout safety net — Supabase JS occasionally hangs on internal locks;
+      // never let a stuck Save hold the UI hostage.
+      const TIMEOUT_MS = 15000;
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Save timed out. Please try again.")), TIMEOUT_MS)
+      );
       try {
-        const { error } = await supabase
-          .from("listings")
-          .update(payload)
-          .eq("listing_id", id);
-        if (error) throw error;
-        // update bootstrap copy
+        const result = await Promise.race([
+          supabase.from("listings").update(payload).eq("listing_id", id),
+          timeout,
+        ]);
+        if (result?.error) throw result.error;
         const idx = allListings.findIndex(x => x.listing_id === id);
         if (idx >= 0) Object.assign(allListings[idx], payload);
         markDirty(card, false);
@@ -2680,7 +2781,7 @@
 
         // 2) Compress + upload the image.
         $nlSubmitBtn.textContent = "Compressing image…";
-        const blob = await compressImage(nlSelectedFile, 1500, 0.85);
+        const blob = await compressImage(nlSelectedFile, 1200, 0.80);
         $nlSubmitBtn.textContent = "Uploading image…";
         const path = `${newId}/0-${Date.now()}.jpg`;
         const { error: uploadErr } = await supabase.storage
