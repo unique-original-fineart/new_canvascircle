@@ -512,6 +512,81 @@
     .tab-panel { display: none; }
     .tab-panel.is-active { display: block; }
 
+    /* ------ Admin tab ------ */
+    .admin-section {
+      background: #fff;
+      border: 1px solid var(--card-line);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+    }
+    .admin-section h3 {
+      margin: 0 0 12px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .admin-section h3 .count { color: var(--muted); font-weight: 400; font-size: 14px; }
+    .admin-section .help { color: var(--muted); font-size: 13px; margin: -4px 0 12px; }
+
+    .mod-list { display: flex; flex-direction: column; gap: 10px; }
+    .mod-item {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 12px;
+      padding: 10px;
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      background: #fbf9f4;
+    }
+    .mod-item .mod-thumb {
+      width: 80px; height: 80px; border-radius: 8px; background: #f0ede6;
+      overflow: hidden; position: relative;
+    }
+    .mod-item .mod-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .mod-item .mod-meta strong { display: block; font-size: 14px; }
+    .mod-item .mod-sub { color: var(--muted); font-size: 12px; margin-top: 3px; }
+    .mod-item .mod-desc {
+      font-size: 13px; margin-top: 6px; color: var(--fg);
+      overflow: hidden; text-overflow: ellipsis;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    }
+    .mod-item .mod-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .mod-item .btn-approve {
+      padding: 7px 14px; border-radius: 7px;
+      border: 1px solid #1f5b32; background: #1f5b32; color: #fff;
+      font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+    }
+    .mod-item .btn-approve:hover { filter: brightness(.92); }
+    .mod-item .btn-reject {
+      padding: 7px 14px; border-radius: 7px;
+      border: 1px solid #e8b3ad; background: #fef6f5; color: #8a1f1a;
+      font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+    }
+    .mod-item .btn-reject:hover { background: #fbe4e0; }
+
+    .seller-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--card-line);
+    }
+    .seller-row:last-child { border-bottom: none; }
+    .seller-row .seller-info strong { font-size: 14px; }
+    .seller-row .seller-info .small { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .seller-row .seller-info .pill {
+      display: inline-block; margin-left: 6px;
+      font-size: 10px; font-weight: 700;
+      padding: 2px 7px; border-radius: 999px;
+      background: #e6e0f0; color: #4a3478; border: 1px solid #cdc1e5;
+    }
+    .seller-row label.toggle {
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; font-size: 13px; color: var(--fg);
+      user-select: none;
+    }
+    .seller-row label.toggle input { width: 16px; height: 16px; cursor: pointer; }
+
     /* ------ Saved-listings grid ------ */
     .saved-grid {
       display: grid;
@@ -921,6 +996,7 @@
           <button type="button" class="tab-btn is-active" data-tab="your-listings" role="tab">Your listings</button>
           <button type="button" class="tab-btn" data-tab="saved-listings" role="tab">Saved listings <span id="saved-count-badge" class="count" style="margin-left:4px;"></span></button>
           <button type="button" class="tab-btn" data-tab="profile" role="tab">Profile</button>
+          <button type="button" class="tab-btn" data-tab="admin" role="tab" id="admin-tab-btn" hidden>Admin <span id="admin-pending-badge" class="count" style="margin-left:4px;"></span></button>
         </div>
 
         <!-- Tab: Your listings -->
@@ -1011,6 +1087,29 @@
             You haven't saved any listings yet. Click the heart on any listing in the catalog to save it here.
           </div>
           <div id="saved-grid" class="saved-grid" hidden></div>
+        </div>
+
+        <!-- Tab: Admin (only visible when profile.is_admin = true) -->
+        <div class="tab-panel" data-tab-panel="admin">
+          <div class="dash-head">
+            <h2>Admin</h2>
+          </div>
+
+          <section class="admin-section">
+            <h3>Moderation queue <span class="count" id="mod-count"></span></h3>
+            <p class="help">Listings submitted by non-trusted sellers. Approve sends them live in the public catalog; Reject hides them.</p>
+            <div id="mod-loading" class="empty-state" hidden>Loading…</div>
+            <div id="mod-empty" class="empty-state" hidden>No listings pending review.</div>
+            <div id="mod-list" class="mod-list" hidden></div>
+            <div id="admin-banner" class="banner" hidden style="margin-top: 10px; white-space: pre-line;"></div>
+          </section>
+
+          <section class="admin-section">
+            <h3>Sellers <span class="count" id="sellers-count"></span></h3>
+            <p class="help">Toggle "Trusted" so a seller's new listings auto-publish without admin review.</p>
+            <div id="sellers-loading" class="empty-state" hidden>Loading…</div>
+            <div id="sellers-list" hidden></div>
+          </section>
         </div>
 
         <div class="quicklinks" style="margin-top: 18px;">
@@ -1441,9 +1540,14 @@
       $whoEmail.textContent = session.user.email || "";
       const profile = await currentProfile();
       $whoName.textContent = profile?.display_name || "Welcome";
+      // Reveal Admin tab if this user is admin.
+      const $adminBtn = document.getElementById("admin-tab-btn");
+      if ($adminBtn) $adminBtn.hidden = !(profile?.is_admin);
       await loadDashboardListings(session.user.id);
       // Fire-and-forget the saved-listings fetch so the badge count populates.
       loadSavedListings(true);
+      // For admins, fetch the moderation count once so the badge shows.
+      if (profile?.is_admin) refreshModerationBadge();
     }
 
     // -----------------------------------------------------------------------
@@ -2059,8 +2163,216 @@
       for (const p of $tabPanels) p.classList.toggle("is-active", p.dataset.tabPanel === name);
       if (name === "saved-listings") loadSavedListings();
       if (name === "profile")        loadProfileForm();
+      if (name === "admin")          loadAdminTab();
     }
     $tabBtns.forEach(b => b.addEventListener("click", () => activateTab(b.dataset.tab)));
+
+    // -----------------------------------------------------------------------
+    // Admin tab — moderation queue + trusted sellers
+    // -----------------------------------------------------------------------
+    const $modList         = document.getElementById("mod-list");
+    const $modCount        = document.getElementById("mod-count");
+    const $modLoading      = document.getElementById("mod-loading");
+    const $modEmpty        = document.getElementById("mod-empty");
+    const $sellersList     = document.getElementById("sellers-list");
+    const $sellersCount    = document.getElementById("sellers-count");
+    const $sellersLoading  = document.getElementById("sellers-loading");
+    const $adminBanner     = document.getElementById("admin-banner");
+    const $adminPendingBadge = document.getElementById("admin-pending-badge");
+
+    function setAdminBanner(text, kind) {
+      $adminBanner.textContent = text;
+      $adminBanner.className = "banner" + (kind ? " " + kind : "");
+      $adminBanner.hidden = false;
+    }
+
+    async function refreshModerationBadge() {
+      const { count } = await supabase
+        .from("listings")
+        .select("listing_id", { count: "exact", head: true })
+        .eq("moderation_status", "pending");
+      $adminPendingBadge.textContent = count ? `(${count})` : "";
+    }
+
+    async function loadAdminTab() {
+      $adminBanner.hidden = true;
+      await Promise.all([loadModerationQueue(), loadSellers()]);
+    }
+
+    async function loadModerationQueue() {
+      $modLoading.hidden = false;
+      $modEmpty.hidden   = true;
+      $modList.hidden    = true;
+      $modList.innerHTML = "";
+      const { data, error } = await supabase
+        .from("listings")
+        .select(`
+          listing_id, artist_name, artwork_title, artwork_category,
+          asking_price_usd, description, status, moderation_status, created_at,
+          listing_images ( storage_path, position ),
+          profiles!listings_seller_id_fkey ( display_name, contact_email )
+        `)
+        .eq("moderation_status", "pending")
+        .order("created_at", { ascending: true });
+      $modLoading.hidden = true;
+      if (error) {
+        setAdminBanner("Could not load moderation queue: " + (error.message || error), "error");
+        return;
+      }
+      const rows = data || [];
+      $modCount.textContent = rows.length ? `(${rows.length})` : "";
+      $adminPendingBadge.textContent = rows.length ? `(${rows.length})` : "";
+      if (rows.length === 0) { $modEmpty.hidden = false; return; }
+      const frag = document.createDocumentFragment();
+      for (const l of rows) frag.appendChild(renderModItem(l));
+      $modList.appendChild(frag);
+      $modList.hidden = false;
+    }
+
+    function renderModItem(l) {
+      const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
+      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      const seller = l.profiles?.display_name || "Unknown";
+      const email  = l.profiles?.contact_email || "";
+      const days   = Math.max(0, Math.floor((Date.now() - new Date(l.created_at).getTime()) / 86400000));
+      const item = document.createElement("div");
+      item.className = "mod-item";
+      item.dataset.listingId = l.listing_id;
+      item.innerHTML = `
+        <div class="mod-thumb">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />` : ""}</div>
+        <div class="mod-meta">
+          <strong>${escapeHtml(l.artist_name || "Unknown")} – ${escapeHtml(l.artwork_title || "")}</strong>
+          <div class="mod-sub">
+            ${escapeHtml(seller)}${email ? ` · ${escapeHtml(email)}` : ""}
+            · $${Number(l.asking_price_usd || 0).toLocaleString()}
+            · ${escapeHtml(l.artwork_category || "")}
+            · ${days === 0 ? "submitted today" : `submitted ${days}d ago`}
+          </div>
+          ${l.description ? `<div class="mod-desc">${escapeHtml(l.description)}</div>` : ""}
+          <div class="mod-actions">
+            <a href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener" class="view-link" style="color:var(--accent); font-size:13px; font-weight:600; text-decoration:none; align-self:center;">Preview ↗</a>
+            <button type="button" class="btn-approve" data-action="approve">Approve</button>
+            <button type="button" class="btn-reject"  data-action="reject">Reject</button>
+          </div>
+        </div>
+      `;
+      item.querySelector("[data-action=approve]").addEventListener("click", () => moderateListing(item, l, "approve"));
+      item.querySelector("[data-action=reject]").addEventListener("click",  () => moderateListing(item, l, "reject"));
+      return item;
+    }
+
+    async function moderateListing(item, listing, decision) {
+      const id = listing.listing_id;
+      const payload = decision === "approve"
+        ? { moderation_status: "approved", status: "available" }
+        : { moderation_status: "rejected", status: "rejected" };
+      const buttons = item.querySelectorAll("button");
+      buttons.forEach(b => { b.disabled = true; });
+      try {
+        const { error } = await supabase
+          .from("listings")
+          .update(payload)
+          .eq("listing_id", id);
+        if (error) throw error;
+        // Remove the row from the queue UI; refresh badge count.
+        item.remove();
+        const remaining = $modList.querySelectorAll(".mod-item").length;
+        $modCount.textContent = remaining ? `(${remaining})` : "";
+        $adminPendingBadge.textContent = remaining ? `(${remaining})` : "";
+        if (remaining === 0) { $modEmpty.hidden = false; $modList.hidden = true; }
+        setAdminBanner(
+          decision === "approve"
+            ? `Approved "${listing.artist_name} – ${listing.artwork_title}". It's live on the catalog now.`
+            : `Rejected "${listing.artist_name} – ${listing.artwork_title}".`,
+          "success"
+        );
+      } catch (err) {
+        console.error("[moderateListing] failed:", err);
+        setAdminBanner("Could not " + decision + ": " + (err.message || err), "error");
+        buttons.forEach(b => { b.disabled = false; });
+      }
+    }
+
+    async function loadSellers() {
+      $sellersLoading.hidden = false;
+      $sellersList.hidden    = true;
+      $sellersList.innerHTML = "";
+      // Pull profiles with their listing counts via a join.
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(`
+          user_id, display_name, contact_email, location,
+          is_trusted, is_admin, created_at
+        `)
+        .order("display_name", { ascending: true });
+      $sellersLoading.hidden = true;
+      if (error) {
+        setAdminBanner("Could not load sellers: " + (error.message || error), "error");
+        return;
+      }
+      const rows = data || [];
+      $sellersCount.textContent = rows.length ? `(${rows.length})` : "";
+      // Fetch listing counts in parallel.
+      const counts = await Promise.all(rows.map(p =>
+        supabase.from("listings")
+          .select("listing_id", { count: "exact", head: true })
+          .eq("seller_id", p.user_id)
+          .then(r => r.count || 0)
+      ));
+      const frag = document.createDocumentFragment();
+      rows.forEach((p, i) => frag.appendChild(renderSellerRow(p, counts[i])));
+      $sellersList.appendChild(frag);
+      $sellersList.hidden = false;
+    }
+
+    function renderSellerRow(profile, listingCount) {
+      const row = document.createElement("div");
+      row.className = "seller-row";
+      const joined = profile.created_at
+        ? new Date(profile.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+        : "—";
+      row.innerHTML = `
+        <div class="seller-info">
+          <strong>${escapeHtml(profile.display_name || "(no name)")}${profile.is_admin ? ` <span class="pill">admin</span>` : ""}</strong>
+          <div class="small">
+            ${escapeHtml(profile.contact_email || "")}
+            ${profile.location ? ` · ${escapeHtml(profile.location)}` : ""}
+            · ${listingCount} listing${listingCount === 1 ? "" : "s"}
+            · joined ${joined}
+          </div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" data-user-id="${profile.user_id}" ${profile.is_trusted ? "checked" : ""} />
+          Trusted
+        </label>
+      `;
+      const cb = row.querySelector("input[type=checkbox]");
+      cb.addEventListener("change", () => toggleTrusted(profile, cb));
+      return row;
+    }
+
+    async function toggleTrusted(profile, checkbox) {
+      const newValue = checkbox.checked;
+      checkbox.disabled = true;
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ is_trusted: newValue })
+          .eq("user_id", profile.user_id);
+        if (error) throw error;
+        profile.is_trusted = newValue;
+        setAdminBanner(
+          `${profile.display_name || "Seller"} is ${newValue ? "now trusted" : "no longer trusted"}.`,
+          "success"
+        );
+      } catch (err) {
+        console.error("[toggleTrusted] failed:", err);
+        checkbox.checked = !newValue; // revert
+        setAdminBanner("Could not update trusted status: " + (err.message || err), "error");
+      } finally {
+        checkbox.disabled = false;
+      }
+    }
 
     // -----------------------------------------------------------------------
     // Profile tab — load / save FB URL, location, display name, contact email
