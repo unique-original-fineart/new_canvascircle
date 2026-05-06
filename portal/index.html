@@ -252,16 +252,14 @@
     }
     button.btn-secondary:hover, a.btn-secondary:hover { border-color: var(--accent); }
 
-    /* 2-up grid on every viewport ≥ 400px; 1-up only on the narrowest phones. */
+    /* 2-up grid on every viewport — keep cards consistent and easy to scan. */
     .listing-list {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
       margin-top: 8px;
     }
-    @media (min-width: 400px) {
-      .listing-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-    }
+    @media (min-width: 720px) { .listing-list { gap: 14px; } }
     .listing-row {
       display: grid;
       grid-template-columns: 72px 1fr auto;
@@ -520,6 +518,31 @@
 
     /* Account view banner — sits above the listings */
     #dashboard-banner.banner { display: block; margin: 0 0 12px; white-space: pre-line; }
+
+    /* Account-status banner (suspended / banned) */
+    .status-banner {
+      padding: 14px 16px;
+      border-radius: 10px;
+      margin: 4px 0 16px;
+    }
+    .status-banner h3 { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
+    .status-banner p  { margin: 0; font-size: 14px; line-height: 1.5; }
+    .status-banner.suspended { background: #fff4e2; border: 1px solid #f0d6a3; color: #5a4400; }
+    .status-banner.banned    { background: #fef6f5; border: 1px solid #f1c4be; color: #8a1f1a; }
+
+    /* Suspend / Ban / Reinstate buttons in admin Sellers list */
+    .seller-row .seller-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .seller-row .seller-actions button {
+      padding: 6px 11px; border-radius: 7px;
+      font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
+    }
+    .seller-row .btn-suspend { border: 1px solid #f0d6a3; background: #fff4e2; color: #5a4400; }
+    .seller-row .btn-suspend:hover { background: #fbe9c7; }
+    .seller-row .btn-ban     { border: 1px solid #e8b3ad; background: #fef6f5; color: #8a1f1a; }
+    .seller-row .btn-ban:hover { background: #fbe4e0; }
+    .seller-row .btn-reinstate { border: 1px solid #a8d9b8; background: #d6efdf; color: #1f5b32; }
+    .seller-row .btn-reinstate:hover { background: #c0e3cb; }
+    .seller-row .seller-actions button:disabled { opacity: .55; cursor: not-allowed; }
 
     /* ------ Tab strip ------ */
     .tab-strip {
@@ -1028,6 +1051,9 @@
           <button type="button" class="ghost" id="signout-btn">Sign out</button>
         </div>
 
+        <!-- Account status banner (suspended / banned) -->
+        <div id="account-status-banner" class="status-banner" hidden></div>
+
         <!-- Tabs -->
         <div class="tab-strip" role="tablist">
           <button type="button" class="tab-btn is-active" data-tab="your-listings" role="tab">Your listings</button>
@@ -1336,6 +1362,21 @@
     }
     document.querySelectorAll("[data-go]").forEach(b => {
       b.addEventListener("click", (e) => {
+        // Suspended / banned accounts can't post new listings or build sales
+        // posts. We let them stay on the dashboard so they can still see /
+        // edit existing listings and update their profile.
+        const status = currentProfileCached?.account_status;
+        if ((b.dataset.go === "new-listing" || b.dataset.go === "sales-post")
+            && (status === "suspended" || status === "banned")) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          alert(
+            status === "banned"
+              ? "Your account is banned and cannot post listings."
+              : "Your account is suspended. You can't post new listings until reinstated."
+          );
+          return;
+        }
         // Profile-completeness gate: trying to post a listing without a
         // display name + at least one contact channel redirects them to the
         // Profile tab in edit mode with an explanation.
@@ -1600,11 +1641,40 @@
       // Reveal Admin tab if this user is admin.
       const $adminBtn = document.getElementById("admin-tab-btn");
       if ($adminBtn) $adminBtn.hidden = !(profile?.is_admin);
+
+      // Render account-status banner (suspended / banned).
+      renderAccountStatusBanner(profile);
+
       await loadDashboardListings(session.user.id);
       // Fire-and-forget the saved-listings fetch so the badge count populates.
       loadSavedListings(true);
       // For admins, fetch the moderation count once so the badge shows.
       if (profile?.is_admin) refreshModerationBadge();
+    }
+
+    function renderAccountStatusBanner(profile) {
+      const $sb = document.getElementById("account-status-banner");
+      if (!$sb) return;
+      const status = profile?.account_status;
+      if (status === "suspended") {
+        $sb.hidden = false;
+        $sb.className = "status-banner suspended";
+        $sb.innerHTML = `
+          <h3>Your account is suspended until further notice.</h3>
+          <p>Your listings are temporarily hidden from the public catalog. You can still see and edit them here, but you can't post new listings while suspended. Reach out to <a href="mailto:gjscuderi@gmail.com" style="color:inherit; font-weight:600;">gjscuderi@gmail.com</a> with any questions.</p>
+        `;
+      } else if (status === "banned") {
+        $sb.hidden = false;
+        $sb.className = "status-banner banned";
+        $sb.innerHTML = `
+          <h3>Your account has been banned.</h3>
+          <p>You have been banned due to violations against the marketplace rules. Your listings have been removed and you can no longer post new listings. If you believe this is a mistake, contact <a href="mailto:gjscuderi@gmail.com" style="color:inherit; font-weight:600;">gjscuderi@gmail.com</a>.</p>
+        `;
+      } else {
+        $sb.hidden = true;
+        $sb.className = "status-banner";
+        $sb.innerHTML = "";
+      }
     }
 
     // -----------------------------------------------------------------------
@@ -2509,7 +2579,8 @@
         .from("profiles")
         .select(`
           user_id, display_name, contact_email, location,
-          is_trusted, is_admin, created_at
+          is_trusted, is_admin, account_status, created_at,
+          facebook_profile_url
         `)
         .order("display_name", { ascending: true });
       $sellersLoading.hidden = true;
@@ -2538,14 +2609,43 @@
       const joined = profile.created_at
         ? new Date(profile.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
         : "—";
-      // Flag sellers who have listings but are missing contact info — the
-      // gate prevents new submissions, but legacy listings might still be up.
       const incomplete = listingCount > 0 && !isProfileCompleteForSelling(profile);
+      const status = profile.account_status || "active";
+
+      // Status pill (suspended / banned only — active is the silent default).
+      let statusPill = "";
+      if (status === "suspended") {
+        statusPill = ` <span class="pill" style="background:#fff4e2;color:#5a4400;border-color:#f0d6a3;">suspended</span>`;
+      } else if (status === "banned") {
+        statusPill = ` <span class="pill" style="background:#fef6f5;color:#8a1f1a;border-color:#e8b3ad;">banned</span>`;
+      }
+
+      // Action buttons. Don't offer Suspend/Ban for admins (would lock yourself out).
+      let actionButtons = "";
+      if (!profile.is_admin) {
+        if (status === "active") {
+          actionButtons = `
+            <button type="button" class="btn-suspend" data-action="suspend">Suspend</button>
+            <button type="button" class="btn-ban"     data-action="ban">Ban</button>
+          `;
+        } else if (status === "suspended") {
+          actionButtons = `
+            <button type="button" class="btn-reinstate" data-action="reinstate">Reinstate</button>
+            <button type="button" class="btn-ban"       data-action="ban">Ban</button>
+          `;
+        } else if (status === "banned") {
+          actionButtons = `
+            <button type="button" class="btn-reinstate" data-action="reinstate">Reinstate</button>
+          `;
+        }
+      }
+
       row.innerHTML = `
-        <div class="seller-info">
+        <div class="seller-info" style="flex: 1; min-width: 200px;">
           <strong>
             ${escapeHtml(profile.display_name || "(no name)")}
             ${profile.is_admin ? ` <span class="pill">admin</span>` : ""}
+            ${statusPill}
             ${incomplete ? ` <span class="pill" style="background:#f3d6d3;color:#8a1f1a;border-color:#e8b3ad;">incomplete profile</span>` : ""}
           </strong>
           <div class="small">
@@ -2556,14 +2656,108 @@
             · joined ${joined}
           </div>
         </div>
-        <label class="toggle">
-          <input type="checkbox" data-user-id="${profile.user_id}" ${profile.is_trusted ? "checked" : ""} />
-          Trusted
-        </label>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <label class="toggle">
+            <input type="checkbox" data-user-id="${profile.user_id}" ${profile.is_trusted ? "checked" : ""} ${status !== "active" ? "disabled" : ""} />
+            Trusted
+          </label>
+          <div class="seller-actions">
+            ${actionButtons}
+          </div>
+        </div>
       `;
       const cb = row.querySelector("input[type=checkbox]");
       cb.addEventListener("change", () => toggleTrusted(profile, cb));
+      row.querySelector("[data-action=suspend]")?.addEventListener("click",   () => suspendSeller(profile));
+      row.querySelector("[data-action=ban]")?.addEventListener("click",       () => banSeller(profile));
+      row.querySelector("[data-action=reinstate]")?.addEventListener("click", () => reinstateSeller(profile));
       return row;
+    }
+
+    // ---- Suspend / Ban / Reinstate actions ----
+    async function suspendSeller(profile) {
+      if (!confirm(`Suspend ${profile.display_name || "this seller"}?\n\nTheir listings will be hidden from the public catalog. They can still see and edit them in their portal but can't post new listings until reinstated.`)) return;
+      try {
+        const { error } = await supabase.from("profiles").update({
+          account_status: "suspended",
+          status_changed_at: new Date().toISOString(),
+        }).eq("user_id", profile.user_id);
+        if (error) throw error;
+        setAdminBanner(`${profile.display_name || "Seller"} has been suspended.`, "success");
+        await loadSellers();
+      } catch (err) {
+        console.error("[suspendSeller] failed:", err);
+        setAdminBanner("Could not suspend: " + (err.message || err), "error");
+      }
+    }
+
+    async function banSeller(profile) {
+      if (!confirm(
+        `BAN ${profile.display_name || "this seller"}?\n\n` +
+        `This permanently deletes ALL their listings and images. The seller will see a "you have been banned" message when they sign in. This cannot be undone.\n\n` +
+        `Continue?`
+      )) return;
+      try {
+        // Get all the seller's listings with their image paths.
+        const { data: ls, error: lsErr } = await supabase
+          .from("listings")
+          .select("listing_id, listing_images ( storage_path )")
+          .eq("seller_id", profile.user_id);
+        if (lsErr) throw lsErr;
+
+        // Delete their image files from storage (best-effort).
+        const paths = (ls || [])
+          .flatMap(l => (l.listing_images || []).map(i => i.storage_path))
+          .filter(p => p && !/^https?:\/\//i.test(p));
+        if (paths.length) {
+          try { await supabase.storage.from("listing-images").remove(paths); }
+          catch (e) { console.warn("[banSeller] storage cleanup failed:", e); }
+        }
+
+        // Delete every listing the seller owns. Cascades remove
+        // listing_images and saved_listings.
+        if (ls && ls.length) {
+          const ids = ls.map(l => l.listing_id);
+          const { error } = await supabase.from("listings").delete().in("listing_id", ids);
+          if (error) throw error;
+        }
+
+        // Mark profile as banned. Also clear is_trusted as a safety.
+        const { error: pErr } = await supabase.from("profiles").update({
+          account_status: "banned",
+          is_trusted: false,
+          status_changed_at: new Date().toISOString(),
+        }).eq("user_id", profile.user_id);
+        if (pErr) throw pErr;
+
+        setAdminBanner(`${profile.display_name || "Seller"} has been banned and all their listings removed.`, "success");
+        await loadSellers();
+        // Refresh moderation badge in case any of their pending listings were in the queue.
+        refreshModerationBadge();
+      } catch (err) {
+        console.error("[banSeller] failed:", err);
+        setAdminBanner("Could not ban: " + (err.message || err), "error");
+      }
+    }
+
+    async function reinstateSeller(profile) {
+      const wasBanned = profile.account_status === "banned";
+      const msg = wasBanned
+        ? `Reinstate ${profile.display_name || "this seller"} from banned to active?\n\n(Their listings stay deleted — only the account is restored.)`
+        : `Reinstate ${profile.display_name || "this seller"} from suspended to active?\n\nTheir listings will return to the public catalog.`;
+      if (!confirm(msg)) return;
+      try {
+        const { error } = await supabase.from("profiles").update({
+          account_status: "active",
+          status_changed_at: new Date().toISOString(),
+        }).eq("user_id", profile.user_id);
+        if (error) throw error;
+        setAdminBanner(`${profile.display_name || "Seller"} has been reinstated.`, "success");
+        await loadSellers();
+      } catch (err) {
+        console.error("[reinstateSeller] failed:", err);
+        setAdminBanner("Could not reinstate: " + (err.message || err), "error");
+      }
     }
 
     async function toggleTrusted(profile, checkbox) {
