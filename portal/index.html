@@ -88,7 +88,8 @@
 
     .field { margin-bottom: 12px; }
     label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-    input[type="email"], input[type="password"], input[type="text"] {
+    input[type="email"], input[type="password"], input[type="text"],
+    input[type="url"],   input[type="number"] {
       width: 100%;
       padding: 11px 14px;
       border-radius: 8px;
@@ -97,6 +98,14 @@
       color: var(--fg);
       font-size: 15px;
       font-family: inherit;
+    }
+    /* Disabled inputs (locked profile fields) read like saved values rather
+       than active form fields. Gray fill, no caret, normal text color. */
+    input:disabled, select:disabled, textarea:disabled {
+      background: #f4f1ea;
+      color: var(--fg);
+      opacity: 1;
+      cursor: default;
     }
     /* Password field with a Show/Hide toggle */
     .pw-wrap { position: relative; }
@@ -1081,26 +1090,28 @@
           <form id="profile-form" autocomplete="off" onsubmit="return false;" style="display: grid; gap: 12px;">
             <div class="field">
               <label for="prof-name">Display name</label>
-              <input type="text" id="prof-name" placeholder="Your name as buyers will see it" />
+              <input type="text" id="prof-name" placeholder="Your name as buyers will see it" disabled />
             </div>
             <div class="field">
               <label for="prof-fb">Facebook profile URL</label>
-              <input type="url" id="prof-fb" placeholder="https://facebook.com/your.profile" />
+              <input type="text" id="prof-fb" placeholder="https://facebook.com/your.profile" disabled />
             </div>
             <div class="field">
               <label for="prof-loc">Location</label>
-              <input type="text" id="prof-loc" placeholder="e.g. Central NJ 08852" />
+              <input type="text" id="prof-loc" placeholder="e.g. Central NJ 08852" disabled />
             </div>
             <div class="field">
               <label for="prof-email">Contact email</label>
-              <input type="email" id="prof-email" placeholder="you@example.com" />
+              <input type="email" id="prof-email" placeholder="you@example.com" disabled />
               <p class="small" style="margin: 4px 0 0;">
                 Shown on your listings via the Email Seller button. Leave blank if you don't want your email exposed publicly.
               </p>
             </div>
-            <div>
-              <button type="button" class="btn-primary" id="profile-save-btn">Save profile</button>
-              <span id="profile-status" class="sp-text-status" style="margin-left: 10px;"></span>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <button type="button" class="btn-primary" id="profile-edit-btn">Edit profile</button>
+              <button type="button" class="btn-primary" id="profile-save-btn" hidden>Save profile</button>
+              <button type="button" class="btn-secondary" id="profile-cancel-btn" hidden>Cancel</button>
+              <span id="profile-status" class="sp-text-status"></span>
             </div>
           </form>
         </div>
@@ -2548,19 +2559,57 @@
     const $profFb       = document.getElementById("prof-fb");
     const $profLoc      = document.getElementById("prof-loc");
     const $profEmail    = document.getElementById("prof-email");
+    const $profEditBtn  = document.getElementById("profile-edit-btn");
     const $profSaveBtn  = document.getElementById("profile-save-btn");
+    const $profCancelBtn= document.getElementById("profile-cancel-btn");
     const $profStatus   = document.getElementById("profile-status");
+    const $profInputs   = [$profName, $profFb, $profLoc, $profEmail];
+
+    // Snapshot of last-saved values so Cancel can revert.
+    let profileSnapshot = { display_name: "", facebook_profile_url: "", location: "", contact_email: "" };
+
+    function setProfileEditMode(editing) {
+      $profInputs.forEach(el => { el.disabled = !editing; });
+      $profEditBtn.hidden   = editing;
+      $profSaveBtn.hidden   = !editing;
+      $profCancelBtn.hidden = !editing;
+      if (editing) $profName.focus();
+    }
+
+    function fillProfileFromSnapshot() {
+      $profName.value  = profileSnapshot.display_name         || "";
+      $profFb.value    = profileSnapshot.facebook_profile_url || "";
+      $profLoc.value   = profileSnapshot.location             || "";
+      $profEmail.value = profileSnapshot.contact_email        || "";
+    }
 
     async function loadProfileForm() {
       const profile = await currentProfile();
       if (!profile) return;
-      $profName.value  = profile.display_name || "";
-      $profFb.value    = profile.facebook_profile_url || "";
-      $profLoc.value   = profile.location || "";
-      $profEmail.value = profile.contact_email || "";
+      profileSnapshot = {
+        display_name:         profile.display_name         || "",
+        facebook_profile_url: profile.facebook_profile_url || "",
+        location:             profile.location             || "",
+        contact_email:        profile.contact_email        || "",
+      };
+      fillProfileFromSnapshot();
+      setProfileEditMode(false);
       $profStatus.textContent = "";
       $profStatus.className = "sp-text-status";
     }
+
+    $profEditBtn.addEventListener("click", () => {
+      $profStatus.textContent = "";
+      $profStatus.className = "sp-text-status";
+      setProfileEditMode(true);
+    });
+
+    $profCancelBtn.addEventListener("click", () => {
+      fillProfileFromSnapshot();
+      setProfileEditMode(false);
+      $profStatus.textContent = "Changes discarded.";
+      $profStatus.className = "sp-text-status";
+    });
 
     $profSaveBtn.addEventListener("click", async () => {
       $profStatus.textContent = "Saving…";
@@ -2578,6 +2627,14 @@
           .update(payload)
           .eq("user_id", currentUserId);
         if (error) throw error;
+        // Update snapshot to reflect the save and re-lock the form.
+        profileSnapshot = {
+          display_name:         payload.display_name         || "",
+          facebook_profile_url: payload.facebook_profile_url || "",
+          location:             payload.location             || "",
+          contact_email:        payload.contact_email        || "",
+        };
+        setProfileEditMode(false);
         $profStatus.textContent = "Saved.";
         $profStatus.className = "sp-text-status ok";
         // Refresh the signed-in chip in the dashboard header
