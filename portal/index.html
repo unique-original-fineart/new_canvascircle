@@ -2673,14 +2673,9 @@
       refreshSaveAllBar();
     }
 
-    // ----- Save All / Discard All -----
-    function refreshSaveAllBar() {
-      const n = dirtyIds.size;
-      if (n === 0) { $saveAllBar.classList.remove("visible"); return; }
-      $saveAllCount.textContent = n + " unsaved change" + (n === 1 ? "" : "s");
-      $saveAllBar.classList.add("visible");
-    }
-
+    // ----- Save All / Discard All (legacy stubs — Save All bar was removed
+    //       when we moved to preview-card + edit-modal. These no-op handlers
+    //       remain so any leftover references don't crash.) -----
     $saveAllBtn?.addEventListener("click", async () => {
       clearDashBanner();
       const dirtyCards = Array.from(document.querySelectorAll(".listing-card.is-dirty"));
