@@ -345,7 +345,132 @@
       box-shadow: 0 0 0 3px rgba(184,134,11,.15);
     }
 
-    /* ------ Editable listing card ------ */
+    /* ------ Preview cards (compact, 2-up grid) ------ */
+    .preview-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+    }
+    .preview-card .pc-img {
+      aspect-ratio: 1/1;
+      background: #f0ede6;
+      overflow: hidden;
+      position: relative;
+    }
+    .preview-card .pc-img img {
+      width: 100%; height: 100%;
+      object-fit: cover; display: block;
+    }
+    .preview-card .pc-img.is-sold::after {
+      content: "SOLD";
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(168, 40, 31, .55);
+      color: #fff; font-weight: 800; font-size: 24px; letter-spacing: 4px;
+    }
+    .preview-card .pc-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+    .preview-card .pc-artist {
+      font-weight: 600; font-size: 14px; line-height: 1.25;
+      overflow: hidden; text-overflow: ellipsis;
+      display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    }
+    .preview-card .pc-title {
+      color: var(--muted); font-size: 13px; line-height: 1.25;
+      overflow: hidden; text-overflow: ellipsis;
+      display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    }
+    .preview-card .pc-price-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 6px; flex-wrap: wrap; margin-top: 2px;
+    }
+    .preview-card .pc-price { font-weight: 600; font-size: 14px; }
+    .preview-card.is-sold .pc-price { color: var(--muted); text-decoration: line-through; }
+    .preview-card .pc-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+    .preview-card .pc-pill {
+      font-size: 10px; font-weight: 700; letter-spacing: .3px;
+      padding: 3px 7px; border-radius: 999px;
+      background: #efe9d8; color: #6a4c00; border: 1px solid #e3d8b1;
+      white-space: nowrap;
+    }
+    .preview-card .pc-pill.status-available { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
+    .preview-card .pc-pill.status-sold      { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
+    .preview-card .pc-pill.status-pending,
+    .preview-card .pc-pill.status-pending_review { background: #fce6c4; color: #7a4a00; border-color: #f1c98a; }
+    .preview-card .pc-pill.status-not_renewed { background: #fff4e2; color: #5a4400; border-color: #f0d6a3; }
+    .preview-card .pc-pill.status-delisted, .preview-card .pc-pill.status-rejected {
+      background: #ececec; color: #4a4a4a; border-color: #d4d4d4;
+    }
+    .preview-card .pc-mod-pill { background: #fff4e2; color: #5a4400; border-color: #f0d6a3; }
+    .preview-card .pc-metrics {
+      font-size: 11px; color: var(--muted);
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .preview-card .pc-actions {
+      padding: 8px 10px; border-top: 1px solid var(--card-line);
+      display: flex; gap: 6px; align-items: center; justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .preview-card .pc-actions .btn-edit {
+      padding: 7px 14px; border-radius: 7px;
+      border: 1px solid var(--accent); background: var(--accent); color: #fff;
+      font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+      flex: 1; min-width: 0;
+    }
+    .preview-card .pc-actions .btn-edit:hover { filter: brightness(.95); }
+    .preview-card .pc-actions .btn-renew {
+      padding: 7px 12px; border-radius: 7px;
+      border: 1px solid #1f5b32; background: #1f5b32; color: #fff;
+      font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
+    }
+    .preview-card .pc-actions .pc-view {
+      color: var(--accent); font-size: 12px; font-weight: 600;
+      text-decoration: none; padding: 0 4px;
+    }
+    .preview-card .pc-actions .pc-view:hover { text-decoration: underline; }
+
+    /* ------ Edit modal ------ */
+    .edit-modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(20, 16, 12, .55);
+      display: none;
+      align-items: flex-start; justify-content: center;
+      z-index: 100;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .edit-modal-overlay.is-open { display: flex; }
+    .edit-modal {
+      background: #fff;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 720px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+      margin: 0 auto;
+    }
+    .edit-modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--card-line);
+    }
+    .edit-modal-header h2 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 19px; font-weight: 600;
+    }
+    .edit-modal-header .em-close {
+      background: none; border: none;
+      font-size: 24px; line-height: 1;
+      cursor: pointer; color: var(--muted);
+      padding: 4px 10px; border-radius: 6px;
+    }
+    .edit-modal-header .em-close:hover { color: var(--fg); background: #f4f1ea; }
+    .edit-modal-body { padding: 18px 20px; }
+
+    /* ------ Editable listing card (now used inside the edit modal) ------ */
     .listing-card {
       background: var(--card-bg);
       border: 1px solid var(--card-line);
@@ -1456,11 +1581,15 @@
     </div>
   </main>
 
-  <div class="save-all-bar" id="save-all-bar" role="status" aria-live="polite">
-    <div class="count" id="save-all-count">0 unsaved changes</div>
-    <div class="actions">
-      <button type="button" class="btn-discard" id="discard-all-btn">Discard all</button>
-      <button type="button" class="btn-save-all" id="save-all-btn">Save all</button>
+  <div class="edit-modal-overlay" id="edit-modal-overlay" role="dialog" aria-modal="true" hidden>
+    <div class="edit-modal">
+      <div class="edit-modal-header">
+        <h2 id="edit-modal-title">Edit listing</h2>
+        <button type="button" class="em-close" id="edit-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="edit-modal-body" id="edit-modal-body">
+        <!-- The edit-card form is injected here when the modal opens -->
+      </div>
     </div>
   </div>
 
@@ -1925,7 +2054,99 @@
       return parseFloat(cleaned);
     }
 
-    // ----- Card rendering -----
+    // ----- Preview card (compact, clicked Edit opens modal) -----
+    function renderPreviewCard(l) {
+      const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
+      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      const isSold = l.status === "sold";
+      const price  = Number(l.asking_price_usd || 0).toLocaleString();
+      const saveCnt = Number(l.save_count || 0);
+      const viewCnt = Number(l.view_count || 0);
+
+      const card = document.createElement("div");
+      card.className = "preview-card" + (isSold ? " is-sold" : "");
+      card.dataset.listingId = l.listing_id;
+      card.innerHTML = `
+        <div class="pc-img${isSold ? " is-sold" : ""}">
+          ${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />` : ""}
+        </div>
+        <div class="pc-body">
+          <div class="pc-artist">${escapeHtml(l.artist_name || "Unknown")}</div>
+          <div class="pc-title">${escapeHtml(l.artwork_title || "")}</div>
+          <div class="pc-price-row">
+            <span class="pc-price">$${price}</span>
+            <span class="pc-pills">
+              <span class="pc-pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>
+              ${l.moderation_status && l.moderation_status !== "approved"
+                ? `<span class="pc-pill pc-mod-pill">${escapeHtml(l.moderation_status)}</span>` : ""}
+            </span>
+          </div>
+          <div class="pc-metrics">
+            <span>♥ ${saveCnt} ${saveCnt === 1 ? "save" : "saves"}</span>
+            <span>👁 ${viewCnt} ${viewCnt === 1 ? "view" : "views"}</span>
+          </div>
+        </div>
+        <div class="pc-actions">
+          <button type="button" class="btn-edit" data-action="open-edit">Edit</button>
+          ${l.status === "not_renewed" ? `<button type="button" class="btn-renew" data-action="renew-now">Renew</button>` : ""}
+          <a class="pc-view" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View ↗</a>
+        </div>
+      `;
+      card.querySelector("[data-action=open-edit]").addEventListener("click", () => openEditModal(l));
+      card.querySelector("[data-action=renew-now]")?.addEventListener("click", () => renewListingDirect(l));
+      return card;
+    }
+
+    async function renewListingDirect(listing) {
+      try {
+        const payload = {
+          last_renewed_at: new Date().toISOString(),
+          renewal_warning_sent_at: null,
+          status: "available",
+        };
+        const { error } = await supabase.from("listings").update(payload).eq("listing_id", listing.listing_id);
+        if (error) throw error;
+        const idx = allListings.findIndex(x => x.listing_id === listing.listing_id);
+        if (idx >= 0) Object.assign(allListings[idx], payload);
+        showDashBanner("Listing renewed and back on the public catalog.", "success");
+        applyFilters();
+        refreshNotRenewedBanner();
+      } catch (err) {
+        showDashBanner("Could not renew: " + (err.message || err), "error");
+      }
+    }
+
+    // ----- Edit modal -----
+    const $editModal      = document.getElementById("edit-modal-overlay");
+    const $editModalBody  = document.getElementById("edit-modal-body");
+    const $editModalTitle = document.getElementById("edit-modal-title");
+    const $editModalClose = document.getElementById("edit-modal-close");
+
+    function closeEditModal() {
+      $editModal.hidden = true;
+      $editModal.classList.remove("is-open");
+      $editModalBody.innerHTML = "";
+    }
+    $editModalClose.addEventListener("click", closeEditModal);
+    $editModal.addEventListener("click", (e) => {
+      // Click on the backdrop (not on the card) closes.
+      if (e.target === $editModal) closeEditModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !$editModal.hidden) closeEditModal();
+    });
+
+    function openEditModal(listing) {
+      $editModalTitle.textContent = `${listing.artist_name || "Edit"} — ${listing.artwork_title || "listing"}`;
+      $editModalBody.innerHTML = "";
+      const editCard = renderEditCard(listing);
+      $editModalBody.appendChild(editCard);
+      $editModal.hidden = false;
+      $editModal.classList.add("is-open");
+      window.scrollTo({ top: 0 });
+    }
+
+    // ----- Edit form (inside modal). Same as the old inline edit card. -----
     function renderEditCard(l) {
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
       const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
@@ -2316,14 +2537,17 @@
     }
 
     function markDirty(card, dirty) {
+      // With the modal-edit pattern there's only ever one editable card at
+      // a time, so dirty tracking is effectively per-modal. Keep the visual
+      // class for the gold edge but skip the Save All bar.
       const id = card.dataset.listingId;
       if (dirty) dirtyIds.add(id); else dirtyIds.delete(id);
       card.classList.toggle("is-dirty", dirty);
       card.classList.remove("has-error");
       const flag = card.querySelector(".dirty-flag");
       if (flag) flag.hidden = !dirty;
-      refreshSaveAllBar();
     }
+    function refreshSaveAllBar() { /* no-op since Save All bar removed */ }
 
     function readCardPayload(card) {
       const get = (f) => card.querySelector(`[data-field="${f}"]`)?.value ?? "";
@@ -2418,21 +2642,18 @@
         if (idx >= 0) Object.assign(allListings[idx], payload);
         markDirty(card, false);
         card.classList.remove("has-error");
-        // Re-render the moderation pill on this card to reflect new state.
-        if (needsReview) {
-          const pillsEl = card.querySelector(".head-meta .pills");
-          if (pillsEl && !pillsEl.querySelector('.pill[data-mod="pending"]')) {
-            const p = document.createElement("span");
-            p.className = "pill"; p.dataset.mod = "pending"; p.textContent = "pending";
-            pillsEl.appendChild(p);
-          }
-        }
         showDashBanner(
           needsReview
             ? "Saved. Your edits are pending admin review — the listing will return to the public catalog once approved."
             : "Saved.",
           "success"
         );
+        // If we're inside the edit modal, close it and refresh the preview grid.
+        if (card.closest("#edit-modal-overlay")) {
+          closeEditModal();
+          applyFilters();
+          refreshNotRenewedBanner();
+        }
         return true;
       } catch (err) {
         console.error("[saveCard] failed:", err);
@@ -2460,7 +2681,7 @@
       $saveAllBar.classList.add("visible");
     }
 
-    $saveAllBtn.addEventListener("click", async () => {
+    $saveAllBtn?.addEventListener("click", async () => {
       clearDashBanner();
       const dirtyCards = Array.from(document.querySelectorAll(".listing-card.is-dirty"));
       if (!dirtyCards.length) return;
@@ -2499,7 +2720,7 @@
       );
     });
 
-    $discardAllBtn.addEventListener("click", () => {
+    $discardAllBtn?.addEventListener("click", () => {
       const n = dirtyIds.size;
       if (!n) return;
       if (!confirm(`Discard unsaved changes on ${n} listing${n === 1 ? "" : "s"}?`)) return;
@@ -2537,11 +2758,8 @@
       };
       rows.sort(cmp[so] || cmp["newest"]);
 
-      // Re-render grid (NB: this discards in-progress edits — we wipe dirty state here,
-      // matching the legacy behavior. The Save All bar disappears with it.)
-      dirtyIds.clear();
-      refreshSaveAllBar();
-
+      // Render preview cards. Click Edit on any card to open the full form
+      // in a modal.
       $listingsList.innerHTML = "";
       $listingsCount.textContent = `(${rows.length}${rows.length === allListings.length ? "" : " of " + allListings.length})`;
       if (rows.length === 0 && allListings.length > 0) {
@@ -2551,7 +2769,7 @@
       }
       $listingsNoMatch.hidden = true;
       const frag = document.createDocumentFragment();
-      for (const l of rows) frag.appendChild(renderEditCard(l));
+      for (const l of rows) frag.appendChild(renderPreviewCard(l));
       $listingsList.appendChild(frag);
       $listingsList.hidden = false;
     }
