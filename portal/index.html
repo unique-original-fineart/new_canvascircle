@@ -408,6 +408,17 @@
     .preview-card .pc-metrics {
       font-size: 11px; color: var(--muted);
       display: flex; gap: 10px; flex-wrap: wrap;
+      align-items: center;
+    }
+    .preview-card .pc-metric-btn {
+      font: inherit; font-size: 11px; color: var(--accent);
+      background: none; border: none; padding: 0; margin: 0;
+      cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+    }
+    .preview-card .pc-metric-btn:hover { filter: brightness(.85); }
+    .preview-card .pc-savers-list {
+      margin: 8px 12px 4px; padding: 8px 10px;
+      background: #fbf8f1; border: 1px solid var(--card-line); border-radius: 6px;
     }
     .preview-card .pc-actions {
       padding: 8px 10px; border-top: 1px solid var(--card-line);
@@ -2082,9 +2093,12 @@
             </span>
           </div>
           <div class="pc-metrics">
-            <span>♥ ${saveCnt} ${saveCnt === 1 ? "save" : "saves"}</span>
+            ${saveCnt > 0
+              ? `<button type="button" class="pc-metric-btn" data-action="show-savers">♥ ${saveCnt} ${saveCnt === 1 ? "save" : "saves"}</button>`
+              : `<span>♥ 0 saves</span>`}
             <span>👁 ${viewCnt} ${viewCnt === 1 ? "view" : "views"}</span>
           </div>
+          <div class="savers-list pc-savers-list" data-savers-list hidden></div>
         </div>
         <div class="pc-actions">
           <button type="button" class="btn-edit" data-action="open-edit">Edit</button>
@@ -2094,6 +2108,7 @@
       `;
       card.querySelector("[data-action=open-edit]").addEventListener("click", () => openEditModal(l));
       card.querySelector("[data-action=renew-now]")?.addEventListener("click", () => renewListingDirect(l));
+      card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => toggleSaversList(card, l));
       return card;
     }
 
