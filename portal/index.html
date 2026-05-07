@@ -1253,6 +1253,24 @@
           </section>
 
           <section class="admin-section">
+            <h3>Send broadcast email</h3>
+            <p class="help">Send an announcement to your whole user base, just sellers (people with at least one listing), or just buyers. Powered by Resend — see <code>docs/resend-setup.md</code> for setup.</p>
+            <form id="broadcast-form" autocomplete="off" onsubmit="return false;" style="display: grid; gap: 10px;">
+              <select id="bc-audience" style="padding:8px 11px; border-radius:8px; border:1px solid var(--card-line); font-size:13px;">
+                <option value="sellers">All sellers (with ≥1 listing)</option>
+                <option value="buyers">All buyers (no listings)</option>
+                <option value="all">All users</option>
+              </select>
+              <input type="text" id="bc-subject" placeholder="Subject" style="padding:9px 12px; border-radius:8px; border:1px solid var(--card-line); font-size:14px;" />
+              <textarea id="bc-body" rows="6" placeholder="Message body. We'll prepend 'Hi {first name},' and append a CanvasCircle footer." style="padding:10px 12px; border-radius:8px; border:1px solid var(--card-line); font-size:14px; font-family:inherit; resize:vertical;"></textarea>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <button type="button" class="btn-primary" id="bc-send-btn">Send broadcast</button>
+                <span id="bc-status" class="sp-text-status"></span>
+              </div>
+            </form>
+          </section>
+
+          <section class="admin-section">
             <h3>All listings <span class="count" id="all-listings-count"></span></h3>
             <p class="help">Every listing in the catalog. Filter, change moderation or status, or remove a problem listing. For deeper field edits use the Your listings tab or SQL editor.</p>
 
@@ -1288,6 +1306,7 @@
 
         <div class="quicklinks" style="margin-top: 18px;">
           <a href="/">View public catalog <span class="arrow">→</span></a>
+          <a href="#" id="contact-admin-link">Contact admin <span class="arrow">→</span></a>
         </div>
       </section>
 
@@ -1620,14 +1639,21 @@
           },
         });
         if (error) throw error;
+        // Fire welcome email — fire-and-forget; never blocks signup UX.
+        // Only works once they've confirmed their email and have a session,
+        // because the edge function checks the auth header.
+        if (data.session) {
+          supabase.functions.invoke("send-email", { body: { mode: "welcome" } })
+            .catch((e) => console.warn("[welcome-email] failed (non-fatal):", e));
+        }
         // Supabase requires email confirmation by default. Tell the user.
         if (data.session) {
           // (Edge case: confirmation disabled — already signed in.)
-          setBanner("signup", "Account created. Signing you in…", "success");
+          setBanner("signup", "Account created — welcome email on its way. Signing you in…", "success");
         } else {
           setBanner(
             "signup",
-            "Almost done — check your email and click the confirmation link to finish creating your account.",
+            "Almost done — check your email and click the confirmation link to finish creating your account. We'll send a welcome email after you sign in for the first time.",
             "success"
           );
         }
@@ -2912,19 +2938,22 @@
 
       // Action buttons. Don't offer Suspend/Ban for admins (would lock yourself out).
       let actionButtons = "";
+      if (profile.contact_email) {
+        actionButtons += `<button type="button" class="btn-suspend" data-action="email" title="Email this seller via Resend">Email</button>`;
+      }
       if (!profile.is_admin) {
         if (status === "active") {
-          actionButtons = `
+          actionButtons += `
             <button type="button" class="btn-suspend" data-action="suspend">Suspend</button>
             <button type="button" class="btn-ban"     data-action="ban">Ban</button>
           `;
         } else if (status === "suspended") {
-          actionButtons = `
+          actionButtons += `
             <button type="button" class="btn-reinstate" data-action="reinstate">Reinstate</button>
             <button type="button" class="btn-ban"       data-action="ban">Ban</button>
           `;
         } else if (status === "banned") {
-          actionButtons = `
+          actionButtons += `
             <button type="button" class="btn-reinstate" data-action="reinstate">Reinstate</button>
           `;
         }
@@ -2958,6 +2987,7 @@
       `;
       const cb = row.querySelector("input[type=checkbox]");
       cb.addEventListener("change", () => toggleTrusted(profile, cb));
+      row.querySelector("[data-action=email]")?.addEventListener("click",     () => emailSellerDirect(profile));
       row.querySelector("[data-action=suspend]")?.addEventListener("click",   () => suspendSeller(profile));
       row.querySelector("[data-action=ban]")?.addEventListener("click",       () => banSeller(profile));
       row.querySelector("[data-action=reinstate]")?.addEventListener("click", () => reinstateSeller(profile));
@@ -3216,6 +3246,91 @@
       $allQ.value = ""; $allSeller.value = ""; $allStatus.value = ""; $allMod.value = "";
       applyAllListingsFilter();
     });
+
+    // -----------------------------------------------------------------------
+    // Email helpers — call the Supabase Edge Function `send-email`
+    // -----------------------------------------------------------------------
+    async function callSendEmail(payload) {
+      const { data, error } = await supabase.functions.invoke("send-email", {
+        body: payload,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    }
+
+    // ---- Admin broadcast ----
+    const $bcAudience = document.getElementById("bc-audience");
+    const $bcSubject  = document.getElementById("bc-subject");
+    const $bcBody     = document.getElementById("bc-body");
+    const $bcSendBtn  = document.getElementById("bc-send-btn");
+    const $bcStatus   = document.getElementById("bc-status");
+
+    // ---- Contact admin (any signed-in user) ----
+    document.getElementById("contact-admin-link")?.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const subject = prompt("Subject for your message to the admin:");
+      if (!subject) return;
+      const text = prompt("Your message:");
+      if (!text) return;
+      try {
+        await callSendEmail({ mode: "contact-admin", subject, text });
+        alert("Message sent. The admin will reply to your registered email.");
+      } catch (err) {
+        console.error("[contact-admin] failed:", err);
+        alert("Could not send: " + (err.message || err));
+      }
+    });
+
+    $bcSendBtn?.addEventListener("click", async () => {
+      const subject = $bcSubject.value.trim();
+      const text    = $bcBody.value.trim();
+      const audience = $bcAudience.value;
+      if (!subject || !text) {
+        $bcStatus.textContent = "Subject + body are required.";
+        $bcStatus.className   = "sp-text-status err";
+        return;
+      }
+      const audienceLabel = $bcAudience.options[$bcAudience.selectedIndex].textContent;
+      if (!confirm(`Send "${subject}" to: ${audienceLabel}?\n\nThis cannot be undone.`)) return;
+      $bcSendBtn.disabled = true;
+      $bcStatus.textContent = "Sending…";
+      $bcStatus.className   = "sp-text-status";
+      try {
+        const res = await callSendEmail({ mode: "broadcast", audience, subject, text });
+        $bcStatus.textContent = `Sent to ${res.sent} of ${res.attempted} recipient${res.attempted === 1 ? "" : "s"}.${res.errors?.length ? ` (${res.errors.length} errors — see console)` : ""}`;
+        $bcStatus.className   = "sp-text-status ok";
+        if (res.errors?.length) console.warn("[broadcast] errors:", res.errors);
+        // Clear inputs only on full success
+        if (res.sent === res.attempted) { $bcSubject.value = ""; $bcBody.value = ""; }
+      } catch (err) {
+        console.error("[broadcast] failed:", err);
+        $bcStatus.textContent = "Failed: " + (err.message || err);
+        $bcStatus.className   = "sp-text-status err";
+      } finally {
+        $bcSendBtn.disabled = false;
+      }
+    });
+
+    // ---- Direct email to one seller (admin) ----
+    async function emailSellerDirect(profile) {
+      const subject = prompt(`Email "${profile.display_name}" — subject:`);
+      if (!subject) return;
+      const text = prompt("Message body:");
+      if (!text) return;
+      try {
+        await callSendEmail({
+          mode: "direct-to-seller",
+          sellerUserId: profile.user_id,
+          subject,
+          text,
+        });
+        setAdminBanner(`Email sent to ${profile.display_name}.`, "success");
+      } catch (err) {
+        console.error("[emailSellerDirect] failed:", err);
+        setAdminBanner("Could not send: " + (err.message || err), "error");
+      }
+    }
 
     async function reinstateSeller(profile) {
       const wasBanned = profile.account_status === "banned";
@@ -4083,6 +4198,16 @@
       if (event === "SIGNED_IN" && !inRecoveryFlow) {
         await refreshAccountView();
         showView("account");
+        // First-ever sign-in → fire welcome email, marked once via localStorage
+        // so it never sends twice. Non-fatal if the function isn't deployed yet.
+        try {
+          const flagKey = "cc_welcomed_" + (session?.user?.id || "anon");
+          if (session?.user && !localStorage.getItem(flagKey)) {
+            localStorage.setItem(flagKey, "1");
+            supabase.functions.invoke("send-email", { body: { mode: "welcome" } })
+              .catch((e) => console.warn("[welcome-email] failed (non-fatal):", e));
+          }
+        } catch (e) { /* private mode etc */ }
         return;
       }
       if (event === "SIGNED_OUT") {
