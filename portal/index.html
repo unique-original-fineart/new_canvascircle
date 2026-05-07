@@ -409,9 +409,10 @@
     .preview-card .pc-mod-pill { background: #fff4e2; color: #5a4400; border-color: #f0d6a3; }
     .preview-card .pc-metrics {
       font-size: 11px; color: var(--muted);
-      display: flex; gap: 10px; flex-wrap: wrap;
+      display: flex; gap: 10px; flex-wrap: nowrap;
       align-items: center;
     }
+    .preview-card .pc-metrics > * { white-space: nowrap; }
     .preview-card .pc-metric-btn {
       font: inherit; font-size: 11px; color: var(--accent);
       background: none; border: none; padding: 0; margin: 0;
@@ -2107,11 +2108,9 @@
           <div class="pc-title">${escapeHtml(l.artwork_title || "")}</div>
           <div class="pc-price-row">
             <span class="pc-price">$${price}</span>
-            <span class="pc-pills">
-              <span class="pc-pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>
-              ${l.moderation_status && l.moderation_status !== "approved"
-                ? `<span class="pc-pill pc-mod-pill">${escapeHtml(l.moderation_status)}</span>` : ""}
-            </span>
+            ${l.moderation_status && l.moderation_status !== "approved"
+              ? `<span class="pc-pills"><span class="pc-pill pc-mod-pill">${escapeHtml(l.moderation_status)}</span></span>`
+              : ""}
           </div>
           <div class="pc-metrics">
             ${saveCnt > 0
