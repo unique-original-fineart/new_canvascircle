@@ -354,6 +354,8 @@
       box-shadow: var(--shadow);
       display: flex;
       flex-direction: column;
+      position: relative;
+      height: 100%;
     }
     .preview-card .pc-img {
       aspect-ratio: 1/1;
@@ -372,7 +374,7 @@
       background: rgba(168, 40, 31, .55);
       color: #fff; font-weight: 800; font-size: 24px; letter-spacing: 4px;
     }
-    .preview-card .pc-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+    .preview-card .pc-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; position: relative; }
     .preview-card .pc-artist {
       font-weight: 600; font-size: 14px; line-height: 1.25;
       overflow: hidden; text-overflow: ellipsis;
@@ -417,8 +419,16 @@
     }
     .preview-card .pc-metric-btn:hover { filter: brightness(.85); }
     .preview-card .pc-savers-list {
-      margin: 8px 12px 4px; padding: 8px 10px;
-      background: #fbf8f1; border: 1px solid var(--card-line); border-radius: 6px;
+      position: absolute;
+      left: 8px; right: 8px; bottom: 8px;
+      z-index: 5;
+      margin: 0; padding: 8px 10px;
+      background: #fff;
+      border: 1px solid var(--card-line);
+      border-radius: 6px;
+      box-shadow: 0 4px 14px rgba(0,0,0,.18);
+      max-height: calc(100% - 16px);
+      overflow-y: auto;
     }
     .preview-card .pc-actions {
       padding: 8px 10px; border-top: 1px solid var(--card-line);
