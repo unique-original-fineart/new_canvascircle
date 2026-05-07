@@ -422,7 +422,7 @@
       position: absolute;
       left: 8px; right: 8px; bottom: 8px;
       z-index: 5;
-      margin: 0; padding: 8px 10px;
+      margin: 0; padding: 8px 26px 8px 10px;
       background: #fff;
       border: 1px solid var(--card-line);
       border-radius: 6px;
@@ -430,6 +430,17 @@
       max-height: calc(100% - 16px);
       overflow-y: auto;
     }
+    .preview-card .savers-close {
+      position: absolute;
+      top: 2px; right: 4px;
+      width: 22px; height: 22px;
+      border: none; background: transparent;
+      color: var(--muted); font-size: 18px; line-height: 1;
+      cursor: pointer; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px;
+    }
+    .preview-card .savers-close:hover { background: #f0ede6; color: var(--fg); }
     .preview-card .pc-actions {
       padding: 8px 10px; border-top: 1px solid var(--card-line);
       display: flex; gap: 6px; align-items: center; justify-content: space-between;
@@ -2439,8 +2450,22 @@
       if (!$list) return;
       // Toggle off if already open.
       if (!$list.hidden) { $list.hidden = true; $list.innerHTML = ""; return; }
+
+      // Helper: render content with a close button. Wires the close button
+      // via delegation each time so any content state can be dismissed.
+      const closeBtnHtml = `<button type="button" class="savers-close" aria-label="Close" data-savers-close>×</button>`;
+      const wrap = (inner) => `${closeBtnHtml}${inner}`;
+      const setContent = (html) => {
+        $list.innerHTML = wrap(html);
+        $list.querySelector("[data-savers-close]")?.addEventListener("click", (e) => {
+          e.stopPropagation();
+          $list.hidden = true;
+          $list.innerHTML = "";
+        });
+      };
+
       $list.hidden = false;
-      $list.innerHTML = `<span class="small">Loading…</span>`;
+      setContent(`<span class="small">Loading…</span>`);
 
       // 1) saved_listings rows for this listing.
       const { data: saves, error: savesErr } = await supabase
@@ -2449,12 +2474,12 @@
         .eq("listing_id", listing.listing_id)
         .order("created_at", { ascending: false });
       if (savesErr) {
-        $list.innerHTML = `<span class="small">Couldn't load: ${escapeHtml(savesErr.message || savesErr)}</span>`;
+        setContent(`<span class="small">Couldn't load: ${escapeHtml(savesErr.message || savesErr)}</span>`);
         return;
       }
       const rows = saves || [];
       if (rows.length === 0) {
-        $list.innerHTML = `<span class="small">No saves yet.</span>`;
+        setContent(`<span class="small">No saves yet.</span>`);
         return;
       }
 
@@ -2465,7 +2490,7 @@
         .select("user_id, display_name")
         .in("user_id", userIds);
       if (profErr) {
-        $list.innerHTML = `<span class="small">Couldn't load: ${escapeHtml(profErr.message || profErr)}</span>`;
+        setContent(`<span class="small">Couldn't load: ${escapeHtml(profErr.message || profErr)}</span>`);
         return;
       }
       const profByUser = Object.fromEntries((profs || []).map(p => [p.user_id, p]));
@@ -2477,7 +2502,7 @@
           : "";
         return `<li>${escapeHtml(name)} <span class="small">· ${escapeHtml(date)}</span></li>`;
       }).join("");
-      $list.innerHTML = `<strong>Saved by</strong><ul>${items}</ul>`;
+      setContent(`<strong>Saved by</strong><ul>${items}</ul>`);
     }
 
     async function renewCard(card, listing) {
