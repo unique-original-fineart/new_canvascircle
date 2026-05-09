@@ -269,6 +269,7 @@
     .card .cat.edition    { background: #d6e6f7; color: #1f4a78; border-color: #a8c8e3; }
     .card .cat.sold       { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
     .card .cat.not-renewed{ background: #fff4e2; color: #5a4400; border-color: #f0d6a3; }
+    .card .cat.pending-sale{ background: #fce6c4; color: #7a4a00; border-color: #f1c98a; }
 
     /* Pills always live on their own row below the price — keeps card heights
        uniform whether or not there's a price drop / strikethrough showing. */
@@ -457,6 +458,7 @@
       const catLabel = listing.artwork_category || "";
       const isSold       = listing.status === "sold";
       const isNotRenewed = listing.status === "not_renewed";
+      const isPending    = listing.status === "pending";
       const saved    = !!(userSavesSet && userSavesSet.has(listing.listing_id));
       const saveN    = Number(listing.save_count || 0);
       const shipSuffix = (!isSold && !isNotRenewed)
@@ -474,6 +476,7 @@
             <span class="pills">
               ${isSold ? `<span class="cat sold">SOLD</span>` : ""}
               ${isNotRenewed ? `<span class="cat not-renewed">NOT RENEWED</span>` : ""}
+              ${isPending ? `<span class="cat pending-sale">PENDING SALE</span>` : ""}
               ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
             </span>
           </div>
@@ -593,7 +596,13 @@
       renderNextBatch();
 
       $stats.hidden = false;
-      $stats.textContent = `Showing ${rows.length} of ${allListings.length} listing${allListings.length === 1 ? "" : "s"}`;
+      // Denominator is the count of listings matching the active status only,
+      // and we name the status so "Showing 31 of 31 Available listings" reads
+      // truthfully instead of "31 of 33" (which mixes in sold + not-renewed).
+      const statusKey  = stf === "sold" ? "sold" : stf === "not_renewed" ? "not_renewed" : "available";
+      const statusName = statusKey === "sold" ? "Sold" : statusKey === "not_renewed" ? "Not renewed" : "Available";
+      const totalForStatus = allListings.filter(l => l.status === statusKey).length;
+      $stats.textContent = `Showing ${rows.length} of ${totalForStatus} ${statusName} listing${totalForStatus === 1 ? "" : "s"}`;
       $grid.hidden  = rows.length === 0;
       $empty.hidden = rows.length !== 0;
     }
