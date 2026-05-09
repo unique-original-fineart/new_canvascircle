@@ -978,8 +978,15 @@
       margin-top: 6px;
       display: flex; align-items: center; justify-content: space-between; gap: 6px;
     }
+    .saved-card .price-block { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
     .saved-card .price { font-weight: 600; font-size: 14px; }
+    .saved-card .ship-suffix { font-weight: 400; font-size: 11px; color: var(--muted); margin-left: 2px; }
+    .saved-card .prev {
+      font-size: 12px; color: var(--muted);
+      text-decoration: line-through; text-decoration-thickness: 1px;
+    }
     .saved-card.is-sold .price { color: var(--muted); text-decoration: line-through; }
+    .saved-card.is-sold .ship-suffix { display: none; }
     .saved-card-wrap .unsave-btn {
       position: absolute;
       top: 8px; right: 8px;
@@ -4043,9 +4050,21 @@
     function renderSavedCard(l) {
       const images   = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
       const imgUrl   = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
-      const isSold   = l.status === "sold";
+      const isSold       = l.status === "sold";
+      const isNotRenewed = l.status === "not_renewed";
       const price    = Number(l.asking_price_usd || 0).toLocaleString();
       const saveCnt  = Number(l.save_count || 0);
+
+      // Match the public catalog: show shipping suffix on active listings
+      // ("shipped" if seller covers shipping, "+ shipping" otherwise) and
+      // a strikethrough previous price when there's been a price drop.
+      const shipSuffix = (!isSold && !isNotRenewed)
+        ? (l.shipping_offered === "Yes" ? " shipped" : " + shipping")
+        : "";
+      const prev = l.previous_price_usd
+        && Number(l.previous_price_usd) > Number(l.asking_price_usd)
+        ? Number(l.previous_price_usd).toLocaleString()
+        : null;
 
       const wrap = document.createElement("div");
       wrap.className = "saved-card-wrap";
@@ -4060,7 +4079,9 @@
           <div class="artist">${escapeHtml(l.artist_name || "Unknown")}</div>
           <div class="title">${escapeHtml(l.artwork_title || "")}</div>
           <div class="row">
-            <span class="price">$${price}</span>
+            <span class="price-block">
+              <span class="price">$${price}<span class="ship-suffix">${shipSuffix}</span></span>${prev ? `<span class="prev">$${prev}</span>` : ""}
+            </span>
             <span class="pill" title="Total saves">♥ ${saveCnt}</span>
           </div>
         </div>`;
