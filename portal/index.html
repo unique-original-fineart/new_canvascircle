@@ -971,6 +971,19 @@
       font-family: Georgia, "Times New Roman", serif;
       font-size: 22px; font-weight: 600;
     }
+    .nl-guidelines-callout {
+      background: #fbf6e9; border: 1px solid #e9dcad;
+      border-left: 4px solid var(--accent);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin: 12px 0 14px;
+      font-size: 14px; line-height: 1.5;
+      color: #5a4400;
+    }
+    .nl-guidelines-callout strong { color: var(--fg); }
+    .nl-guidelines-callout a {
+      color: var(--accent); font-weight: 600; text-decoration: underline;
+    }
     .nl-image-zone {
       border: 2px dashed var(--card-line);
       border-radius: 12px;
@@ -1297,6 +1310,7 @@
             <div class="email" id="who-email">&nbsp;</div>
           </div>
           <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+            <a href="/guidelines.html#selling" target="_blank" rel="noopener" style="color: var(--accent); font-weight: 600; text-decoration: underline; font-size: 14px;">Selling Guidelines</a>
             <a href="#" id="contact-admin-top" style="color: var(--accent); font-weight: 600; text-decoration: underline; font-size: 14px;">Contact Admin</a>
             <button type="button" class="ghost" id="signout-btn">Sign out</button>
           </div>
@@ -1500,6 +1514,14 @@
         <div class="nl-head">
           <h2>Add a new listing</h2>
           <button type="button" class="ghost" data-go="account">← Back to dashboard</button>
+        </div>
+
+        <div class="nl-guidelines-callout">
+          <strong>Before you list:</strong> Take a moment to read our
+          <a href="/guidelines.html#selling" target="_blank" rel="noopener">Selling Guidelines ↗</a>.
+          They cover what photos to use, how to price, what paperwork to have ready,
+          and how to handle payment safely. Following these makes your listings stronger
+          and your transactions smoother.
         </div>
 
         <form id="new-listing-form" autocomplete="off">
