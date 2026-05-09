@@ -4725,6 +4725,12 @@
     // form. If the page is genuinely stuck (rare), the "Reset and retry"
     // button is still available as a manual escape hatch.
     (async () => {
+      // If the URL contains a recovery token, the synchronous detection
+      // above has already shown the recovery view. Don't override it here
+      // even though getSession() will return an active session — the user
+      // got "signed in" by the recovery token but they need to set a new
+      // password before we route them to the account dashboard.
+      if (inRecoveryFlow) return;
       try {
         const sessionResult = await Promise.race([
           supabase.auth.getSession(),
