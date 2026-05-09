@@ -88,6 +88,19 @@
 
     .field { margin-bottom: 12px; }
     label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+
+    /* Signup ToS / Privacy checkbox row — distinct from regular form fields. */
+    .tos-field { margin: 16px 0 14px; }
+    .tos-label {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 13px; line-height: 1.45; color: var(--fg);
+      margin: 0;
+    }
+    .tos-label input[type="checkbox"] {
+      flex: 0 0 auto; margin-top: 3px;
+      width: 16px; height: 16px; cursor: pointer;
+    }
+    .tos-label a { color: var(--accent); text-decoration: underline; }
     input[type="email"], input[type="password"], input[type="text"],
     input[type="url"],   input[type="number"] {
       width: 100%;
@@ -984,6 +997,16 @@
     .nl-guidelines-callout a {
       color: var(--accent); font-weight: 600; text-decoration: underline;
     }
+    .nl-legal-note {
+      margin: 0 0 14px;
+      padding: 10px 12px;
+      background: #f4f1ea;
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      font-size: 12px; line-height: 1.5;
+      color: var(--muted);
+    }
+    .nl-legal-note a { color: var(--accent); text-decoration: underline; }
     .nl-image-zone {
       border: 2px dashed var(--card-line);
       border-radius: 12px;
@@ -1243,6 +1266,16 @@
               <input type="password" id="signup-password" required autocomplete="new-password" minlength="8" placeholder="At least 8 characters" />
               <button type="button" class="pw-toggle" data-target="signup-password">Show</button>
             </div>
+          </div>
+          <div class="field tos-field">
+            <label class="tos-label">
+              <input type="checkbox" id="signup-tos" required />
+              <span>I agree to the
+                <a href="/terms.html" target="_blank" rel="noopener">Terms of Use</a>
+                and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>,
+                and I understand CanvasCircle is a free listing platform that does not process payments,
+                verify artwork authenticity, or mediate disputes between users.</span>
+            </label>
           </div>
           <button type="submit" class="primary" id="signup-btn">Create account</button>
         </form>
@@ -1523,6 +1556,13 @@
           and how to handle payment safely. Following these makes your listings stronger
           and your transactions smoother.
         </div>
+        <div class="nl-legal-note">
+          By posting a listing you confirm that you own the artwork or have the right to sell it,
+          that the photos and details are accurate, and that you accept our
+          <a href="/terms.html" target="_blank" rel="noopener">Terms of Use</a>.
+          CanvasCircle is a free listing platform — we don't process payments, verify authenticity,
+          or mediate disputes. Sales happen directly between you and the buyer.
+        </div>
 
         <form id="new-listing-form" autocomplete="off">
           <label class="nl-image-zone" id="nl-image-zone">
@@ -1703,6 +1743,8 @@
     &copy; CanvasCircle.
     <a href="/about.html" style="color:inherit;">About</a> &middot;
     <a href="/guidelines.html" style="color:inherit;">Guidelines</a> &middot;
+    <a href="/terms.html" style="color:inherit;">Terms</a> &middot;
+    <a href="/privacy.html" style="color:inherit;">Privacy</a> &middot;
     <a href="/" style="color:inherit;">Catalog</a>
   </footer>
 
@@ -1862,12 +1904,26 @@
       const name     = document.getElementById("signup-name").value.trim();
       const email    = document.getElementById("signup-email").value.trim();
       const password = document.getElementById("signup-password").value;
+      const tosOk    = document.getElementById("signup-tos").checked;
+      if (!tosOk) {
+        setBanner("signup", "Please review and accept the Terms of Use and Privacy Policy to create an account.", "error");
+        return;
+      }
+      // Stamp acceptance on the new account so we can prove (and re-prompt if
+      // the version ever changes). The trigger handle_new_user() pulls these
+      // from raw_user_meta_data into public.profiles.
+      const tosAcceptedAt = new Date().toISOString();
+      const tosVersion    = "1.0";
       $signupBtn.disabled = true; $signupBtn.textContent = "Creating account…";
       try {
         const { data, error } = await supabase.auth.signUp({
           email, password,
           options: {
-            data: { display_name: name },
+            data: {
+              display_name: name,
+              tos_accepted_at: tosAcceptedAt,
+              tos_version: tosVersion,
+            },
             emailRedirectTo: window.location.origin + "/portal/",
           },
         });
