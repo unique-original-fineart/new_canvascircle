@@ -101,6 +101,11 @@
       width: 16px; height: 16px; cursor: pointer;
     }
     .tos-label a { color: var(--accent); text-decoration: underline; }
+    .signup-note {
+      margin: 8px 0 0 26px;
+      font-size: 12px; line-height: 1.4;
+      color: var(--muted);
+    }
     input[type="email"], input[type="password"], input[type="text"],
     input[type="url"],   input[type="number"] {
       width: 100%;
@@ -595,7 +600,10 @@
     }
     .savers-list strong { display: block; margin-bottom: 4px; font-size: 12px; color: var(--muted); }
     .savers-list ul { margin: 0; padding-left: 18px; }
-    .savers-list li { margin-bottom: 2px; }
+    .savers-list li { margin-bottom: 6px; line-height: 1.35; }
+    .savers-list .saver-links { font-size: 11px; }
+    .savers-list .saver-link { color: var(--accent); text-decoration: underline; font-weight: 600; }
+    .savers-list .saver-link:hover { filter: brightness(.85); }
     .savers-list .small { color: var(--muted); font-size: 11px; }
 
     /* Form is single-column inside the narrower 2-up cards. */
@@ -1276,6 +1284,9 @@
                 and I understand CanvasCircle is a free listing platform that does not process payments,
                 verify artwork authenticity, or mediate disputes between users.</span>
             </label>
+            <p class="signup-note">
+              Heads-up: when you save someone's listing, that seller can see your display name, contact email, and Facebook profile URL (if you've added it) so they can reach out — similar to how Facebook shows who's liked a post. This is only visible to sellers whose listings you save, not the public.
+            </p>
           </div>
           <button type="submit" class="primary" id="signup-btn">Create account</button>
         </form>
@@ -2621,11 +2632,15 @@
         return;
       }
 
-      // 2) profiles for those user_ids (in one batch).
+      // 2) profiles for those user_ids (in one batch). Sellers see the
+      // saver's display name + contact email + Facebook profile URL so they
+      // can reach out directly, similar to how Facebook reveals "who liked
+      // your post." Buyers' account email and password are still private —
+      // contact_email is the public-facing field they chose to publish.
       const userIds = [...new Set(rows.map(r => r.user_id))];
       const { data: profs, error: profErr } = await supabase
         .from("profiles")
-        .select("user_id, display_name")
+        .select("user_id, display_name, contact_email, facebook_profile_url")
         .in("user_id", userIds);
       if (profErr) {
         setContent(`<span class="small">Couldn't load: ${escapeHtml(profErr.message || profErr)}</span>`);
@@ -2634,11 +2649,23 @@
       const profByUser = Object.fromEntries((profs || []).map(p => [p.user_id, p]));
 
       const items = rows.map(r => {
-        const name = profByUser[r.user_id]?.display_name || "Someone";
-        const date = r.created_at
+        const p     = profByUser[r.user_id] || {};
+        const name  = p.display_name || "Someone";
+        const email = p.contact_email || "";
+        const fb    = p.facebook_profile_url || "";
+        const date  = r.created_at
           ? new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
           : "";
-        return `<li>${escapeHtml(name)} <span class="small">· ${escapeHtml(date)}</span></li>`;
+        const links = [];
+        if (email) {
+          const subj = encodeURIComponent(`CanvasCircle — ${listing.artist_name || "your saved listing"}`);
+          links.push(`<a href="mailto:${escapeHtml(email)}?subject=${subj}" class="saver-link">Email</a>`);
+        }
+        if (fb) {
+          links.push(`<a href="${escapeHtml(fb)}" target="_blank" rel="noopener" class="saver-link">Facebook</a>`);
+        }
+        const linksHtml = links.length ? `<span class="saver-links">${links.join(" · ")}</span>` : "";
+        return `<li><strong>${escapeHtml(name)}</strong> <span class="small">· ${escapeHtml(date)}</span>${linksHtml ? `<br>${linksHtml}` : ""}</li>`;
       }).join("");
       setContent(`<strong>Saved by</strong><ul>${items}</ul>`);
     }
