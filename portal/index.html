@@ -407,6 +407,25 @@
       background: #ececec; color: #4a4a4a; border-color: #d4d4d4;
     }
     .preview-card .pc-mod-pill { background: #fff4e2; color: #5a4400; border-color: #f0d6a3; }
+    .preview-card .pc-mod-banner {
+      display: flex; flex-direction: column; gap: 2px;
+      margin: 4px 0 2px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 11px; line-height: 1.3;
+    }
+    .preview-card .pc-mod-banner strong {
+      font-size: 11px; font-weight: 700; letter-spacing: .2px;
+    }
+    .preview-card .pc-mod-banner span { font-size: 10.5px; opacity: .9; }
+    .preview-card .pc-mod-pending {
+      background: #fff4e2; color: #5a4400;
+      border: 1px solid #f0d6a3;
+    }
+    .preview-card .pc-mod-rejected {
+      background: #fef0ee; color: #8a1f1a;
+      border: 1px solid #f1c4be;
+    }
     .preview-card .pc-metrics {
       font-size: 11px; color: var(--muted);
       display: flex; gap: 10px; flex-wrap: nowrap;
@@ -676,6 +695,12 @@
 
     /* Account view banner — sits above the listings */
     #dashboard-banner.banner { display: block; margin: 0 0 12px; white-space: pre-line; }
+    #dashboard-banner.banner[hidden] { display: none; }
+    #dashboard-banner.banner.success {
+      background: #d6efdf; border-color: #1f5b32; color: #0f3a1d;
+      font-weight: 600; padding: 14px 16px; font-size: 14px;
+    }
+    #dashboard-banner.banner.success::before { content: "✓ "; font-weight: 700; }
 
     /* Account-status banner (suspended / banned) */
     .status-banner {
@@ -1270,7 +1295,10 @@
             <div class="name" id="who-name">&nbsp;</div>
             <div class="email" id="who-email">&nbsp;</div>
           </div>
-          <button type="button" class="ghost" id="signout-btn">Sign out</button>
+          <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+            <a href="#" id="contact-admin-top" style="color: var(--accent); font-weight: 600; text-decoration: underline; font-size: 14px;">Contact Admin</a>
+            <button type="button" class="ghost" id="signout-btn">Sign out</button>
+          </div>
         </div>
 
         <!-- Account status banner (suspended / banned) -->
@@ -1302,7 +1330,6 @@
               <option value="pending">Pending</option>
               <option value="sold">Sold</option>
               <option value="not_renewed">Not renewed (expired)</option>
-              <option value="delisted">Delisted</option>
               <option value="pending_review">Pending review</option>
             </select>
             <select id="dash-sort">
@@ -1464,7 +1491,6 @@
 
         <div class="quicklinks" style="margin-top: 18px;">
           <a href="/">View public catalog <span class="arrow">→</span></a>
-          <a href="#" id="contact-admin-link">Contact admin <span class="arrow">→</span></a>
         </div>
       </section>
 
@@ -1622,6 +1648,28 @@
       </div>
       <div class="edit-modal-body" id="edit-modal-body">
         <!-- The edit-card form is injected here when the modal opens -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ EMAIL MODAL (Contact Admin + Email Seller) ============ -->
+  <div class="edit-modal-overlay" id="email-modal-overlay" role="dialog" aria-modal="true" hidden>
+    <div class="edit-modal" style="max-width: 560px;">
+      <div class="edit-modal-header">
+        <h2 id="email-modal-title">Send email</h2>
+        <button type="button" class="em-close" id="email-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <p class="help" id="email-modal-help" style="margin: 0 0 12px;"></p>
+        <form id="email-modal-form" autocomplete="off" onsubmit="return false;" style="display: grid; gap: 10px;">
+          <input type="text" id="em-subject" placeholder="Subject" style="padding:9px 12px; border-radius:8px; border:1px solid var(--card-line); font-size:14px;" />
+          <textarea id="em-body" rows="7" placeholder="Your message…" style="padding:10px 12px; border-radius:8px; border:1px solid var(--card-line); font-size:14px; font-family:inherit; resize:vertical;"></textarea>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn-primary" id="em-send-btn">Send</button>
+            <button type="button" class="ghost"      id="em-cancel-btn">Cancel</button>
+            <span id="em-status" class="sp-text-status"></span>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -2108,10 +2156,17 @@
           <div class="pc-title">${escapeHtml(l.artwork_title || "")}</div>
           <div class="pc-price-row">
             <span class="pc-price">$${price}</span>
-            ${l.moderation_status && l.moderation_status !== "approved"
-              ? `<span class="pc-pills"><span class="pc-pill pc-mod-pill">${escapeHtml(l.moderation_status)}</span></span>`
-              : ""}
           </div>
+          ${l.moderation_status && l.moderation_status !== "approved"
+            ? `<div class="pc-mod-banner pc-mod-${escapeHtml(l.moderation_status)}">
+                 <strong>${l.moderation_status === "pending" ? "Pending Review" : (l.moderation_status === "rejected" ? "Rejected" : escapeHtml(l.moderation_status))}</strong>
+                 <span>${l.moderation_status === "pending"
+                   ? "Awaiting admin approval. Hidden from the public catalog until approved."
+                   : (l.moderation_status === "rejected"
+                     ? "This listing was rejected by the admin. Edit and resubmit, or contact the admin."
+                     : "")}</span>
+               </div>`
+            : ""}
           <div class="pc-metrics">
             ${saveCnt > 0
               ? `<button type="button" class="pc-metric-btn" data-action="show-savers">♥ ${saveCnt} ${saveCnt === 1 ? "save" : "saves"}</button>`
@@ -2637,15 +2692,23 @@
       return errs;
     }
 
-    function showDashBanner(text, kind) {
+    let _dashBannerTimeout = null;
+    function showDashBanner(text, kind, opts = {}) {
+      if (_dashBannerTimeout) { clearTimeout(_dashBannerTimeout); _dashBannerTimeout = null; }
       $dashBanner.textContent = text;
       $dashBanner.className = "banner" + (kind ? " " + kind : "");
       $dashBanner.hidden = false;
       $dashBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      // Auto-dismiss success banners after 6s. Errors stick until next action.
+      if (kind === "success" && opts.autoHide !== false) {
+        _dashBannerTimeout = setTimeout(() => clearDashBanner(), 6000);
+      }
     }
     function clearDashBanner() {
+      if (_dashBannerTimeout) { clearTimeout(_dashBannerTimeout); _dashBannerTimeout = null; }
       $dashBanner.hidden = true;
       $dashBanner.textContent = "";
+      $dashBanner.className = "banner";
     }
 
     async function saveCard(card) {
@@ -2691,18 +2754,18 @@
         if (idx >= 0) Object.assign(allListings[idx], payload);
         markDirty(card, false);
         card.classList.remove("has-error");
-        showDashBanner(
-          needsReview
-            ? "Saved. Your edits are pending admin review — the listing will return to the public catalog once approved."
-            : "Saved.",
-          "success"
-        );
-        // If we're inside the edit modal, close it and refresh the preview grid.
+        // Build a clear, specific success message including the listing label.
+        const savedLabel = `${payload.artist_name || "Untitled"} — ${payload.artwork_title || ""}`.trim().replace(/[\s—]+$/, "");
+        const successMsg = needsReview
+          ? `Saved "${savedLabel}". Your edits are pending admin review — the listing will return to the public catalog once approved.`
+          : `Saved "${savedLabel}". Your changes are live.`;
+        // If we're inside the edit modal, close it and refresh the preview grid first.
         if (card.closest("#edit-modal-overlay")) {
           closeEditModal();
           applyFilters();
-          refreshNotRenewedBanner();
         }
+        // Show success banner LAST so it isn't clobbered by other refreshes.
+        showDashBanner(successMsg, "success");
         return true;
       } catch (err) {
         console.error("[saveCard] failed:", err);
@@ -3528,20 +3591,87 @@
     const $bcSendBtn  = document.getElementById("bc-send-btn");
     const $bcStatus   = document.getElementById("bc-status");
 
-    // ---- Contact admin (any signed-in user) ----
-    document.getElementById("contact-admin-link")?.addEventListener("click", async (e) => {
-      e.preventDefault();
-      const subject = prompt("Subject for your message to the admin:");
-      if (!subject) return;
-      const text = prompt("Your message:");
-      if (!text) return;
-      try {
-        await callSendEmail({ mode: "contact-admin", subject, text });
-        alert("Message sent. The admin will reply to your registered email.");
-      } catch (err) {
-        console.error("[contact-admin] failed:", err);
-        alert("Could not send: " + (err.message || err));
+    // ---- Reusable email modal (Contact Admin + Email Seller) ----
+    const $emailModal       = document.getElementById("email-modal-overlay");
+    const $emailModalTitle  = document.getElementById("email-modal-title");
+    const $emailModalHelp   = document.getElementById("email-modal-help");
+    const $emailModalClose  = document.getElementById("email-modal-close");
+    const $emSubject        = document.getElementById("em-subject");
+    const $emBody           = document.getElementById("em-body");
+    const $emSendBtn        = document.getElementById("em-send-btn");
+    const $emCancelBtn      = document.getElementById("em-cancel-btn");
+    const $emStatus         = document.getElementById("em-status");
+
+    let _emailSendHandler = null;
+
+    function openEmailModal({ title, help, subjectPlaceholder, bodyPlaceholder, onSend }) {
+      $emailModalTitle.textContent = title || "Send email";
+      $emailModalHelp.textContent  = help || "";
+      $emSubject.placeholder = subjectPlaceholder || "Subject";
+      $emBody.placeholder    = bodyPlaceholder    || "Your message…";
+      $emSubject.value = "";
+      $emBody.value    = "";
+      $emStatus.textContent = "";
+      $emStatus.className   = "sp-text-status";
+      $emSendBtn.disabled   = false;
+      $emSendBtn.textContent = "Send";
+      _emailSendHandler = onSend;
+      $emailModal.hidden = false;
+      $emailModal.classList.add("is-open");
+      setTimeout(() => $emSubject.focus(), 50);
+    }
+    function closeEmailModal() {
+      $emailModal.hidden = true;
+      $emailModal.classList.remove("is-open");
+      _emailSendHandler = null;
+    }
+    $emailModalClose.addEventListener("click", closeEmailModal);
+    $emCancelBtn.addEventListener("click", closeEmailModal);
+    $emailModal.addEventListener("click", (e) => { if (e.target === $emailModal) closeEmailModal(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !$emailModal.hidden) closeEmailModal();
+    });
+
+    $emSendBtn.addEventListener("click", async () => {
+      const subject = $emSubject.value.trim();
+      const text    = $emBody.value.trim();
+      if (!subject || !text) {
+        $emStatus.textContent = "Subject + message are required.";
+        $emStatus.className   = "sp-text-status err";
+        return;
       }
+      if (!_emailSendHandler) return;
+      $emSendBtn.disabled = true;
+      $emSendBtn.textContent = "Sending…";
+      $emStatus.textContent = "";
+      $emStatus.className   = "sp-text-status";
+      try {
+        await _emailSendHandler({ subject, text });
+        $emStatus.textContent = "Sent.";
+        $emStatus.className   = "sp-text-status ok";
+        setTimeout(closeEmailModal, 900);
+      } catch (err) {
+        console.error("[email-modal] send failed:", err);
+        $emStatus.textContent = "Failed: " + (err.message || err);
+        $emStatus.className   = "sp-text-status err";
+        $emSendBtn.disabled   = false;
+        $emSendBtn.textContent = "Send";
+      }
+    });
+
+    // ---- Contact admin (any signed-in user) ----
+    function openContactAdminModal() {
+      openEmailModal({
+        title: "Contact Admin",
+        help:  "Send a message to the CanvasCircle admin. The admin will reply to your registered email.",
+        subjectPlaceholder: "Subject (e.g. Question about my listing)",
+        bodyPlaceholder:    "Your message…",
+        onSend: ({ subject, text }) => callSendEmail({ mode: "contact-admin", subject, text }),
+      });
+    }
+    document.getElementById("contact-admin-top")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      openContactAdminModal();
     });
 
     $bcSendBtn?.addEventListener("click", async () => {
@@ -3575,23 +3705,23 @@
     });
 
     // ---- Direct email to one seller (admin) ----
-    async function emailSellerDirect(profile) {
-      const subject = prompt(`Email "${profile.display_name}" — subject:`);
-      if (!subject) return;
-      const text = prompt("Message body:");
-      if (!text) return;
-      try {
-        await callSendEmail({
-          mode: "direct-to-seller",
-          sellerUserId: profile.user_id,
-          subject,
-          text,
-        });
-        setAdminBanner(`Email sent to ${profile.display_name}.`, "success");
-      } catch (err) {
-        console.error("[emailSellerDirect] failed:", err);
-        setAdminBanner("Could not send: " + (err.message || err), "error");
-      }
+    function emailSellerDirect(profile) {
+      const name = profile.display_name || "this seller";
+      openEmailModal({
+        title: `Email ${name}`,
+        help:  `Sends a one-off email to ${name}'s registered contact email.`,
+        subjectPlaceholder: "Subject",
+        bodyPlaceholder:    "Your message…",
+        onSend: async ({ subject, text }) => {
+          await callSendEmail({
+            mode: "direct-to-seller",
+            sellerUserId: profile.user_id,
+            subject,
+            text,
+          });
+          setAdminBanner(`Email sent to ${name}.`, "success");
+        },
+      });
     }
 
     async function reinstateSeller(profile) {
