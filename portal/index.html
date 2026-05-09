@@ -2085,14 +2085,14 @@
         $sb.className = "status-banner suspended";
         $sb.innerHTML = `
           <h3>Your account is suspended until further notice.</h3>
-          <p>Your listings are temporarily hidden from the public catalog. You can still see and edit them here, but you can't post new listings while suspended. Reach out to <a href="mailto:gjscuderi@gmail.com" style="color:inherit; font-weight:600;">gjscuderi@gmail.com</a> with any questions.</p>
+          <p>Your listings are temporarily hidden from the public catalog. You can still see and edit them here, but you can't post new listings while suspended. Reach out to <a href="mailto:admin@canvascircle.art" style="color:inherit; font-weight:600;">admin@canvascircle.art</a> with any questions.</p>
         `;
       } else if (status === "banned") {
         $sb.hidden = false;
         $sb.className = "status-banner banned";
         $sb.innerHTML = `
           <h3>Your account has been banned.</h3>
-          <p>You have been banned due to violations against the marketplace rules. Your listings have been removed and you can no longer post new listings. If you believe this is a mistake, contact <a href="mailto:gjscuderi@gmail.com" style="color:inherit; font-weight:600;">gjscuderi@gmail.com</a>.</p>
+          <p>You have been banned due to violations against the marketplace rules. Your listings have been removed and you can no longer post new listings. If you believe this is a mistake, contact <a href="mailto:admin@canvascircle.art" style="color:inherit; font-weight:600;">admin@canvascircle.art</a>.</p>
         `;
       } else {
         $sb.hidden = true;
