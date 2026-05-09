@@ -1928,21 +1928,18 @@
           },
         });
         if (error) throw error;
-        // Fire welcome email — fire-and-forget; never blocks signup UX.
-        // Only works once they've confirmed their email and have a session,
-        // because the edge function checks the auth header.
+        // Welcome content now lives inside the Supabase "Confirm signup"
+        // template, so we don't fire a separate welcome email anymore.
+        // The `welcome` mode in send-email/index.ts is kept for manual use
+        // (e.g., admin re-welcome) but is no longer triggered automatically.
         if (data.session) {
-          supabase.functions.invoke("send-email", { body: { mode: "welcome" } })
-            .catch((e) => console.warn("[welcome-email] failed (non-fatal):", e));
-        }
-        // Supabase requires email confirmation by default. Tell the user.
-        if (data.session) {
-          // (Edge case: confirmation disabled — already signed in.)
-          setBanner("signup", "Account created — welcome email on its way. Signing you in…", "success");
+          // Edge case: email confirmation disabled in Supabase — user is
+          // signed in immediately, no confirmation email goes out.
+          setBanner("signup", "Account created. Signing you in…", "success");
         } else {
           setBanner(
             "signup",
-            "Almost done — check your email and click the confirmation link to finish creating your account. We'll send a welcome email after you sign in for the first time.",
+            "Almost done — check your email and click the confirmation link to finish creating your account.",
             "success"
           );
         }
@@ -4695,16 +4692,9 @@
       if (event === "SIGNED_IN" && !inRecoveryFlow) {
         await refreshAccountView();
         showView("account");
-        // First-ever sign-in → fire welcome email, marked once via localStorage
-        // so it never sends twice. Non-fatal if the function isn't deployed yet.
-        try {
-          const flagKey = "cc_welcomed_" + (session?.user?.id || "anon");
-          if (session?.user && !localStorage.getItem(flagKey)) {
-            localStorage.setItem(flagKey, "1");
-            supabase.functions.invoke("send-email", { body: { mode: "welcome" } })
-              .catch((e) => console.warn("[welcome-email] failed (non-fatal):", e));
-          }
-        } catch (e) { /* private mode etc */ }
+        // Welcome content now lives in the Supabase "Confirm signup" email
+        // template — no separate welcome email is fired here. The legacy
+        // `cc_welcomed_*` localStorage keys are harmless if they exist.
         return;
       }
       if (event === "SIGNED_OUT") {
