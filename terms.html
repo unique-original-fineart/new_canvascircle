@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Terms of Use — CanvasCircle</title>
+
+  <link rel="icon" href="/assets/favicon.ico" />
+  <link rel="manifest" href="/assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#1a1a1a" />
+
+  <meta property="og:title"       content="Terms of Use — CanvasCircle" />
+  <meta property="og:description" content="The rules for using CanvasCircle, a free art listing platform." />
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://canvascircle.art/terms.html" />
+  <meta property="og:image"       content="https://canvascircle.art/assets/og-image.png" />
+  <meta name="twitter:card"       content="summary_large_image" />
+
+  <style>
+    :root {
+      --bg:        #faf9f6;
+      --fg:        #1a1a1a;
+      --muted:     #6b6b6b;
+      --accent:    #b8860b;
+      --card-bg:   #ffffff;
+      --card-line: #e8e4dc;
+      --shadow:    0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+    }
+    a { color: var(--accent); }
+
+    header.site {
+      padding: 18px 16px;
+      border-bottom: 1px solid var(--card-line);
+      background: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header.site .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); }
+    header.site img    { height: 32px; width: 32px; border-radius: 6px; }
+    header.site .title { font-weight: 600; font-size: 18px; letter-spacing: .2px; }
+    nav a { color: var(--fg); text-decoration: none; margin-left: 16px; font-size: 14px; }
+    nav a:hover { color: var(--accent); }
+
+    main {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+    }
+
+    .hero { padding: 24px 0 8px; }
+    .hero h1 {
+      margin: 0 0 8px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(28px, 4vw, 42px);
+      letter-spacing: -.02em;
+      font-weight: 600;
+    }
+    .hero p { margin: 0; color: var(--muted); }
+    .effective { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+    .section {
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 14px;
+      padding: 22px 24px;
+      box-shadow: var(--shadow);
+      margin: 16px 0;
+    }
+    .section h2 {
+      margin: 0 0 12px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 22px;
+      letter-spacing: -.02em;
+      font-weight: 600;
+    }
+    .section h3 {
+      margin: 16px 0 6px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 17px;
+      font-weight: 600;
+    }
+    .section p   { margin: 0 0 12px; }
+    .section p:last-child { margin-bottom: 0; }
+    .section ul, .section ol { margin: 8px 0 12px; padding-left: 22px; }
+    .section li { margin-bottom: 6px; }
+
+    .toc {
+      background: #fbf6e9; border: 1px solid #e9dcad;
+      border-radius: 10px; padding: 12px 16px; margin: 16px 0;
+      font-size: 14px;
+    }
+    .toc strong { display: block; margin-bottom: 6px; }
+    .toc ol { margin: 0; padding-left: 22px; }
+    .toc li { margin-bottom: 2px; }
+    .toc a { color: var(--fg); text-decoration: none; }
+    .toc a:hover { color: var(--accent); text-decoration: underline; }
+
+    .footer-link { margin-top: 24px; text-align: center; }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 32px 16px;
+      border-top: 1px solid var(--card-line);
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site">
+    <a class="brand" href="/">
+      <img src="/assets/CanvasCircleLogo.png" alt="CanvasCircle" />
+      <span class="title">CanvasCircle</span>
+    </a>
+    <nav>
+      <a href="/">Catalog</a>
+      <a href="/portal/" class="cc-auth-link">Log In</a>
+      <a href="/guidelines.html">Guidelines</a>
+      <a href="/about.html">About</a>
+    </nav>
+  </header>
+
+  <script type="module" src="/lib/nav-auth.js"></script>
+
+  <main>
+    <section class="hero">
+      <h1>Terms of Use</h1>
+      <p>The rules for using CanvasCircle.</p>
+      <p class="effective">Effective date: May 9, 2026 &middot; Version 1.0</p>
+    </section>
+
+    <div class="toc">
+      <strong>Contents</strong>
+      <ol>
+        <li><a href="#acceptance">Acceptance of these terms</a></li>
+        <li><a href="#eligibility">Eligibility</a></li>
+        <li><a href="#our-role">CanvasCircle's role — we are a venue, not a party</a></li>
+        <li><a href="#accounts">Accounts and your responsibilities</a></li>
+        <li><a href="#listings">Listings — seller obligations</a></li>
+        <li><a href="#prohibited">Prohibited content and conduct</a></li>
+        <li><a href="#transactions">Transactions, payments, and shipping</a></li>
+        <li><a href="#disputes">Disputes between users</a></li>
+        <li><a href="#fees">Fees</a></li>
+        <li><a href="#ip">Intellectual property and DMCA</a></li>
+        <li><a href="#disclaimer">Disclaimer of warranties</a></li>
+        <li><a href="#liability">Limitation of liability</a></li>
+        <li><a href="#indemnify">Indemnification</a></li>
+        <li><a href="#termination">Termination</a></li>
+        <li><a href="#changes">Changes to these terms</a></li>
+        <li><a href="#law">Governing law and disputes with us</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ol>
+    </div>
+
+    <section class="section" id="acceptance">
+      <h2>1. Acceptance of these terms</h2>
+      <p>CanvasCircle ("we," "us," "our") provides an online platform at canvascircle.art that lets users list artworks for sale and lets buyers browse those listings ("the Service"). By creating an account, signing in, posting a listing, or browsing the Service, you agree to these Terms of Use ("Terms"). If you don't agree, don't use the Service.</p>
+      <p>These Terms form a binding contract between you and CanvasCircle. They apply together with our <a href="/privacy.html">Privacy Policy</a>, which is incorporated by reference.</p>
+    </section>
+
+    <section class="section" id="eligibility">
+      <h2>2. Eligibility</h2>
+      <p>You must be at least 18 years old and able to form a legally binding contract under the laws of your jurisdiction to use the Service. By using the Service, you represent that you meet these requirements.</p>
+      <p>If you're using the Service on behalf of a business or other entity, you represent that you have authority to bind that entity to these Terms.</p>
+    </section>
+
+    <section class="section" id="our-role">
+      <h2>3. CanvasCircle's role — we are a venue, not a party</h2>
+      <p><strong>CanvasCircle is a listing platform, not a marketplace operator, broker, escrow agent, payment processor, art authenticator, appraiser, or shipper.</strong> We provide infrastructure that lets sellers create listings and lets buyers find them. That's it.</p>
+      <p>We are <strong>not a party</strong> to any agreement, transaction, sale, or dispute between users. Specifically:</p>
+      <ul>
+        <li>We do not own, possess, examine, authenticate, appraise, or take custody of any artwork listed on the Service.</li>
+        <li>We do not collect, hold, escrow, refund, charge back, or process any payment between users.</li>
+        <li>We do not arrange, fulfill, ship, deliver, insure, or track any artwork.</li>
+        <li>We do not verify the identity, location, or representations of any user beyond what users voluntarily provide on the Service.</li>
+        <li>We do not guarantee that any listed artwork is authentic, accurately described, available, free of liens or claims, lawfully owned by the seller, or in the condition represented.</li>
+        <li>We do not guarantee that any user will respond to inquiries, complete a transaction, ship as agreed, or behave honestly.</li>
+      </ul>
+      <p>Any agreement to buy, sell, ship, or pay for an artwork is solely between the buyer and the seller. CanvasCircle has no involvement, financial or otherwise, in those agreements.</p>
+    </section>
+
+    <section class="section" id="accounts">
+      <h2>4. Accounts and your responsibilities</h2>
+      <p>You're responsible for:</p>
+      <ul>
+        <li>Keeping your password secret and your account secure.</li>
+        <li>Every action taken under your account, whether by you or someone using your credentials.</li>
+        <li>Providing accurate, current, and complete information in your profile and listings.</li>
+        <li>Notifying us promptly if you suspect unauthorized use of your account.</li>
+        <li>All taxes, duties, fees, licenses, and legal compliance arising from your use of the Service or your transactions with other users.</li>
+      </ul>
+      <p>We may suspend, restrict, or terminate any account at our sole discretion, with or without notice, for any reason, including suspected violations of these Terms.</p>
+    </section>
+
+    <section class="section" id="listings">
+      <h2>5. Listings — seller obligations</h2>
+      <p>If you list an artwork on CanvasCircle, you represent and warrant that:</p>
+      <ul>
+        <li>You own the artwork or have the legal right to sell it.</li>
+        <li>The artwork is genuine and accurately described, including artist, title, medium, dimensions, condition, edition, provenance (if claimed), and price.</li>
+        <li>The images you upload are of the actual artwork you are selling, were taken by you (or you have rights to use them), and do not infringe anyone's copyright, trademark, publicity, or other rights.</li>
+        <li>The sale will not violate any law, regulation, gallery agreement, artist contract, or third-party right.</li>
+        <li>You will respond to inquiries in good faith, complete transactions honestly, and follow our published <a href="/guidelines.html#selling">Selling Guidelines</a> and <a href="/guidelines.html">Buying &amp; Shipping Guidelines</a>.</li>
+      </ul>
+      <p>You are solely responsible for the content of your listings, including any inaccuracies. CanvasCircle has no obligation to review, edit, or moderate listings, but we may do so at our discretion. The fact that a listing is visible on the Service does not mean we have endorsed, verified, or approved it.</p>
+    </section>
+
+    <section class="section" id="prohibited">
+      <h2>6. Prohibited content and conduct</h2>
+      <p>You may not use the Service to:</p>
+      <ul>
+        <li>List counterfeit, stolen, or fraudulently described artworks.</li>
+        <li>Upload images you don't have the right to use, including stock photos, gallery photos, or other people's listings.</li>
+        <li>Misrepresent yourself, your location, an artwork, an artist, an edition, or any material fact.</li>
+        <li>Sell items you cannot legally sell in your jurisdiction or the buyer's, including items in violation of artist resale restrictions, embargoes, or sanctions.</li>
+        <li>Harass, threaten, defame, or harm other users.</li>
+        <li>Attempt to reach buyers or sellers off-platform to evade our policies, fees (currently none), or moderation.</li>
+        <li>Use the Service to launder money, evade taxes, or facilitate any illegal activity.</li>
+        <li>Scrape, copy, mirror, or republish the Service or its data without our written permission.</li>
+        <li>Probe, scan, attack, overwhelm, or interfere with the Service's infrastructure or security.</li>
+        <li>Upload viruses, malware, or any code intended to disrupt or compromise the Service or other users.</li>
+        <li>Use bots, automated tools, or scripts to interact with the Service in ways not permitted by us.</li>
+      </ul>
+      <p>We may remove any listing or content, suspend or ban any user, and report illegal activity to law enforcement at our sole discretion.</p>
+    </section>
+
+    <section class="section" id="transactions">
+      <h2>7. Transactions, payments, and shipping</h2>
+      <p>All transactions are <strong>directly between buyer and seller</strong>. You agree that:</p>
+      <ul>
+        <li>You will negotiate, pay, ship, receive, and resolve any issues directly with the other party.</li>
+        <li>Payment will be made through whatever method the parties agree on (commonly PayPal or Venmo). CanvasCircle does not handle payments, hold funds, or facilitate refunds.</li>
+        <li>Shipping, customs, insurance, taxes, and delivery are the sole responsibility of the seller and buyer as they agree between themselves.</li>
+        <li>You are responsible for understanding and complying with consumer-protection, tax, import/export, and other laws applicable to your transaction.</li>
+      </ul>
+      <p>Our published <a href="/guidelines.html">Buying, Shipping, and Selling Guidelines</a> are recommendations only. Following them does not create any guarantee or obligation on our part.</p>
+    </section>
+
+    <section class="section" id="disputes">
+      <h2>8. Disputes between users</h2>
+      <p>If you have a dispute with another user — for example, a buyer claims an artwork was misrepresented, a seller claims a buyer didn't pay, or someone claims a shipment never arrived — that dispute is <strong>between you and the other user</strong>. CanvasCircle is not a mediator, arbitrator, decision-maker, refund issuer, or financial backstop.</p>
+      <p>You release CanvasCircle, its operators, employees, contractors, and agents from any claims, demands, damages, and liability of every kind and nature, known and unknown, arising out of or in any way connected with such disputes. If you are a California resident, you waive California Civil Code §1542, which says: <em>"A general release does not extend to claims that the creditor or releasing party does not know or suspect to exist in his or her favor at the time of executing the release and that, if known by him or her, would have materially affected his or her settlement with the debtor or released party."</em></p>
+      <p>You may, of course, pursue your remedies against the other user under applicable law.</p>
+    </section>
+
+    <section class="section" id="fees">
+      <h2>9. Fees</h2>
+      <p>The Service is currently free to use. We do not charge listing fees, commission, success fees, transaction fees, or subscription fees. We reserve the right to introduce fees in the future, with reasonable advance notice via the Service or email.</p>
+    </section>
+
+    <section class="section" id="ip">
+      <h2>10. Intellectual property and DMCA</h2>
+      <h3>Our content</h3>
+      <p>The CanvasCircle name, logo, design, code, and text on the Service (other than user-submitted listings) are owned by us or our licensors and are protected by copyright, trademark, and other laws. You may not copy, modify, or republish them without our written permission.</p>
+      <h3>Your content</h3>
+      <p>You retain ownership of the listings, photos, descriptions, and other content you upload ("Your Content"). By uploading Your Content, you grant CanvasCircle a worldwide, non-exclusive, royalty-free, sublicensable license to host, display, reproduce, distribute, and adapt Your Content for the purpose of operating, promoting, and improving the Service. This license ends when you remove Your Content from the Service, except where it has already been shared with other users or where retention is required by law.</p>
+      <p>You represent that you have all rights necessary to grant this license and that Your Content does not infringe any third party's rights.</p>
+      <h3>Copyright complaints (DMCA)</h3>
+      <p>If you believe content on the Service infringes your copyright, send a notice to our designated DMCA agent that contains: (a) your physical or electronic signature; (b) identification of the work claimed to be infringed; (c) identification of the allegedly infringing material and where it is on the Service (URL); (d) your contact information; (e) a statement that you have a good-faith belief that the use is not authorized; and (f) a statement under penalty of perjury that the information is accurate and that you are authorized to act on the copyright owner's behalf.</p>
+      <p>Send notices to: <strong>gjscuderi@gmail.com</strong> with the subject line "DMCA Notice." We will remove allegedly infringing material in accordance with the DMCA and may terminate accounts of repeat infringers.</p>
+    </section>
+
+    <section class="section" id="disclaimer">
+      <h2>11. Disclaimer of warranties</h2>
+      <p>THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. TO THE MAXIMUM EXTENT PERMITTED BY LAW, CANVASCIRCLE DISCLAIMS ALL WARRANTIES, INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.</p>
+      <p>WITHOUT LIMITING THE FOREGOING, CANVASCIRCLE MAKES NO REPRESENTATION OR WARRANTY THAT (A) THE SERVICE WILL BE UNINTERRUPTED, SECURE, OR ERROR-FREE; (B) ANY LISTING IS ACCURATE, AUTHENTIC, COMPLETE, OR LAWFUL; (C) ANY USER IS WHO THEY CLAIM TO BE; (D) ANY TRANSACTION WILL BE COMPLETED OR SATISFACTORY; OR (E) ANY DEFECTS WILL BE CORRECTED.</p>
+      <p>YOU USE THE SERVICE AT YOUR SOLE RISK.</p>
+    </section>
+
+    <section class="section" id="liability">
+      <h2>12. Limitation of liability</h2>
+      <p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT WILL CANVASCIRCLE OR ITS OPERATORS, EMPLOYEES, CONTRACTORS, AGENTS, OR LICENSORS BE LIABLE TO YOU FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR LOST PROFITS, LOST DATA, BUSINESS INTERRUPTION, OR LOSS OF GOODWILL, ARISING OUT OF OR RELATED TO THE SERVICE OR THESE TERMS, WHETHER BASED IN CONTRACT, TORT, NEGLIGENCE, STRICT LIABILITY, OR OTHERWISE, EVEN IF CANVASCIRCLE HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.</p>
+      <p>OUR TOTAL CUMULATIVE LIABILITY TO YOU FOR ALL CLAIMS RELATED TO THE SERVICE WILL NOT EXCEED THE GREATER OF (A) THE AMOUNT YOU PAID US IN THE TWELVE (12) MONTHS BEFORE THE EVENT GIVING RISE TO LIABILITY, OR (B) ONE HUNDRED U.S. DOLLARS ($100). BECAUSE THE SERVICE IS CURRENTLY FREE, AMOUNTS PAID UNDER (A) WILL TYPICALLY BE ZERO.</p>
+      <p>Some jurisdictions do not allow the exclusion or limitation of certain damages, so some of the above may not apply to you. In that case, our liability will be limited to the maximum extent permitted by law.</p>
+    </section>
+
+    <section class="section" id="indemnify">
+      <h2>13. Indemnification</h2>
+      <p>You agree to defend, indemnify, and hold harmless CanvasCircle and its operators, employees, contractors, agents, and licensors from and against any claims, demands, damages, losses, liabilities, costs, and expenses (including reasonable attorneys' fees) arising out of or related to: (a) your use of the Service; (b) Your Content; (c) your violation of these Terms; (d) your violation of any law or third-party right; or (e) any transaction or dispute between you and another user.</p>
+      <p>We reserve the right to assume the exclusive defense and control of any matter otherwise subject to indemnification by you, in which case you will cooperate with us in asserting any available defenses.</p>
+    </section>
+
+    <section class="section" id="termination">
+      <h2>14. Termination</h2>
+      <p>You may close your account at any time by emailing us at gjscuderi@gmail.com. We may suspend or terminate your access at any time, with or without notice, for any reason or no reason, including violations of these Terms.</p>
+      <p>Sections of these Terms that by their nature should survive termination will survive, including ownership provisions, warranty disclaimers, indemnification, limitation of liability, dispute resolution, and miscellaneous provisions.</p>
+    </section>
+
+    <section class="section" id="changes">
+      <h2>15. Changes to these terms</h2>
+      <p>We may update these Terms from time to time. When we do, we'll update the "Effective date" at the top and, for material changes, give reasonable notice through the Service or email. Your continued use of the Service after changes take effect means you accept the updated Terms. If you don't accept them, stop using the Service and close your account.</p>
+    </section>
+
+    <section class="section" id="law">
+      <h2>16. Governing law and disputes with us</h2>
+      <p>These Terms and any dispute between you and CanvasCircle are governed by the laws of the State of New Jersey, without regard to conflict-of-laws rules. You and CanvasCircle agree that any lawsuit between us must be brought exclusively in the state or federal courts located in Middlesex County, New Jersey, and you consent to the personal jurisdiction of those courts.</p>
+      <p>Nothing in this section limits either party's right to seek injunctive or other equitable relief in any court of competent jurisdiction to protect its intellectual property or confidential information.</p>
+      <p>If any provision of these Terms is held unenforceable, the remaining provisions will remain in full force. Our failure to enforce any right is not a waiver. These Terms are the entire agreement between you and us regarding the Service.</p>
+    </section>
+
+    <section class="section" id="contact">
+      <h2>17. Contact</h2>
+      <p>Questions about these Terms? Email <a href="mailto:gjscuderi@gmail.com">gjscuderi@gmail.com</a>.</p>
+    </section>
+
+    <div class="footer-link">
+      <a href="/">&larr; Return to the catalog</a>
+    </div>
+  </main>
+
+  <footer>
+    &copy; CanvasCircle.
+    <a href="/about.html" style="color:inherit;">About</a> &middot;
+    <a href="/guidelines.html" style="color:inherit;">Guidelines</a> &middot;
+    <a href="/terms.html" style="color:inherit;">Terms</a> &middot;
+    <a href="/privacy.html" style="color:inherit;">Privacy</a> &middot;
+    <a href="/portal/" style="color:inherit;" class="cc-auth-link">Log In</a>
+  </footer>
+</body>
+</html>

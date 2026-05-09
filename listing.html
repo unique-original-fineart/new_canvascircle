@@ -199,6 +199,22 @@
     .buying-tips-nudge a { color: var(--accent); font-weight: 600; }
     .buying-tips-nudge a:hover { text-decoration: underline; }
 
+    /* Conspicuous "we're a venue, not a party" disclaimer above transaction
+       buttons. Required to invoke the limitation-of-liability and dispute
+       waivers in the Terms of Use. */
+    .transaction-disclaimer {
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: #f4f1ea;
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .transaction-disclaimer strong { color: var(--fg); }
+    .transaction-disclaimer a { color: var(--accent); text-decoration: underline; }
+
     .listed-line { color: var(--muted); font-size: 13px; margin-top: 14px; }
 
     /* Lightbox */
@@ -252,6 +268,8 @@
     &copy; CanvasCircle.
     <a href="/about.html" style="color:inherit;">About</a> &middot;
     <a href="/guidelines.html" style="color:inherit;">Guidelines</a> &middot;
+    <a href="/terms.html" style="color:inherit;">Terms</a> &middot;
+    <a href="/privacy.html" style="color:inherit;">Privacy</a> &middot;
     <a href="/portal/" style="color:inherit;" class="cc-auth-link">Log In</a>
   </footer>
 
@@ -512,6 +530,10 @@
               ${(fbUrl || seller.contact_email) ? `
                 <div class="buying-tips-nudge">
                   Before you reach out — <a href="/guidelines.html" target="_blank" rel="noopener">read the buying tips ↗</a> for a smoother, safer transaction.
+                </div>` : ""}
+              ${(fbUrl || seller.contact_email) ? `
+                <div class="transaction-disclaimer">
+                  <strong>Heads up:</strong> CanvasCircle is a free listing platform. This transaction is directly between you and the seller. CanvasCircle does not process payments, verify authenticity, or mediate disputes. See our <a href="/terms.html" target="_blank" rel="noopener">Terms</a>.
                 </div>` : ""}
             </div>
 
