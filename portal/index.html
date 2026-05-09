@@ -2035,6 +2035,7 @@
         console.log("[recovery] updateUser result:", result);
         if (result?.error) throw result.error;
         setBanner("recovery", "Password updated. Welcome.", "success");
+        inRecoveryFlow = false;
         await refreshAccountView();
         showView("account");
       } catch (err) {
@@ -4681,7 +4682,19 @@
     // -----------------------------------------------------------------------
     // Auth state controller — decides which view to show.
     // -----------------------------------------------------------------------
-    let inRecoveryFlow = false;
+    // Detect recovery context SYNCHRONOUSLY before Supabase JS fires events.
+    // In supabase-js v2, SIGNED_IN sometimes fires before PASSWORD_RECOVERY,
+    // which would route the user to /account instead of the password-reset
+    // form. The recovery URL has #type=recovery (and access_token) in the
+    // hash, or ?type=recovery in the query for some PKCE flavors.
+    let inRecoveryFlow = (() => {
+      const h = window.location.hash || "";
+      const q = window.location.search || "";
+      return h.includes("type=recovery") || q.includes("type=recovery");
+    })();
+    if (inRecoveryFlow) {
+      showView("recovery");
+    }
 
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "PASSWORD_RECOVERY") {
