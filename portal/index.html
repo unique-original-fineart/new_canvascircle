@@ -1934,12 +1934,19 @@
         // (e.g., admin re-welcome) but is no longer triggered automatically.
         if (data.session) {
           // Edge case: email confirmation disabled in Supabase — user is
-          // signed in immediately, no confirmation email goes out.
+          // signed in immediately, no confirmation email goes out. The
+          // SIGNED_IN auth event will switch them to the account view.
           setBanner("signup", "Account created. Signing you in…", "success");
         } else {
+          // Email confirmation is required (the normal case). Switch to the
+          // sign-in view and surface the "check your email" banner there so
+          // the signup form (with its filled-in fields) doesn't linger.
+          $signupForm.reset();
+          clearBanner("signup");
+          showView("signin");
           setBanner(
-            "signup",
-            "Almost done — check your email and click the confirmation link to finish creating your account.",
+            "signin",
+            "Almost done — check your email and click the confirmation link to finish creating your account. Then sign in here.",
             "success"
           );
         }
