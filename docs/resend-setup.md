@@ -37,8 +37,8 @@ Open **Supabase → Project Settings → Edge Functions → Secrets** and add:
 | Name | Value |
 |---|---|
 | `RESEND_API_KEY` | the key from step 3 |
-| `RESEND_FROM_EMAIL` | `onboarding@resend.dev` (option A) <br>OR `CanvasCircle <no-reply@canvascircle.art>` (option B) |
-| `ADMIN_EMAIL` | `gjscuderi@gmail.com` |
+| `RESEND_FROM_EMAIL` | `CanvasCircle <admin@canvascircle.art>` (preferred — From and Reply-To match, replies route to admin inbox via Cloudflare Email Routing) <br>OR `onboarding@resend.dev` for quick test setups |
+| `ADMIN_EMAIL` | `admin@canvascircle.art` |
 
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are
 auto-injected — don't add them manually.

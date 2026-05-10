@@ -28,7 +28,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RESEND_API_KEY    = Deno.env.get("RESEND_API_KEY") ?? "";
 const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") ?? "onboarding@resend.dev";
-const ADMIN_EMAIL       = Deno.env.get("ADMIN_EMAIL") ?? "gjscuderi@gmail.com";
+const ADMIN_EMAIL       = Deno.env.get("ADMIN_EMAIL") ?? "admin@canvascircle.art";
 const SUPABASE_URL      = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
@@ -224,7 +224,7 @@ Here's what you can do with your account:
 Before you reach out to a seller, take a minute to read our buying tips:
 https://canvascircle.art/guidelines.html
 
-Questions? Just reply to this email.
+Questions? Contact the admin Guy Scuderi at ${ADMIN_EMAIL}.
 
 — The CanvasCircle team`;
       await sendOne(user.email!, subject, wrapHtml(text), ADMIN_EMAIL);
