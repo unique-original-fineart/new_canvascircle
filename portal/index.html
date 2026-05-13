@@ -880,6 +880,19 @@
     }
     .seller-row.is-hidden { display: none; }
     .seller-row:last-child { border-bottom: none; }
+    .pending-name-admin {
+      margin: 8px 0 4px;
+      padding: 8px 12px;
+      background: #fff4e2; border: 1px solid #f0d6a3;
+      border-radius: 8px;
+      display: flex; gap: 10px; align-items: center; justify-content: space-between;
+      flex-wrap: wrap;
+      font-size: 13px;
+    }
+    .pending-name-admin .old-name { color: var(--muted); }
+    .pending-name-admin .arrow { color: var(--muted); margin: 0 4px; }
+    .pending-name-admin .new-name { font-weight: 600; }
+    .pending-name-admin .pending-actions { display: flex; gap: 6px; }
     .seller-row .seller-info strong { font-size: 14px; }
     .seller-row .seller-info .small { color: var(--muted); font-size: 12px; margin-top: 2px; }
     .seller-row .seller-info .pill {
@@ -1481,8 +1494,13 @@
             <div class="field">
               <label for="prof-name">Display name <span class="locked-tag">🔒 Locked</span></label>
               <input type="text" id="prof-name" placeholder="Your name as buyers will see it" disabled />
+              <div id="pending-name-row" hidden style="margin: 6px 0 0; padding: 6px 10px; background: #fff4e2; border: 1px solid #f0d6a3; border-radius: 6px; font-size: 12px; color: #5a4400;">
+                <strong>Pending admin approval:</strong> <span id="pending-name-value"></span>
+                <button type="button" id="pending-name-cancel" class="linklike" style="margin-left: 8px; color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Cancel request</button>
+              </div>
               <p class="small" style="margin: 4px 0 0;">
-                Set at signup and can't be changed here. If you need to correct it (typo, name change), email <a href="mailto:admin@canvascircle.art" style="color:var(--accent);">admin@canvascircle.art</a>.
+                Display names are locked to keep listings trustworthy. To request a change, click below — an admin will review and approve.
+                <button type="button" id="request-name-change-btn" class="linklike" style="color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Request name change</button>
               </p>
             </div>
             <div class="field">
@@ -1494,10 +1512,11 @@
               <input type="text" id="prof-loc" placeholder="e.g. Central NJ 08852" disabled />
             </div>
             <div class="field">
-              <label for="prof-email">Contact email <span class="locked-tag">🔒 Locked</span></label>
+              <label for="prof-email">Email <span class="locked-tag">🔒 Locked</span></label>
               <input type="email" id="prof-email" placeholder="you@example.com" disabled />
               <p class="small" style="margin: 4px 0 0;">
-                This is the email you signed up with. It powers the Email Seller button on your listings. To change it, email <a href="mailto:admin@canvascircle.art" style="color:var(--accent);">admin@canvascircle.art</a>.
+                This is the email you use to sign in <em>and</em> the email buyers see on the Email Seller button. To change it, click below — Supabase will email both the old and new addresses to confirm.
+                <button type="button" id="change-email-btn" class="linklike" style="color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Change my email</button>
               </p>
             </div>
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -3450,7 +3469,8 @@
         .select(`
           user_id, display_name, contact_email, location,
           is_trusted, is_admin, account_status, created_at,
-          facebook_profile_url
+          facebook_profile_url,
+          pending_display_name, pending_display_name_at
         `)
         .order("display_name", { ascending: true });
       $sellersLoading.hidden = true;
@@ -3513,10 +3533,6 @@
 
       // Action buttons. Don't offer Suspend/Ban for admins (would lock yourself out).
       let actionButtons = "";
-      // Admin-only override for the locked profile fields. Sellers can't
-      // change display_name or contact_email themselves; this is the manual
-      // edit path when they email asking for a correction.
-      actionButtons += `<button type="button" class="btn-suspend" data-action="edit-locked" title="Edit this seller's locked name + email">Edit name/email</button>`;
       if (profile.contact_email) {
         actionButtons += `<button type="button" class="btn-suspend" data-action="email" title="Email this seller via Resend">Email</button>`;
       }
@@ -3538,6 +3554,21 @@
         }
       }
 
+      // Pending name-change banner — only shown if seller has requested one.
+      const pendingBlock = profile.pending_display_name
+        ? `<div class="pending-name-admin" data-pending-name>
+             <span><strong>Name change request:</strong>
+               <span class="old-name">${escapeHtml(profile.display_name || "(none)")}</span>
+               <span class="arrow">→</span>
+               <span class="new-name">${escapeHtml(profile.pending_display_name)}</span>
+             </span>
+             <span class="pending-actions">
+               <button type="button" class="btn-reinstate" data-action="approve-name">Approve</button>
+               <button type="button" class="btn-suspend"   data-action="reject-name">Reject</button>
+             </span>
+           </div>`
+        : "";
+
       row.innerHTML = `
         <div class="seller-info" style="flex: 1; min-width: 200px;">
           <strong>
@@ -3545,6 +3576,7 @@
             ${profile.is_admin ? ` <span class="pill">admin</span>` : ""}
             ${statusPill}
             ${incomplete ? ` <span class="pill" style="background:#f3d6d3;color:#8a1f1a;border-color:#e8b3ad;">incomplete profile</span>` : ""}
+            ${profile.pending_display_name ? ` <span class="pill" style="background:#fff4e2;color:#5a4400;border-color:#f0d6a3;">pending name change</span>` : ""}
           </strong>
           <div class="small">
             ${escapeHtml(profile.contact_email || "(no email)")}
@@ -3553,6 +3585,7 @@
             · ${listingCount} listing${listingCount === 1 ? "" : "s"}
             · joined ${joined}
           </div>
+          ${pendingBlock}
         </div>
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
           <label class="toggle">
@@ -3567,51 +3600,74 @@
       const cb = row.querySelector("input[type=checkbox]");
       cb.addEventListener("change", () => toggleTrusted(profile, cb));
       row.querySelector("[data-action=email]")?.addEventListener("click",        () => emailSellerDirect(profile));
-      row.querySelector("[data-action=edit-locked]")?.addEventListener("click",  () => editLockedFields(profile, row));
       row.querySelector("[data-action=suspend]")?.addEventListener("click",      () => suspendSeller(profile));
       row.querySelector("[data-action=ban]")?.addEventListener("click",          () => banSeller(profile));
       row.querySelector("[data-action=reinstate]")?.addEventListener("click",    () => reinstateSeller(profile));
+      row.querySelector("[data-action=approve-name]")?.addEventListener("click", () => approveNameChange(profile, row, listingCount));
+      row.querySelector("[data-action=reject-name]")?.addEventListener("click",  () => rejectNameChange(profile, row, listingCount));
       return row;
     }
 
-    // Admin override: change a seller's display_name or contact_email by
-    // request. Sellers can't edit these themselves — they're locked at
-    // signup. This is the manual escape hatch (e.g., typo fix, name change).
-    async function editLockedFields(profile, row) {
-      const newName = prompt(
-        `Edit display name for this seller.\n\nCurrent: ${profile.display_name || "(none)"}\n\nLeave unchanged to skip name update.`,
-        profile.display_name || ""
-      );
-      if (newName === null) return; // cancelled
-      const newEmail = prompt(
-        `Edit contact email for this seller.\n\nCurrent: ${profile.contact_email || "(none)"}\n\nLeave unchanged to skip email update.\nNote: this is the public contact email shown to buyers via the "Email Seller" button — NOT the email they sign in with.`,
-        profile.contact_email || ""
-      );
-      if (newEmail === null) return; // cancelled
-      const patch = {};
-      const nName  = newName.trim();
-      const nEmail = newEmail.trim();
-      if (nName  && nName  !== (profile.display_name  || "")) patch.display_name  = nName;
-      if (nEmail !== (profile.contact_email || ""))           patch.contact_email = nEmail || null;
-      if (Object.keys(patch).length === 0) {
-        setAdminBanner("No changes to save.", "info");
-        return;
-      }
+    // Admin: approve the seller's pending display name. Copies the pending
+    // value into display_name and clears the pending fields.
+    async function approveNameChange(profile, row, listingCount) {
+      if (!profile.pending_display_name) return;
+      if (!confirm(
+        `Approve display name change?\n\n` +
+        `"${profile.display_name || "(none)"}" → "${profile.pending_display_name}"\n\n` +
+        `The seller will see the new name take effect immediately.`
+      )) return;
       try {
         const { error } = await supabase
           .from("profiles")
-          .update(patch)
+          .update({
+            display_name:             profile.pending_display_name,
+            pending_display_name:     null,
+            pending_display_name_at:  null,
+          })
           .eq("user_id", profile.user_id);
         if (error) throw error;
-        Object.assign(profile, patch);
-        // Re-render the row in place so the new values are visible.
-        const listingCount = (row.querySelector(".small")?.textContent.match(/(\d+) listing/) || [])[1] || 0;
-        const newRow = renderSellerRow(profile, Number(listingCount));
+        Object.assign(profile, {
+          display_name:             profile.pending_display_name,
+          pending_display_name:     null,
+          pending_display_name_at:  null,
+        });
+        const newRow = renderSellerRow(profile, listingCount);
         row.replaceWith(newRow);
-        setAdminBanner(`Updated ${profile.display_name || "seller"}'s ` + Object.keys(patch).join(" + ") + ".", "success");
+        setAdminBanner(`Approved name change to "${profile.display_name}".`, "success");
       } catch (err) {
-        console.error("[editLockedFields] failed:", err);
-        setAdminBanner("Could not update: " + (err.message || err), "error");
+        console.error("[approveNameChange] failed:", err);
+        setAdminBanner("Could not approve: " + (err.message || err), "error");
+      }
+    }
+
+    // Admin: reject the pending name change. Clears the pending fields.
+    async function rejectNameChange(profile, row, listingCount) {
+      if (!profile.pending_display_name) return;
+      if (!confirm(
+        `Reject this name change request?\n\n` +
+        `"${profile.display_name || "(none)"}" → "${profile.pending_display_name}"\n\n` +
+        `The seller's current name stays as is.`
+      )) return;
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            pending_display_name:     null,
+            pending_display_name_at:  null,
+          })
+          .eq("user_id", profile.user_id);
+        if (error) throw error;
+        Object.assign(profile, {
+          pending_display_name:     null,
+          pending_display_name_at:  null,
+        });
+        const newRow = renderSellerRow(profile, listingCount);
+        row.replaceWith(newRow);
+        setAdminBanner(`Rejected name change request.`, "success");
+      } catch (err) {
+        console.error("[rejectNameChange] failed:", err);
+        setAdminBanner("Could not reject: " + (err.message || err), "error");
       }
     }
 
@@ -4165,7 +4221,97 @@
       setProfileEditMode(false);
       $profStatus.textContent = "";
       $profStatus.className = "sp-text-status";
+      // Render the pending-name banner if there's a pending request.
+      const $pendRow   = document.getElementById("pending-name-row");
+      const $pendValue = document.getElementById("pending-name-value");
+      if ($pendRow && $pendValue) {
+        if (profile.pending_display_name) {
+          $pendValue.textContent = profile.pending_display_name;
+          $pendRow.hidden = false;
+        } else {
+          $pendRow.hidden = true;
+        }
+      }
     }
+
+    // ---- Request a display-name change (admin-approved) ----
+    document.getElementById("request-name-change-btn")?.addEventListener("click", async () => {
+      const current = $profName.value || "";
+      const requested = prompt(
+        "Request a new display name.\n\nUse your real first and last name. An admin will review and approve before it goes into effect.",
+        current
+      );
+      if (requested === null) return;
+      const clean = requested.trim();
+      if (!clean) return;
+      if (clean === current) {
+        alert("That's already your display name — no change to request.");
+        return;
+      }
+      // Soft client-side "first + last" check (matches signup validation).
+      if (!/^\S+\s+\S.*$/.test(clean)) {
+        alert("Please enter a first and last name (e.g. Jane Smith).");
+        return;
+      }
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            pending_display_name:    clean,
+            pending_display_name_at: new Date().toISOString(),
+          })
+          .eq("user_id", currentUserId);
+        if (error) throw error;
+        alert("Name change submitted. An admin will review it. You'll see it switch on your profile once approved.");
+        await loadProfileForm();
+      } catch (err) {
+        console.error("[request-name-change] failed:", err);
+        alert("Could not submit: " + (err.message || err));
+      }
+    });
+
+    // Cancel a pending name change.
+    document.getElementById("pending-name-cancel")?.addEventListener("click", async () => {
+      if (!confirm("Cancel your pending name change request?")) return;
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ pending_display_name: null, pending_display_name_at: null })
+          .eq("user_id", currentUserId);
+        if (error) throw error;
+        await loadProfileForm();
+      } catch (err) {
+        console.error("[pending-name-cancel] failed:", err);
+        alert("Could not cancel: " + (err.message || err));
+      }
+    });
+
+    // ---- Change sign-in email (which is also the public contact email) ----
+    document.getElementById("change-email-btn")?.addEventListener("click", async () => {
+      const current = $profEmail.value || "";
+      const newEmail = prompt(
+        "Change your email.\n\nThis is your sign-in email AND the email buyers see for the Email Seller button.\n\nWhen you confirm, Supabase will email BOTH your old and new addresses with confirmation links. You must click both for the change to take effect.",
+        current
+      );
+      if (newEmail === null) return;
+      const clean = newEmail.trim();
+      if (!clean || clean === current) return;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
+        alert("Please enter a valid email address.");
+        return;
+      }
+      try {
+        const { error } = await supabase.auth.updateUser({ email: clean });
+        if (error) throw error;
+        alert(
+          "Confirmation sent. Check both your current inbox AND " + clean + " for confirmation links. " +
+          "The change won't take effect until you click both."
+        );
+      } catch (err) {
+        console.error("[change-email] failed:", err);
+        alert("Could not request email change: " + (err.message || err));
+      }
+    });
 
     $profEditBtn.addEventListener("click", () => {
       $profStatus.textContent = "";
