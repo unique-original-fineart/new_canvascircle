@@ -3392,9 +3392,27 @@
 
     async function moderateListing(item, listing, decision) {
       const id = listing.listing_id;
-      const payload = decision === "approve"
-        ? { moderation_status: "approved", status: "available" }
-        : { moderation_status: "rejected", status: "rejected" };
+      let payload;
+      if (decision === "approve") {
+        payload = {
+          moderation_status: "approved", status: "available",
+          // Clear any stale rejection note from a prior cycle.
+          moderation_reason: null, moderation_reason_at: null,
+        };
+      } else {
+        // Prompt for a rejection reason so the seller knows what to fix.
+        // Cancel → abort the reject entirely.
+        const reason = prompt(
+          "Reject this listing — what's the reason? (The seller will see this on their listings dashboard.)",
+          listing.moderation_reason || ""
+        );
+        if (reason === null) return;
+        payload = {
+          moderation_status: "rejected", status: "rejected",
+          moderation_reason: reason.trim() || null,
+          moderation_reason_at: new Date().toISOString(),
+        };
+      }
       const buttons = item.querySelectorAll("button");
       buttons.forEach(b => { b.disabled = true; });
       try {
@@ -3495,6 +3513,10 @@
 
       // Action buttons. Don't offer Suspend/Ban for admins (would lock yourself out).
       let actionButtons = "";
+      // Admin-only override for the locked profile fields. Sellers can't
+      // change display_name or contact_email themselves; this is the manual
+      // edit path when they email asking for a correction.
+      actionButtons += `<button type="button" class="btn-suspend" data-action="edit-locked" title="Edit this seller's locked name + email">Edit name/email</button>`;
       if (profile.contact_email) {
         actionButtons += `<button type="button" class="btn-suspend" data-action="email" title="Email this seller via Resend">Email</button>`;
       }
@@ -3544,11 +3566,53 @@
       `;
       const cb = row.querySelector("input[type=checkbox]");
       cb.addEventListener("change", () => toggleTrusted(profile, cb));
-      row.querySelector("[data-action=email]")?.addEventListener("click",     () => emailSellerDirect(profile));
-      row.querySelector("[data-action=suspend]")?.addEventListener("click",   () => suspendSeller(profile));
-      row.querySelector("[data-action=ban]")?.addEventListener("click",       () => banSeller(profile));
-      row.querySelector("[data-action=reinstate]")?.addEventListener("click", () => reinstateSeller(profile));
+      row.querySelector("[data-action=email]")?.addEventListener("click",        () => emailSellerDirect(profile));
+      row.querySelector("[data-action=edit-locked]")?.addEventListener("click",  () => editLockedFields(profile, row));
+      row.querySelector("[data-action=suspend]")?.addEventListener("click",      () => suspendSeller(profile));
+      row.querySelector("[data-action=ban]")?.addEventListener("click",          () => banSeller(profile));
+      row.querySelector("[data-action=reinstate]")?.addEventListener("click",    () => reinstateSeller(profile));
       return row;
+    }
+
+    // Admin override: change a seller's display_name or contact_email by
+    // request. Sellers can't edit these themselves — they're locked at
+    // signup. This is the manual escape hatch (e.g., typo fix, name change).
+    async function editLockedFields(profile, row) {
+      const newName = prompt(
+        `Edit display name for this seller.\n\nCurrent: ${profile.display_name || "(none)"}\n\nLeave unchanged to skip name update.`,
+        profile.display_name || ""
+      );
+      if (newName === null) return; // cancelled
+      const newEmail = prompt(
+        `Edit contact email for this seller.\n\nCurrent: ${profile.contact_email || "(none)"}\n\nLeave unchanged to skip email update.\nNote: this is the public contact email shown to buyers via the "Email Seller" button — NOT the email they sign in with.`,
+        profile.contact_email || ""
+      );
+      if (newEmail === null) return; // cancelled
+      const patch = {};
+      const nName  = newName.trim();
+      const nEmail = newEmail.trim();
+      if (nName  && nName  !== (profile.display_name  || "")) patch.display_name  = nName;
+      if (nEmail !== (profile.contact_email || ""))           patch.contact_email = nEmail || null;
+      if (Object.keys(patch).length === 0) {
+        setAdminBanner("No changes to save.", "info");
+        return;
+      }
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update(patch)
+          .eq("user_id", profile.user_id);
+        if (error) throw error;
+        Object.assign(profile, patch);
+        // Re-render the row in place so the new values are visible.
+        const listingCount = (row.querySelector(".small")?.textContent.match(/(\d+) listing/) || [])[1] || 0;
+        const newRow = renderSellerRow(profile, Number(listingCount));
+        row.replaceWith(newRow);
+        setAdminBanner(`Updated ${profile.display_name || "seller"}'s ` + Object.keys(patch).join(" + ") + ".", "success");
+      } catch (err) {
+        console.error("[editLockedFields] failed:", err);
+        setAdminBanner("Could not update: " + (err.message || err), "error");
+      }
     }
 
     // ---- Suspend / Ban / Reinstate actions ----
