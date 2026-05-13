@@ -510,10 +510,7 @@
       const card = document.createElement("a");
       card.className = "card" + (listing.status === "sold" ? " is-sold" : "");
       card.href = `/listing.html?id=${listing.listing_id}`;
-      // Request a 600px-wide thumbnail from Supabase's image transformer.
-      // Cards display ~280px wide, so 600 covers 2x retina nicely while
-      // shipping a much smaller payload than the 1200px original.
-      const imgUrl = firstPath ? publicImageUrl(firstPath, { width: 600 }) : "";
+      const imgUrl = firstPath ? publicImageUrl(firstPath) : "";
       const price  = Number(listing.asking_price_usd || 0).toLocaleString();
       const prev   = listing.previous_price_usd
                       && Number(listing.previous_price_usd) > Number(listing.asking_price_usd)
