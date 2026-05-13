@@ -1484,12 +1484,18 @@
             <h2>Your listings <span class="count" id="listings-count"></span></h2>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <button type="button" class="btn-secondary" id="sales-post-btn" data-go="sales-post">Build Facebook Sales Post</button>
-              <button type="button" class="btn-primary" id="add-listing-btn" data-go="new-listing">+ Add new listing</button>
+              <button type="button" class="btn-secondary" id="add-iso-btn" data-go="new-listing" data-listing-type="iso">+ Post In Search Of</button>
+              <button type="button" class="btn-primary" id="add-listing-btn" data-go="new-listing" data-listing-type="sale">+ Add new listing</button>
             </div>
           </div>
 
           <form class="dash-toolbar" id="dash-toolbar" autocomplete="off" onsubmit="return false;">
             <input type="search" id="dash-q" placeholder="Search title, artist, medium, notes&hellip;" />
+            <select id="dash-type">
+              <option value="">All types</option>
+              <option value="sale">For Sale</option>
+              <option value="iso">In Search Of</option>
+            </select>
             <select id="dash-status">
               <option value="">All statuses</option>
               <option value="available">Available</option>
@@ -1684,31 +1690,50 @@
       <!-- ============ NEW LISTING ============ -->
       <section data-view="new-listing" hidden>
         <div class="nl-head">
-          <h2>Add a new listing</h2>
+          <h2 id="nl-heading">Add a new listing</h2>
           <button type="button" class="ghost" data-go="account">← Back to dashboard</button>
         </div>
 
-        <div class="nl-guidelines-callout">
+        <!-- Type toggle: For Sale vs. In Search Of -->
+        <div class="catalog-tabs" role="tablist" style="display:flex;gap:4px;margin:0 0 12px;border-bottom:1px solid var(--card-line);">
+          <button type="button" class="nl-type-tab is-active" data-nl-type="sale" role="tab" aria-selected="true"
+                  style="background:none;border:none;padding:12px 18px;font-family:inherit;font-size:15px;font-weight:600;color:var(--fg);cursor:pointer;border-bottom:3px solid var(--accent);margin-bottom:-1px;">For Sale</button>
+          <button type="button" class="nl-type-tab" data-nl-type="iso" role="tab" aria-selected="false"
+                  style="background:none;border:none;padding:12px 18px;font-family:inherit;font-size:15px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;">In Search Of <span style="font-weight:400;font-size:13px;">— wanted by you</span></button>
+        </div>
+
+        <div class="nl-guidelines-callout" id="nl-callout-sale">
           <strong>Before you list:</strong> Take a moment to read our
           <a href="/guidelines.html#selling" target="_blank" rel="noopener">Selling Guidelines ↗</a>.
           They cover what photos to use, how to price, what paperwork to have ready,
           and how to handle payment safely. Following these makes your listings stronger
           and your transactions smoother.
         </div>
-        <div class="nl-legal-note">
+        <div class="nl-guidelines-callout" id="nl-callout-iso" hidden>
+          <strong>Posting an "In Search Of" request:</strong> tell the community what you're hoping to acquire.
+          You can specify a particular piece, an artist whose work you're looking for, or just describe what you want.
+          An image is optional — add a reference photo if you have one. Sellers will reach out directly via Facebook or email.
+        </div>
+        <div class="nl-legal-note" id="nl-legal-sale">
           By posting a listing you confirm that you own the artwork or have the right to sell it,
           that the photos and details are accurate, and that you accept our
           <a href="/terms.html" target="_blank" rel="noopener">Terms of Use</a>.
           CanvasCircle is a free listing platform — we don't process payments, verify authenticity,
           or mediate disputes. Sales happen directly between you and the buyer.
         </div>
+        <div class="nl-legal-note" id="nl-legal-iso" hidden>
+          By posting this request you confirm that the details are accurate and that you accept our
+          <a href="/terms.html" target="_blank" rel="noopener">Terms of Use</a>.
+          CanvasCircle is a free listing platform — we don't process payments, verify authenticity,
+          or mediate disputes. Any transaction is directly between you and the seller.
+        </div>
 
         <form id="new-listing-form" autocomplete="off">
           <label class="nl-image-zone" id="nl-image-zone">
             <input type="file" id="nl-image" accept="image/*" />
             <div class="placeholder" id="nl-placeholder">
-              <strong>Upload artwork image</strong>
-              One image per listing. We'll compress it for you.
+              <strong id="nl-image-strong">Upload artwork image</strong>
+              <span id="nl-image-help">One image per listing. We'll compress it for you.</span>
             </div>
             <div class="nl-preview-wrap" id="nl-preview-wrap" hidden>
               <img id="nl-preview" alt="Selected artwork preview" />
@@ -1718,55 +1743,64 @@
 
           <div class="nl-form-grid">
             <div>
-              <label for="nl-title">Artwork name<span class="required">*</span></label>
-              <input type="text" id="nl-title" required />
+              <label for="nl-title"><span data-nl-label-sale>Artwork name<span class="required">*</span></span><span data-nl-label-iso hidden>Artwork name (optional)</span></label>
+              <input type="text" id="nl-title" />
             </div>
             <div>
-              <label for="nl-artist">Artist name<span class="required">*</span></label>
-              <input type="text" id="nl-artist" required />
+              <label for="nl-artist"><span data-nl-label-sale>Artist name<span class="required">*</span></span><span data-nl-label-iso hidden>Artist name (optional)</span></label>
+              <input type="text" id="nl-artist" />
+              <p class="small" data-nl-label-iso hidden style="margin:4px 0 0;color:var(--muted);">Provide an artist name <em>or</em> artwork name (or both).</p>
             </div>
-            <div>
-              <label for="nl-medium">Medium / Type<span class="required">*</span></label>
-              <input type="text" id="nl-medium" required placeholder="e.g. Acrylic on canvas" />
+            <div data-nl-show-on="both">
+              <label for="nl-medium"><span data-nl-label-sale>Medium / Type<span class="required">*</span></span><span data-nl-label-iso hidden>Medium / Type (optional)</span></label>
+              <input type="text" id="nl-medium" placeholder="e.g. Acrylic on canvas" />
             </div>
-            <div>
-              <label for="nl-category">Unique/Original or Limited Edition<span class="required">*</span></label>
-              <select id="nl-category" required>
+            <div data-nl-show-on="both">
+              <label for="nl-category"><span data-nl-label-sale>Unique/Original or Limited Edition<span class="required">*</span></span><span data-nl-label-iso hidden>Type (optional)</span></label>
+              <select id="nl-category">
                 <option value="" disabled selected>Choose…</option>
                 <option value="Unique/Original">Unique/Original</option>
                 <option value="Limited Edition">Limited Edition</option>
               </select>
             </div>
-            <div>
-              <label for="nl-size">Artwork size (inches)<span class="required">*</span></label>
-              <input type="text" id="nl-size" required placeholder="e.g. 20 x 20" />
+            <div data-nl-show-on="both">
+              <label for="nl-size"><span data-nl-label-sale>Artwork size (inches)<span class="required">*</span></span><span data-nl-label-iso hidden>Desired size (inches, optional)</span></label>
+              <input type="text" id="nl-size" placeholder="e.g. 20 x 20" />
             </div>
-            <div>
+            <div data-nl-show-on="sale">
               <label for="nl-framed">Frame size (inches)</label>
               <input type="text" id="nl-framed" placeholder="e.g. 24 x 24 (optional)" />
             </div>
-            <div>
+            <div data-nl-show-on="sale">
               <label for="nl-price">Price (USD)<span class="required">*</span></label>
-              <input type="text" inputmode="decimal" id="nl-price" required placeholder="e.g. 1200" />
+              <input type="text" inputmode="decimal" id="nl-price" placeholder="e.g. 1200" />
             </div>
-            <div>
+            <div data-nl-show-on="iso" hidden>
+              <label for="nl-budget-min">Min budget (USD, optional)</label>
+              <input type="text" inputmode="decimal" id="nl-budget-min" placeholder="e.g. 500" />
+            </div>
+            <div data-nl-show-on="iso" hidden>
+              <label for="nl-budget-max">Max budget (USD, optional)</label>
+              <input type="text" inputmode="decimal" id="nl-budget-max" placeholder="e.g. 1500" />
+            </div>
+            <div data-nl-show-on="sale">
               <label for="nl-shipping">Shipping included?<span class="required">*</span></label>
-              <select id="nl-shipping" required>
+              <select id="nl-shipping">
                 <option value="" disabled selected>Choose…</option>
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
               </select>
             </div>
-            <div>
+            <div data-nl-show-on="sale">
               <label for="nl-coa">Certificate of Authenticity included?<span class="required">*</span></label>
-              <select id="nl-coa" required>
+              <select id="nl-coa">
                 <option value="" disabled selected>Choose…</option>
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
               </select>
             </div>
             <div class="span-2">
-              <label for="nl-description">Seller notes / Description</label>
+              <label for="nl-description"><span data-nl-label-sale>Seller notes / Description</span><span data-nl-label-iso hidden>Describe what you're looking for</span></label>
               <textarea id="nl-description" rows="4" placeholder="Condition, provenance, why you're selling, anything buyers should know."></textarea>
             </div>
           </div>
@@ -1778,7 +1812,7 @@
             <button type="submit" class="btn-primary" id="nl-submit-btn">Submit listing</button>
           </div>
 
-          <p class="small" style="margin-top: 14px;">
+          <p class="small" style="margin-top: 14px;" id="nl-review-help">
             New listings go to the admin for review before appearing in the public catalog. Trusted sellers are auto-approved.
           </p>
         </form>
@@ -2268,6 +2302,7 @@
     const $listingsCount   = document.getElementById("listings-count");
     const $dashBanner      = document.getElementById("dashboard-banner");
     const $dashQ           = document.getElementById("dash-q");
+    const $dashType        = document.getElementById("dash-type");
     const $dashStatus      = document.getElementById("dash-status");
     const $dashSort        = document.getElementById("dash-sort");
     const $dashClear       = document.getElementById("dash-clear");
@@ -2372,25 +2407,46 @@
 
     // ----- Preview card (compact, clicked Edit opens modal) -----
     function renderPreviewCard(l) {
+      const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
       const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
       const isSold = l.status === "sold";
-      const price  = Number(l.asking_price_usd || 0).toLocaleString();
       const saveCnt = Number(l.save_count || 0);
       const viewCnt = Number(l.view_count || 0);
 
+      // Price / budget label
+      let priceLabel;
+      if (isIso) {
+        const min = l.budget_min_usd != null ? Number(l.budget_min_usd) : null;
+        const max = l.budget_max_usd != null ? Number(l.budget_max_usd) : null;
+        if (min != null && max != null)        priceLabel = `$${min.toLocaleString()}–$${max.toLocaleString()}`;
+        else if (min != null)                  priceLabel = `From $${min.toLocaleString()}`;
+        else if (max != null)                  priceLabel = `Up to $${max.toLocaleString()}`;
+        else                                   priceLabel = `Open budget`;
+      } else {
+        priceLabel = `$${Number(l.asking_price_usd || 0).toLocaleString()}`;
+      }
+
+      // Image cell — ISO can lack an image; show a placeholder.
+      const imgInner = imgUrl
+        ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />`
+        : (isIso
+            ? `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8f5ee,#efece4);color:var(--muted);font-size:12px;gap:4px;"><span style="font-size:26px;opacity:.55;">🔍</span><span>In Search Of</span></div>`
+            : "");
+
       const card = document.createElement("div");
-      card.className = "preview-card" + (isSold ? " is-sold" : "");
+      card.className = "preview-card" + (isSold ? " is-sold" : "") + (isIso ? " is-iso" : "");
       card.dataset.listingId = l.listing_id;
       card.innerHTML = `
         <div class="pc-img${isSold ? " is-sold" : ""}">
-          ${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />` : ""}
+          ${imgInner}
         </div>
         <div class="pc-body">
-          <div class="pc-artist">${escapeHtml(l.artist_name || "Unknown")}</div>
-          <div class="pc-title">${escapeHtml(l.artwork_title || "")}</div>
+          <div class="pc-artist">${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))}</div>
+          <div class="pc-title">${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</div>
           <div class="pc-price-row">
-            <span class="pc-price">$${price}</span>
+            <span class="pc-price">${escapeHtml(priceLabel)}</span>
+            ${isIso ? `<span class="pill" style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px;">WANTED</span>` : ""}
           </div>
           ${l.moderation_status && l.moderation_status !== "approved"
             ? `<div class="pc-mod-banner pc-mod-${escapeHtml(l.moderation_status)}">
@@ -2476,26 +2532,35 @@
 
     // ----- Edit form (inside modal). Same as the old inline edit card. -----
     function renderEditCard(l) {
+      const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
       const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
       const isSold = l.status === "sold";
       const card = document.createElement("div");
-      card.className = "listing-card";
+      card.className = "listing-card" + (isIso ? " is-iso" : "");
       card.dataset.listingId = l.listing_id;
+      card.dataset.listingType = isIso ? "iso" : "sale";
 
       const sizeStr = fmtArtworkSize(l.height_in, l.width_in, l.depth_in);
 
       const saveCnt = Number(l.save_count || 0);
       const viewCnt = Number(l.view_count || 0);
 
+      const thumbInner = imgUrl
+        ? `<img src="${imgUrl}" alt="" loading="lazy" />`
+        : (isIso
+            ? `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8f5ee,#efece4);color:var(--muted);font-size:12px;gap:4px;"><span style="font-size:26px;opacity:.55;">🔍</span><span>No image</span></div>`
+            : "");
+
       card.innerHTML = `
         <div class="card-head">
           <div class="card-thumb${isSold ? " is-sold" : ""}">
-            ${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}
+            ${thumbInner}
           </div>
           <div class="head-meta">
             <div class="pills">
-              <span class="pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>
+              ${isIso ? `<span class="pill" style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;">WANTED</span>` : ""}
+              ${!isIso ? `<span class="pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>` : ""}
               ${l.moderation_status && l.moderation_status !== "approved"
                 ? `<span class="pill" data-mod="${escapeHtml(l.moderation_status)}">${escapeHtml(l.moderation_status)}</span>` : ""}
             </div>
@@ -2513,32 +2578,44 @@
 
         <div class="form-grid">
           <div>
-            <label>Artwork title</label>
+            <label>${isIso ? "Artwork title (optional)" : "Artwork title"}</label>
             <input type="text" data-field="artwork_title" value="${escapeHtml(l.artwork_title || "")}" />
           </div>
           <div>
-            <label>Artist name</label>
+            <label>${isIso ? "Artist name (optional)" : "Artist name"}</label>
             <input type="text" data-field="artist_name" value="${escapeHtml(l.artist_name || "")}" />
           </div>
           <div>
-            <label>Medium / Type</label>
+            <label>${isIso ? "Medium / Type (optional)" : "Medium / Type"}</label>
             <input type="text" data-field="medium" value="${escapeHtml(l.medium || "")}" />
           </div>
           <div>
-            <label>Unique/Original or Limited Edition</label>
+            <label>${isIso ? "Type (optional)" : "Unique/Original or Limited Edition"}</label>
             <select data-field="artwork_category">
+              ${isIso ? `<option value="" ${!l.artwork_category ? "selected" : ""}>No preference</option>` : ""}
               <option value="Unique/Original" ${l.artwork_category === "Unique/Original" ? "selected" : ""}>Unique/Original</option>
               <option value="Limited Edition" ${l.artwork_category === "Limited Edition" ? "selected" : ""}>Limited Edition</option>
             </select>
           </div>
           <div>
-            <label>Artwork size (inches)</label>
+            <label>${isIso ? "Desired size (inches, optional)" : "Artwork size (inches)"}</label>
             <input type="text" data-field="artwork_size" value="${escapeHtml(sizeStr)}" placeholder="e.g. 20 x 20" />
           </div>
+          ${isIso ? "" : `
           <div>
             <label>Frame size (inches)</label>
             <input type="text" data-field="framed_size" value="${escapeHtml(l.framed_size || "")}" placeholder="e.g. 24 x 24" />
+          </div>`}
+          ${isIso ? `
+          <div>
+            <label>Min budget (USD, optional)</label>
+            <input type="text" inputmode="decimal" data-field="budget_min_usd" value="${l.budget_min_usd ?? ""}" placeholder="e.g. 500" />
           </div>
+          <div>
+            <label>Max budget (USD, optional)</label>
+            <input type="text" inputmode="decimal" data-field="budget_max_usd" value="${l.budget_max_usd ?? ""}" placeholder="e.g. 1500" />
+          </div>
+          ` : `
           <div>
             <label>Price (USD)</label>
             <input type="text" inputmode="decimal" data-field="asking_price_usd" value="${l.asking_price_usd ?? ""}" placeholder="e.g. 1200" />
@@ -2558,7 +2635,15 @@
               <option value="Yes" ${l.coa_included === "Yes" ? "selected" : ""}>Yes</option>
               <option value="No"  ${l.coa_included === "No"  ? "selected" : ""}>No</option>
             </select>
-          </div>
+          </div>`}
+          ${isIso ? `
+          <div>
+            <label>Status</label>
+            <select data-field="status">
+              <option value="available" ${l.status === "available" ? "selected" : ""}>Open (still looking)</option>
+              <option value="sold"      ${l.status === "sold"      ? "selected" : ""}>Closed (found / no longer looking)</option>
+            </select>
+          </div>` : `
           <div>
             <label>Status</label>
             <select data-field="status">
@@ -2577,13 +2662,13 @@
               <option value="Motivated to Sell"   ${l.seller_mood === "Motivated to Sell" ? "selected" : ""}>Motivated to Sell</option>
               <option value="Testing the Market"  ${l.seller_mood === "Testing the Market" ? "selected" : ""}>Testing the Market</option>
             </select>
-          </div>
+          </div>`}
           <div class="span-2">
-            <label>Seller notes / Description</label>
+            <label>${isIso ? "Describe what you're looking for" : "Seller notes / Description"}</label>
             <textarea data-field="description" rows="4">${escapeHtml(l.description || "")}</textarea>
           </div>
           <div class="span-2 replace-image-row">
-            <button type="button" class="btn-secondary" data-action="replace-image-btn">Replace image</button>
+            <button type="button" class="btn-secondary" data-action="replace-image-btn">${isIso && !imgUrl ? "Add reference image" : "Replace image"}</button>
             <input type="file" accept="image/*" data-action="replace-image-input" hidden />
             <span class="replace-status"></span>
           </div>
@@ -2909,6 +2994,28 @@
 
     function readCardPayload(card) {
       const get = (f) => card.querySelector(`[data-field="${f}"]`)?.value ?? "";
+      const isIso = card.dataset.listingType === "iso";
+
+      if (isIso) {
+        const payload = {
+          artwork_title:    get("artwork_title").trim() || null,
+          artist_name:      get("artist_name").trim()   || null,
+          medium:           get("medium").trim() || null,
+          artwork_category: get("artwork_category") || null,
+          description:      get("description").trim() || null,
+          status:           get("status"),
+        };
+        const [h, w, d] = parseArtworkSize(get("artwork_size"));
+        payload.height_in = h;
+        payload.width_in  = w;
+        payload.depth_in  = d;
+        const minStr = get("budget_min_usd");
+        const maxStr = get("budget_max_usd");
+        payload.budget_min_usd = minStr ? parsePrice(minStr) : null;
+        payload.budget_max_usd = maxStr ? parsePrice(maxStr) : null;
+        return payload;
+      }
+
       const payload = {
         artwork_title:    get("artwork_title").trim(),
         artist_name:      get("artist_name").trim(),
@@ -2921,19 +3028,28 @@
         seller_mood:      get("seller_mood") || null,
         description:      get("description").trim() || null,
       };
-      // size text → numeric h/w/d
       const [h, w, d] = parseArtworkSize(get("artwork_size"));
       payload.height_in = h;
       payload.width_in  = w;
       payload.depth_in  = d;
-      // price
       const price = parsePrice(get("asking_price_usd"));
       payload.asking_price_usd = price;
       return payload;
     }
 
-    function validatePayload(p) {
+    function validatePayload(p, opts = {}) {
       const errs = [];
+      if (opts.isIso) {
+        if (!p.artwork_title && !p.artist_name)
+          errs.push("Enter an artist name, an artwork name, or both.");
+        if (p.budget_min_usd != null && Number.isNaN(p.budget_min_usd))
+          errs.push("Min budget must be a number.");
+        if (p.budget_max_usd != null && Number.isNaN(p.budget_max_usd))
+          errs.push("Max budget must be a number.");
+        if (p.budget_min_usd != null && p.budget_max_usd != null && p.budget_max_usd < p.budget_min_usd)
+          errs.push("Max budget can't be lower than min budget.");
+        return errs;
+      }
       if (!p.artwork_title)    errs.push("Artwork title is required.");
       if (!p.artist_name)      errs.push("Artist name is required.");
       if (!p.artwork_category) errs.push("Pick Unique/Original or Limited Edition.");
@@ -2968,8 +3084,9 @@
     async function saveCard(card) {
       clearDashBanner();
       const id = card.dataset.listingId;
+      const isIso = card.dataset.listingType === "iso";
       const payload = readCardPayload(card);
-      const errs = validatePayload(payload);
+      const errs = validatePayload(payload, { isIso });
       if (errs.length) {
         card.classList.add("has-error");
         showDashBanner(errs.join("\n"), "error");
@@ -3066,7 +3183,7 @@
       for (const c of dirtyCards) {
         c.classList.remove("has-error");
         const p = readCardPayload(c);
-        const errs = validatePayload(p);
+        const errs = validatePayload(p, { isIso: c.dataset.listingType === "iso" });
         if (errs.length) {
           errCards.push(c);
           allErrors.push(`${c.dataset.listingId.slice(0,8)}…: ${errs.join(" ")}`);
@@ -3111,11 +3228,13 @@
 
     // ----- Filtering -----
     function applyFilters() {
-      const q   = $dashQ.value.trim().toLowerCase();
-      const stf = $dashStatus.value;
-      const so  = $dashSort.value;
+      const q    = $dashQ.value.trim().toLowerCase();
+      const tpf  = $dashType ? $dashType.value : "";
+      const stf  = $dashStatus.value;
+      const so   = $dashSort.value;
 
       let rows = allListings.slice();
+      if (tpf) rows = rows.filter(l => (l.listing_type || "sale") === tpf);
       if (stf) rows = rows.filter(l => l.status === stf);
       if (q) {
         rows = rows.filter(l => {
@@ -3148,9 +3267,10 @@
       $listingsList.hidden = false;
     }
 
-    [$dashQ, $dashStatus, $dashSort].forEach(el => el.addEventListener("input", applyFilters));
+    [$dashQ, $dashType, $dashStatus, $dashSort].forEach(el => el.addEventListener("input", applyFilters));
+    [$dashType, $dashStatus, $dashSort].forEach(el => el.addEventListener("change", applyFilters));
     $dashClear.addEventListener("click", () => {
-      $dashQ.value = ""; $dashStatus.value = ""; $dashSort.value = "newest";
+      $dashQ.value = ""; if ($dashType) $dashType.value = ""; $dashStatus.value = ""; $dashSort.value = "newest";
       applyFilters();
     });
 
@@ -3170,9 +3290,10 @@
       const { data, error } = await supabase
         .from("listings")
         .select(`
-          listing_id, seller_id, artist_name, artwork_title, artwork_category,
+          listing_id, listing_type, seller_id, artist_name, artwork_title, artwork_category,
           medium, height_in, width_in, depth_in, framed_size, description,
           asking_price_usd, previous_price_usd, price_updated_at,
+          budget_min_usd, budget_max_usd,
           shipping_offered, coa_included, status, moderation_status,
           moderation_reason, moderation_reason_at,
           seller_mood, last_renewed_at, created_at,
@@ -3509,8 +3630,9 @@
       const { data, error } = await supabase
         .from("listings")
         .select(`
-          listing_id, artist_name, artwork_title, artwork_category,
-          asking_price_usd, description, status, moderation_status, created_at,
+          listing_id, listing_type, artist_name, artwork_title, artwork_category,
+          asking_price_usd, budget_min_usd, budget_max_usd,
+          description, status, moderation_status, created_at,
           listing_images ( storage_path, position ),
           profiles!listings_seller_id_fkey ( display_name, contact_email )
         `)
@@ -3532,21 +3654,39 @@
     }
 
     function renderModItem(l) {
+      const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
       const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
       const seller = l.profiles?.display_name || "Unknown";
       const email  = l.profiles?.contact_email || "";
       const days   = Math.max(0, Math.floor((Date.now() - new Date(l.created_at).getTime()) / 86400000));
+
+      // Price / budget label
+      let priceLabel;
+      if (isIso) {
+        const min = l.budget_min_usd != null ? Number(l.budget_min_usd) : null;
+        const max = l.budget_max_usd != null ? Number(l.budget_max_usd) : null;
+        if (min != null && max != null)        priceLabel = `$${min.toLocaleString()}–$${max.toLocaleString()} budget`;
+        else if (min != null)                  priceLabel = `From $${min.toLocaleString()}`;
+        else if (max != null)                  priceLabel = `Up to $${max.toLocaleString()}`;
+        else                                   priceLabel = `Open budget`;
+      } else {
+        priceLabel = `$${Number(l.asking_price_usd || 0).toLocaleString()}`;
+      }
+      const thumbInner = imgUrl
+        ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />`
+        : (isIso ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f1ede4;color:var(--muted);font-size:20px;">🔍</div>` : "");
+
       const item = document.createElement("div");
-      item.className = "mod-item";
+      item.className = "mod-item" + (isIso ? " is-iso" : "");
       item.dataset.listingId = l.listing_id;
       item.innerHTML = `
-        <div class="mod-thumb">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />` : ""}</div>
+        <div class="mod-thumb">${thumbInner}</div>
         <div class="mod-meta">
-          <strong>${escapeHtml(l.artist_name || "Unknown")} – ${escapeHtml(l.artwork_title || "")}</strong>
+          <strong>${isIso ? `<span style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;padding:1px 6px;border-radius:4px;font-size:11px;margin-right:6px;">ISO</span>` : ""}${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))} – ${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</strong>
           <div class="mod-sub">
             ${escapeHtml(seller)}${email ? ` · ${escapeHtml(email)}` : ""}
-            · $${Number(l.asking_price_usd || 0).toLocaleString()}
+            · ${escapeHtml(priceLabel)}
             · ${escapeHtml(l.artwork_category || "")}
             · ${days === 0 ? "submitted today" : `submitted ${days}d ago`}
           </div>
@@ -3915,8 +4055,9 @@
       const { data, error } = await supabase
         .from("listings")
         .select(`
-          listing_id, artist_name, artwork_title, artwork_category,
-          asking_price_usd, status, moderation_status, created_at,
+          listing_id, listing_type, artist_name, artwork_title, artwork_category,
+          asking_price_usd, budget_min_usd, budget_max_usd,
+          status, moderation_status, created_at,
           listing_images ( storage_path, position ),
           profiles!listings_seller_id_fkey ( display_name, account_status )
         `)
@@ -3973,25 +4114,45 @@
     }
 
     function renderAllListingRow(l) {
+      const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
       const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
       const seller = l.profiles?.display_name || "Unknown seller";
       const sellerStatus = l.profiles?.account_status || "active";
       const days = Math.max(0, Math.floor((Date.now() - new Date(l.created_at).getTime()) / 86400000));
 
+      // Price / budget label
+      let priceLabel;
+      if (isIso) {
+        const min = l.budget_min_usd != null ? Number(l.budget_min_usd) : null;
+        const max = l.budget_max_usd != null ? Number(l.budget_max_usd) : null;
+        if (min != null && max != null)        priceLabel = `$${min.toLocaleString()}–$${max.toLocaleString()} budget`;
+        else if (min != null)                  priceLabel = `From $${min.toLocaleString()}`;
+        else if (max != null)                  priceLabel = `Up to $${max.toLocaleString()}`;
+        else                                   priceLabel = `Open budget`;
+      } else {
+        priceLabel = `$${Number(l.asking_price_usd || 0).toLocaleString()}`;
+      }
+
+      // Image cell — ISO can lack an image.
+      const thumbInner = imgUrl
+        ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />`
+        : (isIso ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f1ede4;color:var(--muted);font-size:18px;">🔍</div>` : "");
+
       const row = document.createElement("div");
-      row.className = "all-listing-row";
+      row.className = "all-listing-row" + (isIso ? " is-iso" : "");
       row.dataset.listingId = l.listing_id;
       row.innerHTML = `
-        <div class="al-thumb">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />` : ""}</div>
+        <div class="al-thumb">${thumbInner}</div>
         <div class="al-meta">
-          <strong>${escapeHtml(l.artist_name || "Unknown")} – ${escapeHtml(l.artwork_title || "")}</strong>
+          <strong>${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))} – ${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</strong>
           <div class="sub">
             ${escapeHtml(seller)}${sellerStatus !== "active" ? ` · <span style="color:#8a1f1a;">${escapeHtml(sellerStatus)}</span>` : ""}
-            · $${Number(l.asking_price_usd || 0).toLocaleString()}
+            · ${escapeHtml(priceLabel)}
             · ${days === 0 ? "today" : days + "d ago"}
           </div>
           <div class="pills">
+            ${isIso ? `<span class="pill" style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;">ISO</span>` : ""}
             <span class="pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>
             ${l.moderation_status && l.moderation_status !== "approved"
               ? `<span class="pill">${l.moderation_status === "pending" ? "Pending Review" : escapeHtml(l.moderation_status)}</span>` : ""}
@@ -4546,39 +4707,54 @@
     const $savedBadge   = document.getElementById("saved-count-badge");
 
     function renderSavedCard(l) {
+      const isIso    = l.listing_type === "iso";
       const images   = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
       const imgUrl   = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
       const isSold       = l.status === "sold";
       const isNotRenewed = l.status === "not_renewed";
-      const price    = Number(l.asking_price_usd || 0).toLocaleString();
       const saveCnt  = Number(l.save_count || 0);
 
-      // Match the public catalog: show shipping suffix on active listings
-      // ("shipped" if seller covers shipping, "+ shipping" otherwise) and
-      // a strikethrough previous price when there's been a price drop.
-      const shipSuffix = (!isSold && !isNotRenewed)
-        ? (l.shipping_offered === "Yes" ? " shipped" : " + shipping")
-        : "";
-      const prev = l.previous_price_usd
-        && Number(l.previous_price_usd) > Number(l.asking_price_usd)
-        ? Number(l.previous_price_usd).toLocaleString()
-        : null;
+      // Price / budget label.
+      let priceLabel, shipSuffix = "", prev = null;
+      if (isIso) {
+        const min = l.budget_min_usd != null ? Number(l.budget_min_usd) : null;
+        const max = l.budget_max_usd != null ? Number(l.budget_max_usd) : null;
+        if (min != null && max != null)        priceLabel = `$${min.toLocaleString()}–$${max.toLocaleString()}`;
+        else if (min != null)                  priceLabel = `From $${min.toLocaleString()}`;
+        else if (max != null)                  priceLabel = `Up to $${max.toLocaleString()}`;
+        else                                   priceLabel = `Open budget`;
+      } else {
+        priceLabel = `$${Number(l.asking_price_usd || 0).toLocaleString()}`;
+        shipSuffix = (!isSold && !isNotRenewed)
+          ? (l.shipping_offered === "Yes" ? " shipped" : " + shipping")
+          : "";
+        prev = l.previous_price_usd
+          && Number(l.previous_price_usd) > Number(l.asking_price_usd)
+          ? Number(l.previous_price_usd).toLocaleString()
+          : null;
+      }
+
+      const imgInner = imgUrl
+        ? `<img src="${imgUrl}" alt="" loading="lazy" />`
+        : (isIso ? `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8f5ee,#efece4);color:var(--muted);font-size:12px;gap:4px;"><span style="font-size:26px;opacity:.55;">🔍</span><span>In Search Of</span></div>` : "");
 
       const wrap = document.createElement("div");
       wrap.className = "saved-card-wrap";
       wrap.dataset.listingId = l.listing_id;
 
       const card = document.createElement("a");
-      card.className = "saved-card" + (isSold ? " is-sold" : "");
+      card.className = "saved-card" + (isSold ? " is-sold" : "") + (isIso ? " is-iso" : "");
       card.href = `/listing.html?id=${l.listing_id}`;
       card.innerHTML = `
-        <div class="img">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}</div>
+        <div class="img">${imgInner}</div>
         <div class="body">
-          <div class="artist">${escapeHtml(l.artist_name || "Unknown")}</div>
-          <div class="title">${escapeHtml(l.artwork_title || "")}</div>
+          <div class="artist">${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))}</div>
+          <div class="title">${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</div>
           <div class="row">
             <span class="price-block">
-              <span class="price">$${price}<span class="ship-suffix">${shipSuffix}</span></span>${prev ? `<span class="prev">$${prev}</span>` : ""}
+              ${isIso
+                ? `<span class="price">${escapeHtml(priceLabel)}</span><span class="pill" style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px;">WANTED</span>`
+                : `<span class="price">${priceLabel}<span class="ship-suffix">${shipSuffix}</span></span>${prev ? `<span class="prev">$${prev}</span>` : ""}`}
             </span>
             <span class="pill" title="Total saves">♥ ${saveCnt}</span>
           </div>
@@ -4728,11 +4904,58 @@
       $nlImageInput.click();
     });
 
-    // Reset form whenever we navigate AWAY from the new-listing view
+    // ------ New-listing type toggle (For Sale vs In Search Of) ------
+    let nlType = "sale";  // "sale" | "iso"
+    function applyNlType(newType) {
+      nlType = (newType === "iso") ? "iso" : "sale";
+      const isIso = nlType === "iso";
+      // Tab visuals
+      document.querySelectorAll(".nl-type-tab").forEach(t => {
+        const active = t.dataset.nlType === nlType;
+        t.classList.toggle("is-active", active);
+        t.setAttribute("aria-selected", active ? "true" : "false");
+        t.style.color = active ? "var(--fg)" : "var(--muted)";
+        t.style.borderBottomColor = active ? "var(--accent)" : "transparent";
+      });
+      // Heading + image-upload copy
+      document.getElementById("nl-heading").textContent = isIso ? "Post an In Search Of request" : "Add a new listing";
+      document.getElementById("nl-image-strong").textContent = isIso ? "Upload a reference image (optional)" : "Upload artwork image";
+      document.getElementById("nl-image-help").textContent = isIso
+        ? "Optional — add a photo of the piece if you have one. We'll compress it."
+        : "One image per listing. We'll compress it for you.";
+      $nlSubmitBtn.textContent = isIso ? "Post request" : "Submit listing";
+      // Callouts + legal notes swap
+      document.getElementById("nl-callout-sale").hidden = isIso;
+      document.getElementById("nl-callout-iso").hidden  = !isIso;
+      document.getElementById("nl-legal-sale").hidden   = isIso;
+      document.getElementById("nl-legal-iso").hidden    = !isIso;
+      // Field show/hide
+      document.querySelectorAll("[data-nl-show-on]").forEach(el => {
+        const showOn = el.dataset.nlShowOn;
+        const show = showOn === "both" || showOn === nlType;
+        el.hidden = !show;
+      });
+      // Sale-only / ISO-only labels
+      document.querySelectorAll("[data-nl-label-sale]").forEach(el => el.hidden = isIso);
+      document.querySelectorAll("[data-nl-label-iso]").forEach(el  => el.hidden = !isIso);
+    }
+    document.querySelectorAll(".nl-type-tab").forEach(t => {
+      t.addEventListener("click", () => applyNlType(t.dataset.nlType));
+    });
+
+    // Reset form whenever we navigate AWAY from the new-listing view; when
+    // navigating INTO it via "+ Post In Search Of" or "+ Add new listing",
+    // preselect the right type.
     document.querySelectorAll("[data-go]").forEach((b) => {
       b.addEventListener("click", () => {
-        // If leaving new-listing → wipe form so next open is clean
-        if (b.dataset.go !== "new-listing") nlReset();
+        if (b.dataset.go === "new-listing") {
+          // Preselect type based on which entry button was clicked.
+          applyNlType(b.dataset.listingType === "iso" ? "iso" : "sale");
+        } else {
+          // Leaving new-listing → wipe form so next open is clean.
+          nlReset();
+          applyNlType("sale");
+        }
       });
     });
 
@@ -4770,10 +4993,13 @@
       $spTextStatus.textContent = "";
       $spTextStatus.className   = "sp-text-status";
 
-      // Render checkbox list of listings (newest first)
-      const rows = (allListings || []).slice().sort(
-        (a,b) => new Date(b.created_at) - new Date(a.created_at)
-      );
+      // Render checkbox list of listings (newest first). Sales-post builder
+      // is for selling — ISO (In Search Of) posts don't belong in a sales feed.
+      const rows = (allListings || [])
+        .filter(l => l.listing_type !== "iso")
+        .slice().sort(
+          (a,b) => new Date(b.created_at) - new Date(a.created_at)
+        );
       $spListings.innerHTML = "";
       const frag = document.createDocumentFragment();
       for (const l of rows) {
@@ -5134,42 +5360,59 @@
       e.preventDefault();
       clearBanner("new-listing");
 
-      // Read fields
-      const title    = document.getElementById("nl-title").value.trim();
-      const artist   = document.getElementById("nl-artist").value.trim();
-      const medium   = document.getElementById("nl-medium").value.trim();
-      const category = document.getElementById("nl-category").value;
-      const sizeStr  = document.getElementById("nl-size").value.trim();
-      const framed   = document.getElementById("nl-framed").value.trim();
-      const priceStr = document.getElementById("nl-price").value.trim();
-      const shipping = document.getElementById("nl-shipping").value;
-      const coa      = document.getElementById("nl-coa").value;
-      const desc     = document.getElementById("nl-description").value.trim();
+      const isIso = nlType === "iso";
 
-      // Validate
+      // Read fields (some are irrelevant in ISO mode — read defensively).
+      const title     = document.getElementById("nl-title").value.trim();
+      const artist    = document.getElementById("nl-artist").value.trim();
+      const medium    = document.getElementById("nl-medium").value.trim();
+      const category  = document.getElementById("nl-category").value;
+      const sizeStr   = document.getElementById("nl-size").value.trim();
+      const framed    = document.getElementById("nl-framed")?.value.trim() || "";
+      const priceStr  = document.getElementById("nl-price")?.value.trim() || "";
+      const minStr    = document.getElementById("nl-budget-min")?.value.trim() || "";
+      const maxStr    = document.getElementById("nl-budget-max")?.value.trim() || "";
+      const shipping  = document.getElementById("nl-shipping")?.value || "";
+      const coa       = document.getElementById("nl-coa")?.value || "";
+      const desc      = document.getElementById("nl-description").value.trim();
+
+      // ----- Validate -----
       const errs = [];
-      if (!title)    errs.push("Artwork name is required.");
-      if (!artist)   errs.push("Artist name is required.");
-      if (!medium)   errs.push("Medium / Type is required.");
-      if (category !== "Unique/Original" && category !== "Limited Edition")
-        errs.push("Pick Unique/Original or Limited Edition.");
-      if (!sizeStr)  errs.push("Artwork size is required.");
-      const price = parsePrice(priceStr);
-      if (price == null || Number.isNaN(price) || price < 0)
-        errs.push("Price must be a number — no words or other characters.");
-      if (shipping !== "Yes" && shipping !== "No")
-        errs.push("Pick Yes or No for Shipping Included.");
-      if (coa !== "Yes" && coa !== "No")
-        errs.push("Pick Yes or No for COA Included.");
-      if (!nlSelectedFile)
-        errs.push("Upload one image of the artwork.");
+      if (isIso) {
+        // ISO: at least one of artist/title required, budget optional, no image required.
+        if (!artist && !title) errs.push("Tell sellers what you're after: enter an artist name, an artwork name, or both.");
+        const min = minStr ? parsePrice(minStr) : null;
+        const max = maxStr ? parsePrice(maxStr) : null;
+        if (minStr && (min == null || Number.isNaN(min) || min < 0))
+          errs.push("Min budget must be a number.");
+        if (maxStr && (max == null || Number.isNaN(max) || max < 0))
+          errs.push("Max budget must be a number.");
+        if (min != null && max != null && max < min)
+          errs.push("Max budget can't be lower than min budget.");
+      } else {
+        if (!title)    errs.push("Artwork name is required.");
+        if (!artist)   errs.push("Artist name is required.");
+        if (!medium)   errs.push("Medium / Type is required.");
+        if (category !== "Unique/Original" && category !== "Limited Edition")
+          errs.push("Pick Unique/Original or Limited Edition.");
+        if (!sizeStr)  errs.push("Artwork size is required.");
+        const price = parsePrice(priceStr);
+        if (price == null || Number.isNaN(price) || price < 0)
+          errs.push("Price must be a number — no words or other characters.");
+        if (shipping !== "Yes" && shipping !== "No")
+          errs.push("Pick Yes or No for Shipping Included.");
+        if (coa !== "Yes" && coa !== "No")
+          errs.push("Pick Yes or No for COA Included.");
+        if (!nlSelectedFile)
+          errs.push("Upload one image of the artwork.");
+      }
 
       if (errs.length) {
         setBanner("new-listing", errs.join("\n"), "error");
         return;
       }
 
-      const [h, w, d] = parseArtworkSize(sizeStr);
+      const [h, w, d] = sizeStr ? parseArtworkSize(sizeStr) : [null, null, null];
 
       // Look up trusted-seller flag — auto-approve trusted sellers, queue others.
       const profile  = await currentProfile();
@@ -5180,9 +5423,25 @@
       $nlSubmitBtn.disabled = true; $nlSubmitBtn.textContent = "Saving…";
       try {
         // 1) Insert the listing row first — we need its UUID for the image path.
-        $nlSubmitBtn.textContent = "Saving listing…";
-        const insertPayload = {
+        $nlSubmitBtn.textContent = isIso ? "Saving request…" : "Saving listing…";
+        const insertPayload = isIso ? {
+          seller_id:         currentUserId,
+          listing_type:      "iso",
+          artwork_title:     title  || null,
+          artist_name:       artist || null,
+          medium:            medium || null,
+          artwork_category:  category || null,
+          height_in:         h,
+          width_in:          w,
+          depth_in:          d,
+          budget_min_usd:    minStr ? parsePrice(minStr) : null,
+          budget_max_usd:    maxStr ? parsePrice(maxStr) : null,
+          description:       desc || null,
+          status:            status,
+          moderation_status: moderation_status,
+        } : {
           seller_id:        currentUserId,
+          listing_type:     "sale",
           artwork_title:    title,
           artist_name:      artist,
           medium:           medium,
@@ -5191,7 +5450,7 @@
           width_in:         w,
           depth_in:         d,
           framed_size:      framed || null,
-          asking_price_usd: price,
+          asking_price_usd: parsePrice(priceStr),
           shipping_offered: shipping,
           coa_included:     coa,
           description:      desc || null,
@@ -5206,37 +5465,41 @@
         if (insertErr) throw insertErr;
         const newId = inserted.listing_id;
 
-        // 2) Compress + upload the image.
-        $nlSubmitBtn.textContent = "Compressing image…";
-        const blob = await compressImage(nlSelectedFile, 1200, 0.80);
-        $nlSubmitBtn.textContent = "Uploading image…";
-        const path = `${newId}/0-${Date.now()}.jpg`;
-        const { error: uploadErr } = await supabase.storage
-          .from("listing-images")
-          .upload(path, blob, { contentType: "image/jpeg", upsert: false });
-        if (uploadErr) throw uploadErr;
-
-        // 3) Insert the listing_images row so the catalog can render it.
-        const { error: imgRowErr } = await supabase
-          .from("listing_images")
-          .insert({ listing_id: newId, storage_path: path, position: 0 });
-        if (imgRowErr) throw imgRowErr;
+        // 2) Compress + upload the image — only if one was selected (ISO can skip).
+        if (nlSelectedFile) {
+          $nlSubmitBtn.textContent = "Compressing image…";
+          const blob = await compressImage(nlSelectedFile, 1200, 0.80);
+          $nlSubmitBtn.textContent = "Uploading image…";
+          const path = `${newId}/0-${Date.now()}.jpg`;
+          const { error: uploadErr } = await supabase.storage
+            .from("listing-images")
+            .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+          if (uploadErr) throw uploadErr;
+          const { error: imgRowErr } = await supabase
+            .from("listing_images")
+            .insert({ listing_id: newId, storage_path: path, position: 0 });
+          if (imgRowErr) throw imgRowErr;
+        }
 
         // Success — show banner on the dashboard and reload listings.
         nlReset();
+        applyNlType("sale");
         showView("account");
         await loadDashboardListings(currentUserId);
         showDashBanner(
           isTrusted
-            ? "Listing created and live on the catalog."
-            : "Listing submitted. The admin will review it before it appears in the public catalog.",
+            ? (isIso ? "Request posted and live on the catalog." : "Listing created and live on the catalog.")
+            : (isIso
+                ? "Request submitted. The admin will review it before it appears in the public catalog."
+                : "Listing submitted. The admin will review it before it appears in the public catalog."),
           "success"
         );
       } catch (err) {
         console.error("[new-listing] failed:", err);
-        setBanner("new-listing", "Could not create the listing: " + (err.message || err), "error");
+        setBanner("new-listing", (isIso ? "Could not post the request: " : "Could not create the listing: ") + (err.message || err), "error");
       } finally {
-        $nlSubmitBtn.disabled = false; $nlSubmitBtn.textContent = "Submit listing";
+        $nlSubmitBtn.disabled = false;
+        $nlSubmitBtn.textContent = isIso ? "Post request" : "Submit listing";
       }
     });
 

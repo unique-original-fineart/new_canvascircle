@@ -362,6 +362,45 @@
       background: #fff;
     }
 
+    /* Catalog top-level tabs: For Sale / In Search Of */
+    .catalog-tabs {
+      display: flex; gap: 4px; margin: 16px 0 12px;
+      border-bottom: 1px solid var(--card-line);
+    }
+    .catalog-tab {
+      background: none; border: none; padding: 12px 18px;
+      font-family: inherit; font-size: 15px; font-weight: 600;
+      color: var(--muted); cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+    }
+    .catalog-tab:hover { color: var(--fg); }
+    .catalog-tab.is-active {
+      color: var(--fg);
+      border-bottom-color: var(--accent);
+    }
+    .catalog-tab .tab-hint { font-weight: 400; color: var(--muted); font-size: 13px; }
+    @media (max-width: 540px) {
+      .catalog-tab { padding: 10px 12px; font-size: 14px; }
+      .catalog-tab .tab-hint { display: none; }
+    }
+
+    /* ISO card styling. Reuses .card structure but swaps the price area
+       for budget + paints the badge amber instead of green. */
+    .card .cat.iso-wanted {
+      background: #fff4e2; color: #7a4a00; border-color: #f1c98a;
+    }
+    .card .iso-placeholder {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: var(--muted); font-size: 13px; gap: 4px;
+      background: linear-gradient(135deg, #f8f5ee 0%, #efece4 100%);
+    }
+    .card .iso-placeholder .glyph { font-size: 32px; opacity: .55; }
+    .card .iso-placeholder .label { letter-spacing: .3px; }
+    .card .iso-budget { font-weight: 600; font-size: 14px; }
+    .card .iso-budget .open { font-weight: 400; color: var(--muted); font-size: 13px; }
+
     /* Back to top */
     #back-to-top {
       position: fixed;
@@ -404,6 +443,11 @@
     <section class="hero">
       <p class="tagline"><strong>CanvasCircle</strong> — A modern art marketplace for social selling.</p>
     </section>
+
+    <div class="catalog-tabs" role="tablist">
+      <button type="button" class="catalog-tab is-active" data-listing-type="sale" role="tab" aria-selected="true">For Sale</button>
+      <button type="button" class="catalog-tab" data-listing-type="iso" role="tab" aria-selected="false">In Search Of <span class="tab-hint">— buyer requests</span></button>
+    </div>
 
     <form class="toolbar" id="toolbar" autocomplete="off">
       <div class="toolbar-row search-row">
@@ -494,6 +538,7 @@
     let isFetching    = false;    // prevent concurrent fetches
     let currentFilters = null;    // snapshot of filter values for the active query
     let userSavesSet  = null;     // Set<listing_id> of saves for current user, or null if unsigned
+    let currentTab    = "sale";   // "sale" | "iso" — top-level catalog tab
 
     function escapeHtml(s) {
       return String(s ?? "").replace(/[&<>"']/g, c => ({
@@ -502,6 +547,7 @@
     }
 
     function renderCard(listing) {
+      const isIso = listing.listing_type === "iso";
       const images = (listing.listing_images || []).slice().sort((a,b) => a.position - b.position);
       const firstPath = images[0]?.storage_path;
       const wrap = document.createElement("div");
@@ -511,27 +557,58 @@
       card.className = "card" + (listing.status === "sold" ? " is-sold" : "");
       card.href = `/listing.html?id=${listing.listing_id}`;
       const imgUrl = firstPath ? publicImageUrl(firstPath) : "";
-      const price  = Number(listing.asking_price_usd || 0).toLocaleString();
-      const prev   = listing.previous_price_usd
-                      && Number(listing.previous_price_usd) > Number(listing.asking_price_usd)
-                      ? Number(listing.previous_price_usd).toLocaleString()
-                      : null;
       const catCls   = listing.artwork_category === "Unique/Original" ? " unique"
                      : listing.artwork_category === "Limited Edition" ? " edition" : "";
       const catLabel = listing.artwork_category || "";
-      const isSold       = listing.status === "sold";
-      const isNotRenewed = listing.status === "not_renewed";
-      const isPending    = listing.status === "pending";
       const saved    = !!(userSavesSet && userSavesSet.has(listing.listing_id));
       const saveN    = Number(listing.save_count || 0);
-      const shipSuffix = (!isSold && !isNotRenewed)
-        ? (listing.shipping_offered === "Yes" ? " shipped" : " + shipping")
-        : "";
-      card.innerHTML = `
-        <div class="img">${imgUrl ? `<img src="${imgUrl}" alt="${escapeHtml(listing.artist_name || "")} — ${escapeHtml(listing.artwork_title || "")}" loading="lazy" decoding="async" />` : ""}</div>
-        <div class="body">
-          <div class="artist">${escapeHtml(listing.artist_name || "Unknown")}</div>
-          <div class="title">${escapeHtml(listing.artwork_title || "")}</div>
+
+      // Image cell: ISO listings often have no image — show a friendly placeholder.
+      const imgInner = imgUrl
+        ? `<img src="${imgUrl}" alt="${escapeHtml(listing.artist_name || "")} — ${escapeHtml(listing.artwork_title || "")}" loading="lazy" decoding="async" />`
+        : (isIso
+            ? `<div class="iso-placeholder"><span class="glyph">🔍</span><span class="label">In Search Of</span></div>`
+            : "");
+
+      // Header row: artist + title. ISO is allowed to have only one of the two.
+      const artistLine = listing.artist_name ? escapeHtml(listing.artist_name)
+                       : (isIso ? `<span style="color:var(--muted);font-style:italic;">Any artist</span>` : "Unknown");
+      const titleLine  = listing.artwork_title ? escapeHtml(listing.artwork_title)
+                       : (isIso ? `<span style="color:var(--muted);font-style:italic;">Title unspecified</span>` : "");
+
+      // Price / budget row.
+      let priceRow;
+      if (isIso) {
+        const min = listing.budget_min_usd != null ? Number(listing.budget_min_usd) : null;
+        const max = listing.budget_max_usd != null ? Number(listing.budget_max_usd) : null;
+        let budgetLabel;
+        if (min != null && max != null)        budgetLabel = `$${min.toLocaleString()}–$${max.toLocaleString()}`;
+        else if (min != null)                  budgetLabel = `From $${min.toLocaleString()}`;
+        else if (max != null)                  budgetLabel = `Up to $${max.toLocaleString()}`;
+        else                                   budgetLabel = `<span class="open">Open budget</span>`;
+        priceRow = `
+          <div class="price-row">
+            <span class="left">
+              <span class="iso-budget">${budgetLabel}</span>
+            </span>
+            <span class="pills">
+              <span class="cat iso-wanted">WANTED</span>
+              ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
+            </span>
+          </div>`;
+      } else {
+        const price  = Number(listing.asking_price_usd || 0).toLocaleString();
+        const prev   = listing.previous_price_usd
+                        && Number(listing.previous_price_usd) > Number(listing.asking_price_usd)
+                        ? Number(listing.previous_price_usd).toLocaleString()
+                        : null;
+        const isSold       = listing.status === "sold";
+        const isNotRenewed = listing.status === "not_renewed";
+        const isPending    = listing.status === "pending";
+        const shipSuffix = (!isSold && !isNotRenewed)
+          ? (listing.shipping_offered === "Yes" ? " shipped" : " + shipping")
+          : "";
+        priceRow = `
           <div class="price-row">
             <span class="left">
               <span class="price">$${price}<span class="ship-suffix">${shipSuffix}</span></span>${prev ? `<span class="prev">$${prev}</span>` : ""}
@@ -542,8 +619,16 @@
               ${isPending ? `<span class="cat pending-sale">PENDING SALE</span>` : ""}
               ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
             </span>
-          </div>
-          <div class="cta">Show details</div>
+          </div>`;
+      }
+
+      card.innerHTML = `
+        <div class="img">${imgInner}</div>
+        <div class="body">
+          <div class="artist">${artistLine}</div>
+          <div class="title">${titleLine}</div>
+          ${priceRow}
+          <div class="cta">${isIso ? "See request" : "Show details"}</div>
         </div>`;
       const heart = document.createElement("button");
       heart.type = "button";
@@ -618,30 +703,44 @@
     // server-side. Returns a thenable PostgREST query (call `.range()` then
     // await it). `count: "exact"` adds a Content-Range total header.
     function buildCatalogQuery(filters) {
+      const tab = filters.tab || "sale";
       let q = supabase
         .from("listings")
         .select(`
-          listing_id, artist_name, artwork_title, artwork_category,
-          asking_price_usd, previous_price_usd, status, created_at, save_count,
-          shipping_offered,
+          listing_id, listing_type, artist_name, artwork_title, artwork_category,
+          asking_price_usd, previous_price_usd, budget_min_usd, budget_max_usd,
+          status, created_at, save_count, shipping_offered,
           listing_images ( storage_path, position ),
           profiles!listings_seller_id_fkey!inner ( display_name, account_status )
         `, { count: "exact" })
+        .eq("listing_type", tab)
         .eq("moderation_status", "approved")
         .eq("profiles.account_status", "active");
 
-      // Status — exactly one is always active.
-      const status = filters.statusF === "sold" ? "sold"
-                   : filters.statusF === "not_renewed" ? "not_renewed"
-                   : "available";
-      q = q.eq("status", status);
+      if (tab === "iso") {
+        // ISO listings are always "available" — sold/not_renewed don't apply.
+        q = q.eq("status", "available");
+      } else {
+        // Sale listings — status filter from the dropdown.
+        const status = filters.statusF === "sold" ? "sold"
+                     : filters.statusF === "not_renewed" ? "not_renewed"
+                     : "available";
+        q = q.eq("status", status);
+      }
 
       if (filters.cat)    q = q.eq("artwork_category", filters.cat);
       if (filters.seller) q = q.eq("profiles.display_name", filters.seller);
       if (filters.artist) q = q.eq("artist_name", filters.artist);
 
-      if (filters.min !== "" && !isNaN(Number(filters.min))) q = q.gte("asking_price_usd", Number(filters.min));
-      if (filters.max !== "" && !isNaN(Number(filters.max))) q = q.lte("asking_price_usd", Number(filters.max));
+      // Price/budget filter — column depends on the tab. For ISO we filter by
+      // budget_max (so "max $500" finds requests willing to pay up to $500+).
+      if (tab === "iso") {
+        if (filters.min !== "" && !isNaN(Number(filters.min))) q = q.gte("budget_max_usd", Number(filters.min));
+        if (filters.max !== "" && !isNaN(Number(filters.max))) q = q.lte("budget_min_usd", Number(filters.max));
+      } else {
+        if (filters.min !== "" && !isNaN(Number(filters.min))) q = q.gte("asking_price_usd", Number(filters.min));
+        if (filters.max !== "" && !isNaN(Number(filters.max))) q = q.lte("asking_price_usd", Number(filters.max));
+      }
 
       if (filters.q) {
         // Escape PostgREST `or` value separators (comma + paren) and wildcard chars.
@@ -649,8 +748,9 @@
         q = q.or(`artist_name.ilike.%${pat}%,artwork_title.ilike.%${pat}%`);
       }
 
-      if (filters.sort === "price-asc")       q = q.order("asking_price_usd", { ascending: true });
-      else if (filters.sort === "price-desc") q = q.order("asking_price_usd", { ascending: false });
+      const priceCol = tab === "iso" ? "budget_max_usd" : "asking_price_usd";
+      if (filters.sort === "price-asc")       q = q.order(priceCol, { ascending: true,  nullsFirst: false });
+      else if (filters.sort === "price-desc") q = q.order(priceCol, { ascending: false, nullsFirst: false });
       else                                    q = q.order("created_at", { ascending: false });
 
       return q;
@@ -658,6 +758,7 @@
 
     function snapshotFilters() {
       return {
+        tab:     currentTab,
         q:       $q.value.trim(),
         cat:     $cat.value,
         statusF: $statusF.value,
@@ -670,14 +771,16 @@
     }
 
     function statusLabelForFilters(f) {
-      return f.statusF === "sold" ? "Sold" : f.statusF === "not_renewed" ? "Not renewed" : "Available";
+      if (f.tab === "iso") return "open";
+      return f.statusF === "sold" ? "sold" : f.statusF === "not_renewed" ? "not renewed" : "available";
     }
 
     function updateStatsBar() {
       $stats.hidden = false;
       const statusName = statusLabelForFilters(currentFilters);
+      const noun = currentFilters.tab === "iso" ? "request" : "listing";
       $stats.textContent =
-        `Showing ${loadedCount} of ${totalCount} ${statusName} listing${totalCount === 1 ? "" : "s"}`;
+        `Showing ${loadedCount} of ${totalCount} ${statusName} ${noun}${totalCount === 1 ? "" : "s"}`;
     }
 
     function renderRows(rows) {
@@ -744,19 +847,21 @@
       }
     }
 
-    // Populate the seller + artist dropdowns. Runs once on initial load —
-    // pulls just the two text columns (small payload even at thousands of
-    // listings) and dedupes client-side.
+    // Populate the seller + artist dropdowns. Re-runs on each tab switch so
+    // the options reflect what's actually available on that tab.
     async function populateDropdowns() {
+      const tab = currentTab;
       const [sellersResp, artistsResp] = await Promise.all([
         supabase
           .from("listings")
           .select("profiles!listings_seller_id_fkey!inner ( display_name, account_status )")
+          .eq("listing_type", tab)
           .eq("moderation_status", "approved")
           .eq("profiles.account_status", "active"),
         supabase
           .from("listings")
           .select("artist_name")
+          .eq("listing_type", tab)
           .eq("moderation_status", "approved"),
       ]);
       const sellerNames = [...new Set(
@@ -765,20 +870,50 @@
       const artistNames = [...new Set(
         (artistsResp.data || []).map(r => r.artist_name).filter(Boolean)
       )].sort((a,b) => a.localeCompare(b));
+      // Seller dropdown is renamed "Buyer" on ISO tab — option text stays the same,
+      // only the first-option label differs.
+      const firstSellerOpt = $seller.querySelector("option");
+      if (firstSellerOpt) firstSellerOpt.textContent = tab === "iso" ? "All buyers" : "All sellers";
       populateOptions($seller, sellerNames);
       populateOptions($artist, artistNames);
     }
 
+    // Show / hide / relabel toolbar pieces depending on which tab is active.
+    function applyTabUiMode() {
+      const isIso = currentTab === "iso";
+      // Status filter doesn't apply to ISO (no sold/not_renewed states).
+      $statusF.hidden = isIso;
+      $statusF.disabled = isIso;
+      // Price-pair labels swap to "budget" framing on the ISO tab.
+      $min.placeholder = isIso ? "Min budget $" : "Min $";
+      $max.placeholder = isIso ? "Max budget $" : "Max $";
+      $seller.title    = isIso ? "Buyer"        : "Seller";
+      // Update tab button aria/active state to match currentTab.
+      document.querySelectorAll(".catalog-tab").forEach(btn => {
+        const active = btn.dataset.listingType === currentTab;
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      // Update placeholder copy on the empty-state for ISO clarity.
+      const emptyTitle = document.querySelector("#empty .empty-title");
+      if (emptyTitle) emptyTitle.textContent = isIso
+        ? "No open requests match your filters"
+        : "No listings match your filters";
+    }
+
     async function loadCatalog() {
       userSavesSet = await getCurrentUserSaves();
+      restoreFilterState(); // pull saved filters (incl. tab) from sessionStorage if present
+      applyTabUiMode();
       await populateDropdowns();
-      restoreFilterState(); // pull saved filters from sessionStorage if present
       $status.hidden = true;
       await applyFilters();
       if (totalCount === 0 && !$q.value && !$cat.value && !$seller.value && !$artist.value && !$min.value && !$max.value) {
         // Truly empty catalog (not just zero-match filters).
         $status.hidden = false;
-        $status.textContent = "The catalog is empty right now — check back soon.";
+        $status.textContent = currentTab === "iso"
+          ? "No open buyer requests yet — check back soon."
+          : "The catalog is empty right now — check back soon.";
       }
     }
 
@@ -787,6 +922,7 @@
     function saveFilterState() {
       try {
         sessionStorage.setItem(FILTER_KEY, JSON.stringify({
+          tab: currentTab,
           q: $q.value, cat: $cat.value, statusF: $statusF.value,
           seller: $seller.value, artist: $artist.value,
           min: $min.value, max: $max.value, sort: $sort.value,
@@ -798,6 +934,7 @@
         const raw = sessionStorage.getItem(FILTER_KEY);
         if (!raw) return;
         const s = JSON.parse(raw);
+        if (s.tab === "iso" || s.tab === "sale") currentTab = s.tab;
         if (s.q       != null) $q.value       = s.q;
         if (s.cat     != null) $cat.value     = s.cat;
         if (s.statusF != null) $statusF.value = s.statusF;
@@ -811,6 +948,27 @@
     function clearFilterState() {
       try { sessionStorage.removeItem(FILTER_KEY); } catch (e) {}
     }
+
+    // Tab switching — clears seller/artist (they're tab-specific) and resets
+    // status filter, then re-populates dropdowns and re-runs filters.
+    async function switchTab(newTab) {
+      if (newTab !== "sale" && newTab !== "iso") return;
+      if (newTab === currentTab) return;
+      currentTab = newTab;
+      // These filter values are tab-specific — values from the other tab won't
+      // exist in this tab's option list, so clear them.
+      $seller.value = "";
+      $artist.value = "";
+      $statusF.value = "available";
+      applyTabUiMode();
+      saveFilterState();
+      await populateDropdowns();
+      await applyFilters();
+    }
+
+    document.querySelectorAll(".catalog-tab").forEach(btn => {
+      btn.addEventListener("click", () => switchTab(btn.dataset.listingType));
+    });
 
     // Heart click delegation
     document.getElementById("grid").addEventListener("click", (e) => {

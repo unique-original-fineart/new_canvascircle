@@ -383,7 +383,12 @@
     }
 
     function setOgTags(listing, imgUrl) {
-      const title = `${listing.artist_name || "Artwork"} — ${listing.artwork_title || ""}`.trim();
+      const isIso = listing.listing_type === "iso";
+      const subjectArtist = listing.artist_name || "any artist";
+      const subjectTitle  = listing.artwork_title || "";
+      const isoTitle = `In Search Of — ${subjectTitle ? `"${subjectTitle}"` : ""}${subjectTitle && listing.artist_name ? " by " : ""}${listing.artist_name || ""}`.replace(/\s+/g, " ").trim() || "In Search Of — buyer request";
+      const saleTitle = `${listing.artist_name || "Artwork"} — ${listing.artwork_title || ""}`.trim();
+      const title = isIso ? isoTitle : saleTitle;
       document.title = title + " — CanvasCircle";
       const setMeta = (prop, val) => {
         let el = document.querySelector(`meta[property="${prop}"]`);
@@ -395,7 +400,10 @@
         el.setAttribute("content", val);
       };
       setMeta("og:title", title);
-      setMeta("og:description", listing.description || "An original or resold artwork on CanvasCircle.");
+      const defaultDesc = isIso
+        ? `A buyer on CanvasCircle is looking to acquire ${subjectArtist}${subjectTitle ? ` — "${subjectTitle}"` : ""}.`
+        : "An original or resold artwork on CanvasCircle.";
+      setMeta("og:description", listing.description || defaultDesc);
       if (imgUrl) setMeta("og:image", imgUrl);
       setMeta("og:url", window.location.href);
     }
@@ -412,9 +420,11 @@
         supabase
           .from("listings")
           .select(`
-            listing_id, artist_name, artwork_title, artwork_category, medium, year_created,
+            listing_id, listing_type,
+            artist_name, artwork_title, artwork_category, medium, year_created,
             height_in, width_in, depth_in, framed_size, condition_notes, provenance, description,
             asking_price_usd, previous_price_usd, price_updated_at,
+            budget_min_usd, budget_max_usd,
             shipping_offered, coa_included, status, moderation_status,
             seller_mood, last_renewed_at, created_at, seller_id, save_count,
             listing_images ( storage_path, position ),
@@ -469,6 +479,7 @@
     }
 
     function render(l, userSaves) {
+      const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a, b) => a.position - b.position);
       const imgUrls = images.map(i => publicImageUrl(i.storage_path)).filter(Boolean);
       const heroUrl = imgUrls[0] || "";
@@ -478,15 +489,121 @@
       const days     = daysSince(l.created_at);
       const seller   = l.profiles || {};
       const fbUrl    = fbProfileUrl(seller.facebook_profile_url);
-      const priceDropped = l.previous_price_usd && Number(l.previous_price_usd) > Number(l.asking_price_usd);
       const isSaved  = !!(userSaves && userSaves.has(l.listing_id));
       const saveCnt  = Number(l.save_count || 0);
+
+      // ------ Price / budget block ------
+      let priceBlock;
+      if (isIso) {
+        const min = l.budget_min_usd != null ? Number(l.budget_min_usd) : null;
+        const max = l.budget_max_usd != null ? Number(l.budget_max_usd) : null;
+        let budgetLabel;
+        if (min != null && max != null)        budgetLabel = `$${min.toLocaleString()}–$${max.toLocaleString()}`;
+        else if (min != null)                  budgetLabel = `From $${min.toLocaleString()}`;
+        else if (max != null)                  budgetLabel = `Up to $${max.toLocaleString()}`;
+        else                                   budgetLabel = `Open budget`;
+        priceBlock = `
+          <div class="price-row">
+            <span class="budget-label" style="font-size:13px;color:var(--muted);letter-spacing:.3px;text-transform:uppercase;margin-right:8px;">Buyer budget</span>
+            <span class="price">${escapeHtml(budgetLabel)}</span>
+          </div>`;
+      } else {
+        const priceDropped = l.previous_price_usd && Number(l.previous_price_usd) > Number(l.asking_price_usd);
+        priceBlock = `
+          <div class="price-row">
+            <span class="price">${fmtPrice(l.asking_price_usd)}</span>
+            ${priceDropped ? `<span class="prev-price">${fmtPrice(l.previous_price_usd)}</span><span class="price-drop">Price dropped</span>` : ""}
+          </div>`;
+      }
+
+      // ------ Hero image: ISO without an image gets a placeholder card ------
+      const heroBlock = heroUrl
+        ? `<img id="hero" src="${heroUrl}" alt="" />`
+        : (isIso
+            ? `<div class="iso-hero-placeholder" style="aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8f5ee 0%,#efece4 100%);color:var(--muted);gap:6px;border-radius:8px;">
+                 <div style="font-size:48px;opacity:.55;">🔍</div>
+                 <div style="font-size:14px;letter-spacing:.3px;">In Search Of</div>
+                 <div style="font-size:12px;">No reference image provided</div>
+               </div>`
+            : "");
+
+      // ------ Header text (artist / title) — ISO can have one or the other ------
+      const artistLine = l.artist_name ? escapeHtml(l.artist_name)
+                       : (isIso ? `<span style="color:var(--muted);font-style:italic;">Any artist</span>` : "Unknown artist");
+      const titleLine  = l.artwork_title ? escapeHtml(l.artwork_title)
+                       : (isIso ? `<span style="color:var(--muted);font-style:italic;">Title unspecified</span>` : "");
+
+      // ------ Badges row ------
+      const badgesBlock = `
+        <div class="badges">
+          ${isIso ? `<span class="badge" style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;">WANTED</span>` : ""}
+          ${l.artwork_category
+            ? `<span class="badge ${l.artwork_category === "Unique/Original" ? "cat-unique"
+                : l.artwork_category === "Limited Edition" ? "cat-edition" : ""}">${escapeHtml(l.artwork_category)}</span>`
+            : ""}
+          ${!isIso && l.status !== "available"
+            ? `<span class="badge ${sb.cls}">${escapeHtml(sb.label)}</span>` : ""}
+          ${!isIso && l.seller_mood ? `<span class="badge mood">${escapeHtml(l.seller_mood)}</span>` : ""}
+        </div>`;
+
+      // ------ Meta dl ------
+      const metaBlock = isIso ? `
+        <div class="meta">
+          <dl>
+            ${dims        ? `<dt>Desired Size (Inches)</dt><dd>${escapeHtml(dims.replace(/ in$/, ""))}</dd>` : ""}
+            ${l.medium    ? `<dt>Medium</dt><dd>${escapeHtml(l.medium)}</dd>` : ""}
+            ${l.year_created ? `<dt>Year</dt><dd>${escapeHtml(l.year_created)}</dd>` : ""}
+          </dl>
+        </div>` : `
+        <div class="meta">
+          <dl>
+            ${dims        ? `<dt>Artwork Size (Inches)</dt><dd>${escapeHtml(dims.replace(/ in$/, ""))}</dd>` : ""}
+            ${l.framed_size ? `<dt>Frame Size (Inches)</dt><dd>${escapeHtml(l.framed_size)}</dd>` : ""}
+            ${l.medium    ? `<dt>Medium</dt><dd>${escapeHtml(l.medium)}</dd>` : ""}
+            ${l.year_created ? `<dt>Year</dt><dd>${escapeHtml(l.year_created)}</dd>` : ""}
+            <dt>Shipping included</dt><dd>${escapeHtml(l.shipping_offered || "—")}</dd>
+            <dt>COA included</dt><dd>${escapeHtml(l.coa_included || "—")}</dd>
+          </dl>
+        </div>`;
+
+      // ------ Optional sections — Condition/Provenance hidden for ISO ------
+      const optionalSections = `
+        ${!isIso && l.condition_notes ? `<div class="section"><h3>Condition</h3><p>${escapeHtml(l.condition_notes)}</p></div>` : ""}
+        ${!isIso && l.provenance      ? `<div class="section"><h3>Provenance</h3><p>${escapeHtml(l.provenance)}</p></div>` : ""}
+        ${l.description               ? `<div class="section"><h3>${isIso ? "Details from the buyer" : "Description"}</h3><p>${escapeHtml(l.description)}</p></div>` : ""}
+      `;
+
+      // ------ Counter-party block (seller for sale / buyer for ISO) ------
+      const partyLabel    = isIso ? "Buyer"            : "Seller";
+      const primaryCta    = isIso ? "Message on Facebook" : "Message on Facebook";
+      const secondaryCta  = isIso ? "Email Buyer"       : "Email Seller";
+      const inquirySubject = isIso
+        ? `Re: your "In Search Of" listing on CanvasCircle`
+        : `Inquiry about "${l.artwork_title || "your listing"}" on CanvasCircle`;
+      const counterpartyBlock = `
+        <div class="seller-block">
+          <div class="seller-label">${partyLabel}</div>
+          <div class="name">${escapeHtml(seller.display_name || partyLabel)}</div>
+          ${seller.location ? `<div class="loc">${escapeHtml(seller.location)}</div>` : ""}
+          <div class="seller-actions">
+            ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">${primaryCta}</a>` : ""}
+            ${seller.contact_email ? `<a id="email-seller-link" href="#" target="_blank" rel="noopener">${secondaryCta}</a>` : ""}
+          </div>
+          ${(fbUrl || seller.contact_email) ? `
+            <div class="buying-tips-nudge">
+              Before you reach out — <a href="/guidelines.html" target="_blank" rel="noopener">read the ${isIso ? "guidelines" : "buying tips"} ↗</a> for a smoother, safer conversation.
+            </div>` : ""}
+          ${(fbUrl || seller.contact_email) ? `
+            <div class="transaction-disclaimer">
+              <strong>Heads up:</strong> CanvasCircle is a free listing platform. Any transaction is directly between you and the ${isIso ? "buyer" : "seller"}. CanvasCircle does not process payments, verify authenticity, or mediate disputes. See our <a href="/terms.html" target="_blank" rel="noopener">Terms</a>.
+            </div>` : ""}
+        </div>`;
 
       $content.innerHTML = `
         <div class="listing">
           <div class="gallery">
             <div class="main-img">
-              ${heroUrl ? `<img id="hero" src="${heroUrl}" alt="" />` : ""}
+              ${heroBlock}
               <button type="button" id="heart-btn" class="heart-btn${isSaved ? " is-saved" : ""}" aria-label="${isSaved ? "Unsave" : "Save listing"}">
                 <span class="heart-glyph">${isSaved ? "♥" : "♡"}</span>
                 <span class="heart-count">${saveCnt}</span>
@@ -498,64 +615,22 @@
               </div>` : ""}
           </div>
           <div class="details">
-            <div class="artist">${escapeHtml(l.artist_name || "Unknown artist")}</div>
-            <div class="title">${escapeHtml(l.artwork_title || "")}</div>
+            <div class="artist">${artistLine}</div>
+            <div class="title">${titleLine}</div>
 
-            ${l.status === "not_renewed" ? `
+            ${!isIso && l.status === "not_renewed" ? `
               <div class="not-renewed-warning">
                 <strong>This listing hasn't been renewed in 60+ days.</strong>
                 Availability is unknown — the seller may not respond promptly. Reach out to confirm the artwork is still for sale before committing.
               </div>` : ""}
 
-            <div class="price-row">
-              <span class="price">${fmtPrice(l.asking_price_usd)}</span>
-              ${priceDropped ? `<span class="prev-price">${fmtPrice(l.previous_price_usd)}</span><span class="price-drop">Price dropped</span>` : ""}
-            </div>
+            ${priceBlock}
+            ${badgesBlock}
+            ${metaBlock}
+            ${optionalSections}
+            ${counterpartyBlock}
 
-            <div class="badges">
-              ${l.artwork_category
-                ? `<span class="badge ${l.artwork_category === "Unique/Original" ? "cat-unique"
-                    : l.artwork_category === "Limited Edition" ? "cat-edition" : ""}">${escapeHtml(l.artwork_category)}</span>`
-                : ""}
-              ${l.status !== "available"
-                ? `<span class="badge ${sb.cls}">${escapeHtml(sb.label)}</span>` : ""}
-              ${l.seller_mood ? `<span class="badge mood">${escapeHtml(l.seller_mood)}</span>` : ""}
-            </div>
-
-            <div class="meta">
-              <dl>
-                ${dims        ? `<dt>Artwork Size (Inches)</dt><dd>${escapeHtml(dims.replace(/ in$/, ""))}</dd>` : ""}
-                ${l.framed_size ? `<dt>Frame Size (Inches)</dt><dd>${escapeHtml(l.framed_size)}</dd>` : ""}
-                ${l.medium    ? `<dt>Medium</dt><dd>${escapeHtml(l.medium)}</dd>` : ""}
-                ${l.year_created ? `<dt>Year</dt><dd>${escapeHtml(l.year_created)}</dd>` : ""}
-                <dt>Shipping included</dt><dd>${escapeHtml(l.shipping_offered || "—")}</dd>
-                <dt>COA included</dt><dd>${escapeHtml(l.coa_included || "—")}</dd>
-              </dl>
-            </div>
-
-            ${l.condition_notes ? `<div class="section"><h3>Condition</h3><p>${escapeHtml(l.condition_notes)}</p></div>` : ""}
-            ${l.provenance      ? `<div class="section"><h3>Provenance</h3><p>${escapeHtml(l.provenance)}</p></div>` : ""}
-            ${l.description     ? `<div class="section"><h3>Description</h3><p>${escapeHtml(l.description)}</p></div>` : ""}
-
-            <div class="seller-block">
-              <div class="seller-label">Seller</div>
-              <div class="name">${escapeHtml(seller.display_name || "Seller")}</div>
-              ${seller.location ? `<div class="loc">${escapeHtml(seller.location)}</div>` : ""}
-              <div class="seller-actions">
-                ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">Message on Facebook</a>` : ""}
-                ${seller.contact_email ? `<a id="email-seller-link" href="#" target="_blank" rel="noopener">Email Seller</a>` : ""}
-              </div>
-              ${(fbUrl || seller.contact_email) ? `
-                <div class="buying-tips-nudge">
-                  Before you reach out — <a href="/guidelines.html" target="_blank" rel="noopener">read the buying tips ↗</a> for a smoother, safer transaction.
-                </div>` : ""}
-              ${(fbUrl || seller.contact_email) ? `
-                <div class="transaction-disclaimer">
-                  <strong>Heads up:</strong> CanvasCircle is a free listing platform. This transaction is directly between you and the seller. CanvasCircle does not process payments, verify authenticity, or mediate disputes. See our <a href="/terms.html" target="_blank" rel="noopener">Terms</a>.
-                </div>` : ""}
-            </div>
-
-            ${days != null ? `<div class="listed-line">Listed ${days === 0 ? "today" : days === 1 ? "1 day ago" : `${days} days ago`}.</div>` : ""}
+            ${days != null ? `<div class="listed-line">${isIso ? "Posted" : "Listed"} ${days === 0 ? "today" : days === 1 ? "1 day ago" : `${days} days ago`}.</div>` : ""}
 
             <div class="report-link-row">
               <button type="button" id="report-listing-btn" class="report-link" title="Report this listing">Report this listing</button>
@@ -563,6 +638,10 @@
           </div>
         </div>
       `;
+
+      // Stash for downstream code (email body builder, etc).
+      render._inquirySubject = inquirySubject;
+      render._isIso = isIso;
 
       $status.hidden = true;
       $content.hidden = false;
@@ -587,15 +666,22 @@
         });
       });
 
-      // Email Seller mailto — built dynamically with listing context so the
-      // buyer's email opens with subject + body prefilled. No copy-paste needed.
+      // Email mailto — built dynamically with listing context so the
+      // recipient's mail client opens with subject + body prefilled.
       const $emailLink = document.getElementById("email-seller-link");
       if ($emailLink && seller.contact_email) {
-        const subject = `Inquiry about "${l.artwork_title || "your listing"}" on CanvasCircle`;
+        const subject = render._inquirySubject;
+        const subjectLine = isIso
+          ? `your "In Search Of" listing on CanvasCircle`
+          : `your listing on CanvasCircle`;
+        const subjectArtwork = (l.artwork_title || (isIso ? "the piece you're looking for" : "Untitled"))
+          + (l.artist_name ? " by " + l.artist_name : "");
         const body =
           `Hi ${seller.display_name || ""},\n\n` +
-          `I'm interested in your listing on CanvasCircle:\n` +
-          `${(l.artwork_title || "Untitled")}${l.artist_name ? " by " + l.artist_name : ""}\n` +
+          (isIso
+            ? `I saw your post on CanvasCircle and I think I may have something that fits what you're looking for:\n`
+            : `I'm interested in your listing on CanvasCircle:\n`) +
+          `${subjectArtwork}\n` +
           `${window.location.href}\n\n` +
           `[Your message here]\n\n` +
           `Thanks!`;
