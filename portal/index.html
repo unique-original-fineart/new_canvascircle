@@ -106,6 +106,13 @@
       font-size: 12px; line-height: 1.4;
       color: var(--muted);
     }
+    .locked-tag {
+      display: inline-block; margin-left: 6px;
+      padding: 1px 6px; border-radius: 4px;
+      background: #f0ede6; color: var(--muted);
+      font-size: 10px; font-weight: 600; letter-spacing: .3px;
+      vertical-align: 1px;
+    }
 
     .saved-info-note {
       background: #fbf6e9; border: 1px solid #e9dcad;
@@ -451,7 +458,13 @@
     .preview-card .pc-mod-banner strong {
       font-size: 11px; font-weight: 700; letter-spacing: .2px;
     }
-    .preview-card .pc-mod-banner span { font-size: 10.5px; opacity: .9; }
+    .preview-card .pc-mod-banner span { font-size: 10.5px; opacity: .9; display: block; }
+    .preview-card .pc-mod-banner .pc-mod-reason {
+      margin-top: 4px; padding-top: 4px;
+      border-top: 1px dashed currentColor;
+      opacity: 1;
+    }
+    .preview-card .pc-mod-banner .pc-mod-reason strong { font-weight: 700; }
     .preview-card .pc-mod-pending {
       background: #fff4e2; color: #5a4400;
       border: 1px solid #f0d6a3;
@@ -845,12 +858,27 @@
     }
     .mod-item .btn-reject:hover { background: #fbe4e0; }
 
+    .sellers-list-scroll {
+      max-height: 480px;
+      overflow-y: auto;
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      background: #fff;
+    }
+    #sellers-filter {
+      width: 100%; box-sizing: border-box;
+      padding: 9px 12px; margin: 0 0 10px;
+      border-radius: 8px; border: 1px solid var(--card-line);
+      background: #fff; font-size: 14px; font-family: inherit;
+    }
+    #sellers-filter:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
     .seller-row {
       display: flex; align-items: center; justify-content: space-between;
       gap: 12px; flex-wrap: wrap;
       padding: 10px 12px;
       border-bottom: 1px solid var(--card-line);
     }
+    .seller-row.is-hidden { display: none; }
     .seller-row:last-child { border-bottom: none; }
     .seller-row .seller-info strong { font-size: 14px; }
     .seller-row .seller-info .small { color: var(--muted); font-size: 12px; margin-top: 2px; }
@@ -977,8 +1005,13 @@
     .saved-card .row {
       margin-top: 6px;
       display: flex; align-items: center; justify-content: space-between; gap: 6px;
+      flex-wrap: nowrap;
     }
-    .saved-card .price-block { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+    .saved-card .row > .pill { flex: 0 0 auto; white-space: nowrap; }
+    .saved-card .price-block {
+      display: inline-flex; align-items: baseline; gap: 6px;
+      flex-wrap: wrap; min-width: 0; flex: 1 1 auto;
+    }
     .saved-card .price { font-weight: 600; font-size: 14px; }
     .saved-card .ship-suffix { font-weight: 400; font-size: 11px; color: var(--muted); margin-left: 2px; }
     .saved-card .prev {
@@ -1225,7 +1258,7 @@
   <header class="site">
     <a class="brand" href="/">
       <img src="/assets/CanvasCircleLogo.png" alt="CanvasCircle" />
-      <span class="title">CanvasCircle</span>
+      <span class="title">CanvasCircle™</span>
     </a>
     <nav>
       <a href="/">Catalog</a>
@@ -1284,8 +1317,11 @@
 
         <form id="signup-form" autocomplete="on">
           <div class="field">
-            <label for="signup-name">Display name</label>
-            <input type="text" id="signup-name" required autocomplete="name" placeholder="Your name as it'll appear on the site" />
+            <label for="signup-name">Display name (your real name)</label>
+            <input type="text" id="signup-name" required autocomplete="name" placeholder="First Last — e.g. Jane Smith" pattern="^\S+\s+\S.*$" title="Please enter your first and last name." />
+            <p class="small" style="margin: 4px 0 0; color: var(--muted);">
+              Use your real first and last name. Buyers and sellers use this to identify each other for transactions. This is locked after signup — to change it later you'd need to email the admin.
+            </p>
           </div>
           <div class="field">
             <label for="signup-email">Email</label>
@@ -1443,8 +1479,11 @@
           </p>
           <form id="profile-form" autocomplete="off" onsubmit="return false;" style="display: grid; gap: 12px;">
             <div class="field">
-              <label for="prof-name">Display name</label>
+              <label for="prof-name">Display name <span class="locked-tag">🔒 Locked</span></label>
               <input type="text" id="prof-name" placeholder="Your name as buyers will see it" disabled />
+              <p class="small" style="margin: 4px 0 0;">
+                Set at signup and can't be changed here. If you need to correct it (typo, name change), email <a href="mailto:admin@canvascircle.art" style="color:var(--accent);">admin@canvascircle.art</a>.
+              </p>
             </div>
             <div class="field">
               <label for="prof-fb">Facebook profile URL</label>
@@ -1455,10 +1494,10 @@
               <input type="text" id="prof-loc" placeholder="e.g. Central NJ 08852" disabled />
             </div>
             <div class="field">
-              <label for="prof-email">Contact email</label>
+              <label for="prof-email">Contact email <span class="locked-tag">🔒 Locked</span></label>
               <input type="email" id="prof-email" placeholder="you@example.com" disabled />
               <p class="small" style="margin: 4px 0 0;">
-                Shown on your listings via the Email Seller button. Leave blank if you don't want your email exposed publicly.
+                This is the email you signed up with. It powers the Email Seller button on your listings. To change it, email <a href="mailto:admin@canvascircle.art" style="color:var(--accent);">admin@canvascircle.art</a>.
               </p>
             </div>
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -1515,8 +1554,9 @@
           <section class="admin-section">
             <h3>Sellers <span class="count" id="sellers-count"></span></h3>
             <p class="help">Toggle "Trusted" so a seller's new listings auto-publish without admin review. Suspend or ban accounts that violate marketplace rules.</p>
+            <input type="search" id="sellers-filter" placeholder="Filter by display name, email, or location…" autocomplete="off" />
             <div id="sellers-loading" class="empty-state" hidden>Loading…</div>
-            <div id="sellers-list" hidden></div>
+            <div id="sellers-list" class="sellers-list-scroll" hidden></div>
           </section>
 
           <section class="admin-section">
@@ -1950,6 +1990,18 @@
       const tosVersion    = "1.0";
       $signupBtn.disabled = true; $signupBtn.textContent = "Creating account…";
       try {
+        // Check denylist BEFORE creating the auth user. Banned emails should
+        // never be allowed to sign up again under the same address.
+        const { data: bannedCheck, error: bannedErr } = await supabase
+          .rpc("is_banned_credential", { p_email: email, p_facebook_url: null });
+        if (bannedErr) {
+          console.warn("[signup] denylist check failed (non-fatal, allowing signup):", bannedErr);
+        } else if (bannedCheck === true) {
+          throw new Error(
+            "This email cannot be used to create a CanvasCircle account. " +
+            "If you believe this is a mistake, contact admin@canvascircle.art."
+          );
+        }
         const { data, error } = await supabase.auth.signUp({
           email, password,
           options: {
@@ -2283,6 +2335,9 @@
                    : (l.moderation_status === "rejected"
                      ? "This listing was rejected by the admin. Edit and resubmit, or contact the admin."
                      : "")}</span>
+                 ${l.moderation_status === "rejected" && l.moderation_reason
+                   ? `<span class="pc-mod-reason"><strong>Admin note:</strong> ${escapeHtml(l.moderation_reason)}</span>`
+                   : ""}
                </div>`
             : ""}
           <div class="pc-metrics">
@@ -2864,6 +2919,10 @@
         const bootstrap = allListings.find(x => x.listing_id === id);
         if (listingHasContentEdits(payload, bootstrap)) {
           payload.moderation_status = "pending";
+          // Clear any prior rejection note so the seller doesn't see a stale
+          // admin reason against the re-pending edit.
+          payload.moderation_reason = null;
+          payload.moderation_reason_at = null;
           needsReview = true;
         }
       }
@@ -2900,7 +2959,20 @@
       } catch (err) {
         console.error("[saveCard] failed:", err);
         card.classList.add("has-error");
-        showDashBanner("Could not save: " + (err.message || err), "error");
+        // Distinguish the "kept timing out after retries" case so the seller
+        // sees a clear "refresh and try again" instruction rather than a
+        // generic error. runWithRetry throws a specific message we can match.
+        const msg = String(err?.message || err);
+        if (msg.includes("kept timing out after")) {
+          showDashBanner(
+            "⚠️ Save couldn't complete — the connection to the server kept timing out after several retries. " +
+            "Please REFRESH THIS PAGE (Cmd+R or Ctrl+R) and try editing the listing again. " +
+            "Heads-up: your unsaved edits in the form will be cleared on refresh, so jot them down first if they're complex.",
+            "error"
+          );
+        } else {
+          showDashBanner("Could not save: " + msg, "error");
+        }
         return false;
       } finally {
         saveBtn.disabled = false; saveBtn.textContent = orig;
@@ -3037,6 +3109,7 @@
           medium, height_in, width_in, depth_in, framed_size, description,
           asking_price_usd, previous_price_usd, price_updated_at,
           shipping_offered, coa_included, status, moderation_status,
+          moderation_reason, moderation_reason_at,
           seller_mood, last_renewed_at, created_at,
           save_count, view_count,
           listing_images ( storage_path, position )
@@ -3380,7 +3453,28 @@
       rows.forEach((p, i) => frag.appendChild(renderSellerRow(p, counts[i])));
       $sellersList.appendChild(frag);
       $sellersList.hidden = false;
+      applySellerFilter(); // respect existing filter input value after reload
     }
+
+    // ---- Sellers filter: client-side, hides rows that don't match ----
+    function applySellerFilter() {
+      const q = (document.getElementById("sellers-filter")?.value || "").trim().toLowerCase();
+      const rows = $sellersList.querySelectorAll(".seller-row");
+      let visible = 0;
+      rows.forEach(r => {
+        // Searches across all visible text inside the row (display name, email, location, status pill).
+        const hay = r.textContent.toLowerCase();
+        const hidden = q && !hay.includes(q);
+        r.classList.toggle("is-hidden", hidden);
+        if (!hidden) visible++;
+      });
+      // Reflect count when filtered.
+      const total = rows.length;
+      $sellersCount.textContent = total
+        ? (q ? `(${visible} of ${total})` : `(${total})`)
+        : "";
+    }
+    document.getElementById("sellers-filter")?.addEventListener("input", applySellerFilter);
 
     function renderSellerRow(profile, listingCount) {
       const row = document.createElement("div");
@@ -3638,7 +3732,29 @@
           </select>
         </div>
       `;
-      row.querySelector("[data-action=set-mod]").addEventListener("change", (e) => updateAdminListing(row, l, { moderation_status: e.target.value }));
+      row.querySelector("[data-action=set-mod]").addEventListener("change", async (e) => {
+        const newMod = e.target.value;
+        const patch = { moderation_status: newMod };
+        // If rejecting, prompt for a reason the seller will see on their
+        // listing. Cancel → revert the dropdown and don't save.
+        if (newMod === "rejected") {
+          const reason = prompt(
+            "Reject this listing — what's the reason? (The seller will see this on their listings dashboard so they know what to fix.)",
+            l.moderation_reason || ""
+          );
+          if (reason === null) {
+            e.target.value = l.moderation_status || "approved";
+            return;
+          }
+          patch.moderation_reason = reason.trim() || null;
+          patch.moderation_reason_at = new Date().toISOString();
+        } else {
+          // Approving or moving to pending review → clear any stale reason.
+          patch.moderation_reason = null;
+          patch.moderation_reason_at = null;
+        }
+        await updateAdminListing(row, l, patch);
+      });
       return row;
     }
 
@@ -3948,11 +4064,21 @@
     let profileSnapshot = { display_name: "", facebook_profile_url: "", location: "", contact_email: "" };
 
     function setProfileEditMode(editing) {
-      $profInputs.forEach(el => { el.disabled = !editing; });
+      $profInputs.forEach(el => {
+        // Display name and contact email are locked permanently — they're set
+        // at signup, used for buyer↔seller identification + outreach, and we
+        // intentionally don't allow self-edit (prevents anonymous renames,
+        // keeps the saver-list / DMCA-trail accurate).
+        if (el.id === "prof-name" || el.id === "prof-email") {
+          el.disabled = true;
+          return;
+        }
+        el.disabled = !editing;
+      });
       $profEditBtn.hidden   = editing;
       $profSaveBtn.hidden   = !editing;
       $profCancelBtn.hidden = !editing;
-      if (editing) $profName.focus();
+      if (editing) ($profFb || $profName).focus();
     }
 
     function fillProfileFromSnapshot() {
@@ -3995,12 +4121,20 @@
       $profStatus.className = "sp-text-status";
       $profSaveBtn.disabled = true;
       try {
+        // display_name and contact_email are intentionally NOT in the payload —
+        // they're locked after signup and can only be changed by the admin.
         const payload = {
-          display_name:         $profName.value.trim() || null,
           facebook_profile_url: $profFb.value.trim()   || null,
           location:             $profLoc.value.trim()  || null,
-          contact_email:        $profEmail.value.trim()|| null,
         };
+        // Block adding a Facebook URL that's on the banned-credentials denylist.
+        if (payload.facebook_profile_url) {
+          const { data: banned } = await supabase
+            .rpc("is_banned_credential", { p_email: null, p_facebook_url: payload.facebook_profile_url });
+          if (banned === true) {
+            throw new Error("That Facebook profile URL is on our denylist and can't be used. If you believe this is a mistake, contact admin@canvascircle.art.");
+          }
+        }
         const { error } = await supabase
           .from("profiles")
           .update(payload)
