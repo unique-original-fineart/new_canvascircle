@@ -164,8 +164,25 @@
       margin-top: 18px;
       box-shadow: var(--shadow);
     }
+    .seller-block .seller-label {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 4px;
+    }
     .seller-block .name { font-weight: 600; }
     .seller-block .loc  { color: var(--muted); font-size: 14px; margin-top: 2px; }
+
+    /* Report-this-listing link — intentionally low-contrast so it doesn't
+       distract from the listing or the contact buttons. */
+    .report-link-row { margin-top: 18px; text-align: center; }
+    .report-link {
+      background: none; border: none; padding: 4px 8px;
+      color: var(--muted); font-size: 11px;
+      text-decoration: underline; cursor: pointer;
+      font-family: inherit;
+      letter-spacing: .2px;
+    }
+    .report-link:hover { color: var(--fg); }
     .seller-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
     .seller-actions a {
       display: inline-block; padding: 9px 14px; border-radius: 8px;
@@ -521,6 +538,7 @@
             ${l.description     ? `<div class="section"><h3>Description</h3><p>${escapeHtml(l.description)}</p></div>` : ""}
 
             <div class="seller-block">
+              <div class="seller-label">Seller</div>
               <div class="name">${escapeHtml(seller.display_name || "Seller")}</div>
               ${seller.location ? `<div class="loc">${escapeHtml(seller.location)}</div>` : ""}
               <div class="seller-actions">
@@ -538,6 +556,10 @@
             </div>
 
             ${days != null ? `<div class="listed-line">Listed ${days === 0 ? "today" : days === 1 ? "1 day ago" : `${days} days ago`}.</div>` : ""}
+
+            <div class="report-link-row">
+              <button type="button" id="report-listing-btn" class="report-link" title="Report this listing">Report this listing</button>
+            </div>
           </div>
         </div>
       `;
@@ -613,6 +635,51 @@
             $count.textContent = String(Math.max(0, Number($count.textContent || 0) + (wasSaved ? 1 : -1)));
           } finally {
             $heart.disabled = false;
+          }
+        });
+      }
+
+      // Report-this-listing button — minimal, low-contrast link near footer.
+      // Signed-in only (prevents anonymous spam). One report per user per
+      // listing is enforced by a DB unique constraint.
+      const $reportBtn = document.getElementById("report-listing-btn");
+      if ($reportBtn) {
+        $reportBtn.addEventListener("click", async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            alert("You need to sign in to report a listing. Sign in or create a free account, then come back to report.");
+            return;
+          }
+          const reason = prompt(
+            "Why does this listing violate the marketplace rules?\n\n" +
+            "Be specific — counterfeit, misleading description, stock photo, prohibited content, etc. " +
+            "The admin reviews every report.",
+            ""
+          );
+          if (reason === null) return;
+          const trimmed = reason.trim();
+          if (!trimmed) {
+            alert("A reason is required so the admin knows what to look at.");
+            return;
+          }
+          try {
+            const { error } = await supabase.from("listing_reports").insert({
+              listing_id: l.listing_id,
+              reporter_id: user.id,
+              reason: trimmed,
+            });
+            if (error) {
+              // Unique-constraint violation → user already reported this listing.
+              if (String(error.code) === "23505" || /duplicate key/i.test(error.message || "")) {
+                alert("You've already reported this listing. The admin sees your report in the queue.");
+                return;
+              }
+              throw error;
+            }
+            alert("Thanks — the admin will review your report. You won't be notified individually but action (if any) happens directly on the listing.");
+          } catch (err) {
+            console.error("[report-listing] failed:", err);
+            alert("Could not submit the report: " + (err.message || err));
           }
         });
       }
