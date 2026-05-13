@@ -1713,6 +1713,8 @@
           <strong>Posting an "In Search Of" request:</strong> tell the community what you're hoping to acquire.
           You can specify a particular piece, an artist whose work you're looking for, or just describe what you want.
           An image is optional — add a reference photo if you have one. Sellers will reach out directly via Facebook or email.
+          <br><br>
+          <em>About reference images:</em> only upload a photo if you took it yourself, it's in the public domain, or it's a low-resolution image used solely to identify the piece you're seeking. Please don't upload stock photos, watermarked gallery images, or anything you wouldn't be comfortable defending if the photographer asked you to take it down.
         </div>
         <div class="nl-legal-note" id="nl-legal-sale">
           By posting a listing you confirm that you own the artwork or have the right to sell it,
@@ -2086,7 +2088,7 @@
       // the version ever changes). The trigger handle_new_user() pulls these
       // from raw_user_meta_data into public.profiles.
       const tosAcceptedAt = new Date().toISOString();
-      const tosVersion    = "1.0";
+      const tosVersion    = "1.1";
       $signupBtn.disabled = true; $signupBtn.textContent = "Creating account…";
       try {
         // Check denylist BEFORE creating the auth user. Banned emails should
@@ -2411,6 +2413,9 @@
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
       const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
       const isSold = l.status === "sold";
+      // ISO posts use status='sold' to mean "closed/found", which is not the
+      // same thing as a sale completing. Skip the SOLD image overlay for ISO.
+      const showSoldOverlay = isSold && !isIso;
       const saveCnt = Number(l.save_count || 0);
       const viewCnt = Number(l.view_count || 0);
 
@@ -2435,10 +2440,10 @@
             : "");
 
       const card = document.createElement("div");
-      card.className = "preview-card" + (isSold ? " is-sold" : "") + (isIso ? " is-iso" : "");
+      card.className = "preview-card" + (showSoldOverlay ? " is-sold" : "") + (isIso ? " is-iso" : "");
       card.dataset.listingId = l.listing_id;
       card.innerHTML = `
-        <div class="pc-img${isSold ? " is-sold" : ""}">
+        <div class="pc-img${showSoldOverlay ? " is-sold" : ""}">
           ${imgInner}
         </div>
         <div class="pc-body">
@@ -2536,6 +2541,9 @@
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
       const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
       const isSold = l.status === "sold";
+      // ISO 'sold' means "closed/found" — don't paint the SOLD overlay on the
+      // thumb. (See renderPreviewCard for the rest of this rationale.)
+      const showSoldOverlay = isSold && !isIso;
       const card = document.createElement("div");
       card.className = "listing-card" + (isIso ? " is-iso" : "");
       card.dataset.listingId = l.listing_id;
@@ -2554,7 +2562,7 @@
 
       card.innerHTML = `
         <div class="card-head">
-          <div class="card-thumb${isSold ? " is-sold" : ""}">
+          <div class="card-thumb${showSoldOverlay ? " is-sold" : ""}">
             ${thumbInner}
           </div>
           <div class="head-meta">
@@ -4712,6 +4720,8 @@
       const imgUrl   = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
       const isSold       = l.status === "sold";
       const isNotRenewed = l.status === "not_renewed";
+      // ISO 'sold' = "closed/found", not a completed sale. Suppress overlay.
+      const showSoldOverlay = isSold && !isIso;
       const saveCnt  = Number(l.save_count || 0);
 
       // Price / budget label.
@@ -4743,7 +4753,7 @@
       wrap.dataset.listingId = l.listing_id;
 
       const card = document.createElement("a");
-      card.className = "saved-card" + (isSold ? " is-sold" : "") + (isIso ? " is-iso" : "");
+      card.className = "saved-card" + (showSoldOverlay ? " is-sold" : "") + (isIso ? " is-iso" : "");
       card.href = `/listing.html?id=${l.listing_id}`;
       card.innerHTML = `
         <div class="img">${imgInner}</div>
@@ -4921,8 +4931,16 @@
       document.getElementById("nl-heading").textContent = isIso ? "Post an In Search Of request" : "Add a new listing";
       document.getElementById("nl-image-strong").textContent = isIso ? "Upload a reference image (optional)" : "Upload artwork image";
       document.getElementById("nl-image-help").textContent = isIso
-        ? "Optional — add a photo of the piece if you have one. We'll compress it."
+        ? "Optional — add a photo of the piece if you have one."
         : "One image per listing. We'll compress it for you.";
+      // Description placeholder reframed for ISO: not "why you're selling" but
+      // "what you're looking for."
+      const $nlDesc = document.getElementById("nl-description");
+      if ($nlDesc) {
+        $nlDesc.placeholder = isIso
+          ? "Specific edition or year, color preferences, condition tolerance, why you're looking — anything sellers should know."
+          : "Condition, provenance, why you're selling, anything buyers should know.";
+      }
       $nlSubmitBtn.textContent = isIso ? "Post request" : "Submit listing";
       // Callouts + legal notes swap
       document.getElementById("nl-callout-sale").hidden = isIso;

@@ -554,7 +554,8 @@
       wrap.className = "card-wrap";
       wrap.dataset.listingId = listing.listing_id;
       const card = document.createElement("a");
-      card.className = "card" + (listing.status === "sold" ? " is-sold" : "");
+      // ISO 'sold' means "closed/found" — don't paint the SOLD overlay on those.
+      card.className = "card" + (listing.status === "sold" && !isIso ? " is-sold" : "");
       card.href = `/listing.html?id=${listing.listing_id}`;
       const imgUrl = firstPath ? publicImageUrl(firstPath) : "";
       const catCls   = listing.artwork_category === "Unique/Original" ? " unique"
