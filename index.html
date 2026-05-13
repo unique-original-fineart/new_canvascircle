@@ -468,11 +468,17 @@
     const $sort     = document.getElementById("f-sort");
     const $clear    = document.getElementById("clear");
 
-    const PAGE_SIZE = 16;
+    const PAGE_SIZE = 24;
 
-    let allListings   = [];
-    let filteredRows  = [];
-    let renderedCount = 0;
+    // Server-side pagination state. We no longer hold the full catalog in
+    // memory — only the pages we've fetched so far. Filtering and sorting
+    // both happen server-side (PostgREST), so each filter change re-queries
+    // the server starting at page 0.
+    let listings      = [];       // currently loaded rows (accumulates as pages load)
+    let totalCount    = 0;        // total matching the active filters on the server
+    let loadedCount   = 0;        // length of `listings` (kept in sync)
+    let isFetching    = false;    // prevent concurrent fetches
+    let currentFilters = null;    // snapshot of filter values for the active query
     let userSavesSet  = null;     // Set<listing_id> of saves for current user, or null if unsigned
 
     function escapeHtml(s) {
@@ -556,7 +562,7 @@
       try {
         const nowSaved = await toggleSave(id);
         // Sync the in-memory listing record so re-renders are correct
-        const rec = allListings.find(l => l.listing_id === id);
+        const rec = listings.find(l => l.listing_id === id);
         if (rec) {
           rec.save_count = Math.max(0, Number(rec.save_count || 0) + (nowSaved ? 1 : -1));
         }
@@ -594,106 +600,169 @@
       }
     }
 
-    function applyFilters() {
-      const q     = $q.value.trim().toLowerCase();
-      const cat   = $cat.value;
-      const stf   = $statusF.value;
-      const sel   = $seller.value;
-      const art   = $artist.value;
-      const minP  = Number($min.value);
-      const maxP  = Number($max.value);
-      const so    = $sort.value;
-      const hasMin = $min.value !== "" && !isNaN(minP);
-      const hasMax = $max.value !== "" && !isNaN(maxP);
+    // Build a Supabase query with all filter/sort/status constraints applied
+    // server-side. Returns a thenable PostgREST query (call `.range()` then
+    // await it). `count: "exact"` adds a Content-Range total header.
+    function buildCatalogQuery(filters) {
+      let q = supabase
+        .from("listings")
+        .select(`
+          listing_id, artist_name, artwork_title, artwork_category,
+          asking_price_usd, previous_price_usd, status, created_at, save_count,
+          shipping_offered,
+          listing_images ( storage_path, position ),
+          profiles!listings_seller_id_fkey!inner ( display_name, account_status )
+        `, { count: "exact" })
+        .eq("moderation_status", "approved")
+        .eq("profiles.account_status", "active");
 
-      let rows = allListings.filter(l => {
-        if (cat && l.artwork_category !== cat) return false;
-        // Status filter: explicit Sold or Not renewed; otherwise default to Available.
-        if (stf === "sold") {
-          if (l.status !== "sold") return false;
-        } else if (stf === "not_renewed") {
-          if (l.status !== "not_renewed") return false;
-        } else {
-          if (l.status !== "available") return false;
-        }
-        if (sel && (l.profiles?.display_name || "") !== sel) return false;
-        if (art && (l.artist_name || "") !== art) return false;
-        const p = Number(l.asking_price_usd || 0);
-        if (hasMin && p < minP) return false;
-        if (hasMax && p > maxP) return false;
-        if (q) {
-          const hay = `${l.artist_name || ""} ${l.artwork_title || ""}`.toLowerCase();
-          if (!hay.includes(q)) return false;
-        }
-        return true;
-      });
+      // Status — exactly one is always active.
+      const status = filters.statusF === "sold" ? "sold"
+                   : filters.statusF === "not_renewed" ? "not_renewed"
+                   : "available";
+      q = q.eq("status", status);
 
-      if (so === "price-asc")      rows.sort((a,b) => Number(a.asking_price_usd||0) - Number(b.asking_price_usd||0));
-      else if (so === "price-desc") rows.sort((a,b) => Number(b.asking_price_usd||0) - Number(a.asking_price_usd||0));
-      else                          rows.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      if (filters.cat)    q = q.eq("artwork_category", filters.cat);
+      if (filters.seller) q = q.eq("profiles.display_name", filters.seller);
+      if (filters.artist) q = q.eq("artist_name", filters.artist);
 
-      // Reset incremental render state and draw the first batch.
-      filteredRows  = rows;
-      renderedCount = 0;
-      $grid.innerHTML = "";
-      renderNextBatch();
+      if (filters.min !== "" && !isNaN(Number(filters.min))) q = q.gte("asking_price_usd", Number(filters.min));
+      if (filters.max !== "" && !isNaN(Number(filters.max))) q = q.lte("asking_price_usd", Number(filters.max));
 
-      $stats.hidden = false;
-      // Denominator is the count of listings matching the active status only,
-      // and we name the status so "Showing 31 of 31 Available listings" reads
-      // truthfully instead of "31 of 33" (which mixes in sold + not-renewed).
-      const statusKey  = stf === "sold" ? "sold" : stf === "not_renewed" ? "not_renewed" : "available";
-      const statusName = statusKey === "sold" ? "Sold" : statusKey === "not_renewed" ? "Not renewed" : "Available";
-      const totalForStatus = allListings.filter(l => l.status === statusKey).length;
-      $stats.textContent = `Showing ${rows.length} of ${totalForStatus} ${statusName} listing${totalForStatus === 1 ? "" : "s"}`;
-      $grid.hidden  = rows.length === 0;
-      $empty.hidden = rows.length !== 0;
+      if (filters.q) {
+        // Escape PostgREST `or` value separators (comma + paren) and wildcard chars.
+        const pat = filters.q.replace(/[%_]/g, "\\$&");
+        q = q.or(`artist_name.ilike.%${pat}%,artwork_title.ilike.%${pat}%`);
+      }
+
+      if (filters.sort === "price-asc")       q = q.order("asking_price_usd", { ascending: true });
+      else if (filters.sort === "price-desc") q = q.order("asking_price_usd", { ascending: false });
+      else                                    q = q.order("created_at", { ascending: false });
+
+      return q;
     }
 
-    function renderNextBatch() {
-      const end = Math.min(renderedCount + PAGE_SIZE, filteredRows.length);
+    function snapshotFilters() {
+      return {
+        q:       $q.value.trim(),
+        cat:     $cat.value,
+        statusF: $statusF.value,
+        seller:  $seller.value,
+        artist:  $artist.value,
+        min:     $min.value,
+        max:     $max.value,
+        sort:    $sort.value,
+      };
+    }
+
+    function statusLabelForFilters(f) {
+      return f.statusF === "sold" ? "Sold" : f.statusF === "not_renewed" ? "Not renewed" : "Available";
+    }
+
+    function updateStatsBar() {
+      $stats.hidden = false;
+      const statusName = statusLabelForFilters(currentFilters);
+      $stats.textContent =
+        `Showing ${loadedCount} of ${totalCount} ${statusName} listing${totalCount === 1 ? "" : "s"}`;
+    }
+
+    function renderRows(rows) {
       const frag = document.createDocumentFragment();
-      for (let i = renderedCount; i < end; i++) frag.appendChild(renderCard(filteredRows[i]));
+      for (const r of rows) frag.appendChild(renderCard(r));
       $grid.appendChild(frag);
-      renderedCount = end;
+    }
+
+    // Run on initial load and on every filter change. Resets to page 0.
+    async function applyFilters() {
+      if (isFetching) return;
+      currentFilters = snapshotFilters();
+      listings      = [];
+      loadedCount   = 0;
+      totalCount    = 0;
+      $grid.innerHTML = "";
+      $empty.hidden = true;
+      $grid.hidden  = true;
+      isFetching = true;
+      try {
+        const { data, count, error } = await buildCatalogQuery(currentFilters).range(0, PAGE_SIZE - 1);
+        if (error) throw error;
+        listings    = data || [];
+        loadedCount = listings.length;
+        totalCount  = count || 0;
+        renderRows(listings);
+        $grid.hidden  = totalCount === 0;
+        $empty.hidden = totalCount !== 0;
+        updateStatsBar();
+      } catch (err) {
+        console.error("[applyFilters] failed:", err);
+        $status.textContent = "Could not load the catalog. Please try again later.";
+        $status.classList.add("error");
+        $status.hidden = false;
+      } finally {
+        isFetching = false;
+      }
+    }
+
+    // Fetch the next page of currently-active filters. Triggered by the
+    // sentinel scroll observer. No-ops if a fetch is in flight or there's
+    // nothing left to load.
+    async function loadMore() {
+      if (isFetching || !currentFilters || loadedCount >= totalCount) return;
+      isFetching = true;
+      try {
+        const start = loadedCount;
+        const end   = loadedCount + PAGE_SIZE - 1;
+        const { data, error } = await buildCatalogQuery(currentFilters).range(start, end);
+        if (error) throw error;
+        const rows = data || [];
+        if (rows.length === 0) return;
+        listings    = listings.concat(rows);
+        loadedCount = listings.length;
+        renderRows(rows);
+        updateStatsBar();
+      } catch (err) {
+        console.error("[loadMore] failed:", err);
+      } finally {
+        isFetching = false;
+      }
+    }
+
+    // Populate the seller + artist dropdowns. Runs once on initial load —
+    // pulls just the two text columns (small payload even at thousands of
+    // listings) and dedupes client-side.
+    async function populateDropdowns() {
+      const [sellersResp, artistsResp] = await Promise.all([
+        supabase
+          .from("listings")
+          .select("profiles!listings_seller_id_fkey!inner ( display_name, account_status )")
+          .eq("moderation_status", "approved")
+          .eq("profiles.account_status", "active"),
+        supabase
+          .from("listings")
+          .select("artist_name")
+          .eq("moderation_status", "approved"),
+      ]);
+      const sellerNames = [...new Set(
+        (sellersResp.data || []).map(r => r.profiles?.display_name).filter(Boolean)
+      )].sort((a,b) => a.localeCompare(b));
+      const artistNames = [...new Set(
+        (artistsResp.data || []).map(r => r.artist_name).filter(Boolean)
+      )].sort((a,b) => a.localeCompare(b));
+      populateOptions($seller, sellerNames);
+      populateOptions($artist, artistNames);
     }
 
     async function loadCatalog() {
-      const [listingsResp, savesResp] = await Promise.all([
-        supabase
-          .from("listings")
-          .select(`
-            listing_id, artist_name, artwork_title, artwork_category,
-            asking_price_usd, previous_price_usd, status, created_at, save_count,
-            shipping_offered,
-            listing_images ( storage_path, position ),
-            profiles!listings_seller_id_fkey!inner ( display_name, account_status )
-          `)
-          .eq("moderation_status", "approved")
-          .in("status", ["available", "pending", "sold", "not_renewed"])
-          .eq("profiles.account_status", "active")
-          .order("created_at", { ascending: false }),
-        getCurrentUserSaves(),
-      ]);
-      userSavesSet = savesResp; // Set or null
-      const { data: listings, error } = listingsResp;
-
-      if (error) {
-        console.error(error);
-        $status.textContent = "Could not load the catalog. Please try again later.";
-        $status.classList.add("error");
-        return;
-      }
-      if (!listings || listings.length === 0) {
-        $status.textContent = "The catalog is empty right now — check back soon.";
-        return;
-      }
-      allListings = listings;
-      populateOptions($seller, listings.map(l => l.profiles?.display_name));
-      populateOptions($artist, listings.map(l => l.artist_name));
+      userSavesSet = await getCurrentUserSaves();
+      await populateDropdowns();
       restoreFilterState(); // pull saved filters from sessionStorage if present
       $status.hidden = true;
-      applyFilters();
+      await applyFilters();
+      if (totalCount === 0 && !$q.value && !$cat.value && !$seller.value && !$artist.value && !$min.value && !$max.value) {
+        // Truly empty catalog (not just zero-match filters).
+        $status.hidden = false;
+        $status.textContent = "The catalog is empty right now — check back soon.";
+      }
     }
 
     // ----- Persistent filter state (sessionStorage) -----
@@ -736,8 +805,18 @@
       }
     });
 
-    [$q, $cat, $statusF, $seller, $artist, $min, $max, $sort]
-      .forEach(el => el.addEventListener("input", () => { saveFilterState(); applyFilters(); }));
+    // Text + number inputs debounce so each keystroke doesn't fire a request.
+    // Selects fire immediately (they only change on commit).
+    let filterDebounce = null;
+    function debouncedApply() {
+      saveFilterState();
+      clearTimeout(filterDebounce);
+      filterDebounce = setTimeout(applyFilters, 250);
+    }
+    [$q, $min, $max].forEach(el => el.addEventListener("input", debouncedApply));
+    [$cat, $statusF, $seller, $artist, $sort].forEach(el => {
+      el.addEventListener("change", () => { saveFilterState(); applyFilters(); });
+    });
     $clear.addEventListener("click", () => {
       $q.value = "";
       $cat.value = "";
@@ -751,22 +830,20 @@
       applyFilters();
     });
 
-    // Incremental render — observe the sentinel below the grid.
+    // Infinite scroll — observe the sentinel below the grid and pull the
+    // next page of listings from the server when nearing the bottom.
     if ("IntersectionObserver" in window) {
       const io = new IntersectionObserver((entries) => {
         for (const e of entries) {
-          if (e.isIntersecting && renderedCount < filteredRows.length) {
-            renderNextBatch();
-          }
+          if (e.isIntersecting) loadMore();
         }
-      }, { rootMargin: "400px 0px" });
+      }, { rootMargin: "600px 0px" });
       io.observe($sentinel);
     } else {
-      // Fallback: render everything if IntersectionObserver isn't available.
+      // Fallback for very old browsers.
       window.addEventListener("scroll", () => {
-        if (renderedCount < filteredRows.length &&
-            window.innerHeight + window.scrollY >= document.body.offsetHeight - 600) {
-          renderNextBatch();
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 800) {
+          loadMore();
         }
       });
     }

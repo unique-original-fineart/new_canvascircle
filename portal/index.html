@@ -1515,7 +1515,7 @@
               <label for="prof-email">Email <span class="locked-tag">🔒 Locked</span></label>
               <input type="email" id="prof-email" placeholder="you@example.com" disabled />
               <p class="small" style="margin: 4px 0 0;">
-                This is the email you use to sign in <em>and</em> the email buyers see on the Email Seller button. To change it, click below — Supabase will email both the old and new addresses to confirm.
+                This is the email you use to sign in <em>and</em> the email buyers see on the Email Seller button. To change it, click below — we'll send confirmation links to both your current address and the new one. The change takes effect once you click both links.
                 <button type="button" id="change-email-btn" class="linklike" style="color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Change my email</button>
               </p>
             </div>
@@ -4290,7 +4290,7 @@
     document.getElementById("change-email-btn")?.addEventListener("click", async () => {
       const current = $profEmail.value || "";
       const newEmail = prompt(
-        "Change your email.\n\nThis is your sign-in email AND the email buyers see for the Email Seller button.\n\nWhen you confirm, Supabase will email BOTH your old and new addresses with confirmation links. You must click both for the change to take effect.",
+        "Change your email.\n\nThis is your sign-in email AND the email buyers see for the Email Seller button.\n\nWhen you confirm, we'll send confirmation links to BOTH your current address and the new one. You must click both for the change to take effect.",
         current
       );
       if (newEmail === null) return;
