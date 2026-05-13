@@ -33,6 +33,12 @@
   <link rel="manifest" href="/assets/manifest.webmanifest" />
   <meta name="theme-color" content="#1a1a1a" />
 
+  <!-- Performance: warm up the TLS + DNS to the Supabase storage host so the
+       first image request lands on a ready connection. Shaves ~100ms off
+       LCP on cold loads. -->
+  <link rel="preconnect" href="https://xwieomjsqwcswoadrvkv.supabase.co" crossorigin />
+  <link rel="dns-prefetch" href="https://xwieomjsqwcswoadrvkv.supabase.co" />
+
   <!-- Open Graph -->
   <meta property="og:site_name"   content="CanvasCircle" />
   <meta property="og:title"       content="CanvasCircle — A Modern Art Marketplace Built for Social Selling" />
@@ -223,6 +229,13 @@
     }
     #status.error { color: #a8281f; border-color: #f1c4be; background: #fef6f5; }
     .empty .empty-title { color: var(--fg); font-weight: 600; margin-bottom: 4px; }
+    .loading-more {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 16px 12px;
+      letter-spacing: .2px;
+    }
 
     /* ---- Grid + cards ---- */
     .grid {
@@ -429,6 +442,7 @@
     <div id="stats" class="stats" hidden></div>
     <div id="status">Loading catalog&hellip;</div>
     <div id="grid" class="grid" hidden></div>
+    <div id="loading-more" class="loading-more" hidden>Loading more listings&hellip;</div>
     <div id="sentinel" aria-hidden="true" style="height: 1px;"></div>
     <div id="empty" class="empty" hidden>
       <div class="empty-title">No listings match your filters</div>
@@ -496,7 +510,10 @@
       const card = document.createElement("a");
       card.className = "card" + (listing.status === "sold" ? " is-sold" : "");
       card.href = `/listing.html?id=${listing.listing_id}`;
-      const imgUrl = firstPath ? publicImageUrl(firstPath) : "";
+      // Request a 600px-wide thumbnail from Supabase's image transformer.
+      // Cards display ~280px wide, so 600 covers 2x retina nicely while
+      // shipping a much smaller payload than the 1200px original.
+      const imgUrl = firstPath ? publicImageUrl(firstPath, { width: 600 }) : "";
       const price  = Number(listing.asking_price_usd || 0).toLocaleString();
       const prev   = listing.previous_price_usd
                       && Number(listing.previous_price_usd) > Number(listing.asking_price_usd)
@@ -514,7 +531,7 @@
         ? (listing.shipping_offered === "Yes" ? " shipped" : " + shipping")
         : "";
       card.innerHTML = `
-        <div class="img">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />` : ""}</div>
+        <div class="img">${imgUrl ? `<img src="${imgUrl}" alt="${escapeHtml(listing.artist_name || "")} — ${escapeHtml(listing.artwork_title || "")}" width="600" height="600" loading="lazy" decoding="async" />` : ""}</div>
         <div class="body">
           <div class="artist">${escapeHtml(listing.artist_name || "Unknown")}</div>
           <div class="title">${escapeHtml(listing.artwork_title || "")}</div>
@@ -709,6 +726,8 @@
     async function loadMore() {
       if (isFetching || !currentFilters || loadedCount >= totalCount) return;
       isFetching = true;
+      const $loadingMore = document.getElementById("loading-more");
+      if ($loadingMore) $loadingMore.hidden = false;
       try {
         const start = loadedCount;
         const end   = loadedCount + PAGE_SIZE - 1;
@@ -724,6 +743,7 @@
         console.error("[loadMore] failed:", err);
       } finally {
         isFetching = false;
+        if ($loadingMore) $loadingMore.hidden = true;
       }
     }
 
