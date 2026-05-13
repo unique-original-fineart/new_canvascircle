@@ -213,12 +213,13 @@ serve(async (req) => {
       const text =
 `Hi ${name.split(/\s+/)[0]},
 
-Welcome to CanvasCircle — a modern art marketplace for social selling.
+Welcome to CanvasCircle — a modern art listing platform built for collectors.
 
 Here's what you can do with your account:
 
 • Save listings you love by clicking the heart on any artwork.
-• Sell your own art — head to the seller portal, fill in your profile, and click "+ Add new listing."
+• Sell pieces from your own collection — head to the seller portal, fill in your profile (Facebook URL required), and click "+ Add new listing."
+• Post an "In Search Of" request for a piece you're hoping to acquire.
 • Build a Facebook sales post for your listings in one click.
 
 Before you reach out to a seller, take a minute to read our buying tips:
