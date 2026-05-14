@@ -1,0 +1,21 @@
+-- =============================================================================
+-- 017_anon_is_trusted_visible.sql
+-- =============================================================================
+-- Adds `is_trusted` to the anon-readable column set on public.profiles so the
+-- "Established Member" indicator can render on the public seller page
+-- (/seller?handle=X) for signed-out viewers.
+--
+-- Why this is safe to expose:
+--   `is_trusted` is the admin's vote that an account's listings can
+--   auto-publish without moderation. It's already implicitly public — when
+--   a trusted seller's listing appears in the catalog immediately after
+--   posting (vs. a moderation-pending listing that doesn't), savvy users
+--   can infer trust state. Surfacing it explicitly to buyers as
+--   "Established Member" is honest and improves the trust signal.
+--
+-- Still NOT readable by anon after this migration:
+--   contact_email, facebook_profile_url, location, pending_display_name,
+--   pending_display_name_at, tos_*, is_admin, status_changed_at.
+-- =============================================================================
+
+grant select (is_trusted) on public.profiles to anon;

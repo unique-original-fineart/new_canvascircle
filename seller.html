@@ -329,6 +329,14 @@
     <section id="seller-header" class="seller-header" hidden>
       <h1 class="display-name" id="seller-display-name"></h1>
       <p class="handle-line" id="seller-handle-line"></p>
+      <div id="seller-established-row" class="established-member" hidden
+           style="display:inline-flex; align-items:center; gap:6px; margin:6px 0 0; color:var(--green); font-size:13px; font-weight:600;">
+        <svg width="14" height="14" viewBox="0 0 16 16" style="flex-shrink:0;" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="#2a7a3e"/>
+          <path d="M5 8.5 L7 10.5 L11 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <span title="Reviewed by the admin; listings post without moderation">Established Member</span>
+      </div>
       <div class="meta">
         <span class="item" id="seller-joined-item" hidden></span>
         <span class="item" id="seller-location-item" hidden></span>
@@ -472,8 +480,8 @@
       // viewers, so the only difference for them is they never even see the
       // data come back over the wire.
       const profileCols = viewerSignedIn
-        ? "user_id, display_name, handle, location, facebook_profile_url, contact_email, account_status, created_at"
-        : "user_id, display_name, handle, account_status, created_at";
+        ? "user_id, display_name, handle, location, facebook_profile_url, contact_email, account_status, created_at, is_trusted"
+        : "user_id, display_name, handle, account_status, created_at, is_trusted";
       const { data: profileRows, error: profileErr } = await supabase
         .from("profiles")
         .select(profileCols)
@@ -559,6 +567,12 @@
         $joinedItem.textContent = `Joined ${month} ${year}`;
         $joinedItem.hidden = false;
       }
+
+      // Established Member indicator — shown for accounts the admin has
+      // marked is_trusted. Visible to anyone (signed in or not), since the
+      // seller page is opt-in public.
+      const $establishedRow = document.getElementById("seller-established-row");
+      if ($establishedRow) $establishedRow.hidden = !profile.is_trusted;
 
       // Location is gated — only visible to signed-in users.
       if (viewerSignedIn && profile.location) {
