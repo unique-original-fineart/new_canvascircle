@@ -1,19 +1,7 @@
 # Cloudflare Pages routing rules.
 #
 # Format: <from> <to> <status>
-# Status 200 = rewrite (URL bar unchanged) — but Cloudflare Pages doesn't
-#              reliably honor this when the source uses a wildcard/splat;
-#              the .html-stripping canonicalizer turns the rewrite back
-#              into a redirect and drops the splat. See:
-#              https://developers.cloudflare.com/pages/configuration/redirects/
+# Status 200 = rewrite (URL bar unchanged)
 # Status 301/302 = redirect (URL bar changes to `to`)
 
-# Shareable seller profile URLs: canvascircle.art/@handle
-#
-# We redirect (not rewrite) to /seller?handle=<handle>. The shareable URL
-# the seller copies/posts stays /@handle — only the URL bar updates AFTER
-# someone clicks it. seller.html reads the handle from the ?handle= query
-# string (with the /@handle pathname form as a fallback).
-#
-# :splat captures the wildcard match and substitutes it into the destination.
-/@*  /seller?handle=:splat  302
+# (currently no rules — seller pages are linked directly as /seller?handle=X)

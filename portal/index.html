@@ -3853,7 +3853,7 @@
         <div class="mod-meta">
           <strong>${isIso ? `<span style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;padding:1px 6px;border-radius:4px;font-size:11px;margin-right:6px;">ISO</span>` : ""}${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))} – ${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</strong>
           <div class="mod-sub">
-            ${escapeHtml(seller)}${sellerHandle ? ` <a href="/@${encodeURIComponent(sellerHandle)}" target="_blank" rel="noopener" style="color:var(--accent);" title="Open public seller page">@${escapeHtml(sellerHandle)}</a>` : ""}${email ? ` · ${escapeHtml(email)}` : ""}
+            ${escapeHtml(seller)}${sellerHandle ? ` <a href="/seller?handle=${encodeURIComponent(sellerHandle)}" target="_blank" rel="noopener" style="color:var(--accent);" title="Open public seller page">@${escapeHtml(sellerHandle)}</a>` : ""}${email ? ` · ${escapeHtml(email)}` : ""}
             · ${escapeHtml(priceLabel)}
             · ${escapeHtml(l.artwork_category || "")}
             · ${days === 0 ? "submitted today" : `submitted ${days}d ago`}
@@ -4035,7 +4035,7 @@
         <div class="seller-info" style="flex: 1; min-width: 200px;">
           <strong>
             ${escapeHtml(profile.display_name || "(no name)")}
-            ${profile.handle ? ` <a href="/@${encodeURIComponent(profile.handle)}" target="_blank" rel="noopener" style="font-weight:400; color:var(--accent); font-size:13px;" title="Open public seller page">@${escapeHtml(profile.handle)}</a>` : ""}
+            ${profile.handle ? ` <a href="/seller?handle=${encodeURIComponent(profile.handle)}" target="_blank" rel="noopener" style="font-weight:400; color:var(--accent); font-size:13px;" title="Open public seller page">@${escapeHtml(profile.handle)}</a>` : ""}
             ${profile.is_admin ? ` <span class="pill">admin</span>` : ""}
             ${statusPill}
             ${incomplete ? ` <span class="pill" style="background:#f3d6d3;color:#8a1f1a;border-color:#e8b3ad;">incomplete profile</span>` : ""}
@@ -4317,7 +4317,7 @@
         <div class="al-meta">
           <strong>${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))} – ${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</strong>
           <div class="sub">
-            ${escapeHtml(seller)}${sellerHandle ? ` <a href="/@${encodeURIComponent(sellerHandle)}" target="_blank" rel="noopener" style="color:var(--accent);" title="Open public seller page">@${escapeHtml(sellerHandle)}</a>` : ""}${sellerStatus !== "active" ? ` · <span style="color:#8a1f1a;">${escapeHtml(sellerStatus)}</span>` : ""}
+            ${escapeHtml(seller)}${sellerHandle ? ` <a href="/seller?handle=${encodeURIComponent(sellerHandle)}" target="_blank" rel="noopener" style="color:var(--accent);" title="Open public seller page">@${escapeHtml(sellerHandle)}</a>` : ""}${sellerStatus !== "active" ? ` · <span style="color:#8a1f1a;">${escapeHtml(sellerStatus)}</span>` : ""}
             · ${escapeHtml(priceLabel)}
             · ${days === 0 ? "today" : days + "d ago"}
           </div>
@@ -4733,7 +4733,7 @@
       const $publicUrl     = document.getElementById("public-page-url");
       const $previewBtn    = document.getElementById("preview-public-page-btn");
       if ($publicRow && profile.handle) {
-        const url = `${window.location.origin}/@${profile.handle}`;
+        const url = `${window.location.origin}/seller?handle=${encodeURIComponent(profile.handle)}`;
         $publicUrl.value = url;
         $previewBtn.href = url;
         $publicRow.hidden = false;
