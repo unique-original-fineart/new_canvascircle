@@ -1710,7 +1710,7 @@
           and how to handle payment safely. Following these makes your listings stronger
           and your transactions smoother.
           <br><br>
-          <em>Heads up — CanvasCircle is a platform for collectors selling pieces from their own collections, not for artists selling their own original work. If that's you, please use a platform built for that.</em>
+          <em>Heads up — CanvasCircle is a platform for collectors selling pieces from their own personal collections. We do not allow artists selling their own original work, dealers or galleries selling on behalf of others, or anyone consigning art for a third party. The seller of record must be the legal owner of the piece. Listings that don't meet this will be removed.</em>
         </div>
         <div class="nl-guidelines-callout" id="nl-callout-iso" hidden>
           <strong>Posting an "In Search Of" request:</strong> tell the community what you're hoping to acquire.
@@ -4678,7 +4678,14 @@
           .from("profiles")
           .update(payload)
           .eq("user_id", currentUserId);
-        if (error) throw error;
+        if (error) {
+          // Friendly message when the unique-index on normalized Facebook URL
+          // fires (migration 013). Postgres error code 23505 = unique_violation.
+          if (error.code === "23505" && /facebook/i.test(error.message || "")) {
+            throw new Error("That Facebook profile URL is already linked to another account on CanvasCircle. Each account must use a unique Facebook profile. If this is your URL on someone else's account, contact admin@canvascircle.art.");
+          }
+          throw error;
+        }
         // Update snapshot to reflect the save and re-lock the form.
         profileSnapshot = {
           display_name:         payload.display_name         || "",

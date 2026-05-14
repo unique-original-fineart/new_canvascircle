@@ -457,7 +457,10 @@
         $status.textContent = "This listing isn't available.";
         return;
       }
-      render(data, userSaves);
+      // Anonymous viewers see the listing but not the seller's identity or
+      // contact info — they're prompted to sign in to reach out.
+      const { data: { user: viewer } } = await supabase.auth.getUser();
+      render(data, userSaves, !!viewer);
       logListingView(data);
     }
 
@@ -478,7 +481,7 @@
       }
     }
 
-    function render(l, userSaves) {
+    function render(l, userSaves, signedIn) {
       const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a, b) => a.position - b.position);
       const imgUrls = images.map(i => publicImageUrl(i.storage_path)).filter(Boolean);
@@ -574,13 +577,17 @@
       `;
 
       // ------ Counter-party block (seller for sale / buyer for ISO) ------
+      // Anonymous viewers don't see identity or contact info — they get a
+      // sign-in CTA instead. This keeps seller details private to actual
+      // account holders and discourages drive-by browsing.
       const partyLabel    = isIso ? "Buyer"            : "Seller";
       const primaryCta    = isIso ? "Message on Facebook" : "Message on Facebook";
       const secondaryCta  = isIso ? "Email Buyer"       : "Email Seller";
       const inquirySubject = isIso
         ? `Re: your "In Search Of" listing on CanvasCircle`
         : `Inquiry about "${l.artwork_title || "your listing"}" on CanvasCircle`;
-      const counterpartyBlock = `
+
+      const counterpartyBlock = signedIn ? `
         <div class="seller-block">
           <div class="seller-label">${partyLabel}</div>
           <div class="name">${escapeHtml(seller.display_name || partyLabel)}</div>
@@ -597,6 +604,16 @@
             <div class="transaction-disclaimer">
               <strong>Heads up:</strong> CanvasCircle is a free listing platform. Any transaction is directly between you and the ${isIso ? "buyer" : "seller"}. CanvasCircle does not process payments, verify authenticity, or mediate disputes. See our <a href="/terms.html" target="_blank" rel="noopener">Terms</a>.
             </div>` : ""}
+        </div>` : `
+        <div class="seller-block" style="text-align:center;">
+          <div class="seller-label">${partyLabel}</div>
+          <div style="padding:16px 0; color:var(--muted); font-size:14px; line-height:1.5;">
+            Sign in or create a free account to see the ${isIso ? "buyer's" : "seller's"} name and contact info.
+          </div>
+          <div class="seller-actions" style="justify-content:center;">
+            <a class="primary" href="/portal/">Sign in</a>
+            <a href="/portal/">Create account</a>
+          </div>
         </div>`;
 
       $content.innerHTML = `

@@ -904,6 +904,16 @@
 
     async function loadCatalog() {
       userSavesSet = await getCurrentUserSaves();
+      // Hide the seller filter dropdown for anonymous viewers — they can't
+      // see seller names anywhere else on the public page, so showing them
+      // here would contradict that.
+      const { data: { user: viewer } } = await supabase.auth.getUser();
+      if (!viewer) {
+        $seller.hidden = true;
+        $seller.value = "";
+      } else {
+        $seller.hidden = false;
+      }
       restoreFilterState(); // pull saved filters (incl. tab) from sessionStorage if present
       applyTabUiMode();
       await populateDropdowns();
