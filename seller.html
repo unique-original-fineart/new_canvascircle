@@ -342,6 +342,7 @@
         <span class="item" id="seller-location-item" hidden></span>
         <span class="item" id="seller-counts-item"></span>
       </div>
+      <p id="seller-about" class="about-text" hidden style="margin: 14px 0 0; padding: 12px 14px; background: #fafaf6; border: 1px solid var(--card-line); border-radius: 6px; color: var(--fg); font-size: 14px; line-height: 1.55; white-space: pre-wrap;"></p>
       <div class="contact-block">
         <h3>Contact this collector</h3>
         <div id="contact-signed-in" class="contact-actions" hidden></div>
@@ -480,8 +481,8 @@
       // viewers, so the only difference for them is they never even see the
       // data come back over the wire.
       const profileCols = viewerSignedIn
-        ? "user_id, display_name, handle, location, facebook_profile_url, contact_email, account_status, created_at, is_trusted"
-        : "user_id, display_name, handle, account_status, created_at, is_trusted";
+        ? "user_id, display_name, handle, location, facebook_profile_url, contact_email, account_status, created_at, is_trusted, about_text"
+        : "user_id, display_name, handle, account_status, created_at, is_trusted, about_text";
       const { data: profileRows, error: profileErr } = await supabase
         .from("profiles")
         .select(profileCols)
@@ -573,6 +574,18 @@
       // seller page is opt-in public.
       const $establishedRow = document.getElementById("seller-established-row");
       if ($establishedRow) $establishedRow.hidden = !profile.is_trusted;
+
+      // About text (admin-approved). Rendered as a paragraph below the meta
+      // row. Hidden if the seller hasn't set one.
+      const $aboutP = document.getElementById("seller-about");
+      if ($aboutP) {
+        if (profile.about_text) {
+          $aboutP.textContent = profile.about_text;
+          $aboutP.hidden = false;
+        } else {
+          $aboutP.hidden = true;
+        }
+      }
 
       // Location is gated — only visible to signed-in users.
       if (viewerSignedIn && profile.location) {

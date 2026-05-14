@@ -1615,6 +1615,22 @@
               <input type="text" id="prof-loc" placeholder="e.g. Central NJ 08852" disabled />
             </div>
             <div class="field">
+              <label for="prof-about">About you (optional) <span class="locked-tag">🔒 Locked</span></label>
+              <textarea id="prof-about" rows="4" maxlength="1000" placeholder="A short blurb about you as a collector — your specialty, region, how long you've been collecting, anything potential buyers might want to know. Max 1000 characters." disabled style="resize: vertical; font-family: inherit; padding: 9px 12px; border: 1px solid var(--card-line); border-radius: 6px; width: 100%; background: #fff; color: var(--fg); font-size: 14px;"></textarea>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px;">
+                <p class="small" style="margin: 0; color: var(--muted);">
+                  Shown on your public seller page and on the seller block of your listings. Changes are reviewed by the admin before they go live. <strong>No links or website addresses allowed.</strong>
+                  <button type="button" id="request-about-change-btn" class="linklike" style="color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Request About change</button>
+                </p>
+                <span id="prof-about-count" class="small" style="color: var(--muted); white-space: nowrap;">0 / 1000</span>
+              </div>
+              <div id="pending-about-row" hidden style="margin: 6px 0 0; padding: 8px 12px; background: #fff4e2; border: 1px solid #f0d6a3; border-radius: 6px; font-size: 12px; color: #5a4400;">
+                <strong>Pending admin approval:</strong>
+                <div id="pending-about-value" style="margin-top:4px; white-space: pre-wrap; font-style: italic;"></div>
+                <button type="button" id="pending-about-cancel" class="linklike" style="margin-top: 6px; color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Cancel request</button>
+              </div>
+            </div>
+            <div class="field">
               <label for="prof-email">Email <span class="locked-tag">🔒 Locked</span></label>
               <input type="email" id="prof-email" placeholder="you@example.com" disabled />
               <p class="small" style="margin: 4px 0 0;">
@@ -3974,8 +3990,9 @@
         .select(`
           user_id, display_name, handle, contact_email, location,
           is_trusted, is_admin, account_status, created_at,
-          facebook_profile_url,
-          pending_display_name, pending_display_name_at
+          facebook_profile_url, about_text,
+          pending_display_name, pending_display_name_at,
+          pending_about_text, pending_about_at
         `)
         .order("display_name", { ascending: true });
       $sellersLoading.hidden = true;
@@ -4074,6 +4091,25 @@
            </div>`
         : "";
 
+      // Pending About-change banner — same pattern as name changes.
+      const pendingAboutBlock = profile.pending_about_text != null
+        ? `<div class="pending-name-admin" data-pending-about style="align-items: flex-start;">
+             <div style="flex: 1; min-width: 0;">
+               <strong>About change request:</strong>
+               <div style="margin-top:4px; padding:6px 8px; background:#fafaf6; border:1px solid var(--card-line); border-radius:4px; color:var(--muted); font-size:12px; max-height:80px; overflow-y:auto;">
+                 <em>Current:</em> ${profile.about_text ? escapeHtml(profile.about_text) : "(none)"}
+               </div>
+               <div style="margin-top:4px; padding:6px 8px; background:#eef6ed; border:1px solid #c2e0c4; border-radius:4px; font-size:12px; max-height:120px; overflow-y:auto; white-space: pre-wrap;">
+                 <em>Requested:</em> ${escapeHtml(profile.pending_about_text)}
+               </div>
+             </div>
+             <span class="pending-actions">
+               <button type="button" class="btn-reinstate" data-action="approve-about">Approve</button>
+               <button type="button" class="btn-suspend"   data-action="reject-about">Reject</button>
+             </span>
+           </div>`
+        : "";
+
       row.innerHTML = `
         <div class="seller-info" style="flex: 1; min-width: 200px;">
           <strong>
@@ -4083,6 +4119,7 @@
             ${statusPill}
             ${incomplete ? ` <span class="pill" style="background:#f3d6d3;color:#8a1f1a;border-color:#e8b3ad;">incomplete profile</span>` : ""}
             ${profile.pending_display_name ? ` <span class="pill" style="background:#fff4e2;color:#5a4400;border-color:#f0d6a3;">pending name change</span>` : ""}
+            ${profile.pending_about_text != null ? ` <span class="pill" style="background:#fff4e2;color:#5a4400;border-color:#f0d6a3;">pending About change</span>` : ""}
           </strong>
           <div class="small">
             ${escapeHtml(profile.contact_email || "(no email)")}
@@ -4092,6 +4129,7 @@
             · joined ${joined}
           </div>
           ${pendingBlock}
+          ${pendingAboutBlock}
         </div>
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
           <label class="toggle">
@@ -4111,7 +4149,64 @@
       row.querySelector("[data-action=reinstate]")?.addEventListener("click",    () => reinstateSeller(profile));
       row.querySelector("[data-action=approve-name]")?.addEventListener("click", () => approveNameChange(profile, row, listingCount));
       row.querySelector("[data-action=reject-name]")?.addEventListener("click",  () => rejectNameChange(profile, row, listingCount));
+      row.querySelector("[data-action=approve-about]")?.addEventListener("click", () => approveAboutChange(profile, row, listingCount));
+      row.querySelector("[data-action=reject-about]")?.addEventListener("click",  () => rejectAboutChange(profile, row, listingCount));
       return row;
+    }
+
+    // Admin: approve the seller's pending About text. Copies pending → live
+    // (NULL pending means "clear my About," which we honor by setting
+    // about_text to null). Then clears pending fields.
+    async function approveAboutChange(profile, row, listingCount) {
+      if (profile.pending_about_text == null) return;
+      const newAbout = String(profile.pending_about_text).trim();
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            about_text:         newAbout.length > 0 ? newAbout : null,
+            pending_about_text: null,
+            pending_about_at:   null,
+          })
+          .eq("user_id", profile.user_id);
+        if (error) throw error;
+        Object.assign(profile, {
+          about_text:         newAbout.length > 0 ? newAbout : null,
+          pending_about_text: null,
+          pending_about_at:   null,
+        });
+        const newRow = renderSellerRow(profile, listingCount);
+        row.replaceWith(newRow);
+        setAdminBanner(`Approved About change for ${profile.display_name || "this seller"}.`, "success");
+      } catch (err) {
+        console.error("[approveAboutChange] failed:", err);
+        setAdminBanner("Could not approve: " + (err.message || err), "error");
+      }
+    }
+
+    // Admin: reject the seller's pending About. Leaves their existing live
+    // about_text unchanged; just clears the pending fields.
+    async function rejectAboutChange(profile, row, listingCount) {
+      if (profile.pending_about_text == null) return;
+      if (!confirm(
+        `Reject this About change request?\n\n` +
+        `Requested: "${(profile.pending_about_text || "").slice(0, 200)}${profile.pending_about_text.length > 200 ? "…" : ""}"\n\n` +
+        `Their current About stays as is.`
+      )) return;
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ pending_about_text: null, pending_about_at: null })
+          .eq("user_id", profile.user_id);
+        if (error) throw error;
+        Object.assign(profile, { pending_about_text: null, pending_about_at: null });
+        const newRow = renderSellerRow(profile, listingCount);
+        row.replaceWith(newRow);
+        setAdminBanner(`Rejected About change request.`, "success");
+      } catch (err) {
+        console.error("[rejectAboutChange] failed:", err);
+        setAdminBanner("Could not reject: " + (err.message || err), "error");
+      }
     }
 
     // Admin: approve the seller's pending display name. Copies the pending
@@ -4702,22 +4797,25 @@
     const $profHandle   = document.getElementById("prof-handle");
     const $profFb       = document.getElementById("prof-fb");
     const $profLoc      = document.getElementById("prof-loc");
+    const $profAbout    = document.getElementById("prof-about");
     const $profEmail    = document.getElementById("prof-email");
     const $profEditBtn  = document.getElementById("profile-edit-btn");
     const $profSaveBtn  = document.getElementById("profile-save-btn");
     const $profCancelBtn= document.getElementById("profile-cancel-btn");
     const $profStatus   = document.getElementById("profile-status");
-    const $profInputs   = [$profName, $profHandle, $profFb, $profLoc, $profEmail];
+    const $profInputs   = [$profName, $profHandle, $profFb, $profLoc, $profAbout, $profEmail];
 
     // Snapshot of last-saved values so Cancel can revert.
-    let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", contact_email: "" };
+    let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", about_text: "", contact_email: "" };
 
     function setProfileEditMode(editing) {
       $profInputs.forEach(el => {
-        // Display name, handle, and contact email are locked permanently —
-        // display_name + contact_email are admin-approved on change, and the
-        // handle is the technical identifier that can never change.
-        if (el.id === "prof-name" || el.id === "prof-handle" || el.id === "prof-email") {
+        // Display name, handle, About text, and contact email are locked
+        // permanently — display_name + contact_email + about_text are
+        // admin-approved on change, and the handle is the technical
+        // identifier that can never change.
+        if (el.id === "prof-name" || el.id === "prof-handle"
+         || el.id === "prof-about" || el.id === "prof-email") {
           el.disabled = true;
           return;
         }
@@ -4734,8 +4832,17 @@
       $profHandle.value = profileSnapshot.handle               || "";
       $profFb.value     = profileSnapshot.facebook_profile_url || "";
       $profLoc.value    = profileSnapshot.location             || "";
+      $profAbout.value  = profileSnapshot.about_text           || "";
       $profEmail.value  = profileSnapshot.contact_email        || "";
+      updateAboutCount();
     }
+
+    // Live character counter for the About textarea.
+    function updateAboutCount() {
+      const $count = document.getElementById("prof-about-count");
+      if ($count) $count.textContent = `${($profAbout.value || "").length} / 1000`;
+    }
+    $profAbout?.addEventListener("input", updateAboutCount);
 
     async function loadProfileForm() {
       const profile = await currentProfile();
@@ -4745,6 +4852,7 @@
         handle:               profile.handle               || "",
         facebook_profile_url: profile.facebook_profile_url || "",
         location:             profile.location             || "",
+        about_text:           profile.about_text           || "",
         contact_email:        profile.contact_email        || "",
       };
       fillProfileFromSnapshot();
@@ -4760,6 +4868,17 @@
           $pendRow.hidden = false;
         } else {
           $pendRow.hidden = true;
+        }
+      }
+      // Same pattern for pending About text.
+      const $pendAboutRow   = document.getElementById("pending-about-row");
+      const $pendAboutValue = document.getElementById("pending-about-value");
+      if ($pendAboutRow && $pendAboutValue) {
+        if (profile.pending_about_text) {
+          $pendAboutValue.textContent = profile.pending_about_text;
+          $pendAboutRow.hidden = false;
+        } else {
+          $pendAboutRow.hidden = true;
         }
       }
       // Reflect handle state in the UI — if NULL, the "Change handle" button
@@ -4978,6 +5097,65 @@
         await loadProfileForm();
       } catch (err) {
         console.error("[pending-name-cancel] failed:", err);
+        alert("Could not cancel: " + (err.message || err));
+      }
+    });
+
+    // ---- Request a new About-text (admin-approved) ----
+    document.getElementById("request-about-change-btn")?.addEventListener("click", async () => {
+      const current = profileSnapshot.about_text || "";
+      const requested = prompt(
+        "Write a new About blurb (max 1000 characters).\n\n" +
+        "Shown on your public seller page and on the seller block of your listings. " +
+        "An admin will review before it goes live. No links or website addresses allowed.",
+        current
+      );
+      if (requested === null) return;
+      const clean = String(requested).trim();
+      if (clean === current.trim()) {
+        alert("No change to request — that's already your About text.");
+        return;
+      }
+      if (clean.length > 1000) {
+        alert(`About is ${clean.length} characters — max is 1000. Trim it down and try again.`);
+        return;
+      }
+      // Reuse the anti-phishing URL block we wrote for listings.
+      if (typeof containsLikelyUrl === "function" && containsLikelyUrl(clean)) {
+        alert("Links and website addresses aren't allowed in your About text (to protect buyers from phishing). Remove any URLs. If you need to mention a website, email admin@canvascircle.art.");
+        return;
+      }
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            pending_about_text: clean || null,
+            pending_about_at:   clean ? new Date().toISOString() : null,
+          })
+          .eq("user_id", currentUserId);
+        if (error) throw error;
+        alert(clean
+          ? "About change submitted. An admin will review it. You'll see it go live once approved."
+          : "Empty About submitted — admin will review the removal request.");
+        await loadProfileForm();
+      } catch (err) {
+        console.error("[request-about-change] failed:", err);
+        alert("Could not submit: " + (err.message || err));
+      }
+    });
+
+    // Cancel a pending About change.
+    document.getElementById("pending-about-cancel")?.addEventListener("click", async () => {
+      if (!confirm("Cancel your pending About change request?")) return;
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ pending_about_text: null, pending_about_at: null })
+          .eq("user_id", currentUserId);
+        if (error) throw error;
+        await loadProfileForm();
+      } catch (err) {
+        console.error("[pending-about-cancel] failed:", err);
         alert("Could not cancel: " + (err.message || err));
       }
     });

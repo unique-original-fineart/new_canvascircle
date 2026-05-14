@@ -453,7 +453,7 @@
       const { data: { user: viewer } } = await supabase.auth.getUser();
       const signedIn = !!viewer;
       const profileCols = signedIn
-        ? "display_name, handle, location, facebook_profile_url, contact_email, account_status, is_trusted"
+        ? "display_name, handle, location, facebook_profile_url, contact_email, account_status, is_trusted, about_text"
         : "display_name, handle, account_status";
 
       const [listingResp, savesResp] = await Promise.all([
@@ -636,11 +636,25 @@
             <span title="Reviewed by the admin; listings post without moderation">Established Member</span>
           </div>` : "";
 
+      // About blurb (admin-approved). Renders only if the seller has set one.
+      // Click "About this seller ▾" to expand inline; click again to collapse.
+      const aboutRow = seller.about_text ? `
+          <div class="about-row" style="margin-top:6px;">
+            <button type="button" id="about-toggle"
+                    style="background:none; border:none; padding:0; color:var(--accent); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">
+              About this seller <span id="about-toggle-glyph">▾</span>
+            </button>
+            <div id="about-text-panel" hidden style="margin-top:6px; padding:10px 12px; background:#fafaf6; border:1px solid var(--card-line); border-radius:6px; font-size:13px; line-height:1.5; white-space:pre-wrap; color:var(--fg);">
+              ${escapeHtml(seller.about_text)}
+            </div>
+          </div>` : "";
+
       const counterpartyBlock = signedIn ? `
         <div class="seller-block">
           <div class="seller-label">${partyLabel}</div>
           <div class="name">${escapeHtml(seller.display_name || partyLabel)}${seller.handle ? ` <a href="/seller?handle=${encodeURIComponent(seller.handle)}" style="font-weight:400; color:var(--accent); font-size:13px; text-decoration:none;" title="View ${escapeHtml(seller.display_name || partyLabel)}'s public page">@${escapeHtml(seller.handle)}</a>` : ""}</div>
           ${establishedRow}
+          ${aboutRow}
           ${seller.location ? `<div class="loc">${escapeHtml(seller.location)}</div>` : ""}
           <div class="seller-actions">
             ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">${primaryCta}</a>` : ""}
@@ -712,6 +726,18 @@
 
       $status.hidden = true;
       $content.hidden = false;
+
+      // Wire the "About this seller" expand/collapse toggle.
+      const $aboutToggle = document.getElementById("about-toggle");
+      const $aboutPanel  = document.getElementById("about-text-panel");
+      const $aboutGlyph  = document.getElementById("about-toggle-glyph");
+      if ($aboutToggle && $aboutPanel && $aboutGlyph) {
+        $aboutToggle.addEventListener("click", () => {
+          const willShow = $aboutPanel.hidden;
+          $aboutPanel.hidden = !willShow;
+          $aboutGlyph.textContent = willShow ? "▴" : "▾";
+        });
+      }
 
       // Wire up gallery interactions
       const hero = document.getElementById("hero");
