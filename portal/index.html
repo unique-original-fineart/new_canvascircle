@@ -1562,15 +1562,36 @@
                 <button type="button" id="request-name-change-btn" class="linklike" style="color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Request name change</button>
               </p>
             </div>
-            <div class="field">
-              <label for="prof-handle">Handle <span class="locked-tag">🔒 Locked</span></label>
+            <div class="field" id="prof-handle-field">
+              <label for="prof-handle">Handle</label>
               <div style="display:flex; align-items:center; gap:0;">
                 <span style="padding: 8px 10px; background: #f1ede4; border: 1px solid var(--card-line); border-right: none; border-radius: 6px 0 0 6px; color: var(--muted); font-weight: 600;">@</span>
                 <input type="text" id="prof-handle" disabled style="border-radius: 0 6px 6px 0; flex: 1;" />
               </div>
-              <p class="small" style="margin: 4px 0 0; color: var(--muted);">
-                Your unique identifier on CanvasCircle. Shown alongside your display name so other users can distinguish you from anyone else with the same name. Handles are permanent and cannot be changed.
+              <p class="small" id="prof-handle-hint" style="margin: 4px 0 0; color: var(--muted);">
+                Your unique identifier on CanvasCircle. Shown alongside your display name so other users can distinguish you from anyone else with the same name.
               </p>
+              <button type="button" id="change-handle-btn" class="linklike" style="margin-top: 6px; color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Change handle</button>
+              <div id="change-handle-row" hidden style="margin-top: 10px; padding: 12px; background: #fff4e2; border: 1px solid #f0d6a3; border-radius: 6px;">
+                <label for="new-handle-input" style="display:block; font-weight:600; margin-bottom:6px; color:#5a4400;">New handle</label>
+                <div style="display:flex; align-items:center; gap:0;">
+                  <span style="padding: 8px 10px; background: #f1ede4; border: 1px solid var(--card-line); border-right: none; border-radius: 6px 0 0 6px; color: var(--muted); font-weight: 600;">@</span>
+                  <input type="text" id="new-handle-input"
+                         pattern="^[A-Za-z][A-Za-z0-9_]{2,19}$"
+                         maxlength="20"
+                         placeholder="newhandle"
+                         style="border-radius: 0 6px 6px 0; flex: 1;" />
+                </div>
+                <p class="small" id="new-handle-hint" style="margin: 6px 0; color: var(--muted);">3-20 characters, must start with a letter, then letters/digits/underscores only.</p>
+                <p class="small" id="change-handle-warning" style="margin: 8px 0; color: #5a4400;">
+                  <strong>Heads up:</strong> Your current handle (<span id="current-handle-display"></span>) will be <strong>permanently retired</strong> when you change it. No one — including you — will ever be able to claim it again. Anyone who saved a link to your current handle won't find you that way anymore.
+                </p>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                  <button type="button" class="btn-primary" id="confirm-change-handle-btn">Confirm change</button>
+                  <button type="button" class="btn-secondary" id="cancel-change-handle-btn">Cancel</button>
+                </div>
+                <p class="small" id="change-handle-status" style="margin: 8px 0 0;"></p>
+              </div>
             </div>
             <div class="field">
               <label for="prof-fb">Facebook profile URL <span style="color:#8a1f1a;">*</span></label>
@@ -1994,8 +2015,11 @@
           // Force into edit mode so they can fill it in immediately.
           if (typeof setProfileEditMode === "function") setProfileEditMode(true);
           if ($profStatus) {
+            const missing = [];
+            if (!currentProfileCached?.handle) missing.push("set your @handle");
+            if (!currentProfileCached?.facebook_profile_url) missing.push("add your Facebook profile URL");
             $profStatus.textContent =
-              "Before posting a listing, add your Facebook profile URL. It's required so the admin can verify accounts and so other collectors can reach you.";
+              `Before posting a listing, please ${missing.join(" and ")}. The Facebook URL helps the admin verify accounts; the handle disambiguates you from other users with the same name.`;
             $profStatus.className = "sp-text-status err";
           }
           return;
@@ -2458,7 +2482,11 @@
     function isProfileCompleteForSelling(profile) {
       if (!profile) return false;
       if (!String(profile.display_name || "").trim()) return false;
-      // Facebook URL is now mandatory for posting (sale or ISO). Contact email
+      // Handle is mandatory — it's how other users identify a specific
+      // account when display names collide. Existing pre-migration accounts
+      // have NULL handles and must set one before posting.
+      if (!String(profile.handle || "").trim()) return false;
+      // Facebook URL is mandatory for posting (sale or ISO). Contact email
       // alone is no longer sufficient. Reason: Facebook profile helps the
       // admin sift out scammers; the sign-in email isn't a useful trust signal
       // since it's just whatever the user typed at signup.
@@ -4679,7 +4707,145 @@
           $pendRow.hidden = true;
         }
       }
+      // Reflect handle state in the UI — if NULL, the "Change handle" button
+      // becomes a "Set handle" button (different copy, no retirement warning).
+      const isInitialSet = !profile.handle;
+      const $changeBtn = document.getElementById("change-handle-btn");
+      if ($changeBtn) $changeBtn.textContent = isInitialSet ? "Set your handle" : "Change handle";
+      const $hint = document.getElementById("prof-handle-hint");
+      if ($hint && isInitialSet) {
+        $hint.innerHTML = '<strong style="color:#8a1f1a;">You haven\'t set your handle yet.</strong> Pick one to use the platform — it\'s required for posting listings.';
+      }
     }
+
+    // ---- Change (or initially set) the @handle ----
+    const $changeHandleBtn        = document.getElementById("change-handle-btn");
+    const $changeHandleRow        = document.getElementById("change-handle-row");
+    const $newHandleInput         = document.getElementById("new-handle-input");
+    const $newHandleHint          = document.getElementById("new-handle-hint");
+    const $changeHandleWarning    = document.getElementById("change-handle-warning");
+    const $currentHandleDisplay   = document.getElementById("current-handle-display");
+    const $confirmChangeHandleBtn = document.getElementById("confirm-change-handle-btn");
+    const $cancelChangeHandleBtn  = document.getElementById("cancel-change-handle-btn");
+    const $changeHandleStatus     = document.getElementById("change-handle-status");
+
+    const HANDLE_RE_PROFILE = /^[A-Za-z][A-Za-z0-9_]{2,19}$/;
+    let newHandleCheckTimer = null;
+    let newHandleAvailable  = null;
+
+    function setNewHandleHint(text, kind) {
+      $newHandleHint.textContent = text;
+      $newHandleHint.style.color = kind === "ok" ? "var(--green)"
+                                 : kind === "err" ? "#8a1f1a"
+                                 : "var(--muted)";
+    }
+
+    $changeHandleBtn?.addEventListener("click", () => {
+      const isInitialSet = !$profHandle.value;
+      // Hide the retirement warning + "current handle" reference if there's
+      // nothing to retire yet (first-time set).
+      $changeHandleWarning.hidden = isInitialSet;
+      $currentHandleDisplay.textContent = $profHandle.value ? `@${$profHandle.value}` : "";
+      $newHandleInput.value = "";
+      setNewHandleHint("3-20 characters, must start with a letter, then letters/digits/underscores only.", "");
+      $changeHandleStatus.textContent = "";
+      $changeHandleStatus.className = "small";
+      newHandleAvailable = null;
+      $changeHandleRow.hidden = false;
+      $changeHandleBtn.hidden = true;
+      $newHandleInput.focus();
+    });
+
+    $cancelChangeHandleBtn?.addEventListener("click", () => {
+      $changeHandleRow.hidden = true;
+      $changeHandleBtn.hidden = false;
+    });
+
+    $newHandleInput?.addEventListener("input", () => {
+      clearTimeout(newHandleCheckTimer);
+      newHandleCheckTimer = setTimeout(async () => {
+        const v = $newHandleInput.value.trim();
+        newHandleAvailable = null;
+        if (!v) {
+          setNewHandleHint("3-20 characters, must start with a letter, then letters/digits/underscores only.", "");
+          return;
+        }
+        if (!HANDLE_RE_PROFILE.test(v)) {
+          setNewHandleHint("Handle must be 3-20 characters, start with a letter, then letters/digits/underscores only.", "err");
+          return;
+        }
+        // Identical (case-insensitive) to your current handle — no-op,
+        // doesn't need the RPC roundtrip.
+        if ($profHandle.value && v.toLowerCase() === $profHandle.value.toLowerCase()) {
+          setNewHandleHint("That's already your current handle.", "");
+          newHandleAvailable = null;
+          return;
+        }
+        setNewHandleHint("Checking availability…", "");
+        try {
+          const { data, error } = await supabase.rpc("is_handle_available", { h: v });
+          if (error) throw error;
+          if (data === true) {
+            newHandleAvailable = true;
+            setNewHandleHint(`@${v} is available.`, "ok");
+          } else {
+            newHandleAvailable = false;
+            setNewHandleHint(`@${v} is taken or has been retired by a previous user — pick a different one.`, "err");
+          }
+        } catch (err) {
+          console.warn("[handle] availability check failed:", err);
+          setNewHandleHint("Couldn't check availability (we'll verify on submit).", "");
+        }
+      }, 400);
+    });
+
+    $confirmChangeHandleBtn?.addEventListener("click", async () => {
+      const v = $newHandleInput.value.trim();
+      if (!HANDLE_RE_PROFILE.test(v)) {
+        $changeHandleStatus.textContent = "Pick a valid handle first.";
+        $changeHandleStatus.className = "small sp-text-status err";
+        return;
+      }
+      if (newHandleAvailable === false) {
+        $changeHandleStatus.textContent = "That handle isn't available.";
+        $changeHandleStatus.className = "small sp-text-status err";
+        return;
+      }
+      // Final confirmation when this is a change (not initial set).
+      if ($profHandle.value) {
+        const ok = confirm(
+          `Change @${$profHandle.value} to @${v}?\n\n` +
+          `Your old handle will be permanently retired and can never be claimed again — by anyone, including you. Continue?`
+        );
+        if (!ok) return;
+      }
+      $confirmChangeHandleBtn.disabled = true;
+      $confirmChangeHandleBtn.textContent = "Saving…";
+      try {
+        const { data, error } = await supabase.rpc("change_my_handle", { new_handle: v });
+        if (error) throw error;
+        // Refresh local state.
+        $profHandle.value = data;
+        profileSnapshot.handle = data;
+        $changeHandleRow.hidden = true;
+        $changeHandleBtn.hidden = false;
+        $changeHandleBtn.textContent = "Change handle";
+        // Restore the standard hint (clears the "you haven't set" warning).
+        const $hint = document.getElementById("prof-handle-hint");
+        if ($hint) {
+          $hint.innerHTML = "Your unique identifier on CanvasCircle. Shown alongside your display name so other users can distinguish you from anyone else with the same name.";
+        }
+        $profStatus.textContent = `Handle set to @${data}.`;
+        $profStatus.className = "sp-text-status ok";
+      } catch (err) {
+        console.error("[handle] change failed:", err);
+        $changeHandleStatus.textContent = err.message || "Could not change handle.";
+        $changeHandleStatus.className = "small sp-text-status err";
+      } finally {
+        $confirmChangeHandleBtn.disabled = false;
+        $confirmChangeHandleBtn.textContent = "Confirm change";
+      }
+    });
 
     // ---- Request a display-name change (admin-approved) ----
     document.getElementById("request-name-change-btn")?.addEventListener("click", async () => {
