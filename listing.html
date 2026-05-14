@@ -305,31 +305,60 @@
       return params.get("id");
     }
 
-    // Smart back link — if the user came from /portal/, sending them back via
-    // history preserves their tab + scroll position. Otherwise the link
-    // remains "Back to catalog" pointing at /.
+    // Smart back link — adapts based on where the user came from so the
+    // "back" affordance returns them to that context instead of always
+    // dumping them on the main catalog:
+    //   - From /portal/ (own dashboard)        → "Back to your portal"
+    //   - From /seller (a seller's public page) → "Back to @handle's page"
+    //   - Anywhere else (or direct landing)     → "Back to catalog"
+    // history.back() is used when available so scroll position is preserved;
+    // the href is set as a fallback for opening in a new tab.
     (function setupBackLink() {
       const $back = document.getElementById("back-link");
       if (!$back) return;
-      const fromPortal = (() => {
+      const refInfo = (() => {
         try {
           const r = document.referrer;
-          if (!r) return false;
+          if (!r) return null;
           const ru = new URL(r);
-          return ru.origin === window.location.origin && ru.pathname.startsWith("/portal");
-        } catch { return false; }
+          if (ru.origin !== window.location.origin) return null;
+          if (ru.pathname.startsWith("/portal")) {
+            return { kind: "portal" };
+          }
+          if (ru.pathname.startsWith("/seller")) {
+            // Seller page is /seller?handle=X. Pull the handle so we can
+            // rebuild the exact URL for the fallback href.
+            const handle = (ru.searchParams.get("handle") || "").trim();
+            return { kind: "seller", handle };
+          }
+          return null;
+        } catch { return null; }
       })();
-      if (fromPortal) {
+      if (refInfo?.kind === "portal") {
         $back.textContent = "← Back to your portal";
         $back.href = "/portal/";
-        $back.addEventListener("click", (e) => {
-          // Use history.back so the user lands on the exact tab/scroll they
-          // left, but keep href as /portal/ as a fallback for new tabs etc.
+        $back.addEventListener("click", useHistoryBack("/portal/"));
+      } else if (refInfo?.kind === "seller") {
+        const handleLabel = refInfo.handle ? `@${refInfo.handle}` : "seller";
+        $back.textContent = `← Back to ${handleLabel}'s page`;
+        $back.href = refInfo.handle ? `/seller?handle=${encodeURIComponent(refInfo.handle)}` : "/";
+        $back.addEventListener("click", useHistoryBack($back.href));
+      }
+      // Default (no smart branch matched): leave the hardcoded "Back to
+      // catalog" link pointing at /.
+
+      // Returns a click handler that prefers history.back() (preserves
+      // scroll/state) but lets the user open in a new tab via cmd/ctrl-click
+      // by not preventing default when modifier keys are held.
+      function useHistoryBack(fallbackHref) {
+        return (e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
           if (window.history.length > 1) {
             e.preventDefault();
             window.history.back();
           }
-        });
+          // else: fall through to navigate to fallbackHref (the link's href)
+        };
       }
     })();
 
