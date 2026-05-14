@@ -464,13 +464,19 @@
       userSavesSet   = await getCurrentUserSaves();
 
       // 2) Look up the seller's profile (case-insensitive on handle).
+      //
+      // Anon callers can only SELECT a narrow column set on profiles (see
+      // migration 016). Requesting any sensitive column as anon would 403
+      // the entire query. Build the column list dynamically by sign-in state.
+      // The contact block UI already hides location/email/FB URL for anon
+      // viewers, so the only difference for them is they never even see the
+      // data come back over the wire.
+      const profileCols = viewerSignedIn
+        ? "user_id, display_name, handle, location, facebook_profile_url, contact_email, account_status, created_at"
+        : "user_id, display_name, handle, account_status, created_at";
       const { data: profileRows, error: profileErr } = await supabase
         .from("profiles")
-        .select(`
-          user_id, display_name, handle, location,
-          facebook_profile_url, contact_email,
-          account_status, created_at
-        `)
+        .select(profileCols)
         .ilike("handle", handle)
         .limit(1);
       if (profileErr) {
