@@ -408,9 +408,20 @@
       }[c]));
     }
 
-    // Parse handle from ?handle= query param. The _redirects rule rewrites
-    // /@:handle → /seller.html?handle=:handle so this works for both URL forms.
+    // Parse the handle from the URL. Two forms are supported:
+    //   1) /@handle           — the canonical, shareable form. Cloudflare
+    //                            _redirects rewrites this to seller.html
+    //                            (status 200, URL bar stays). We read the
+    //                            handle out of window.location.pathname.
+    //   2) /seller.html?handle=X — fallback for direct/manual links.
     function getHandleFromUrl() {
+      // Try the pathname form first: /@handle
+      const pathMatch = window.location.pathname.match(/^\/@([^\/\?#]+)/);
+      if (pathMatch) {
+        try { return decodeURIComponent(pathMatch[1]).trim().replace(/^@+/, ""); }
+        catch (e) { return pathMatch[1].trim().replace(/^@+/, ""); }
+      }
+      // Fallback: ?handle=X
       const params = new URLSearchParams(window.location.search);
       return (params.get("handle") || "").trim().replace(/^@+/, "");
     }

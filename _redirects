@@ -5,6 +5,8 @@
 # Status 301/302 = redirect (URL bar changes to `to`)
 
 # Shareable seller profile URLs: canvascircle.art/@handle
-# Rewrites to seller.html with the handle as a query param so the page can
-# look it up. The URL bar keeps the /@handle form.
-/@:handle  /seller.html?handle=:handle  200
+# Rewrite to seller.html. The page itself reads the handle out of the URL
+# path (window.location.pathname), so we don't need to pass a query param
+# in the destination — and avoiding the query string keeps Cloudflare's
+# rewrite-vs-redirect behavior clean. The URL bar stays as /@handle.
+/@*  /seller.html  200
