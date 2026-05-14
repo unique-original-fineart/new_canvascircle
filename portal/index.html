@@ -1571,6 +1571,18 @@
               <p class="small" id="prof-handle-hint" style="margin: 4px 0 0; color: var(--muted);">
                 Your unique identifier on CanvasCircle. Shown alongside your display name so other users can distinguish you from anyone else with the same name.
               </p>
+
+              <!-- Shareable public seller page — only shown once a handle exists. -->
+              <div id="public-page-row" hidden style="margin-top: 12px; padding: 12px; background: #faf6ec; border: 1px solid #ecdfb8; border-radius: 6px;">
+                <div style="font-weight: 600; font-size: 13px; color: #5a4400; margin-bottom: 6px;">Your public seller page</div>
+                <p class="small" style="margin: 0 0 8px; color: #5a4400;">Share this link with potential buyers — it shows all your active listings.</p>
+                <div style="display: flex; gap: 6px; align-items: stretch; flex-wrap: wrap;">
+                  <input type="text" id="public-page-url" readonly style="flex: 1; min-width: 200px; padding: 8px 10px; border: 1px solid var(--card-line); border-radius: 6px; background: #fff; color: var(--fg); font-family: inherit; font-size: 13px;" />
+                  <button type="button" id="copy-public-page-btn" class="btn-secondary" style="white-space: nowrap;">Copy</button>
+                  <a id="preview-public-page-btn" class="btn-secondary" target="_blank" rel="noopener" style="white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center;">Preview ↗</a>
+                </div>
+                <span id="copy-public-page-status" class="small" style="margin-left: 4px; color: var(--green);"></span>
+              </div>
               <button type="button" id="change-handle-btn" class="linklike" style="margin-top: 6px; color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Change handle</button>
               <div id="change-handle-row" hidden style="margin-top: 10px; padding: 12px; background: #fff4e2; border: 1px solid #f0d6a3; border-radius: 6px;">
                 <label for="new-handle-input" style="display:block; font-weight:600; margin-bottom:6px; color:#5a4400;">New handle</label>
@@ -3841,7 +3853,7 @@
         <div class="mod-meta">
           <strong>${isIso ? `<span style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;padding:1px 6px;border-radius:4px;font-size:11px;margin-right:6px;">ISO</span>` : ""}${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))} – ${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</strong>
           <div class="mod-sub">
-            ${escapeHtml(seller)}${sellerHandle ? ` <span style="color:var(--muted);">@${escapeHtml(sellerHandle)}</span>` : ""}${email ? ` · ${escapeHtml(email)}` : ""}
+            ${escapeHtml(seller)}${sellerHandle ? ` <a href="/@${encodeURIComponent(sellerHandle)}" target="_blank" rel="noopener" style="color:var(--accent);" title="Open public seller page">@${escapeHtml(sellerHandle)}</a>` : ""}${email ? ` · ${escapeHtml(email)}` : ""}
             · ${escapeHtml(priceLabel)}
             · ${escapeHtml(l.artwork_category || "")}
             · ${days === 0 ? "submitted today" : `submitted ${days}d ago`}
@@ -4023,7 +4035,7 @@
         <div class="seller-info" style="flex: 1; min-width: 200px;">
           <strong>
             ${escapeHtml(profile.display_name || "(no name)")}
-            ${profile.handle ? ` <span style="font-weight:400; color:var(--muted); font-size:13px;">@${escapeHtml(profile.handle)}</span>` : ""}
+            ${profile.handle ? ` <a href="/@${encodeURIComponent(profile.handle)}" target="_blank" rel="noopener" style="font-weight:400; color:var(--accent); font-size:13px;" title="Open public seller page">@${escapeHtml(profile.handle)}</a>` : ""}
             ${profile.is_admin ? ` <span class="pill">admin</span>` : ""}
             ${statusPill}
             ${incomplete ? ` <span class="pill" style="background:#f3d6d3;color:#8a1f1a;border-color:#e8b3ad;">incomplete profile</span>` : ""}
@@ -4305,7 +4317,7 @@
         <div class="al-meta">
           <strong>${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))} – ${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</strong>
           <div class="sub">
-            ${escapeHtml(seller)}${sellerHandle ? ` <span style="color:var(--muted);">@${escapeHtml(sellerHandle)}</span>` : ""}${sellerStatus !== "active" ? ` · <span style="color:#8a1f1a;">${escapeHtml(sellerStatus)}</span>` : ""}
+            ${escapeHtml(seller)}${sellerHandle ? ` <a href="/@${encodeURIComponent(sellerHandle)}" target="_blank" rel="noopener" style="color:var(--accent);" title="Open public seller page">@${escapeHtml(sellerHandle)}</a>` : ""}${sellerStatus !== "active" ? ` · <span style="color:#8a1f1a;">${escapeHtml(sellerStatus)}</span>` : ""}
             · ${escapeHtml(priceLabel)}
             · ${days === 0 ? "today" : days + "d ago"}
           </div>
@@ -4716,7 +4728,35 @@
       if ($hint && isInitialSet) {
         $hint.innerHTML = '<strong style="color:#8a1f1a;">You haven\'t set your handle yet.</strong> Pick one to use the platform — it\'s required for posting listings.';
       }
+      // Public seller page panel — only meaningful once the user has a handle.
+      const $publicRow     = document.getElementById("public-page-row");
+      const $publicUrl     = document.getElementById("public-page-url");
+      const $previewBtn    = document.getElementById("preview-public-page-btn");
+      if ($publicRow && profile.handle) {
+        const url = `${window.location.origin}/@${profile.handle}`;
+        $publicUrl.value = url;
+        $previewBtn.href = url;
+        $publicRow.hidden = false;
+      } else if ($publicRow) {
+        $publicRow.hidden = true;
+      }
     }
+
+    // ---- Copy public page URL to clipboard ----
+    document.getElementById("copy-public-page-btn")?.addEventListener("click", async () => {
+      const $url = document.getElementById("public-page-url");
+      const $status = document.getElementById("copy-public-page-status");
+      try {
+        await navigator.clipboard.writeText($url.value);
+        $status.textContent = "Copied!";
+        setTimeout(() => { $status.textContent = ""; }, 2000);
+      } catch (err) {
+        // Fallback: select the text so user can Cmd/Ctrl+C
+        $url.select();
+        $status.textContent = "Press Cmd/Ctrl+C to copy.";
+        setTimeout(() => { $status.textContent = ""; }, 3000);
+      }
+    });
 
     // ---- Change (or initially set) the @handle ----
     const $changeHandleBtn        = document.getElementById("change-handle-btn");

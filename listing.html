@@ -590,7 +590,7 @@
       const counterpartyBlock = signedIn ? `
         <div class="seller-block">
           <div class="seller-label">${partyLabel}</div>
-          <div class="name">${escapeHtml(seller.display_name || partyLabel)}${seller.handle ? ` <span style="font-weight:400; color:var(--muted); font-size:13px;">@${escapeHtml(seller.handle)}</span>` : ""}</div>
+          <div class="name">${escapeHtml(seller.display_name || partyLabel)}${seller.handle ? ` <a href="/@${encodeURIComponent(seller.handle)}" style="font-weight:400; color:var(--accent); font-size:13px; text-decoration:none;" title="View ${escapeHtml(seller.display_name || partyLabel)}'s public page">@${escapeHtml(seller.handle)}</a>` : ""}</div>
           ${seller.location ? `<div class="loc">${escapeHtml(seller.location)}</div>` : ""}
           <div class="seller-actions">
             ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">${primaryCta}</a>` : ""}

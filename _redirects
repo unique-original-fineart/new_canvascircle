@@ -1,0 +1,10 @@
+# Cloudflare Pages routing rules.
+#
+# Format: <from> <to> <status>
+# Status 200 = rewrite (URL bar unchanged, file served from `to`)
+# Status 301/302 = redirect (URL bar changes to `to`)
+
+# Shareable seller profile URLs: canvascircle.art/@handle
+# Rewrites to seller.html with the handle as a query param so the page can
+# look it up. The URL bar keeps the /@handle form.
+/@:handle  /seller.html?handle=:handle  200

@@ -1,0 +1,758 @@
+<!doctype html>
+<!--
+==============================================================================
+  PUBLIC SELLER PAGE  (/seller.html, surfaced as /@handle via _redirects)
+  ===========================================================================
+  Anyone can land here — the seller shares the URL with potential buyers.
+
+  Privacy rules (opt-in publicness, since the seller is sharing this themselves):
+    - Public for anyone:  display_name, @handle, listing counts, the grid of
+                          their approved-active listings, joined date
+    - Signed-in only:     location, Facebook URL, contact email, the contact
+                          buttons. Replaced with a sign-in CTA for anon.
+
+  Cloudflare Pages serves this file at /seller.html?handle=X. The _redirects
+  file rewrites /@:handle -> /seller.html?handle=:handle (200, not 301), so
+  the user-facing URL stays /@johnsmith in the address bar.
+==============================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seller — CanvasCircle</title>
+  <meta name="description" content="Browse this collector's listings on CanvasCircle." />
+  <meta name="robots" content="index, follow" />
+
+  <link rel="icon" href="/assets/favicon.ico" />
+  <meta name="theme-color" content="#1a1a1a" />
+
+  <!-- Open Graph (filled in dynamically once we know the handle) -->
+  <meta property="og:site_name"   content="CanvasCircle" />
+  <meta property="og:type"        content="profile" />
+  <meta property="og:title"       content="Seller — CanvasCircle" />
+  <meta property="og:description" content="Browse this collector's listings on CanvasCircle." />
+  <meta property="og:image"       content="https://canvascircle.art/assets/og-image.png" />
+
+  <link rel="preconnect" href="https://xwieomjsqwcswoadrvkv.supabase.co" crossorigin />
+  <link rel="dns-prefetch" href="https://xwieomjsqwcswoadrvkv.supabase.co" />
+
+  <style>
+    :root {
+      --bg:        #faf9f6;
+      --fg:        #1a1a1a;
+      --muted:     #6b6b6b;
+      --accent:    #b8860b;
+      --card-bg:   #ffffff;
+      --card-line: #e8e4dc;
+      --shadow:    0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
+      --green:     #2a7a3e;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.5;
+    }
+    header {
+      padding: 18px 16px;
+      border-bottom: 1px solid var(--card-line);
+      background: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header .brand { display: flex; align-items: center; gap: 10px; }
+    header img    { height: 32px; width: 32px; border-radius: 6px; }
+    header .title { font-weight: 600; font-size: 18px; letter-spacing: .2px; }
+    nav a { color: var(--fg); text-decoration: none; margin-left: 16px; font-size: 14px; }
+    nav a:hover { color: var(--accent); }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+    }
+
+    /* ---- Seller profile header ---- */
+    .seller-header {
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .seller-header .display-name {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.15;
+    }
+    .seller-header .handle-line {
+      color: var(--muted);
+      font-size: 15px;
+      margin: 4px 0 0;
+      letter-spacing: .3px;
+    }
+    .seller-header .meta {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+    }
+    .seller-header .meta .item { display: inline-flex; align-items: center; gap: 4px; }
+    .seller-header .contact-block {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--card-line);
+    }
+    .seller-header .contact-block h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: .3px;
+      text-transform: uppercase;
+      margin: 0 0 10px;
+    }
+    .seller-header .contact-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .seller-header .contact-actions a.primary {
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      padding: 9px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .seller-header .contact-actions a.primary:hover { background: #a07509; }
+    .seller-header .contact-actions a.secondary {
+      color: var(--accent);
+      text-decoration: none;
+      padding: 9px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      border: 1px solid var(--card-line);
+    }
+    .seller-header .contact-actions a.secondary:hover { border-color: var(--accent); }
+    .seller-header .signed-out-contact {
+      padding: 14px;
+      background: #faf6ec;
+      border: 1px solid #ecdfb8;
+      border-radius: 8px;
+      color: #5a4400;
+      font-size: 14px;
+    }
+    .seller-header .signed-out-contact .actions { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .seller-header .transaction-disclaimer {
+      margin-top: 14px;
+      padding: 10px 12px;
+      background: #f7f5ef;
+      border: 1px solid var(--card-line);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .seller-header .transaction-disclaimer a { color: var(--muted); }
+
+    /* ---- Catalog tabs (For Sale / In Search Of) ---- */
+    .catalog-tabs {
+      display: flex; gap: 4px; margin: 16px 0 12px;
+      border-bottom: 1px solid var(--card-line);
+    }
+    .catalog-tab {
+      background: none; border: none; padding: 12px 18px;
+      font-family: inherit; font-size: 15px; font-weight: 600;
+      color: var(--muted); cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+    }
+    .catalog-tab:hover { color: var(--fg); }
+    .catalog-tab.is-active { color: var(--fg); border-bottom-color: var(--accent); }
+    .catalog-tab .count { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 4px; }
+    @media (max-width: 540px) {
+      .catalog-tab { padding: 10px 12px; font-size: 14px; }
+    }
+
+    /* ---- Cards (mirrors index.html) ---- */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    @media (min-width: 720px)  { .grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+    @media (min-width: 1000px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column;
+      color: inherit;
+      text-decoration: none;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .card:hover, .card:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06);
+    }
+    .card .img { aspect-ratio: 1/1; background: #f0ede6; overflow: hidden; position: relative; }
+    .card .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .card .iso-placeholder {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: var(--muted); font-size: 13px; gap: 4px;
+      background: linear-gradient(135deg, #f8f5ee 0%, #efece4 100%);
+    }
+    .card .iso-placeholder .glyph { font-size: 32px; opacity: .55; }
+    .card-wrap { position: relative; }
+    .card-wrap .heart-btn {
+      position: absolute;
+      top: 8px; right: 8px;
+      display: inline-flex; align-items: center; gap: 4px;
+      background: rgba(255,255,255,.92);
+      color: #555;
+      border: none;
+      border-radius: 999px;
+      padding: 4px 9px 4px 8px;
+      font: 600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,.18);
+      transition: transform .12s ease, background .12s ease;
+      z-index: 2;
+    }
+    .card-wrap .heart-btn:hover { transform: scale(1.06); background: #fff; }
+    .card-wrap .heart-btn.is-saved { background: #fff; }
+    .card-wrap .heart-btn.is-saved .heart-glyph { color: #c93f3f; }
+    .card-wrap .heart-btn[disabled] { opacity: .55; cursor: progress; }
+    .card .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; }
+    .card .artist {
+      font-weight: 600; font-size: 14px; line-height: 1.25;
+      overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+      -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    }
+    .card .title {
+      color: var(--muted); font-size: 13px; line-height: 1.25;
+      overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+      -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    }
+    .card .price-row {
+      margin-top: 4px;
+      display: flex; align-items: center; justify-content: space-between; gap: 6px;
+      flex-wrap: wrap;
+    }
+    .card .price-row .left  { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; }
+    .card .price-row .pills { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; flex: 0 0 100%; justify-content: flex-start; }
+    .card .price  { font-weight: 600; font-size: 14px; white-space: nowrap; color: var(--fg); }
+    .card .price .ship-suffix { font-weight: 500; font-size: 12px; color: var(--fg); }
+    .card .prev   { color: var(--muted); text-decoration: line-through; font-size: 12px; }
+    .card .cat    {
+      font-size: 10px; font-weight: 700; letter-spacing: .3px;
+      padding: 3px 7px; border-radius: 999px;
+      background: #efe9d8; color: #6a4c00; border: 1px solid #e3d8b1;
+      white-space: nowrap; line-height: 1.2;
+    }
+    .card .cat.unique     { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
+    .card .cat.edition    { background: #d6e6f7; color: #1f4a78; border-color: #a8c8e3; }
+    .card .cat.iso-wanted { background: #fff4e2; color: #7a4a00; border-color: #f1c98a; }
+    .card .iso-budget { font-weight: 600; font-size: 14px; }
+    .card .iso-budget .open { font-weight: 400; color: var(--muted); font-size: 13px; }
+    .card .cta {
+      margin-top: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      text-align: right;
+      letter-spacing: .2px;
+    }
+    .card .cta::after { content: " →"; }
+    .card:hover .cta { text-decoration: underline; }
+    @media (max-width: 480px) {
+      .card .artist { font-size: 13px; }
+      .card .title  { font-size: 12px; }
+      .card .price  { font-size: 13px; }
+      .card .cat    { font-size: 9px; padding: 2px 6px; }
+    }
+
+    /* ---- Status / empty ---- */
+    #status, .empty {
+      margin: 24px auto;
+      max-width: 540px;
+      padding: 16px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--card-line);
+      color: var(--muted);
+      text-align: center;
+      font-size: 14px;
+    }
+    #status.error { color: #a8281f; border-color: #f1c4be; background: #fef6f5; }
+    .empty .empty-title { color: var(--fg); font-weight: 600; margin-bottom: 4px; }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 32px 16px;
+      border-top: 1px solid var(--card-line);
+      background: #fff;
+    }
+    footer a { color: inherit; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <img src="/assets/CanvasCircleLogo.png" alt="CanvasCircle" />
+      <span class="title">CanvasCircle™</span>
+    </div>
+    <nav>
+      <a href="/">Catalog</a>
+      <a href="/portal/" class="cc-auth-link">Log In</a>
+      <a href="/guidelines.html" target="_blank" rel="noopener">Guidelines</a>
+      <a href="/about.html" target="_blank" rel="noopener">About</a>
+    </nav>
+  </header>
+
+  <script type="module" src="/lib/nav-auth.js"></script>
+
+  <main>
+    <div id="status">Loading seller&hellip;</div>
+
+    <section id="seller-header" class="seller-header" hidden>
+      <h1 class="display-name" id="seller-display-name"></h1>
+      <p class="handle-line" id="seller-handle-line"></p>
+      <div class="meta">
+        <span class="item" id="seller-joined-item" hidden></span>
+        <span class="item" id="seller-location-item" hidden></span>
+        <span class="item" id="seller-counts-item"></span>
+      </div>
+      <div class="contact-block">
+        <h3>Contact this collector</h3>
+        <div id="contact-signed-in" class="contact-actions" hidden></div>
+        <div id="contact-signed-out" class="signed-out-contact" hidden>
+          <strong>Sign in to see contact info</strong> for this collector and reach out about their listings.
+          <div class="actions">
+            <a class="primary" href="/portal/">Sign in</a>
+            <a class="secondary" href="/portal/">Create account</a>
+          </div>
+        </div>
+        <div class="transaction-disclaimer">
+          CanvasCircle is a free listing platform — any transaction is directly between you and the collector. CanvasCircle does not process payments, verify authenticity, or mediate disputes. See our <a href="/terms.html" target="_blank" rel="noopener">Terms</a>.
+        </div>
+      </div>
+    </section>
+
+    <div id="content" hidden>
+      <div class="catalog-tabs" role="tablist">
+        <button type="button" class="catalog-tab is-active" data-listing-type="sale" role="tab" aria-selected="true">For Sale <span class="count" id="count-sale"></span></button>
+        <button type="button" class="catalog-tab" data-listing-type="iso" role="tab" aria-selected="false">In Search Of <span class="count" id="count-iso"></span></button>
+      </div>
+
+      <div id="grid" class="grid" hidden></div>
+      <div id="empty" class="empty" hidden>
+        <div class="empty-title" id="empty-title">No listings yet</div>
+        <div id="empty-body">This collector hasn't posted anything in this category yet.</div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    &copy; CanvasCircle.
+    <a href="/about.html" target="_blank" rel="noopener">About</a> &middot;
+    <a href="/guidelines.html" target="_blank" rel="noopener">Guidelines</a> &middot;
+    <a href="/terms.html" target="_blank" rel="noopener">Terms</a> &middot;
+    <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a> &middot;
+    <a href="/portal/" class="cc-auth-link">Log In</a>
+  </footer>
+
+  <script type="module">
+    import { supabase, publicImageUrl } from "/lib/supabase.js";
+    import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
+    import { showAuthPrompt } from "/lib/auth-prompt.js";
+
+    // ----- DOM refs -----
+    const $status            = document.getElementById("status");
+    const $sellerHeader      = document.getElementById("seller-header");
+    const $content           = document.getElementById("content");
+    const $displayName       = document.getElementById("seller-display-name");
+    const $handleLine        = document.getElementById("seller-handle-line");
+    const $joinedItem        = document.getElementById("seller-joined-item");
+    const $locationItem      = document.getElementById("seller-location-item");
+    const $countsItem        = document.getElementById("seller-counts-item");
+    const $contactSignedIn   = document.getElementById("contact-signed-in");
+    const $contactSignedOut  = document.getElementById("contact-signed-out");
+    const $countSale         = document.getElementById("count-sale");
+    const $countIso          = document.getElementById("count-iso");
+    const $grid              = document.getElementById("grid");
+    const $empty             = document.getElementById("empty");
+    const $emptyBody         = document.getElementById("empty-body");
+
+    // ----- State -----
+    let sellerProfile = null;    // the profiles row we're displaying
+    let listingsAll   = { sale: [], iso: [] };
+    let currentTab    = "sale";
+    let userSavesSet  = null;
+    let viewerSignedIn = false;
+
+    function escapeHtml(s) {
+      return String(s ?? "").replace(/[&<>"']/g, c => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+      }[c]));
+    }
+
+    // Parse handle from ?handle= query param. The _redirects rule rewrites
+    // /@:handle → /seller.html?handle=:handle so this works for both URL forms.
+    function getHandleFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return (params.get("handle") || "").trim().replace(/^@+/, "");
+    }
+
+    function showError(msg) {
+      $status.textContent = msg;
+      $status.classList.add("error");
+      $status.hidden = false;
+      $sellerHeader.hidden = true;
+      $content.hidden = true;
+    }
+
+    // Update <title>, OG, and meta tags now that we know the seller.
+    function setMeta(profile) {
+      const name = profile.display_name || profile.handle;
+      document.title = `${name} (@${profile.handle}) on CanvasCircle`;
+      const setMetaTag = (sel, val) => {
+        let el = document.querySelector(sel);
+        if (el) el.setAttribute("content", val);
+      };
+      setMetaTag('meta[name="description"]', `Browse listings from ${name} on CanvasCircle.`);
+      setMetaTag('meta[property="og:title"]', `${name} (@${profile.handle}) on CanvasCircle`);
+      setMetaTag('meta[property="og:description"]', `Browse listings from ${name} on CanvasCircle.`);
+      const ogUrl = document.querySelector('meta[property="og:url"]');
+      if (ogUrl) ogUrl.setAttribute("content", window.location.href);
+    }
+
+    // ----- Load -----
+    async function load() {
+      const handle = getHandleFromUrl();
+      if (!handle) {
+        showError("No seller specified.");
+        return;
+      }
+
+      // 1) Check sign-in state up front — we need it to decide whether to
+      // render contact info / location.
+      const { data: { user } } = await supabase.auth.getUser();
+      viewerSignedIn = !!user;
+      userSavesSet   = await getCurrentUserSaves();
+
+      // 2) Look up the seller's profile (case-insensitive on handle).
+      const { data: profileRows, error: profileErr } = await supabase
+        .from("profiles")
+        .select(`
+          user_id, display_name, handle, location,
+          facebook_profile_url, contact_email,
+          account_status, created_at
+        `)
+        .ilike("handle", handle)
+        .limit(1);
+      if (profileErr) {
+        console.error("[seller] profile lookup failed:", profileErr);
+        showError("Could not load this seller. Please try again later.");
+        return;
+      }
+      const profile = (profileRows || [])[0];
+      if (!profile) {
+        showError(`No CanvasCircle account exists at @${escapeHtml(handle)}.`);
+        return;
+      }
+      if (profile.account_status !== "active") {
+        showError("This account isn't available.");
+        return;
+      }
+
+      sellerProfile = profile;
+      setMeta(profile);
+      renderHeader(profile);
+
+      // 3) Fetch their listings (split by type via two parallel queries).
+      const [saleResp, isoResp] = await Promise.all([
+        supabase.from("listings").select(`
+          listing_id, listing_type, artist_name, artwork_title, artwork_category,
+          asking_price_usd, previous_price_usd, status, created_at, save_count,
+          shipping_offered, budget_min_usd, budget_max_usd,
+          listing_images ( storage_path, position )
+        `)
+          .eq("seller_id", profile.user_id)
+          .eq("listing_type", "sale")
+          .eq("moderation_status", "approved")
+          .in("status", ["available"])
+          .order("created_at", { ascending: false }),
+        supabase.from("listings").select(`
+          listing_id, listing_type, artist_name, artwork_title, artwork_category,
+          asking_price_usd, previous_price_usd, status, created_at, save_count,
+          shipping_offered, budget_min_usd, budget_max_usd,
+          listing_images ( storage_path, position )
+        `)
+          .eq("seller_id", profile.user_id)
+          .eq("listing_type", "iso")
+          .eq("moderation_status", "approved")
+          .eq("status", "available")
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (saleResp.error || isoResp.error) {
+        console.error("[seller] listings load failed:", saleResp.error || isoResp.error);
+        showError("Could not load this collector's listings. Please try again later.");
+        return;
+      }
+
+      listingsAll.sale = saleResp.data || [];
+      listingsAll.iso  = isoResp.data  || [];
+
+      // Counts in tab labels.
+      $countSale.textContent = listingsAll.sale.length ? `(${listingsAll.sale.length})` : "";
+      $countIso.textContent  = listingsAll.iso.length  ? `(${listingsAll.iso.length})`  : "";
+
+      // If they have ISO requests but no sale listings, default to the ISO tab
+      // so the page isn't visually empty on first load.
+      if (listingsAll.sale.length === 0 && listingsAll.iso.length > 0) {
+        currentTab = "iso";
+      }
+
+      $status.hidden = true;
+      $content.hidden = false;
+      applyTab();
+    }
+
+    function renderHeader(profile) {
+      $displayName.textContent = profile.display_name || `@${profile.handle}`;
+      $handleLine.textContent = `@${profile.handle}`;
+
+      if (profile.created_at) {
+        const d = new Date(profile.created_at);
+        const month = d.toLocaleString(undefined, { month: "long" });
+        const year  = d.getFullYear();
+        $joinedItem.textContent = `Joined ${month} ${year}`;
+        $joinedItem.hidden = false;
+      }
+
+      // Location is gated — only visible to signed-in users.
+      if (viewerSignedIn && profile.location) {
+        $locationItem.textContent = `📍 ${profile.location}`;
+        $locationItem.hidden = false;
+      }
+
+      // Counts come after the listings load — defer.
+      // (renderHeader is called before the count is known; populate later
+      // from applyTab() once the data arrives.)
+
+      // Contact block: signed in vs. signed out.
+      if (viewerSignedIn) {
+        const fbUrl = fbProfileUrl(profile.facebook_profile_url);
+        const parts = [];
+        if (fbUrl) {
+          parts.push(`<a class="primary" href="${escapeHtml(fbUrl)}" target="_blank" rel="noopener">Message on Facebook</a>`);
+        }
+        if (profile.contact_email) {
+          const subject = `Inquiry about your listings on CanvasCircle`;
+          const body = `Hi ${profile.display_name || ""},\n\nI came across your seller page on CanvasCircle (${window.location.href}) and wanted to reach out.\n\n[Your message here]\n\nThanks!`;
+          const mailto = "mailto:" + encodeURIComponent(profile.contact_email)
+            + "?subject=" + encodeURIComponent(subject)
+            + "&body="    + encodeURIComponent(body);
+          parts.push(`<a class="secondary" href="${mailto}">Email this collector</a>`);
+        }
+        if (!fbUrl && !profile.contact_email) {
+          parts.push(`<span style="color:var(--muted); font-size:14px;">This collector hasn't published contact info yet.</span>`);
+        }
+        $contactSignedIn.innerHTML = parts.join("");
+        $contactSignedIn.hidden = false;
+        $contactSignedOut.hidden = true;
+      } else {
+        $contactSignedIn.hidden = true;
+        $contactSignedOut.hidden = false;
+      }
+
+      $sellerHeader.hidden = false;
+    }
+
+    function fbProfileUrl(url) {
+      if (!url) return null;
+      const trimmed = String(url).trim();
+      if (!trimmed) return null;
+      if (/^https?:\/\//i.test(trimmed)) return trimmed;
+      return "https://" + trimmed;
+    }
+
+    // ----- Tab switcher -----
+    function applyTab() {
+      // Tab visuals
+      document.querySelectorAll(".catalog-tab").forEach(btn => {
+        const active = btn.dataset.listingType === currentTab;
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-selected", active ? "true" : "false");
+      });
+
+      // Counts in header
+      const saleN = listingsAll.sale.length;
+      const isoN  = listingsAll.iso.length;
+      const countsParts = [];
+      if (saleN > 0) countsParts.push(`${saleN} for sale`);
+      if (isoN  > 0) countsParts.push(`${isoN} In Search Of`);
+      $countsItem.textContent = countsParts.length
+        ? countsParts.join(" · ")
+        : "No active listings";
+
+      // Grid render
+      const rows = listingsAll[currentTab] || [];
+      $grid.innerHTML = "";
+      if (rows.length === 0) {
+        $grid.hidden = true;
+        $empty.hidden = false;
+        $emptyBody.textContent = currentTab === "iso"
+          ? "This collector hasn't posted any open In Search Of requests."
+          : "This collector doesn't have anything for sale right now.";
+        return;
+      }
+      $empty.hidden = true;
+      const frag = document.createDocumentFragment();
+      for (const r of rows) frag.appendChild(renderCard(r));
+      $grid.appendChild(frag);
+      $grid.hidden = false;
+    }
+
+    document.querySelectorAll(".catalog-tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (btn.dataset.listingType !== currentTab) {
+          currentTab = btn.dataset.listingType;
+          applyTab();
+        }
+      });
+    });
+
+    // ----- Card render (mirrors index.html's renderCard, sale + ISO branches) -----
+    function renderCard(listing) {
+      const isIso = listing.listing_type === "iso";
+      const images = (listing.listing_images || []).slice().sort((a,b) => a.position - b.position);
+      const firstPath = images[0]?.storage_path;
+      const wrap = document.createElement("div");
+      wrap.className = "card-wrap";
+      wrap.dataset.listingId = listing.listing_id;
+      const card = document.createElement("a");
+      // ISO 'sold' = "closed/found"; we filter those out at the query so don't paint the overlay anyway.
+      card.className = "card" + (listing.status === "sold" && !isIso ? " is-sold" : "");
+      card.href = `/listing.html?id=${listing.listing_id}`;
+      const imgUrl = firstPath ? publicImageUrl(firstPath) : "";
+      const catCls   = listing.artwork_category === "Unique/Original" ? " unique"
+                     : listing.artwork_category === "Limited Edition" ? " edition" : "";
+      const catLabel = listing.artwork_category || "";
+      const saved    = !!(userSavesSet && userSavesSet.has(listing.listing_id));
+      const saveN    = Number(listing.save_count || 0);
+
+      const imgInner = imgUrl
+        ? `<img src="${imgUrl}" alt="${escapeHtml(listing.artist_name || "")} — ${escapeHtml(listing.artwork_title || "")}" loading="lazy" decoding="async" />`
+        : (isIso
+            ? `<div class="iso-placeholder"><span class="glyph">🔍</span><span class="label">In Search Of</span></div>`
+            : "");
+
+      const artistLine = listing.artist_name ? escapeHtml(listing.artist_name)
+                       : (isIso ? `<span style="color:var(--muted);font-style:italic;">Any artist</span>` : "Unknown");
+      const titleLine  = listing.artwork_title ? escapeHtml(listing.artwork_title)
+                       : (isIso ? `<span style="color:var(--muted);font-style:italic;">Title unspecified</span>` : "");
+
+      let priceRow;
+      if (isIso) {
+        const min = listing.budget_min_usd != null ? Number(listing.budget_min_usd) : null;
+        const max = listing.budget_max_usd != null ? Number(listing.budget_max_usd) : null;
+        let budgetLabel;
+        if (min != null && max != null)        budgetLabel = `$${min.toLocaleString()}–$${max.toLocaleString()}`;
+        else if (min != null)                  budgetLabel = `From $${min.toLocaleString()}`;
+        else if (max != null)                  budgetLabel = `Up to $${max.toLocaleString()}`;
+        else                                   budgetLabel = `<span class="open">Open budget</span>`;
+        priceRow = `
+          <div class="price-row">
+            <span class="left"><span class="iso-budget">${budgetLabel}</span></span>
+            <span class="pills">
+              <span class="cat iso-wanted">WANTED</span>
+              ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
+            </span>
+          </div>`;
+      } else {
+        const price  = Number(listing.asking_price_usd || 0).toLocaleString();
+        const prev   = listing.previous_price_usd
+                        && Number(listing.previous_price_usd) > Number(listing.asking_price_usd)
+                        ? Number(listing.previous_price_usd).toLocaleString()
+                        : null;
+        const shipSuffix = listing.shipping_offered === "Yes" ? " shipped" : " + shipping";
+        priceRow = `
+          <div class="price-row">
+            <span class="left">
+              <span class="price">$${price}<span class="ship-suffix">${shipSuffix}</span></span>${prev ? `<span class="prev">$${prev}</span>` : ""}
+            </span>
+            <span class="pills">
+              ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
+            </span>
+          </div>`;
+      }
+
+      card.innerHTML = `
+        <div class="img">${imgInner}</div>
+        <div class="body">
+          <div class="artist">${artistLine}</div>
+          <div class="title">${titleLine}</div>
+          ${priceRow}
+          <div class="cta">${isIso ? "See request" : "Show details"}</div>
+        </div>`;
+      const heart = document.createElement("button");
+      heart.type = "button";
+      heart.className = "heart-btn" + (saved ? " is-saved" : "");
+      heart.setAttribute("aria-label", saved ? "Unsave" : "Save listing");
+      heart.innerHTML = `<span class="heart-glyph">${saved ? "♥" : "♡"}</span><span class="heart-count">${saveN}</span>`;
+      wrap.appendChild(card);
+      wrap.appendChild(heart);
+      return wrap;
+    }
+
+    // ----- Heart click delegation -----
+    document.getElementById("grid").addEventListener("click", async (e) => {
+      const btn = e.target.closest(".heart-btn");
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const wrap = btn.closest(".card-wrap");
+      if (!wrap) return;
+      const id = wrap.dataset.listingId;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        showAuthPrompt({ message: "Sign up to save listings. Same account also lets you sell pieces from your collection or post In Search Of requests — no commitment." });
+        return;
+      }
+      btn.disabled = true;
+      const $glyph = btn.querySelector(".heart-glyph");
+      const $count = btn.querySelector(".heart-count");
+      const wasSaved = btn.classList.contains("is-saved");
+      btn.classList.toggle("is-saved", !wasSaved);
+      $glyph.textContent = !wasSaved ? "♥" : "♡";
+      $count.textContent = String(Math.max(0, Number($count.textContent || 0) + (wasSaved ? -1 : 1)));
+      try {
+        await toggleSave(id);
+      } catch (err) {
+        console.error("[seller-heart] toggle failed:", err);
+        btn.classList.toggle("is-saved", wasSaved);
+        $glyph.textContent = wasSaved ? "♥" : "♡";
+        $count.textContent = String(Math.max(0, Number($count.textContent || 0) + (wasSaved ? 1 : -1)));
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    load();
+  </script>
+</body>
+</html>
