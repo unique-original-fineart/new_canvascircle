@@ -3204,8 +3204,51 @@
       return payload;
     }
 
+    // ---- URL detection (anti-phishing guard) -----------------------------
+    // Listing free-text fields aren't allowed to contain URLs or website
+    // references. We escape on render so a literal <a href="..."> wouldn't be
+    // clickable, but the *text* of a URL still appears and can be auto-
+    // linkified by some email clients / scraped by bots. Blocking at submit
+    // time keeps the data clean. Profile fields (Facebook URL, etc.) are NOT
+    // subject to this check — they're legitimately URLs.
+    const URL_PATTERNS = [
+      /\b(?:https?:\/\/|ftp:\/\/)\S+/i,                          // http://, https://, ftp://
+      /\bwww\.\S+/i,                                              // www.anything
+      /\b[\w-]+\.(?:com|net|org|io|co|me|info|biz|us|uk|gov|edu|art|gallery|shop|store|tv|app|dev|xyz|link)\b(?:\/\S*)?/i,
+      /\bbit\.ly\b|\bt\.co\b|\btinyurl\b|\bgoo\.gl\b/i,           // common shorteners
+    ];
+    function containsLikelyUrl(text) {
+      if (!text) return false;
+      const s = String(text);
+      return URL_PATTERNS.some(re => re.test(s));
+    }
+    // Run the URL check across every free-text field on the payload. Returns
+    // an array of human-readable field names that contain URLs (empty if clean).
+    function findUrlOffendingFields(p) {
+      const fields = {
+        "artist name":     p.artist_name,
+        "artwork title":   p.artwork_title,
+        "medium":          p.medium,
+        "description":     p.description,
+        "condition notes": p.condition_notes,
+        "provenance":      p.provenance,
+      };
+      const hits = [];
+      for (const [label, val] of Object.entries(fields)) {
+        if (containsLikelyUrl(val)) hits.push(label);
+      }
+      return hits;
+    }
+    const URL_BLOCK_MESSAGE = "Links and website addresses aren't allowed in listing fields (to protect buyers from phishing). Remove any URLs from: ";
+
     function validatePayload(p, opts = {}) {
       const errs = [];
+      // URL block applies to both sale and ISO. Run it first so the message
+      // is high-signal before we get into field-specific validation.
+      const urlHits = findUrlOffendingFields(p);
+      if (urlHits.length) {
+        errs.push(URL_BLOCK_MESSAGE + urlHits.join(", ") + ". If you need to mention a website, email admin@canvascircle.art.");
+      }
       if (opts.isIso) {
         if (!p.artwork_title && !p.artist_name)
           errs.push("Enter an artist name, an artwork name, or both.");
@@ -5735,6 +5778,16 @@
 
       // ----- Validate -----
       const errs = [];
+      // Anti-phishing: block URLs/links anywhere in the listing free text.
+      const urlHits = findUrlOffendingFields({
+        artist_name:   artist,
+        artwork_title: title,
+        medium:        medium,
+        description:   desc,
+      });
+      if (urlHits.length) {
+        errs.push(URL_BLOCK_MESSAGE + urlHits.join(", ") + ". If you need to mention a website, email admin@canvascircle.art.");
+      }
       if (isIso) {
         // ISO: at least one of artist/title required, budget optional, no image required.
         if (!artist && !title) errs.push("Tell sellers what you're after: enter an artist name, an artwork name, or both.");

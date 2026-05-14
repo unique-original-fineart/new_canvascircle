@@ -744,9 +744,20 @@
       }
 
       if (filters.q) {
-        // Escape PostgREST `or` value separators (comma + paren) and wildcard chars.
+        // Escape PostgREST `or` value separators and wildcard chars.
         const pat = filters.q.replace(/[%_]/g, "\\$&");
-        q = q.or(`artist_name.ilike.%${pat}%,artwork_title.ilike.%${pat}%`);
+        const orParts = [
+          `artist_name.ilike.%${pat}%`,
+          `artwork_title.ilike.%${pat}%`,
+        ];
+        // PostgREST can't OR across joined tables directly, so the caller
+        // does a separate profiles lookup and passes the matching user_ids
+        // in via filters._sellerIds. If there were any matches, expand the
+        // OR to include seller_id.in.(...).
+        if (filters._sellerIds && filters._sellerIds.length > 0) {
+          orParts.push(`seller_id.in.(${filters._sellerIds.join(",")})`);
+        }
+        q = q.or(orParts.join(","));
       }
 
       const priceCol = tab === "iso" ? "budget_max_usd" : "asking_price_usd";
@@ -790,10 +801,32 @@
       $grid.appendChild(frag);
     }
 
+    // Resolve user_ids of profiles whose display_name OR @handle matches the
+    // search term. Returns null when there's no search term (so the catalog
+    // query doesn't add a seller_id constraint). Cached on currentFilters so
+    // loadMore reuses the same set across pages.
+    async function resolveSellerIdsForSearch(query) {
+      if (!query) return null;
+      const pat = String(query).replace(/[%_]/g, "\\$&");
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .or(`display_name.ilike.%${pat}%,handle.ilike.%${pat}%`);
+      if (error) {
+        console.warn("[search] seller lookup failed (continuing without):", error);
+        return [];
+      }
+      return (data || []).map(r => r.user_id);
+    }
+
     // Run on initial load and on every filter change. Resets to page 0.
     async function applyFilters() {
       if (isFetching) return;
       currentFilters = snapshotFilters();
+      // Pre-resolve sellers whose name or @handle matches the search term.
+      // buildCatalogQuery reads currentFilters._sellerIds and ORs the
+      // matching seller_ids into the listings query.
+      currentFilters._sellerIds = await resolveSellerIdsForSearch(currentFilters.q);
       listings      = [];
       loadedCount   = 0;
       totalCount    = 0;
