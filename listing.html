@@ -638,15 +638,17 @@
 
       // About blurb (admin-approved). Renders only if the seller has set one.
       // Click "About this seller ▾" to expand inline; click again to collapse.
+      // `white-space: pre-line` preserves the user's intentional line breaks
+      // (paragraphs) but collapses other whitespace so the template literal's
+      // own indentation doesn't bleed into the rendered output. The
+      // interpolation also sits flush against the tags for the same reason.
       const aboutRow = seller.about_text ? `
           <div class="about-row" style="margin-top:6px;">
             <button type="button" id="about-toggle"
                     style="background:none; border:none; padding:0; color:var(--accent); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">
               About this seller <span id="about-toggle-glyph">▾</span>
             </button>
-            <div id="about-text-panel" hidden style="margin-top:6px; padding:10px 12px; background:#fafaf6; border:1px solid var(--card-line); border-radius:6px; font-size:13px; line-height:1.5; white-space:pre-wrap; color:var(--fg);">
-              ${escapeHtml(seller.about_text)}
-            </div>
+            <div id="about-text-panel" hidden style="margin-top:6px; padding:10px 12px; background:#fafaf6; border:1px solid var(--card-line); border-radius:6px; font-size:13px; line-height:1.5; white-space:pre-line; color:var(--fg); text-align:left;">${escapeHtml(seller.about_text)}</div>
           </div>` : "";
 
       const counterpartyBlock = signedIn ? `
