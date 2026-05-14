@@ -429,7 +429,7 @@
             seller_mood, last_renewed_at, created_at, seller_id, save_count,
             listing_images ( storage_path, position ),
             profiles!listings_seller_id_fkey (
-              display_name, location, facebook_profile_url, contact_email, account_status
+              display_name, handle, location, facebook_profile_url, contact_email, account_status
             )
           `)
           .eq("listing_id", id)
@@ -590,7 +590,7 @@
       const counterpartyBlock = signedIn ? `
         <div class="seller-block">
           <div class="seller-label">${partyLabel}</div>
-          <div class="name">${escapeHtml(seller.display_name || partyLabel)}</div>
+          <div class="name">${escapeHtml(seller.display_name || partyLabel)}${seller.handle ? ` <span style="font-weight:400; color:var(--muted); font-size:13px;">@${escapeHtml(seller.handle)}</span>` : ""}</div>
           ${seller.location ? `<div class="loc">${escapeHtml(seller.location)}</div>` : ""}
           <div class="seller-actions">
             ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">${primaryCta}</a>` : ""}

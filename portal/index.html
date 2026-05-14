@@ -1375,6 +1375,21 @@
             </p>
           </div>
           <div class="field">
+            <label for="signup-handle">Handle <span style="color:#8a1f1a;">*</span></label>
+            <div style="display:flex; align-items:center; gap:0;">
+              <span style="padding: 8px 10px; background: #f1ede4; border: 1px solid var(--card-line); border-right: none; border-radius: 6px 0 0 6px; color: var(--muted); font-weight: 600;">@</span>
+              <input type="text" id="signup-handle" required autocomplete="off"
+                     placeholder="janesmith"
+                     pattern="^[A-Za-z][A-Za-z0-9_]{2,19}$"
+                     maxlength="20"
+                     title="3-20 characters. Must start with a letter; letters, digits, and underscores only."
+                     style="border-radius: 0 6px 6px 0; flex: 1;" />
+            </div>
+            <p class="small" id="signup-handle-hint" style="margin: 4px 0 0; color: var(--muted);">
+              Your unique identifier on CanvasCircle (3-20 letters, digits, or underscores; must start with a letter). Other users see this alongside your display name so they know exactly which account they're talking to — important when display names collide. <strong>Locked forever once you sign up</strong>, so pick something you'll be happy with long-term.
+            </p>
+          </div>
+          <div class="field">
             <label for="signup-email">Email</label>
             <input type="email" id="signup-email" required autocomplete="email" />
           </div>
@@ -1545,6 +1560,16 @@
               <p class="small" style="margin: 4px 0 0;">
                 Display names are locked to keep listings trustworthy. To request a change, click below — an admin will review and approve.
                 <button type="button" id="request-name-change-btn" class="linklike" style="color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Request name change</button>
+              </p>
+            </div>
+            <div class="field">
+              <label for="prof-handle">Handle <span class="locked-tag">🔒 Locked</span></label>
+              <div style="display:flex; align-items:center; gap:0;">
+                <span style="padding: 8px 10px; background: #f1ede4; border: 1px solid var(--card-line); border-right: none; border-radius: 6px 0 0 6px; color: var(--muted); font-weight: 600;">@</span>
+                <input type="text" id="prof-handle" disabled style="border-radius: 0 6px 6px 0; flex: 1;" />
+              </div>
+              <p class="small" style="margin: 4px 0 0; color: var(--muted);">
+                Your unique identifier on CanvasCircle. Shown alongside your display name so other users can distinguish you from anyone else with the same name. Handles are permanent and cannot be changed.
               </p>
             </div>
             <div class="field">
@@ -2074,15 +2099,102 @@
     // -----------------------------------------------------------------------
     // Sign up
     // -----------------------------------------------------------------------
-    const $signupForm = document.getElementById("signup-form");
-    const $signupBtn  = document.getElementById("signup-btn");
+    const $signupForm   = document.getElementById("signup-form");
+    const $signupBtn    = document.getElementById("signup-btn");
+    const $signupName   = document.getElementById("signup-name");
+    const $signupHandle = document.getElementById("signup-handle");
+    const $signupHandleHint = document.getElementById("signup-handle-hint");
+
+    // ----- Handle validation + auto-suggest helpers -----
+    const HANDLE_RE = /^[A-Za-z][A-Za-z0-9_]{2,19}$/;
+
+    // Derive a handle suggestion from a display name: lowercase, strip non-
+    // [a-z0-9], cap at 20 chars, ensure starts with a letter.
+    function suggestHandle(name) {
+      let s = String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      // Strip leading digits — handle must start with a letter.
+      s = s.replace(/^[0-9]+/, "");
+      if (s.length < 3) return "";
+      return s.slice(0, 20);
+    }
+
+    // If the user hasn't manually edited the handle field, mirror suggestions
+    // from the display name in real time. We track "has typed" with a flag.
+    let userTypedHandle = false;
+    $signupHandle.addEventListener("input", () => { userTypedHandle = true; });
+    $signupName.addEventListener("input", () => {
+      if (userTypedHandle && $signupHandle.value.trim()) return;
+      const sug = suggestHandle($signupName.value);
+      if (sug) {
+        $signupHandle.value = sug;
+        // Don't mark as user-typed — leave it auto-tracking until they edit.
+      }
+    });
+
+    // Debounced live availability check via the is_handle_available RPC.
+    let handleCheckTimer = null;
+    let handleAvailable = null; // null = unknown, true/false = checked
+    function setHandleHint(text, kind) {
+      $signupHandleHint.textContent = text;
+      $signupHandleHint.style.color = kind === "ok" ? "var(--green)"
+                                    : kind === "err" ? "#8a1f1a"
+                                    : "var(--muted)";
+    }
+    async function checkHandleAvailability() {
+      const v = $signupHandle.value.trim();
+      handleAvailable = null;
+      if (!v) {
+        setHandleHint("Your unique identifier on CanvasCircle (3-20 letters, digits, or underscores). Locked forever once you sign up.", "");
+        return;
+      }
+      if (!HANDLE_RE.test(v)) {
+        setHandleHint("Handle must be 3-20 characters, start with a letter, and only contain letters, digits, or underscores.", "err");
+        return;
+      }
+      setHandleHint("Checking availability…", "");
+      try {
+        const { data, error } = await supabase.rpc("is_handle_available", { h: v });
+        if (error) throw error;
+        if (data === true) {
+          handleAvailable = true;
+          setHandleHint(`@${v} is available.`, "ok");
+        } else {
+          handleAvailable = false;
+          setHandleHint(`@${v} is already taken — try a variation.`, "err");
+        }
+      } catch (err) {
+        console.warn("[signup] handle availability check failed:", err);
+        // Don't block submit on RPC failure — final server-side insert will
+        // catch a real collision via the unique index.
+        setHandleHint("Couldn't check availability (we'll verify on submit).", "");
+      }
+    }
+    $signupHandle.addEventListener("input", () => {
+      clearTimeout(handleCheckTimer);
+      handleCheckTimer = setTimeout(checkHandleAvailability, 400);
+    });
+    $signupName.addEventListener("input", () => {
+      // When display-name-derived suggestion changes, re-check.
+      clearTimeout(handleCheckTimer);
+      handleCheckTimer = setTimeout(checkHandleAvailability, 400);
+    });
+
     $signupForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       clearBanner("signup");
       const name     = document.getElementById("signup-name").value.trim();
+      const handle   = $signupHandle.value.trim();
       const email    = document.getElementById("signup-email").value.trim();
       const password = document.getElementById("signup-password").value;
       const tosOk    = document.getElementById("signup-tos").checked;
+      if (!HANDLE_RE.test(handle)) {
+        setBanner("signup", "Pick a handle that's 3-20 characters, starts with a letter, and only contains letters, digits, or underscores.", "error");
+        return;
+      }
+      if (handleAvailable === false) {
+        setBanner("signup", `@${handle} is already taken. Try a variation.`, "error");
+        return;
+      }
       if (!tosOk) {
         setBanner("signup", "Please review and accept the Terms of Use and Privacy Policy to create an account.", "error");
         return;
@@ -2111,6 +2223,7 @@
           options: {
             data: {
               display_name: name,
+              handle: handle,
               tos_accepted_at: tosAcceptedAt,
               tos_version: tosVersion,
             },
@@ -3648,7 +3761,7 @@
           asking_price_usd, budget_min_usd, budget_max_usd,
           description, status, moderation_status, created_at,
           listing_images ( storage_path, position ),
-          profiles!listings_seller_id_fkey ( display_name, contact_email )
+          profiles!listings_seller_id_fkey ( display_name, handle, contact_email )
         `)
         .eq("moderation_status", "pending")
         .order("created_at", { ascending: true });
@@ -3672,6 +3785,7 @@
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
       const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
       const seller = l.profiles?.display_name || "Unknown";
+      const sellerHandle = l.profiles?.handle || "";
       const email  = l.profiles?.contact_email || "";
       const days   = Math.max(0, Math.floor((Date.now() - new Date(l.created_at).getTime()) / 86400000));
 
@@ -3699,7 +3813,7 @@
         <div class="mod-meta">
           <strong>${isIso ? `<span style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;padding:1px 6px;border-radius:4px;font-size:11px;margin-right:6px;">ISO</span>` : ""}${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))} – ${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</strong>
           <div class="mod-sub">
-            ${escapeHtml(seller)}${email ? ` · ${escapeHtml(email)}` : ""}
+            ${escapeHtml(seller)}${sellerHandle ? ` <span style="color:var(--muted);">@${escapeHtml(sellerHandle)}</span>` : ""}${email ? ` · ${escapeHtml(email)}` : ""}
             · ${escapeHtml(priceLabel)}
             · ${escapeHtml(l.artwork_category || "")}
             · ${days === 0 ? "submitted today" : `submitted ${days}d ago`}
@@ -3775,7 +3889,7 @@
       const { data, error } = await supabase
         .from("profiles")
         .select(`
-          user_id, display_name, contact_email, location,
+          user_id, display_name, handle, contact_email, location,
           is_trusted, is_admin, account_status, created_at,
           facebook_profile_url,
           pending_display_name, pending_display_name_at
@@ -3881,6 +3995,7 @@
         <div class="seller-info" style="flex: 1; min-width: 200px;">
           <strong>
             ${escapeHtml(profile.display_name || "(no name)")}
+            ${profile.handle ? ` <span style="font-weight:400; color:var(--muted); font-size:13px;">@${escapeHtml(profile.handle)}</span>` : ""}
             ${profile.is_admin ? ` <span class="pill">admin</span>` : ""}
             ${statusPill}
             ${incomplete ? ` <span class="pill" style="background:#f3d6d3;color:#8a1f1a;border-color:#e8b3ad;">incomplete profile</span>` : ""}
@@ -4073,7 +4188,7 @@
           asking_price_usd, budget_min_usd, budget_max_usd,
           status, moderation_status, created_at,
           listing_images ( storage_path, position ),
-          profiles!listings_seller_id_fkey ( display_name, account_status )
+          profiles!listings_seller_id_fkey ( display_name, handle, account_status )
         `)
         .order("created_at", { ascending: false });
       $allListingsLoading.hidden = true;
@@ -4132,6 +4247,7 @@
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
       const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
       const seller = l.profiles?.display_name || "Unknown seller";
+      const sellerHandle = l.profiles?.handle || "";
       const sellerStatus = l.profiles?.account_status || "active";
       const days = Math.max(0, Math.floor((Date.now() - new Date(l.created_at).getTime()) / 86400000));
 
@@ -4161,7 +4277,7 @@
         <div class="al-meta">
           <strong>${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))} – ${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</strong>
           <div class="sub">
-            ${escapeHtml(seller)}${sellerStatus !== "active" ? ` · <span style="color:#8a1f1a;">${escapeHtml(sellerStatus)}</span>` : ""}
+            ${escapeHtml(seller)}${sellerHandle ? ` <span style="color:var(--muted);">@${escapeHtml(sellerHandle)}</span>` : ""}${sellerStatus !== "active" ? ` · <span style="color:#8a1f1a;">${escapeHtml(sellerStatus)}</span>` : ""}
             · ${escapeHtml(priceLabel)}
             · ${days === 0 ? "today" : days + "d ago"}
           </div>
@@ -4500,6 +4616,7 @@
     // Profile tab — load / save FB URL, location, display name, contact email
     // -----------------------------------------------------------------------
     const $profName     = document.getElementById("prof-name");
+    const $profHandle   = document.getElementById("prof-handle");
     const $profFb       = document.getElementById("prof-fb");
     const $profLoc      = document.getElementById("prof-loc");
     const $profEmail    = document.getElementById("prof-email");
@@ -4507,18 +4624,17 @@
     const $profSaveBtn  = document.getElementById("profile-save-btn");
     const $profCancelBtn= document.getElementById("profile-cancel-btn");
     const $profStatus   = document.getElementById("profile-status");
-    const $profInputs   = [$profName, $profFb, $profLoc, $profEmail];
+    const $profInputs   = [$profName, $profHandle, $profFb, $profLoc, $profEmail];
 
     // Snapshot of last-saved values so Cancel can revert.
-    let profileSnapshot = { display_name: "", facebook_profile_url: "", location: "", contact_email: "" };
+    let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", contact_email: "" };
 
     function setProfileEditMode(editing) {
       $profInputs.forEach(el => {
-        // Display name and contact email are locked permanently — they're set
-        // at signup, used for buyer↔seller identification + outreach, and we
-        // intentionally don't allow self-edit (prevents anonymous renames,
-        // keeps the saver-list / DMCA-trail accurate).
-        if (el.id === "prof-name" || el.id === "prof-email") {
+        // Display name, handle, and contact email are locked permanently —
+        // display_name + contact_email are admin-approved on change, and the
+        // handle is the technical identifier that can never change.
+        if (el.id === "prof-name" || el.id === "prof-handle" || el.id === "prof-email") {
           el.disabled = true;
           return;
         }
@@ -4531,10 +4647,11 @@
     }
 
     function fillProfileFromSnapshot() {
-      $profName.value  = profileSnapshot.display_name         || "";
-      $profFb.value    = profileSnapshot.facebook_profile_url || "";
-      $profLoc.value   = profileSnapshot.location             || "";
-      $profEmail.value = profileSnapshot.contact_email        || "";
+      $profName.value   = profileSnapshot.display_name         || "";
+      $profHandle.value = profileSnapshot.handle               || "";
+      $profFb.value     = profileSnapshot.facebook_profile_url || "";
+      $profLoc.value    = profileSnapshot.location             || "";
+      $profEmail.value  = profileSnapshot.contact_email        || "";
     }
 
     async function loadProfileForm() {
@@ -4542,6 +4659,7 @@
       if (!profile) return;
       profileSnapshot = {
         display_name:         profile.display_name         || "",
+        handle:               profile.handle               || "",
         facebook_profile_url: profile.facebook_profile_url || "",
         location:             profile.location             || "",
         contact_email:        profile.contact_email        || "",
@@ -4686,12 +4804,14 @@
           }
           throw error;
         }
-        // Update snapshot to reflect the save and re-lock the form.
+        // Update snapshot to reflect the save and re-lock the form. Handle
+        // isn't in payload — it's locked — so preserve from existing snapshot.
         profileSnapshot = {
-          display_name:         payload.display_name         || "",
+          display_name:         payload.display_name         || profileSnapshot.display_name || "",
+          handle:               profileSnapshot.handle       || "",
           facebook_profile_url: payload.facebook_profile_url || "",
           location:             payload.location             || "",
-          contact_email:        payload.contact_email        || "",
+          contact_email:        payload.contact_email        || profileSnapshot.contact_email || "",
         };
         setProfileEditMode(false);
         $profStatus.textContent = "Saved.";
