@@ -342,7 +342,12 @@
         <span class="item" id="seller-location-item" hidden></span>
         <span class="item" id="seller-counts-item"></span>
       </div>
-      <p id="seller-about" class="about-text" hidden style="margin: 14px 0 0; padding: 12px 14px; background: #fafaf6; border: 1px solid var(--card-line); border-radius: 6px; color: var(--fg); font-size: 14px; line-height: 1.55; white-space: pre-wrap;"></p>
+      <p id="seller-about" class="about-text" hidden style="margin: 14px 0 0; padding: 12px 14px; background: #fafaf6; border: 1px solid var(--card-line); border-radius: 6px; color: var(--fg); font-size: 14px; line-height: 1.55; white-space: pre-line; text-align: left;"></p>
+      <div id="seller-refs-section" hidden style="margin-top: 14px;">
+        <div style="font-weight: 600; font-size: 13px; color: var(--muted); letter-spacing: .3px; text-transform: uppercase; margin-bottom: 6px;">References</div>
+        <p class="small" style="margin: 0 0 8px; color: var(--muted);">These Established Members have agreed to vouch for this collector. Reach out to them to ask about their transactions.</p>
+        <ul id="seller-refs-list" style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;"></ul>
+      </div>
       <div class="contact-block">
         <h3>Contact this collector</h3>
         <div id="contact-signed-in" class="contact-actions" hidden></div>
@@ -507,8 +512,9 @@
       setMeta(profile);
       renderHeader(profile);
 
-      // 3) Fetch their listings (split by type via two parallel queries).
-      const [saleResp, isoResp] = await Promise.all([
+      // 3) Fetch their listings (split by type via two parallel queries),
+      // plus their accepted references in parallel for one less round trip.
+      const [saleResp, isoResp, refsResp] = await Promise.all([
         supabase.from("listings").select(`
           listing_id, listing_type, artist_name, artwork_title, artwork_category,
           asking_price_usd, previous_price_usd, status, created_at, save_count,
@@ -531,6 +537,17 @@
           .eq("moderation_status", "approved")
           .eq("status", "available")
           .order("created_at", { ascending: false }),
+        // Accepted references this seller has. Joined to profiles so we
+        // can render display_name + @handle. Client filters for is_trusted
+        // + account_status='active' to silently drop refs whose accounts
+        // have changed since the reference was accepted.
+        supabase.from("seller_references").select(`
+          id,
+          reference:profiles!seller_references_reference_user_id_fkey
+            ( display_name, handle, is_trusted, account_status )
+        `)
+          .eq("seller_user_id", profile.user_id)
+          .eq("status", "accepted"),
       ]);
 
       if (saleResp.error || isoResp.error) {
@@ -541,6 +558,11 @@
 
       listingsAll.sale = saleResp.data || [];
       listingsAll.iso  = isoResp.data  || [];
+
+      // Filter references to only valid ones (referrer still Established + active).
+      const validRefs = (refsResp?.data || [])
+        .filter(r => r.reference && r.reference.is_trusted && r.reference.account_status === "active");
+      renderReferences(validRefs);
 
       // Counts in tab labels.
       $countSale.textContent = listingsAll.sale.length ? `(${listingsAll.sale.length})` : "";
@@ -624,6 +646,37 @@
       }
 
       $sellerHeader.hidden = false;
+    }
+
+    function renderReferences(validRefs) {
+      const $section = document.getElementById("seller-refs-section");
+      const $list    = document.getElementById("seller-refs-list");
+      if (!$section || !$list) return;
+      if (!validRefs || validRefs.length === 0) {
+        $section.hidden = true;
+        return;
+      }
+      $list.innerHTML = "";
+      const frag = document.createDocumentFragment();
+      for (const r of validRefs) {
+        const p = r.reference;
+        const li = document.createElement("li");
+        li.style.cssText = "padding: 8px 10px; background: #fafaf6; border: 1px solid var(--card-line); border-radius: 6px;";
+        li.innerHTML = `
+          <a href="/seller?handle=${encodeURIComponent(p.handle)}" style="color: var(--fg); text-decoration: none; font-weight: 600;">
+            ${escapeHtml(p.display_name || `@${p.handle}`)}
+            <span style="font-weight: 400; color: var(--muted); font-size: 13px;">@${escapeHtml(p.handle)}</span>
+          </a>
+          <span style="display: inline-flex; align-items: center; gap: 4px; color: var(--green); font-size: 12px; font-weight: 600; margin-left: 6px; vertical-align: 1px;">
+            <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="7" fill="#2a7a3e"/>
+              <path d="M5 8.5 L7 10.5 L11 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>Established
+          </span>`;
+        frag.appendChild(li);
+      }
+      $list.appendChild(frag);
+      $section.hidden = false;
     }
 
     function fbProfileUrl(url) {

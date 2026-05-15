@@ -1651,6 +1651,51 @@
               <span id="profile-status" class="sp-text-status"></span>
             </div>
           </form>
+
+          <!-- ============================================================ -->
+          <!-- References section — separate from the main edit form        -->
+          <!-- ============================================================ -->
+          <div id="refs-section" style="margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--card-line);">
+            <h3 style="margin: 0 0 6px; font-size: 16px;">References</h3>
+            <p class="small" style="margin: 0 0 14px; color: var(--muted);">
+              References are Established Members who agree to vouch for you in transactions. Buyers can see them on your listings and seller page, and may reach out to ask about their experience working with you. Max 5 active references at a time.
+            </p>
+
+            <!-- Outgoing: references the seller has requested -->
+            <div style="margin-bottom: 14px;">
+              <h4 style="margin: 0 0 8px; font-size: 14px; font-weight: 600;">Your references <span id="your-refs-count" class="small" style="color: var(--muted); font-weight: 400;">(0 / 5)</span></h4>
+              <div id="your-refs-list" class="refs-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+              <div id="your-refs-empty" class="small" style="color: var(--muted); margin-top: 6px;" hidden>
+                You haven't requested any references yet.
+              </div>
+            </div>
+
+            <!-- Request form -->
+            <div id="request-ref-form" style="padding: 12px; background: #faf9f6; border: 1px solid var(--card-line); border-radius: 6px; margin-bottom: 14px;">
+              <label for="request-ref-handle" class="small" style="display: block; font-weight: 600; margin-bottom: 6px;">Request a new reference</label>
+              <div style="display:flex; align-items:stretch; gap:6px; flex-wrap: wrap;">
+                <div style="display:flex; align-items:stretch; gap:0; flex: 1; min-width: 200px;">
+                  <span style="padding: 8px 10px; background: #f1ede4; border: 1px solid var(--card-line); border-right: none; border-radius: 6px 0 0 6px; color: var(--muted); font-weight: 600;">@</span>
+                  <input type="text" id="request-ref-handle" placeholder="handle"
+                         pattern="^[A-Za-z][A-Za-z0-9_]{2,19}$" maxlength="20"
+                         style="border-radius: 0 6px 6px 0; flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--card-line); font-family: inherit; font-size: 14px;" />
+                </div>
+                <button type="button" class="btn-primary" id="request-ref-submit-btn">Send request</button>
+              </div>
+              <p class="small" id="request-ref-hint" style="margin: 6px 0 0; color: var(--muted);">
+                Enter the @handle of an <strong>Established Member</strong> you've transacted with. They'll get a request to accept or decline.
+              </p>
+            </div>
+
+            <!-- Incoming: pending requests sent TO this user -->
+            <div id="incoming-refs-section" hidden>
+              <h4 style="margin: 0 0 8px; font-size: 14px; font-weight: 600;">Reference requests for you <span id="incoming-refs-count" class="small" style="color: var(--muted); font-weight: 400;"></span></h4>
+              <p class="small" style="margin: 0 0 8px; color: var(--muted);">
+                These collectors are asking you to vouch for them. Review their profile + listings before accepting.
+              </p>
+              <div id="incoming-refs-list" class="refs-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+          </div>
         </div>
 
         <!-- Tab: Saved listings -->
@@ -4889,6 +4934,9 @@
           $pendAboutRow.hidden = true;
         }
       }
+      // Refresh the references section (outgoing + incoming requests). This
+      // is fire-and-forget — the profile form is fully usable while it loads.
+      loadReferences().catch(err => console.warn("[refs] load failed:", err));
       // Reflect handle state in the UI — if NULL, the "Change handle" button
       // becomes a "Set handle" button (different copy, no retirement warning).
       const isInitialSet = !profile.handle;
@@ -5106,6 +5154,237 @@
       } catch (err) {
         console.error("[pending-name-cancel] failed:", err);
         alert("Could not cancel: " + (err.message || err));
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // References — request, respond, revoke. Max 5 active per seller.
+    // Backed by migration 019 (table + RPCs request_reference,
+    // respond_to_reference). See seller_references RLS for read rules.
+    // -----------------------------------------------------------------------
+    const $yourRefsList   = document.getElementById("your-refs-list");
+    const $yourRefsCount  = document.getElementById("your-refs-count");
+    const $yourRefsEmpty  = document.getElementById("your-refs-empty");
+    const $incomingRefsSection = document.getElementById("incoming-refs-section");
+    const $incomingRefsList    = document.getElementById("incoming-refs-list");
+    const $incomingRefsCount   = document.getElementById("incoming-refs-count");
+    const $requestRefHandle    = document.getElementById("request-ref-handle");
+    const $requestRefSubmitBtn = document.getElementById("request-ref-submit-btn");
+    const $requestRefHint      = document.getElementById("request-ref-hint");
+
+    function setRefHint(text, kind) {
+      $requestRefHint.textContent = text;
+      $requestRefHint.style.color = kind === "ok"  ? "var(--green)"
+                                  : kind === "err" ? "#8a1f1a"
+                                  : "var(--muted)";
+    }
+
+    async function loadReferences() {
+      if (!currentUserId) return;
+
+      // Two parallel queries:
+      //   1) Outgoing — references this user has requested (any status), with
+      //      the referenced user's profile so we can show their handle + name.
+      //   2) Incoming — pending requests where this user is the reference,
+      //      with the seller's profile + listing count for the preview snippet.
+      const [outgoingResp, incomingResp] = await Promise.all([
+        supabase
+          .from("seller_references")
+          .select(`
+            id, status, requested_at, responded_at,
+            reference:profiles!seller_references_reference_user_id_fkey
+              ( user_id, display_name, handle, is_trusted, account_status )
+          `)
+          .eq("seller_user_id", currentUserId)
+          .order("requested_at", { ascending: false }),
+        supabase
+          .from("seller_references")
+          .select(`
+            id, status, requested_at,
+            seller:profiles!seller_references_seller_user_id_fkey
+              ( user_id, display_name, handle, location, is_trusted, account_status, created_at )
+          `)
+          .eq("reference_user_id", currentUserId)
+          .eq("status", "pending")
+          .order("requested_at", { ascending: false }),
+      ]);
+
+      if (outgoingResp.error) {
+        console.warn("[refs] outgoing load failed:", outgoingResp.error);
+      }
+      if (incomingResp.error) {
+        console.warn("[refs] incoming load failed:", incomingResp.error);
+      }
+
+      const outgoing = outgoingResp.data || [];
+      const incoming = incomingResp.data || [];
+
+      // ---- Outgoing list ----
+      const activeCount = outgoing.filter(r => r.status === "pending" || r.status === "accepted").length;
+      $yourRefsCount.textContent = `(${activeCount} / 5)`;
+      $yourRefsList.innerHTML = "";
+      if (outgoing.length === 0) {
+        $yourRefsEmpty.hidden = false;
+      } else {
+        $yourRefsEmpty.hidden = true;
+        const frag = document.createDocumentFragment();
+        for (const r of outgoing) frag.appendChild(renderOutgoingRefRow(r));
+        $yourRefsList.appendChild(frag);
+      }
+
+      // Disable the request submit when at cap.
+      const atCap = activeCount >= 5;
+      $requestRefSubmitBtn.disabled = atCap;
+      if (atCap) {
+        setRefHint("You're at the 5-reference cap. Revoke one above before adding another.", "err");
+      } else {
+        setRefHint("Enter the @handle of an Established Member you've transacted with. They'll get a request to accept or decline.", "");
+      }
+
+      // ---- Incoming list ----
+      if (incoming.length === 0) {
+        $incomingRefsSection.hidden = true;
+      } else {
+        $incomingRefsSection.hidden = false;
+        $incomingRefsCount.textContent = `(${incoming.length})`;
+        $incomingRefsList.innerHTML = "";
+        // Fetch listing counts for each requester so the preview snippet shows it.
+        const counts = await Promise.all(incoming.map(r =>
+          supabase.from("listings")
+            .select("listing_id", { count: "exact", head: true })
+            .eq("seller_id", r.seller.user_id)
+            .eq("moderation_status", "approved")
+            .then(resp => resp.count || 0)
+        ));
+        const frag = document.createDocumentFragment();
+        incoming.forEach((r, i) => frag.appendChild(renderIncomingRefRow(r, counts[i])));
+        $incomingRefsList.appendChild(frag);
+      }
+    }
+
+    function renderOutgoingRefRow(r) {
+      const p = r.reference || {};
+      const row = document.createElement("div");
+      row.dataset.refId = r.id;
+      row.style.cssText = "display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; background:#fff; border:1px solid var(--card-line); border-radius:6px; flex-wrap:wrap;";
+      let statusBadge;
+      let statusColor;
+      let actionLabel = "Revoke";
+      if (r.status === "accepted") {
+        statusBadge = "✓ Accepted";
+        statusColor = "var(--green)";
+      } else if (r.status === "pending") {
+        statusBadge = "⏳ Pending response";
+        statusColor = "#5a4400";
+      } else { // rejected
+        statusBadge = "✗ Rejected";
+        statusColor = "#8a1f1a";
+        actionLabel = "Remove";
+      }
+      // Inactive warning when accepted but reference is no longer trusted/active.
+      const stillValid = r.status !== "accepted" || (p.is_trusted && p.account_status === "active");
+      const inactiveNote = (r.status === "accepted" && !stillValid)
+        ? `<span style="color:#8a1f1a; font-size:12px; margin-left:6px;">(currently hidden from public — referrer is no longer Established or active)</span>`
+        : "";
+      row.innerHTML = `
+        <div style="min-width:0; flex:1;">
+          <a href="/seller?handle=${encodeURIComponent(p.handle || "")}" target="_blank" rel="noopener"
+             style="font-weight:600; color:var(--fg); text-decoration:none;">
+            ${escapeHtml(p.display_name || "(unknown)")}
+            <span style="font-weight:400; color:var(--muted); font-size:13px;">@${escapeHtml(p.handle || "")}</span>
+          </a>
+          <div class="small" style="margin-top:2px;">
+            <span style="color:${statusColor}; font-weight:600;">${statusBadge}</span>
+            ${inactiveNote}
+          </div>
+        </div>
+        <button type="button" class="btn-secondary" data-action="revoke-ref">${actionLabel}</button>
+      `;
+      row.querySelector("[data-action=revoke-ref]").addEventListener("click", () => revokeReference(r.id, p.display_name || `@${p.handle}`));
+      return row;
+    }
+
+    function renderIncomingRefRow(r, listingCount) {
+      const p = r.seller || {};
+      const row = document.createElement("div");
+      row.dataset.refId = r.id;
+      row.style.cssText = "padding:12px; background:#fff; border:1px solid var(--card-line); border-radius:6px;";
+      const joined = p.created_at
+        ? new Date(p.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long" })
+        : "—";
+      const establishedTag = p.is_trusted
+        ? `<span style="display:inline-flex; align-items:center; gap:4px; color:var(--green); font-weight:600; font-size:12px; margin-left:6px;">
+             <svg width="12" height="12" viewBox="0 0 16 16" style="flex-shrink:0;" aria-hidden="true">
+               <circle cx="8" cy="8" r="7" fill="#2a7a3e"/>
+               <path d="M5 8.5 L7 10.5 L11 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+             </svg>Established
+           </span>` : "";
+      row.innerHTML = `
+        <div style="margin-bottom:6px;">
+          <strong>${escapeHtml(p.display_name || "(unknown)")}</strong>
+          <span style="font-weight:400; color:var(--muted); font-size:13px;">@${escapeHtml(p.handle || "")}</span>
+          ${establishedTag}
+        </div>
+        <div class="small" style="color:var(--muted); margin-bottom:8px;">
+          ${p.location ? escapeHtml(p.location) + " · " : ""}Joined ${joined} · ${listingCount} listing${listingCount === 1 ? "" : "s"}
+          · <a href="/seller?handle=${encodeURIComponent(p.handle || "")}" target="_blank" rel="noopener" style="color:var(--accent);">View their seller page ↗</a>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn-primary"   data-action="accept-ref">Accept</button>
+          <button type="button" class="btn-secondary" data-action="reject-ref">Reject</button>
+        </div>
+      `;
+      row.querySelector("[data-action=accept-ref]").addEventListener("click", () => respondToReference(r.id, true, p.display_name || `@${p.handle}`));
+      row.querySelector("[data-action=reject-ref]").addEventListener("click", () => respondToReference(r.id, false, p.display_name || `@${p.handle}`));
+      return row;
+    }
+
+    async function revokeReference(id, label) {
+      if (!confirm(`Remove reference relationship with ${label}? They'll no longer appear on your profile (if accepted), or your pending request will be withdrawn.`)) return;
+      try {
+        const { error } = await supabase.from("seller_references").delete().eq("id", id);
+        if (error) throw error;
+        await loadReferences();
+      } catch (err) {
+        console.error("[revoke-ref] failed:", err);
+        alert("Could not remove: " + (err.message || err));
+      }
+    }
+
+    async function respondToReference(id, accept, label) {
+      const action = accept ? "Accept" : "Reject";
+      if (!confirm(`${action} ${label}'s request to list you as a reference?`)) return;
+      try {
+        const { error } = await supabase.rpc("respond_to_reference", { p_id: id, p_accept: accept });
+        if (error) throw error;
+        await loadReferences();
+      } catch (err) {
+        console.error("[respond-ref] failed:", err);
+        alert("Could not respond: " + (err.message || err));
+      }
+    }
+
+    $requestRefSubmitBtn?.addEventListener("click", async () => {
+      const raw = ($requestRefHandle.value || "").trim().replace(/^@+/, "");
+      if (!raw) {
+        setRefHint("Enter the @handle of the Established Member you want to request from.", "err");
+        return;
+      }
+      $requestRefSubmitBtn.disabled = true;
+      $requestRefSubmitBtn.textContent = "Sending…";
+      try {
+        const { error } = await supabase.rpc("request_reference", { p_target_handle: raw });
+        if (error) throw error;
+        setRefHint(`Request sent to @${raw}. They'll see it next time they're in their portal.`, "ok");
+        $requestRefHandle.value = "";
+        await loadReferences();
+      } catch (err) {
+        console.error("[request-ref] failed:", err);
+        // err.message comes from the RPC's RAISE EXCEPTION — readable for the user.
+        setRefHint(err.message || "Could not send request.", "err");
+      } finally {
+        $requestRefSubmitBtn.disabled = false;
+        $requestRefSubmitBtn.textContent = "Send request";
       }
     });
 

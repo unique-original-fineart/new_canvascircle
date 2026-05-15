@@ -500,6 +500,46 @@
       // is the auth state we computed up top, before issuing the query.)
       render(data, userSaves, signedIn);
       logListingView(data);
+
+      // References are part of the seller block, which is signed-in only —
+      // skip the extra query for anon viewers entirely.
+      if (signedIn && data.seller_id) {
+        loadAndRenderReferences(data.seller_id);
+      }
+    }
+
+    async function loadAndRenderReferences(sellerUserId) {
+      const { data: refs, error } = await supabase
+        .from("seller_references")
+        .select(`
+          id,
+          reference:profiles!seller_references_reference_user_id_fkey
+            ( display_name, handle, is_trusted, account_status )
+        `)
+        .eq("seller_user_id", sellerUserId)
+        .eq("status", "accepted");
+      if (error) {
+        console.warn("[refs] load failed:", error);
+        return;
+      }
+      const valid = (refs || [])
+        .filter(r => r.reference && r.reference.is_trusted && r.reference.account_status === "active");
+      const $anchor = document.querySelector(".seller-block .seller-actions");
+      if (!$anchor) return;
+      // Inject a small references line right above the action buttons. Each
+      // handle links to that seller's public page so a buyer can dig in.
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "margin: 6px 0 10px; font-size: 13px; color: var(--muted);";
+      if (valid.length === 0) {
+        // Render nothing if the seller has no public references.
+        return;
+      }
+      const links = valid.map(r => {
+        const p = r.reference;
+        return `<a href="/seller?handle=${encodeURIComponent(p.handle)}" style="color: var(--accent); text-decoration: none; font-weight: 600;">@${escapeHtml(p.handle)}</a>`;
+      }).join(", ");
+      wrap.innerHTML = `<strong style="color: var(--fg);">References:</strong> ${links} <span style="font-size: 12px;">— all are Established Members; reach out to ask about their experience.</span>`;
+      $anchor.parentNode.insertBefore(wrap, $anchor);
     }
 
     // Log a single view of this listing — fire-and-forget, never blocks the
