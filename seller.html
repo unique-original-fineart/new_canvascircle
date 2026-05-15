@@ -849,7 +849,30 @@
       }
     });
 
-    load();
+    // ---------------------------------------------------------------------
+    // Freshness watchdog — re-runs load() when the page is restored from
+    // bfcache or when the user returns to the tab/standalone-PWA after >20s
+    // of being hidden. Mirrors the same pattern in index.html, listing.html,
+    // and portal/index.html.
+    // ---------------------------------------------------------------------
+    let __lastLoadAt = 0;
+    let __loadInFlight = false;
+    async function refreshSellerPageIfStale(force) {
+      if (__loadInFlight) return;
+      const ageMs = Date.now() - __lastLoadAt;
+      if (!force && ageMs < 20000) return;
+      __loadInFlight = true;
+      try { await load(); __lastLoadAt = Date.now(); }
+      finally { __loadInFlight = false; }
+    }
+    window.addEventListener("pageshow", (e) => {
+      if (e.persisted) refreshSellerPageIfStale(true);
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") refreshSellerPageIfStale(false);
+    });
+
+    (async () => { await load(); __lastLoadAt = Date.now(); })();
   </script>
 </body>
 </html>

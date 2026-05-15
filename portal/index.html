@@ -6653,6 +6653,44 @@
         showView("signin");
       }
     })();
+
+    // ---------------------------------------------------------------------
+    // Freshness watchdog — re-runs the currently active dashboard tab when
+    // the portal is restored from bfcache or when the user returns to the
+    // tab/standalone-PWA after >20s of being hidden. Only fires when on the
+    // account dashboard (skips sign-in/recovery flows, and skips the
+    // new-listing / sales-post views so we don't nuke a half-filled form).
+    // Mirrors the same pattern in index.html, listing.html, and seller.html.
+    // ---------------------------------------------------------------------
+    let __lastPortalLoadAt = Date.now();
+    let __portalLoadInFlight = false;
+    async function refreshPortalIfStale(force) {
+      if (__portalLoadInFlight) return;
+      const accountView = document.querySelector('[data-view="account"]');
+      if (!accountView || accountView.hidden) return; // not on dashboard
+      const ageMs = Date.now() - __lastPortalLoadAt;
+      if (!force && ageMs < 20000) return;
+      __portalLoadInFlight = true;
+      try {
+        const activeTab = document.querySelector('.tab-btn.is-active')?.dataset.tab;
+        if (activeTab === "your-listings")        await refreshAccountView();
+        else if (activeTab === "saved-listings")  await loadSavedListings(true);
+        else if (activeTab === "profile")         await loadProfileForm();
+        else if (activeTab === "admin")           await loadAdminTab();
+        else                                       await refreshAccountView();
+        __lastPortalLoadAt = Date.now();
+      } catch (e) {
+        console.warn("[portal-watchdog] refresh failed:", e);
+      } finally {
+        __portalLoadInFlight = false;
+      }
+    }
+    window.addEventListener("pageshow", (e) => {
+      if (e.persisted) refreshPortalIfStale(true);
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") refreshPortalIfStale(false);
+    });
   </script>
 </body>
 </html>

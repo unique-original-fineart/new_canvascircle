@@ -913,7 +913,31 @@
       if (e.key === "Escape") $lightbox.classList.remove("open");
     });
 
-    loadListing();
+    // ---------------------------------------------------------------------
+    // Freshness watchdog — re-runs loadListing() when the page is restored
+    // from bfcache or when the user returns to the tab/standalone-PWA after
+    // >20s of being hidden. Without this, iOS / Android home-screen "app"
+    // mode can freeze the page in a stale state. Mirrors the same pattern
+    // in index.html, seller.html, and portal/index.html.
+    // ---------------------------------------------------------------------
+    let __lastLoadAt = 0;
+    let __loadInFlight = false;
+    async function refreshListingIfStale(force) {
+      if (__loadInFlight) return;
+      const ageMs = Date.now() - __lastLoadAt;
+      if (!force && ageMs < 20000) return;
+      __loadInFlight = true;
+      try { await loadListing(); __lastLoadAt = Date.now(); }
+      finally { __loadInFlight = false; }
+    }
+    window.addEventListener("pageshow", (e) => {
+      if (e.persisted) refreshListingIfStale(true);
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") refreshListingIfStale(false);
+    });
+
+    (async () => { await loadListing(); __lastLoadAt = Date.now(); })();
   </script>
 </body>
 </html>
