@@ -775,6 +775,11 @@
       border-radius: 10px;
       color: #1f5b32;
     }
+    /* Honor the `hidden` HTML attribute — without this rule, the
+       `display: flex` above would force-show the banner even when
+       JS toggled hidden=true. Attribute selector has higher
+       specificity than the class selector so this wins. */
+    .incoming-refs-banner[hidden] { display: none; }
     .incoming-refs-banner .irb-text { flex: 1; min-width: 0; }
     .incoming-refs-banner strong { font-size: 15px; font-weight: 700; display: block; }
     .incoming-refs-banner .small { font-size: 13px; color: #2d6f43; margin-top: 2px; }
