@@ -1695,6 +1695,15 @@
               </p>
               <div id="incoming-refs-list" class="refs-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
             </div>
+
+            <!-- Vouching: people this user has accepted as a reference FOR -->
+            <div id="vouching-refs-section" hidden style="margin-top: 14px;">
+              <h4 style="margin: 0 0 8px; font-size: 14px; font-weight: 600;">People you're a reference for <span id="vouching-refs-count" class="small" style="color: var(--muted); font-weight: 400;"></span></h4>
+              <p class="small" style="margin: 0 0 8px; color: var(--muted);">
+                You've agreed to vouch for these collectors. They appear on your name when buyers check their references. You can revoke at any time.
+              </p>
+              <div id="vouching-refs-list" class="refs-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+            </div>
           </div>
         </div>
 
@@ -2306,7 +2315,7 @@
       // the version ever changes). The trigger handle_new_user() pulls these
       // from raw_user_meta_data into public.profiles.
       const tosAcceptedAt = new Date().toISOString();
-      const tosVersion    = "1.1";
+      const tosVersion    = "1.2";
       $signupBtn.disabled = true; $signupBtn.textContent = "Creating account…";
       try {
         // Check denylist BEFORE creating the auth user. Banned emails should
@@ -5168,6 +5177,9 @@
     const $incomingRefsSection = document.getElementById("incoming-refs-section");
     const $incomingRefsList    = document.getElementById("incoming-refs-list");
     const $incomingRefsCount   = document.getElementById("incoming-refs-count");
+    const $vouchingRefsSection = document.getElementById("vouching-refs-section");
+    const $vouchingRefsList    = document.getElementById("vouching-refs-list");
+    const $vouchingRefsCount   = document.getElementById("vouching-refs-count");
     const $requestRefHandle    = document.getElementById("request-ref-handle");
     const $requestRefSubmitBtn = document.getElementById("request-ref-submit-btn");
     const $requestRefHint      = document.getElementById("request-ref-hint");
@@ -5182,12 +5194,15 @@
     async function loadReferences() {
       if (!currentUserId) return;
 
-      // Two parallel queries:
+      // Three parallel queries:
       //   1) Outgoing — references this user has requested (any status), with
       //      the referenced user's profile so we can show their handle + name.
       //   2) Incoming — pending requests where this user is the reference,
       //      with the seller's profile + listing count for the preview snippet.
-      const [outgoingResp, incomingResp] = await Promise.all([
+      //   3) Vouching — accepted references where this user IS the reference;
+      //      they appear on the seller's profile vouching for them, and the
+      //      user can revoke at any time (no cap on this side).
+      const [outgoingResp, incomingResp, vouchingResp] = await Promise.all([
         supabase
           .from("seller_references")
           .select(`
@@ -5207,6 +5222,16 @@
           .eq("reference_user_id", currentUserId)
           .eq("status", "pending")
           .order("requested_at", { ascending: false }),
+        supabase
+          .from("seller_references")
+          .select(`
+            id, status, responded_at,
+            seller:profiles!seller_references_seller_user_id_fkey
+              ( user_id, display_name, handle, account_status )
+          `)
+          .eq("reference_user_id", currentUserId)
+          .eq("status", "accepted")
+          .order("responded_at", { ascending: false }),
       ]);
 
       if (outgoingResp.error) {
@@ -5215,9 +5240,13 @@
       if (incomingResp.error) {
         console.warn("[refs] incoming load failed:", incomingResp.error);
       }
+      if (vouchingResp.error) {
+        console.warn("[refs] vouching load failed:", vouchingResp.error);
+      }
 
       const outgoing = outgoingResp.data || [];
       const incoming = incomingResp.data || [];
+      const vouching = vouchingResp.data || [];
 
       // ---- Outgoing list ----
       const activeCount = outgoing.filter(r => r.status === "pending" || r.status === "accepted").length;
@@ -5260,6 +5289,43 @@
         incoming.forEach((r, i) => frag.appendChild(renderIncomingRefRow(r, counts[i])));
         $incomingRefsList.appendChild(frag);
       }
+
+      // ---- Vouching list (people this user has accepted as a reference for) ----
+      // No cap on this side — you can vouch for as many collectors as you want.
+      // Each row has a Revoke button (RLS allows either party to delete).
+      if (vouching.length === 0) {
+        $vouchingRefsSection.hidden = true;
+      } else {
+        $vouchingRefsSection.hidden = false;
+        $vouchingRefsCount.textContent = `(${vouching.length})`;
+        $vouchingRefsList.innerHTML = "";
+        const frag = document.createDocumentFragment();
+        for (const r of vouching) frag.appendChild(renderVouchingRefRow(r));
+        $vouchingRefsList.appendChild(frag);
+      }
+    }
+
+    function renderVouchingRefRow(r) {
+      const p = r.seller || {};
+      const row = document.createElement("div");
+      row.dataset.refId = r.id;
+      row.style.cssText = "display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; background:#fff; border:1px solid var(--card-line); border-radius:6px; flex-wrap:wrap;";
+      const inactiveNote = (p.account_status !== "active")
+        ? `<span style="color:#8a1f1a; font-size:12px; margin-left:6px;">(currently hidden from public — their account isn't active)</span>`
+        : "";
+      row.innerHTML = `
+        <div style="min-width:0; flex:1;">
+          <a href="/seller?handle=${encodeURIComponent(p.handle || "")}" target="_blank" rel="noopener"
+             style="font-weight:600; color:var(--fg); text-decoration:none;">
+            ${escapeHtml(p.display_name || "(unknown)")}
+            <span style="font-weight:400; color:var(--muted); font-size:13px;">@${escapeHtml(p.handle || "")}</span>
+          </a>
+          ${inactiveNote}
+        </div>
+        <button type="button" class="btn-secondary" data-action="revoke-vouch">Revoke</button>
+      `;
+      row.querySelector("[data-action=revoke-vouch]").addEventListener("click", () => revokeReference(r.id, p.display_name || `@${p.handle}`));
+      return row;
     }
 
     function renderOutgoingRefRow(r) {
