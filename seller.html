@@ -392,6 +392,18 @@
     import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
     import { showAuthPrompt } from "/lib/auth-prompt.js";
 
+    // withTimeout — see notes in index.html. Hard-fails any hung Supabase
+    // query so the page can't sit on a permanent loading state.
+    function withTimeout(promise, ms, label = "operation") {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error(`${label} timed out after ${ms}ms`)),
+          ms
+        )),
+      ]);
+    }
+
     // ----- DOM refs -----
     const $status            = document.getElementById("status");
     const $sellerHeader      = document.getElementById("seller-header");
@@ -440,12 +452,23 @@
       return (params.get("handle") || "").trim().replace(/^@+/, "");
     }
 
-    function showError(msg) {
-      $status.textContent = msg;
+    function showError(msg, retryFn) {
       $status.classList.add("error");
       $status.hidden = false;
       $sellerHeader.hidden = true;
       $content.hidden = true;
+      if (retryFn) {
+        $status.innerHTML = `${msg.replace(/Tap to retry\.?/i, "")} <a href="#" id="status-retry" style="text-decoration:underline; cursor:pointer;">Tap to retry.</a>`;
+        const $retry = document.getElementById("status-retry");
+        if ($retry) $retry.addEventListener("click", (e) => {
+          e.preventDefault();
+          $status.classList.remove("error");
+          $status.textContent = "Loading…";
+          retryFn();
+        });
+      } else {
+        $status.textContent = msg;
+      }
     }
 
     // Update <title>, OG, and meta tags now that we know the seller.
@@ -516,11 +539,20 @@
       const profileCols = viewerSignedIn
         ? "user_id, display_name, handle, location, facebook_profile_url, contact_email, account_status, created_at, is_trusted, about_text"
         : "user_id, display_name, handle, account_status, created_at, is_trusted, about_text";
-      const { data: profileRows, error: profileErr } = await supabase
-        .from("profiles")
-        .select(profileCols)
-        .ilike("handle", handle)
-        .limit(1);
+      let profileRows, profileErr;
+      try {
+        const resp = await withTimeout(
+          supabase.from("profiles").select(profileCols).ilike("handle", handle).limit(1),
+          12000,
+          "seller profile query"
+        );
+        profileRows = resp.data;
+        profileErr  = resp.error;
+      } catch (err) {
+        console.error("[seller] profile lookup timed out:", err);
+        showError("Could not load this seller. Tap to retry.", () => load());
+        return;
+      }
       if (profileErr) {
         console.error("[seller] profile lookup failed:", profileErr);
         showError("Could not load this seller. Please try again later.");

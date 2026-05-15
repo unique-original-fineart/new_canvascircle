@@ -295,6 +295,18 @@
     import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
     import { showAuthPrompt } from "/lib/auth-prompt.js";
 
+    // withTimeout — see notes in index.html. Hard-fails any hung Supabase
+    // query so the loading state can't sit indefinitely.
+    function withTimeout(promise, ms, label = "operation") {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error(`${label} timed out after ${ms}ms`)),
+          ms
+        )),
+      ]);
+    }
+
     const $status   = document.getElementById("status");
     const $content  = document.getElementById("content");
     const $lightbox = document.getElementById("lightbox");
@@ -481,24 +493,43 @@
         ? "display_name, handle, location, facebook_profile_url, contact_email, account_status, is_trusted, about_text"
         : "display_name, handle, account_status";
 
-      const [listingResp, savesResp] = await Promise.all([
-        supabase
-          .from("listings")
-          .select(`
-            listing_id, listing_type,
-            artist_name, artwork_title, artwork_category, medium, year_created,
-            height_in, width_in, depth_in, framed_size, condition_notes, provenance, description,
-            asking_price_usd, previous_price_usd, price_updated_at,
-            budget_min_usd, budget_max_usd,
-            shipping_offered, coa_included, status, moderation_status,
-            seller_mood, last_renewed_at, created_at, seller_id, save_count,
-            listing_images ( storage_path, position ),
-            profiles!listings_seller_id_fkey ( ${profileCols} )
-          `)
-          .eq("listing_id", id)
-          .maybeSingle(),
-        getCurrentUserSaves(),
-      ]);
+      let listingResp, savesResp;
+      try {
+        [listingResp, savesResp] = await withTimeout(
+          Promise.all([
+            supabase
+              .from("listings")
+              .select(`
+                listing_id, listing_type,
+                artist_name, artwork_title, artwork_category, medium, year_created,
+                height_in, width_in, depth_in, framed_size, condition_notes, provenance, description,
+                asking_price_usd, previous_price_usd, price_updated_at,
+                budget_min_usd, budget_max_usd,
+                shipping_offered, coa_included, status, moderation_status,
+                seller_mood, last_renewed_at, created_at, seller_id, save_count,
+                listing_images ( storage_path, position ),
+                profiles!listings_seller_id_fkey ( ${profileCols} )
+              `)
+              .eq("listing_id", id)
+              .maybeSingle(),
+            getCurrentUserSaves().catch(() => null),
+          ]),
+          12000,
+          "listing query"
+        );
+      } catch (err) {
+        console.error("[loadListing] failed:", err);
+        $status.innerHTML = 'Could not load this listing. <a href="#" id="status-retry" style="text-decoration:underline; cursor:pointer;">Tap to retry.</a>';
+        $status.classList.add("error");
+        const $retry = document.getElementById("status-retry");
+        if ($retry) $retry.addEventListener("click", (e) => {
+          e.preventDefault();
+          $status.classList.remove("error");
+          $status.textContent = "Loading listing…";
+          loadListing();
+        });
+        return;
+      }
       const userSaves = savesResp; // Set or null
       const { data, error } = listingResp;
 

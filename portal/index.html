@@ -2061,6 +2061,24 @@
     import { supabase, currentProfile, publicImageUrl, compressImage } from "/lib/supabase.js";
     import { getSavedListings, toggleSave, clearSavesCache } from "/lib/saves.js";
 
+    // ---------------------------------------------------------------------
+    // withTimeout — race any promise against a hard timeout so a hung
+    // Supabase query can't leave the dashboard sitting on a loading
+    // spinner forever. On timeout the wrapped promise rejects and the
+    // owning loader's catch path shows a friendly error with a retry
+    // button. The freshness watchdog also auto-retries on every
+    // visibility change, so users get self-healing pages.
+    // ---------------------------------------------------------------------
+    function withTimeout(promise, ms, label = "operation") {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error(`${label} timed out after ${ms}ms`)),
+          ms
+        )),
+      ]);
+    }
+
     // -----------------------------------------------------------------------
     // View switching
     // -----------------------------------------------------------------------
@@ -2473,10 +2491,24 @@
     const $signoutBtn = document.getElementById("signout-btn");
 
     async function refreshAccountView() {
-      const { data: { session } } = await supabase.auth.getSession();
+      let session, profile;
+      try {
+        const sessResp = await withTimeout(supabase.auth.getSession(), 5000, "session lookup");
+        session = sessResp?.data?.session;
+      } catch (e) {
+        console.warn("[refreshAccountView] getSession timed out:", e);
+        return;
+      }
       if (!session?.user) return;
       $whoEmail.textContent = session.user.email || "";
-      const profile = await currentProfile();
+      try {
+        profile = await withTimeout(currentProfile(), 10000, "profile query");
+      } catch (e) {
+        console.warn("[refreshAccountView] profile query timed out:", e);
+        // Show what we can (email is already filled in); skip the rest so
+        // we don't block the rest of the page from loading.
+        return;
+      }
       currentProfileCached = profile;          // cache for trust check on save
       $whoName.textContent = profile?.display_name || "Welcome";
       // Reveal Admin tab if this user is admin.
@@ -3570,21 +3602,42 @@
       dirtyIds.clear();
       refreshSaveAllBar();
 
-      const { data, error } = await supabase
-        .from("listings")
-        .select(`
-          listing_id, listing_type, seller_id, artist_name, artwork_title, artwork_category,
-          medium, height_in, width_in, depth_in, framed_size, description,
-          asking_price_usd, previous_price_usd, price_updated_at,
-          budget_min_usd, budget_max_usd,
-          shipping_offered, coa_included, status, moderation_status,
-          moderation_reason, moderation_reason_at,
-          seller_mood, last_renewed_at, created_at,
-          save_count, view_count,
-          listing_images ( storage_path, position )
-        `)
-        .eq("seller_id", userId)
-        .order("created_at", { ascending: false });
+      let data, error;
+      try {
+        const resp = await withTimeout(
+          supabase
+            .from("listings")
+            .select(`
+              listing_id, listing_type, seller_id, artist_name, artwork_title, artwork_category,
+              medium, height_in, width_in, depth_in, framed_size, description,
+              asking_price_usd, previous_price_usd, price_updated_at,
+              budget_min_usd, budget_max_usd,
+              shipping_offered, coa_included, status, moderation_status,
+              moderation_reason, moderation_reason_at,
+              seller_mood, last_renewed_at, created_at,
+              save_count, view_count,
+              listing_images ( storage_path, position )
+            `)
+            .eq("seller_id", userId)
+            .order("created_at", { ascending: false }),
+          12000,
+          "dashboard listings query"
+        );
+        data  = resp.data;
+        error = resp.error;
+      } catch (err) {
+        console.error("[dashboard] listings load timed out", err);
+        $listingsLoading.hidden = true;
+        $listingsError.innerHTML = 'Could not load your listings. <a href="#" id="dash-retry" style="text-decoration:underline; cursor:pointer;">Tap to retry.</a>';
+        $listingsError.hidden = false;
+        const $retry = document.getElementById("dash-retry");
+        if ($retry) $retry.addEventListener("click", (e) => {
+          e.preventDefault();
+          $listingsError.hidden = true;
+          loadDashboardListings(userId);
+        });
+        return;
+      }
 
       $listingsLoading.hidden = true;
 
@@ -3773,7 +3826,16 @@
 
     async function loadAdminTab() {
       $adminBanner.hidden = true;
-      await Promise.all([loadModerationQueue(), loadReports(), loadSellers(), loadAllListings(), loadExpiring()]);
+      try {
+        await withTimeout(
+          Promise.all([loadModerationQueue(), loadReports(), loadSellers(), loadAllListings(), loadExpiring()]),
+          15000,
+          "admin tab load"
+        );
+      } catch (err) {
+        console.warn("[admin] load timed out:", err);
+        setAdminBanner("Some admin panels didn't finish loading. Tap the Admin tab again to retry.", "error");
+      }
     }
 
     // -----------------------------------------------------------------------
@@ -4904,7 +4966,21 @@
     $profAbout?.addEventListener("input", updateAboutCount);
 
     async function loadProfileForm() {
-      const profile = await currentProfile();
+      let profile;
+      try {
+        profile = await withTimeout(currentProfile(), 12000, "profile query");
+      } catch (err) {
+        console.warn("[profile] load timed out:", err);
+        $profStatus.innerHTML = 'Could not load your profile. <a href="#" id="prof-retry" style="text-decoration:underline; cursor:pointer;">Tap to retry.</a>';
+        $profStatus.className = "sp-text-status sp-text-error";
+        const $retry = document.getElementById("prof-retry");
+        if ($retry) $retry.addEventListener("click", (e) => {
+          e.preventDefault();
+          $profStatus.textContent = "";
+          loadProfileForm();
+        });
+        return;
+      }
       if (!profile) return;
       profileSnapshot = {
         display_name:         profile.display_name         || "",
@@ -5751,7 +5827,21 @@
       $savedGrid.hidden    = true;
       $savedGrid.innerHTML = "";
 
-      const items = await getSavedListings();
+      let items;
+      try {
+        items = await withTimeout(getSavedListings(), 12000, "saved listings query");
+      } catch (err) {
+        console.warn("[saved] load timed out:", err);
+        $savedLoading.hidden = true;
+        $savedEmpty.hidden = false;
+        $savedEmpty.innerHTML = 'Could not load your saved listings. <a href="#" id="saved-retry" style="text-decoration:underline; cursor:pointer;">Tap to retry.</a>';
+        const $retry = document.getElementById("saved-retry");
+        if ($retry) $retry.addEventListener("click", (e) => {
+          e.preventDefault();
+          loadSavedListings(true);
+        });
+        return;
+      }
       savedListingsCache = items;
       rerenderSavedListings(items);
     }

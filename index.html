@@ -510,6 +510,24 @@
     import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
     import { showAuthPrompt } from "/lib/auth-prompt.js";
 
+    // ---------------------------------------------------------------------
+    // withTimeout — race any promise against a hard timeout so a hung query
+    // can't leave a "Loading..." indicator on screen forever. On timeout,
+    // the wrapped promise rejects with a labeled Error and our normal
+    // catch/error UI takes over. Combined with the freshness watchdog at
+    // the bottom of this script, users get self-healing pages: if a load
+    // times out, the next visibility-change tick retries silently.
+    // ---------------------------------------------------------------------
+    function withTimeout(promise, ms, label = "operation") {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error(`${label} timed out after ${ms}ms`)),
+          ms
+        )),
+      ]);
+    }
+
     const $status   = document.getElementById("status");
     const $grid     = document.getElementById("grid");
     const $empty    = document.getElementById("empty");
@@ -835,7 +853,11 @@
       $grid.hidden  = true;
       isFetching = true;
       try {
-        const { data, count, error } = await buildCatalogQuery(currentFilters).range(0, PAGE_SIZE - 1);
+        const { data, count, error } = await withTimeout(
+          buildCatalogQuery(currentFilters).range(0, PAGE_SIZE - 1),
+          12000,
+          "catalog query"
+        );
         if (error) throw error;
         listings    = data || [];
         loadedCount = listings.length;
@@ -846,9 +868,16 @@
         updateStatsBar();
       } catch (err) {
         console.error("[applyFilters] failed:", err);
-        $status.textContent = "Could not load the catalog. Please try again later.";
+        $status.innerHTML = 'Could not load the catalog. <a href="#" id="status-retry" style="text-decoration:underline; cursor:pointer;">Tap to retry.</a>';
         $status.classList.add("error");
         $status.hidden = false;
+        const $retry = document.getElementById("status-retry");
+        if ($retry) $retry.addEventListener("click", (e) => {
+          e.preventDefault();
+          $status.classList.remove("error");
+          $status.textContent = "Loading catalog…";
+          applyFilters();
+        });
       } finally {
         isFetching = false;
       }
