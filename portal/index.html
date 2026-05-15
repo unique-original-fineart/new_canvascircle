@@ -764,7 +764,7 @@
     .status-banner.banned    { background: #fef6f5; border: 1px solid #f1c4be; color: #8a1f1a; }
 
     /* Suspend / Ban / Reinstate buttons in admin Sellers list */
-    .seller-row .seller-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .seller-row .seller-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
     .seller-row .seller-actions button {
       padding: 6px 11px; border-radius: 7px;
       font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
@@ -776,6 +776,23 @@
     .seller-row .btn-reinstate { border: 1px solid #a8d9b8; background: #d6efdf; color: #1f5b32; }
     .seller-row .btn-reinstate:hover { background: #c0e3cb; }
     .seller-row .seller-actions button:disabled { opacity: .55; cursor: not-allowed; }
+    /* "Manage" disclosure that gates the destructive actions (Suspend, Ban,
+       Reinstate). Default-closed so admins can't accidentally tap a
+       destructive button when intending to email a seller. */
+    .seller-row .btn-manage { border: 1px solid var(--card-line); background: #fff; color: var(--muted); }
+    .seller-row .btn-manage:hover { background: #faf9f6; color: var(--fg); }
+    .seller-row .btn-manage.open { background: #f3f1ea; color: var(--fg); border-color: #d8d2c4; }
+    .seller-row .seller-manage-panel {
+      display: none;
+      flex-basis: 100%;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--card-line);
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .seller-row .seller-manage-panel.open { display: flex; }
 
     /* ------ Tab strip ------ */
     .tab-strip {
@@ -4172,27 +4189,36 @@
         statusPill = ` <span class="pill" style="background:#fef6f5;color:#8a1f1a;border-color:#e8b3ad;">banned</span>`;
       }
 
-      // Action buttons. Don't offer Suspend/Ban for admins (would lock yourself out).
+      // Email button is always-visible (safe action). Destructive actions
+      // (Suspend / Ban / Reinstate) live in a default-collapsed Manage panel
+      // so a stray tap can't trigger them.
       let actionButtons = "";
       if (profile.contact_email) {
         actionButtons += `<button type="button" class="btn-suspend" data-action="email" title="Email this seller via Resend">Email</button>`;
       }
+
+      // Build the destructive-actions strip that lives inside the Manage panel.
+      // Don't offer Suspend/Ban for admins (would lock yourself out).
+      let manageActions = "";
       if (!profile.is_admin) {
         if (status === "active") {
-          actionButtons += `
+          manageActions = `
             <button type="button" class="btn-suspend" data-action="suspend">Suspend</button>
             <button type="button" class="btn-ban"     data-action="ban">Ban</button>
           `;
         } else if (status === "suspended") {
-          actionButtons += `
+          manageActions = `
             <button type="button" class="btn-reinstate" data-action="reinstate">Reinstate</button>
             <button type="button" class="btn-ban"       data-action="ban">Ban</button>
           `;
         } else if (status === "banned") {
-          actionButtons += `
+          manageActions = `
             <button type="button" class="btn-reinstate" data-action="reinstate">Reinstate</button>
           `;
         }
+      }
+      if (manageActions) {
+        actionButtons += `<button type="button" class="btn-manage" data-action="toggle-manage" aria-expanded="false">Manage ▾</button>`;
       }
 
       // Pending name-change banner — only shown if seller has requested one.
@@ -4257,6 +4283,7 @@
           </label>
           <div class="seller-actions">
             ${actionButtons}
+            ${manageActions ? `<div class="seller-manage-panel">${manageActions}</div>` : ""}
           </div>
         </div>
       `;
@@ -4266,6 +4293,17 @@
       row.querySelector("[data-action=suspend]")?.addEventListener("click",      () => suspendSeller(profile));
       row.querySelector("[data-action=ban]")?.addEventListener("click",          () => banSeller(profile));
       row.querySelector("[data-action=reinstate]")?.addEventListener("click",    () => reinstateSeller(profile));
+      // Manage disclosure — toggle the destructive-actions panel open/closed.
+      const $manageBtn   = row.querySelector("[data-action=toggle-manage]");
+      const $managePanel = row.querySelector(".seller-manage-panel");
+      if ($manageBtn && $managePanel) {
+        $manageBtn.addEventListener("click", () => {
+          const isOpen = $managePanel.classList.toggle("open");
+          $manageBtn.classList.toggle("open", isOpen);
+          $manageBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+          $manageBtn.textContent = isOpen ? "Manage ▴" : "Manage ▾";
+        });
+      }
       row.querySelector("[data-action=approve-name]")?.addEventListener("click", () => approveNameChange(profile, row, listingCount));
       row.querySelector("[data-action=reject-name]")?.addEventListener("click",  () => rejectNameChange(profile, row, listingCount));
       row.querySelector("[data-action=approve-about]")?.addEventListener("click", () => approveAboutChange(profile, row, listingCount));
