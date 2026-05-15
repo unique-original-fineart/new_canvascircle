@@ -2494,6 +2494,17 @@
             "If you believe this is a mistake, contact admin@canvascircle.art."
           );
         }
+        // Bake the return-trail directly into the confirmation-email redirect
+        // URL. localStorage isn't reliable across the email round-trip — the
+        // email link can open in a different browser context (different tab,
+        // sometimes a separate storage realm on iOS PWAs) that can't see the
+        // breadcrumb we stashed. Putting `returnTo` in the URL itself makes
+        // the post-confirmation "Continue to X" banner work regardless.
+        const __trail = readReturnTrail();
+        let __emailRedirectTo = window.location.origin + "/portal/";
+        if (__trail && __trail.url) {
+          __emailRedirectTo += "?returnTo=" + encodeURIComponent(__trail.url);
+        }
         const { data, error } = await supabase.auth.signUp({
           email, password,
           options: {
@@ -2503,7 +2514,7 @@
               tos_accepted_at: tosAcceptedAt,
               tos_version: tosVersion,
             },
-            emailRedirectTo: window.location.origin + "/portal/",
+            emailRedirectTo: __emailRedirectTo,
           },
         });
         if (error) throw error;
