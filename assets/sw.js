@@ -9,7 +9,8 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
-const CACHE_VERSION = 'cc-v1';
+const CACHE_VERSION = 'cc-v2';
+const HTML_NETWORK_TIMEOUT_MS = 2500;
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -58,17 +59,38 @@ self.addEventListener('fetch', (event) => {
   const isHtml = req.mode === 'navigate' || accept.includes('text/html');
 
   if (isHtml) {
-    // Network-first so the catalog is always fresh when online; fall back to
-    // the most recently cached copy if the network fails.
-    event.respondWith(
-      fetch(req)
+    // Network-first with timeout fallback. On a fast connection the network
+    // response wins and the user gets fresh HTML. On a slow/flaky connection
+    // (common on mobile cell signal), we serve the cached HTML after
+    // HTML_NETWORK_TIMEOUT_MS so the page paints immediately — the network
+    // fetch keeps running in the background to refresh the cache for next
+    // time. If the network ultimately fails AND there's no cache, fall back
+    // to the root '/' so the user at least sees the catalog shell.
+    event.respondWith((async () => {
+      const cached = await caches.match(req);
+      const networkPromise = fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_VERSION).then((c) => c.put(req, copy)).catch(() => {});
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_VERSION).then((c) => c.put(req, copy)).catch(() => {});
+          }
           return res;
         })
-        .catch(() => caches.match(req).then((m) => m || caches.match('/')))
-    );
+        .catch(() => null);
+
+      if (cached) {
+        const timeoutPromise = new Promise((resolve) =>
+          setTimeout(() => resolve(null), HTML_NETWORK_TIMEOUT_MS)
+        );
+        const winner = await Promise.race([networkPromise, timeoutPromise]);
+        if (winner) return winner;
+        return cached;
+      }
+
+      const fresh = await networkPromise;
+      if (fresh) return fresh;
+      return (await caches.match('/')) || Response.error();
+    })());
     return;
   }
 
