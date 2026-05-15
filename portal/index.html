@@ -3832,20 +3832,24 @@
 
     // Incoming-refs banner "Review →" button: jump to Profile tab and scroll
     // the references section into view so the pending requests are right
-    // where the user lands.
-    document.getElementById("irb-review-btn")?.addEventListener("click", () => {
+    // where the user lands. We explicitly await loadReferences() before
+    // scrolling — activateTab kicks it off as fire-and-forget, but the
+    // Supabase queries take long enough that a fixed-delay scroll would
+    // run before #incoming-refs-section gets un-hidden, dumping the user
+    // at the bottom of the profile tab with no visible requests.
+    document.getElementById("irb-review-btn")?.addEventListener("click", async () => {
       activateTab("profile");
-      // activateTab triggers loadReferences which is async — give it a beat
-      // to populate before scrolling.
-      setTimeout(() => {
-        const $refs = document.getElementById("incoming-refs-section");
-        if ($refs && !$refs.hidden) {
-          $refs.scrollIntoView({ behavior: "smooth", block: "start" });
-        } else {
-          // Fallback: scroll to the refs section header even if it's empty
-          document.getElementById("refs-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }, 150);
+      try {
+        await loadReferences();
+      } catch (e) {
+        console.warn("[irb-review] loadReferences failed:", e);
+      }
+      const $refs = document.getElementById("incoming-refs-section");
+      if ($refs && !$refs.hidden) {
+        $refs.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        document.getElementById("refs-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     });
 
     // -----------------------------------------------------------------------
