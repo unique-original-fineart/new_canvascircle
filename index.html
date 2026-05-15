@@ -509,6 +509,12 @@
     import { supabase, publicImageUrl } from "/lib/supabase.js";
     import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
     import { showAuthPrompt } from "/lib/auth-prompt.js";
+    import { mountWelcomeBanner } from "/lib/welcome-banner.js";
+
+    // Fire-and-forget — the banner only renders for signed-in users with an
+    // active return-trail, and self-injects at the top of body. Safe no-op
+    // for everyone else.
+    mountWelcomeBanner();
 
     // ---------------------------------------------------------------------
     // withTimeout — race any promise against a hard timeout so a hung query

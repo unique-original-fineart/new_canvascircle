@@ -295,6 +295,11 @@
     import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
     import { showAuthPrompt } from "/lib/auth-prompt.js";
     import { armReturnTrail } from "/lib/return-trail.js";
+    import { mountWelcomeBanner } from "/lib/welcome-banner.js";
+
+    // See /lib/welcome-banner.js — renders the persistent "Continue to X"
+    // banner for newly-signed-up users who haven't dismissed it yet.
+    mountWelcomeBanner();
 
     // withTimeout — see notes in index.html. Hard-fails any hung Supabase
     // query so the loading state can't sit indefinitely.

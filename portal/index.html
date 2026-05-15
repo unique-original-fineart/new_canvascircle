@@ -785,37 +785,9 @@
     .incoming-refs-banner .small { font-size: 13px; color: #2d6f43; margin-top: 2px; }
     .incoming-refs-banner button { white-space: nowrap; }
 
-    /* Return-trail banner — shows post-signin when the user came from a
-       seller page or listing page. Same hidden-attribute treatment as the
-       refs banner to prevent CSS specificity from force-showing it. */
-    .return-trail-banner {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      margin: 4px 0 16px;
-      background: #faf6ec;
-      border: 1px solid #ecdfb8;
-      border-radius: 10px;
-      color: #5a4400;
-    }
-    .return-trail-banner[hidden] { display: none; }
-    .return-trail-banner .rtb-text { flex: 1; min-width: 0; }
-    .return-trail-banner strong { font-size: 15px; font-weight: 700; display: block; }
-    .return-trail-banner .small { font-size: 13px; color: #7a6020; margin-top: 2px; }
-    .return-trail-banner #rtb-label { font-weight: 600; color: #5a4400; }
-    .return-trail-banner button { white-space: nowrap; }
-    .return-trail-banner .rtb-dismiss {
-      background: none;
-      border: none;
-      color: #7a6020;
-      font-size: 22px;
-      line-height: 1;
-      padding: 4px 8px;
-      cursor: pointer;
-      border-radius: 6px;
-    }
-    .return-trail-banner .rtb-dismiss:hover { background: #f1e6c2; color: #5a4400; }
+    /* (Return-trail banner moved to /lib/welcome-banner.js — it's now a
+       site-wide sticky banner that lives across every page, not just the
+       portal. Triggered by /lib/return-trail.js breadcrumb.) */
 
     /* Profile details disclosure — collapses the rarely-edited profile form
        so the more-frequently-visited References section is visible by
@@ -1594,19 +1566,6 @@
         <!-- Account status banner (suspended / banned) -->
         <div id="account-status-banner" class="status-banner" hidden></div>
 
-        <!-- Return-trail banner — shows when a user just signed in / signed
-             up after coming from a seller page or listing page. Lets them
-             jump back to where they came from with one tap instead of
-             getting stranded on the generic dashboard. -->
-        <div id="return-trail-banner" class="return-trail-banner" hidden>
-          <div class="rtb-text">
-            <strong>Welcome to CanvasCircle!</strong>
-            <div class="small" id="rtb-detail">You were viewing <span id="rtb-label">something</span> before signing in.</div>
-          </div>
-          <button type="button" class="btn-primary" id="rtb-continue-btn">Continue →</button>
-          <button type="button" class="rtb-dismiss" id="rtb-dismiss-btn" aria-label="Dismiss">×</button>
-        </div>
-
         <!-- Incoming reference requests banner — shows on the dashboard the
              moment a signed-in user has pending requests waiting for their
              response. Stays visible across all tabs so they can't miss it. -->
@@ -2208,7 +2167,12 @@
   <script type="module">
     import { supabase, currentProfile, publicImageUrl, compressImage } from "/lib/supabase.js";
     import { getSavedListings, toggleSave, clearSavesCache } from "/lib/saves.js";
-    import { readReturnTrail, clearReturnTrail } from "/lib/return-trail.js";
+    import { readReturnTrail } from "/lib/return-trail.js";
+    import { mountWelcomeBanner } from "/lib/welcome-banner.js";
+
+    // Site-wide sticky "Continue to X" banner — see /lib/welcome-banner.js.
+    // Self-renders only when a signed-in user has an active trail.
+    mountWelcomeBanner();
 
     // ---------------------------------------------------------------------
     // withTimeout — race any promise against a hard timeout so a hung
@@ -2684,54 +2648,11 @@
       // Fire-and-forget the incoming-references count so the top-of-dashboard
       // banner surfaces pending requests the moment a user signs in.
       refreshIncomingRefsBanner(session.user.id);
-      // Check the return-trail breadcrumb — if the user came from a seller
-      // page or listing page before signing in, surface a "Continue to X"
-      // banner so they can get back with one tap.
-      refreshReturnTrailBanner();
+      // Re-mount the welcome banner — handles freshness-watchdog re-entry
+      // (e.g., after the user comes back to the PWA after a long pause).
+      mountWelcomeBanner();
       // For admins, fetch the moderation count once so the badge shows.
       if (profile?.is_admin) refreshModerationBadge();
-    }
-
-    // ----------------------------------------------------------------------
-    // Return-trail banner — shows up when a user has a stored breadcrumb
-    // pointing at a seller page or listing they were viewing before signing
-    // in. Two-source read (URL `?returnTo=` or localStorage) — see
-    // /lib/return-trail.js for the full mechanism.
-    // ----------------------------------------------------------------------
-    function refreshReturnTrailBanner() {
-      const $banner   = document.getElementById("return-trail-banner");
-      const $detail   = document.getElementById("rtb-detail");
-      const $continue = document.getElementById("rtb-continue-btn");
-      const $dismiss  = document.getElementById("rtb-dismiss-btn");
-      if (!$banner) return;
-
-      const trail = readReturnTrail();
-      if (!trail) {
-        $banner.hidden = true;
-        return;
-      }
-
-      // Friendly detail copy. If we have a label, show it in bold so the
-      // user recognizes where they were. Otherwise fall back to a generic
-      // "pick up where you left off" line.
-      if (trail.label && trail.label.trim()) {
-        $detail.innerHTML = `You were viewing <span style="font-weight:600; color:#5a4400;">${escapeHtml(trail.label)}</span> before signing in.`;
-      } else {
-        $detail.textContent = "You can pick up where you left off.";
-      }
-      $banner.hidden = false;
-
-      // .onclick assignment (not addEventListener) so re-shows from the
-      // freshness watchdog don't stack handlers.
-      $continue.onclick = () => {
-        clearReturnTrail();
-        $banner.hidden = true;
-        location.assign(trail.url);
-      };
-      $dismiss.onclick = () => {
-        clearReturnTrail();
-        $banner.hidden = true;
-      };
     }
 
     // ----------------------------------------------------------------------
