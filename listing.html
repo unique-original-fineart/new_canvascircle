@@ -437,6 +437,14 @@
       setMeta("og:url", window.location.href);
     }
 
+    // Auth-check timeout: on a cold PWA launch the network can be slow to
+    // become ready and supabase.auth.getUser() can hang for 10-30s. We refuse
+    // to block the listing render on that — anonymous viewers get a fully
+    // usable listing page (just without contact info). The real auth check
+    // keeps running in the background and re-renders when it resolves.
+    const AUTH_TIMEOUT_MS = 3500;
+    let __listingPatchedFromAuth = false;
+
     async function loadListing() {
       const id = getListingId();
       if (!id) {
@@ -450,8 +458,25 @@
       // the sensitive ones (location, facebook_profile_url, contact_email)
       // as anon would 403 the entire query. So build the column list
       // dynamically based on whether the viewer is signed in.
-      const { data: { user: viewer } } = await supabase.auth.getUser();
+      const authLive = supabase.auth.getUser()
+        .then(({ data }) => data?.user || null)
+        .catch(() => null);
+      const authTimer = new Promise((resolve) => setTimeout(() => resolve("__timeout__"), AUTH_TIMEOUT_MS));
+      const authRaced = await Promise.race([authLive, authTimer]);
+      const authTimedOut = (authRaced === "__timeout__");
+      const viewer = authTimedOut ? null : authRaced;
       const signedIn = !!viewer;
+
+      // If auth timed out but eventually does resolve with a real user,
+      // re-render once so contact info shows up.
+      if (authTimedOut && !__listingPatchedFromAuth) {
+        authLive.then((u) => {
+          if (u && !__listingPatchedFromAuth) {
+            __listingPatchedFromAuth = true;
+            loadListing();
+          }
+        }).catch(() => {});
+      }
       const profileCols = signedIn
         ? "display_name, handle, location, facebook_profile_url, contact_email, account_status, is_trusted, about_text"
         : "display_name, handle, account_status";

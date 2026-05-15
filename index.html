@@ -935,18 +935,41 @@
         : "No listings match your filters";
     }
 
+    // Auth-check timeout: on a cold PWA launch the network can be slow to
+    // become ready and supabase.auth.getUser() can hang for 10-30s while it
+    // tries to refresh the JWT. We refuse to block the catalog render on
+    // that — anonymous viewers get a fully usable catalog. The real auth
+    // check keeps running in the background and patches the UI in (seller
+    // filter + saved hearts) the moment it resolves.
+    const AUTH_TIMEOUT_MS = 3500;
+    let __catalogPatchedFromAuth = false;
+    function getViewerWithTimeout() {
+      const live = supabase.auth.getUser()
+        .then(({ data }) => data?.user || null)
+        .catch(() => null);
+      const timer = new Promise((resolve) => setTimeout(() => resolve("__timeout__"), AUTH_TIMEOUT_MS));
+      return { live, raced: Promise.race([live, timer]) };
+    }
+
     async function loadCatalog() {
-      userSavesSet = await getCurrentUserSaves();
       // Hide the seller filter dropdown for anonymous viewers — they can't
       // see seller names anywhere else on the public page, so showing them
       // here would contradict that.
-      const { data: { user: viewer } } = await supabase.auth.getUser();
-      if (!viewer) {
+      const { live: viewerLive, raced } = getViewerWithTimeout();
+      const viewerOrTimeout = await raced;
+      const viewer = (viewerOrTimeout === "__timeout__") ? null : viewerOrTimeout;
+      const authTimedOut = (viewerOrTimeout === "__timeout__");
+
+      if (viewer) {
+        $seller.hidden = false;
+        try { userSavesSet = await getCurrentUserSaves(); }
+        catch (e) { userSavesSet = null; }
+      } else {
         $seller.hidden = true;
         $seller.value = "";
-      } else {
-        $seller.hidden = false;
+        userSavesSet = null;
       }
+
       restoreFilterState(); // pull saved filters (incl. tab) from sessionStorage if present
       applyTabUiMode();
       await populateDropdowns();
@@ -958,6 +981,18 @@
         $status.textContent = currentTab === "iso"
           ? "No open buyer requests yet — check back soon."
           : "The catalog is empty right now — check back soon.";
+      }
+
+      // If auth timed out but eventually does resolve with a real user,
+      // quietly re-render so the seller filter + saved hearts show up.
+      // Guard with a flag so we only do this once per page load.
+      if (authTimedOut && !__catalogPatchedFromAuth) {
+        viewerLive.then((u) => {
+          if (u && !__catalogPatchedFromAuth) {
+            __catalogPatchedFromAuth = true;
+            loadCatalog();
+          }
+        }).catch(() => {});
       }
     }
 
