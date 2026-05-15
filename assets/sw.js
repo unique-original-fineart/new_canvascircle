@@ -9,8 +9,26 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
+// CACHE_VERSION is deliberately held at cc-v2 here even though the SW logic
+// changed (we now cache esm.sh too). Bumping would delete the user's HTML
+// cache, leaving the very next cold-start vulnerable. The new cross-origin
+// caching is purely additive, so the existing cache stays useful.
 const CACHE_VERSION = 'cc-v2';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
+
+// Cross-origin hostnames whose responses we cache aggressively. Their URLs
+// are version-pinned (e.g. esm.sh/@supabase/supabase-js@2) so the response
+// at a given URL never changes meaningfully. Caching them eliminates the
+// #1 cold-start hang: when iOS launches the PWA on weak cell signal, the
+// supabase-js library import would otherwise block ALL JavaScript on the
+// page until that network fetch completed. Cache-first means the second
+// (and every subsequent) cold start serves the library instantly.
+const CROSS_ORIGIN_CACHE_HOSTS = new Set([
+  'esm.sh',
+  'cdn.jsdelivr.net',
+  'cdnjs.cloudflare.com',
+  'unpkg.com',
+]);
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -20,17 +38,31 @@ const SHELL_ASSETS = [
   '/icons/apple-touch-icon.png',
 ];
 
+// Pre-cache the supabase-js library as part of install so it's available
+// the very next time any page tries to import it — even if the user is
+// offline at that moment. Without this, the first cold start after the
+// new SW activates can still hang on the esm.sh fetch (until that fetch
+// completes and gets cached on demand).
+const SUPABASE_LIB_URL = 'https://esm.sh/@supabase/supabase-js@2';
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then((cache) =>
       // Use {cache: 'reload'} so we don't re-cache the stale shell after a deploy.
-      Promise.all(
-        SHELL_ASSETS.map((url) =>
+      Promise.all([
+        ...SHELL_ASSETS.map((url) =>
           fetch(new Request(url, { cache: 'reload' }))
             .then((res) => (res.ok ? cache.put(url, res) : null))
             .catch(() => null)
-        )
-      )
+        ),
+        // Pre-fetch the supabase-js library (cross-origin, CORS) so it lands
+        // in the cache before any page tries to import it. Best-effort —
+        // never block install if this fails; the fetch handler will cache
+        // it on demand once the network is available.
+        fetch(SUPABASE_LIB_URL, { mode: 'cors' })
+          .then((res) => (res && res.ok ? cache.put(SUPABASE_LIB_URL, res) : null))
+          .catch(() => null),
+      ])
     )
   );
   self.skipWaiting();
@@ -51,9 +83,35 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-  // Only intercept same-origin requests; let cross-origin (Drive thumbnails, fonts)
+  const isSameOrigin       = (url.origin === self.location.origin);
+  const isCrossOriginCDN   = CROSS_ORIGIN_CACHE_HOSTS.has(url.hostname);
+
+  // For cross-origin URLs from our trusted CDN allowlist (esm.sh, etc.):
+  // cache-first, indefinitely. The URLs are version-pinned so the responses
+  // are effectively immutable. This is THE fix for cold-start hangs caused
+  // by the supabase-js library import blocking ALL JavaScript.
+  if (isCrossOriginCDN) {
+    event.respondWith(
+      caches.match(req).then((cached) => {
+        if (cached) return cached;
+        return fetch(req).then((res) => {
+          // esm.sh and friends return opaque-like responses depending on CORS
+          // headers; only cache `basic` and `cors` types. `opaque` responses
+          // can't be inspected for status, so caching them is risky.
+          if (res && (res.type === 'basic' || res.type === 'cors') && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_VERSION).then((c) => c.put(req, copy)).catch(() => {});
+          }
+          return res;
+        }).catch(() => Response.error());
+      })
+    );
+    return;
+  }
+
+  // Everything else cross-origin (Drive thumbnails, Supabase REST, fonts):
   // pass through to the network unmodified.
-  if (url.origin !== self.location.origin) return;
+  if (!isSameOrigin) return;
 
   const accept = req.headers.get('accept') || '';
   const isHtml = req.mode === 'navigate' || accept.includes('text/html');
