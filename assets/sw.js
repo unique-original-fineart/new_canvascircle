@@ -40,10 +40,16 @@ const SHELL_ASSETS = [
 
 // Pre-cache the supabase-js library as part of install so it's available
 // the very next time any page tries to import it — even if the user is
-// offline at that moment. Without this, the first cold start after the
-// new SW activates can still hang on the esm.sh fetch (until that fetch
-// completes and gets cached on demand).
-const SUPABASE_LIB_URL = 'https://esm.sh/@supabase/supabase-js@2';
+// offline at that moment.
+//
+// Note `?bundle` — without it, the top-level URL would resolve to a file
+// that imports a *cascade* of other esm.sh URLs (gotrue, postgrest,
+// realtime, etc.), and our pre-cache would only catch the top of that
+// tree. The bundled version inlines all transitive deps into a single
+// self-contained file, so caching this one URL gives us the entire
+// library offline-ready. This is the actual fix for the persistent
+// cold-start hangs on iOS PWA.
+const SUPABASE_LIB_URL = 'https://esm.sh/@supabase/supabase-js@2?bundle';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

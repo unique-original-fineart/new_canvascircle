@@ -763,6 +763,65 @@
     .status-banner.suspended { background: #fff4e2; border: 1px solid #f0d6a3; color: #5a4400; }
     .status-banner.banned    { background: #fef6f5; border: 1px solid #f1c4be; color: #8a1f1a; }
 
+    /* Incoming reference requests banner — top-of-dashboard, prominent. */
+    .incoming-refs-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      margin: 4px 0 16px;
+      background: #f0f6ed;
+      border: 1px solid #c2e0c4;
+      border-radius: 10px;
+      color: #1f5b32;
+    }
+    .incoming-refs-banner .irb-text { flex: 1; min-width: 0; }
+    .incoming-refs-banner strong { font-size: 15px; font-weight: 700; display: block; }
+    .incoming-refs-banner .small { font-size: 13px; color: #2d6f43; margin-top: 2px; }
+    .incoming-refs-banner button { white-space: nowrap; }
+
+    /* Profile details disclosure — collapses the rarely-edited profile form
+       so the more-frequently-visited References section is visible by
+       default when the user opens the Profile tab. */
+    .profile-disclosure {
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      background: #fff;
+      margin-bottom: 18px;
+    }
+    .profile-disclosure > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--fg);
+      border-radius: 8px;
+    }
+    .profile-disclosure > summary::-webkit-details-marker { display: none; }
+    .profile-disclosure > summary::after {
+      content: "▾";
+      font-size: 12px;
+      color: var(--muted);
+      transition: transform .15s ease;
+    }
+    .profile-disclosure[open] > summary::after { transform: rotate(180deg); }
+    .profile-disclosure > summary:hover { background: #faf9f6; }
+    .profile-disclosure > summary .pd-summary-sub {
+      font-weight: 400;
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: 8px;
+    }
+    .profile-disclosure > .pd-body {
+      padding: 6px 16px 16px;
+      border-top: 1px solid var(--card-line);
+    }
+
     /* Suspend / Ban / Reinstate buttons in admin Sellers list */
     .seller-row .seller-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
     .seller-row .seller-actions button {
@@ -1498,6 +1557,17 @@
         <!-- Account status banner (suspended / banned) -->
         <div id="account-status-banner" class="status-banner" hidden></div>
 
+        <!-- Incoming reference requests banner — shows on the dashboard the
+             moment a signed-in user has pending requests waiting for their
+             response. Stays visible across all tabs so they can't miss it. -->
+        <div id="incoming-refs-banner" class="incoming-refs-banner" hidden>
+          <div class="irb-text">
+            <strong id="irb-count-text">You have a new reference request</strong>
+            <div class="small" id="irb-detail-text">Someone has asked you to vouch for them. Review their profile before accepting.</div>
+          </div>
+          <button type="button" class="btn-primary" id="irb-review-btn">Review →</button>
+        </div>
+
         <!-- Tabs -->
         <div class="tab-strip" role="tablist">
           <button type="button" class="tab-btn is-active" data-tab="your-listings" role="tab">Your listings</button>
@@ -1559,7 +1629,16 @@
           <div class="dash-head">
             <h2>Your profile</h2>
           </div>
-          <p class="lede" style="margin-bottom: 14px;">
+
+          <!-- Profile details are collapsed by default — most fields rarely
+               change after initial setup, and the References section below is
+               the part Established Members actually visit often. -->
+          <details class="profile-disclosure" id="profile-disclosure">
+            <summary>
+              <span>Profile details <span class="pd-summary-sub">(name, handle, Facebook URL, email, About, location)</span></span>
+            </summary>
+            <div class="pd-body">
+          <p class="lede" style="margin-bottom: 14px; margin-top: 8px;">
             These details appear on every listing you post. The Facebook URL powers the "Message on Facebook" button; the email powers the "Email Seller" button. Buyers see your display name and location next to the price.
           </p>
           <form id="profile-form" autocomplete="off" onsubmit="return false;" style="display: grid; gap: 12px;">
@@ -1664,6 +1743,8 @@
               <span id="profile-status" class="sp-text-status"></span>
             </div>
           </form>
+            </div>
+          </details>
 
           <!-- ============================================================ -->
           <!-- References section — separate from the main edit form        -->
@@ -2538,8 +2619,51 @@
       await loadDashboardListings(session.user.id);
       // Fire-and-forget the saved-listings fetch so the badge count populates.
       loadSavedListings(true);
+      // Fire-and-forget the incoming-references count so the top-of-dashboard
+      // banner surfaces pending requests the moment a user signs in.
+      refreshIncomingRefsBanner(session.user.id);
       // For admins, fetch the moderation count once so the badge shows.
       if (profile?.is_admin) refreshModerationBadge();
+    }
+
+    // ----------------------------------------------------------------------
+    // Incoming references banner — quick count query + show/hide. Called by
+    // refreshAccountView (on initial dashboard load + watchdog re-entry) and
+    // also re-fired after a user accepts/declines a request so the count
+    // stays current without a full page reload.
+    // ----------------------------------------------------------------------
+    async function refreshIncomingRefsBanner(userId) {
+      const $banner = document.getElementById("incoming-refs-banner");
+      if (!$banner) return;
+      try {
+        const { count, error } = await withTimeout(
+          supabase
+            .from("seller_references")
+            .select("id", { count: "exact", head: true })
+            .eq("reference_user_id", userId)
+            .eq("status", "pending"),
+          8000,
+          "incoming refs count"
+        );
+        if (error) throw error;
+        const n = count || 0;
+        if (n <= 0) {
+          $banner.hidden = true;
+          return;
+        }
+        const $countText  = document.getElementById("irb-count-text");
+        const $detailText = document.getElementById("irb-detail-text");
+        $countText.textContent = n === 1
+          ? "You have 1 new reference request"
+          : `You have ${n} new reference requests`;
+        $detailText.textContent = n === 1
+          ? "Someone has asked you to vouch for them. Review their profile before accepting or declining."
+          : "Other collectors have asked you to vouch for them. Review their profiles before accepting or declining.";
+        $banner.hidden = false;
+      } catch (e) {
+        console.warn("[refreshIncomingRefsBanner] failed (non-fatal):", e);
+        $banner.hidden = true;
+      }
     }
 
     function renderAccountStatusBanner(profile) {
@@ -3705,6 +3829,24 @@
     // The "profile" link inside the saved-listings info note jumps to the
     // Profile tab so users can blank out their contact fields easily.
     document.getElementById("saved-note-profile-link")?.addEventListener("click", () => activateTab("profile"));
+
+    // Incoming-refs banner "Review →" button: jump to Profile tab and scroll
+    // the references section into view so the pending requests are right
+    // where the user lands.
+    document.getElementById("irb-review-btn")?.addEventListener("click", () => {
+      activateTab("profile");
+      // activateTab triggers loadReferences which is async — give it a beat
+      // to populate before scrolling.
+      setTimeout(() => {
+        const $refs = document.getElementById("incoming-refs-section");
+        if ($refs && !$refs.hidden) {
+          $refs.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          // Fallback: scroll to the refs section header even if it's empty
+          document.getElementById("refs-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 150);
+    });
 
     // -----------------------------------------------------------------------
     // Admin tab — moderation queue + trusted sellers
@@ -4969,6 +5111,13 @@
     let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", about_text: "", contact_email: "" };
 
     function setProfileEditMode(editing) {
+      // When entering edit mode, force the profile-details disclosure open so
+      // the user actually sees the fields they're being asked to fill in
+      // (e.g. the profile-completeness gate redirects here).
+      if (editing) {
+        const $disclosure = document.getElementById("profile-disclosure");
+        if ($disclosure) $disclosure.open = true;
+      }
       $profInputs.forEach(el => {
         // Display name, handle, and contact email are locked permanently —
         // display_name + contact_email are admin-approved on change, and the
@@ -5535,6 +5684,8 @@
         const { error } = await supabase.rpc("respond_to_reference", { p_id: id, p_accept: accept });
         if (error) throw error;
         await loadReferences();
+        // Refresh the dashboard banner so the count drops (or disappears).
+        if (currentUserId) refreshIncomingRefsBanner(currentUserId);
       } catch (err) {
         console.error("[respond-ref] failed:", err);
         alert("Could not respond: " + (err.message || err));
