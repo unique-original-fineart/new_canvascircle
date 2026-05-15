@@ -2000,10 +2000,11 @@
 
         <!-- Output -->
         <div class="sp-output" id="sp-output" hidden>
-          <h3>Generated post text</h3>
-          <textarea id="sp-text" readonly></textarea>
-          <div style="display:flex; gap:8px; margin-top:8px;">
-            <button type="button" class="btn-primary" id="sp-copy-btn">Copy text</button>
+          <h3>Generated post text <span class="small" style="font-weight:400; color:var(--muted);">— editable; tweak before copying</span></h3>
+          <textarea id="sp-text" style="resize: vertical;"></textarea>
+          <div style="display:flex; gap:8px; margin-top:8px; flex-wrap: wrap; align-items: center;">
+            <button type="button" class="btn-primary"   id="sp-copy-btn">Copy text</button>
+            <button type="button" class="btn-secondary" id="sp-revert-btn" title="Revert any edits and restore the originally-generated text">Revert to original</button>
             <span class="sp-text-status" id="sp-copy-status"></span>
           </div>
 
@@ -5950,6 +5951,10 @@
     const $spGenerateBtn   = document.getElementById("sp-generate-btn");
     const $spOutput        = document.getElementById("sp-output");
     const $spText          = document.getElementById("sp-text");
+    const $spRevertBtn     = document.getElementById("sp-revert-btn");
+    // Cache the last-generated text so the Revert button can restore it even
+    // if the user has heavily edited the textarea. Cleared on tab leave.
+    let spOriginalText = "";
     const $spCopyBtn       = document.getElementById("sp-copy-btn");
     const $spCopyStatus    = document.getElementById("sp-copy-status");
     const $spSelAvailable  = document.getElementById("sp-select-available");
@@ -6061,6 +6066,53 @@
       updateSpSelectedCount();
     });
 
+    // ---- Dimension formatting helpers for the Facebook post text ----------
+    // Both always output number-quote-space-x-space-number-quote ('20" x 24"')
+    // regardless of how the seller typed it. Decimals are preserved; trailing
+    // ".0" is trimmed (20.0 → 20).
+    function formatInches(n) {
+      if (n == null || n === "") return null;
+      const num = Number(n);
+      if (Number.isNaN(num) || num <= 0) return null;
+      const s = num % 1 === 0 ? String(Math.round(num)) : String(num);
+      return s + '"';
+    }
+    // Build artwork dimensions from the numeric h/w/d columns. Returns null
+    // if there aren't at least two dimensions to show.
+    function formatArtworkSizeFromNumbers(h, w, d) {
+      const parts = [h, w, d].map(formatInches).filter(Boolean);
+      if (parts.length < 2) return null;
+      return parts.join(" x ");
+    }
+    // Normalize a free-text frame size into 'N" x N"' format. Handles:
+    //   "24 x 28"     → '24" x 28"'
+    //   "24x28"       → '24" x 28"'
+    //   "24 by 28"    → '24" x 28"'
+    //   '24" x 28"'   → '24" x 28"'   (already-quoted input — strip first so we
+    //                                    don't double the quote marks)
+    //   "24.5 x 28"   → '24.5" x 28"'
+    // If the input doesn't look parseable, we still try to pull two numbers
+    // out and quote-format them; ultimate fallback returns the original.
+    function normalizeFramedSize(text) {
+      if (!text) return null;
+      const raw = String(text).trim();
+      if (!raw) return null;
+      // Strip any existing inch/quote markers (regular " and curly variants)
+      // so we don't double them when re-formatting.
+      const stripped = raw.replace(/["“”″]/g, "");
+      // Primary pattern: "NUM (x|X|by) NUM" with optional 3rd dimension.
+      const m = stripped.match(/^\s*(\d+(?:\.\d+)?)\s*(?:x|X|by|BY|By)\s*(\d+(?:\.\d+)?)(?:\s*(?:x|X|by|BY|By)\s*(\d+(?:\.\d+)?))?\s*$/);
+      if (m) {
+        return [m[1], m[2], m[3]].filter(Boolean).map(n => n + '"').join(" x ");
+      }
+      // Fallback: extract any 2-3 numbers from the input and quote-format them.
+      const nums = stripped.match(/\d+(?:\.\d+)?/g);
+      if (nums && nums.length >= 2) {
+        return nums.slice(0, 3).map(n => n + '"').join(" x ");
+      }
+      return raw;  // give up — return the original so something still renders
+    }
+
     // Build the text post
     function buildPostBlockForListing(l) {
       const lines = [];
@@ -6082,6 +6134,18 @@
         const shipSuffix = l.shipping_offered === "Yes" ? " shipped" : " + shipping";
         lines.push(priceStr + shipSuffix);
       }
+
+      // Medium / Type
+      if (l.medium) lines.push(l.medium);
+
+      // Dimensions: '20" x 24" artwork, 24" x 28" framed' (either part is
+      // omitted if the corresponding fields are blank).
+      const artworkSize = formatArtworkSizeFromNumbers(l.height_in, l.width_in, l.depth_in);
+      const frameSize   = normalizeFramedSize(l.framed_size);
+      const sizeParts   = [];
+      if (artworkSize) sizeParts.push(`${artworkSize} artwork`);
+      if (frameSize)   sizeParts.push(`${frameSize} framed`);
+      if (sizeParts.length) lines.push(sizeParts.join(", "));
 
       // COA
       lines.push(l.coa_included === "Yes" ? "COA included" : "No COA");
@@ -6298,6 +6362,8 @@
       // 1) Text
       const text = buildFullPostText(selected, $spHeader.value, $spFooter.value);
       $spText.value = text;
+      // Remember this version so Revert can restore after the user edits.
+      spOriginalText = text;
       $spOutput.hidden = false;
       $spCopyStatus.textContent = "";
       $spCopyStatus.className = "sp-text-status";
@@ -6333,6 +6399,24 @@
         $spCopyStatus.textContent = "Couldn't auto-copy — text is selected, hit Cmd/Ctrl+C.";
         $spCopyStatus.className = "sp-text-status err";
       }
+    });
+
+    // Revert any in-place edits back to the most recently generated text.
+    $spRevertBtn?.addEventListener("click", () => {
+      if (!spOriginalText) {
+        $spCopyStatus.textContent = "Nothing to revert — generate first.";
+        $spCopyStatus.className = "sp-text-status err";
+        return;
+      }
+      if ($spText.value === spOriginalText) {
+        $spCopyStatus.textContent = "Already showing the original.";
+        $spCopyStatus.className = "sp-text-status";
+        return;
+      }
+      if (!confirm("Revert to the originally-generated text? Your edits will be lost.")) return;
+      $spText.value = spOriginalText;
+      $spCopyStatus.textContent = "Reverted to original.";
+      $spCopyStatus.className = "sp-text-status ok";
     });
 
     $nlForm.addEventListener("submit", async (e) => {
