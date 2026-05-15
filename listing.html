@@ -294,6 +294,7 @@
     import { supabase, publicImageUrl } from "/lib/supabase.js";
     import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
     import { showAuthPrompt } from "/lib/auth-prompt.js";
+    import { armReturnTrail } from "/lib/return-trail.js";
 
     // withTimeout — see notes in index.html. Hard-fails any hung Supabase
     // query so the loading state can't sit indefinitely.
@@ -556,6 +557,19 @@
       // is the auth state we computed up top, before issuing the query.)
       render(data, userSaves, signedIn);
       logListingView(data);
+
+      // For unsigned viewers: arm the return-trail so the Sign in / Create
+      // account CTAs drop them back on THIS listing after authentication.
+      // Label uses artist + title so the post-signup banner is recognizable.
+      if (!signedIn) {
+        const title  = (data.artwork_title || "").trim();
+        const artist = (data.artist_name || "").trim();
+        let label = "the listing you were viewing";
+        if (artist && title)   label = `${artist} — ${title}`;
+        else if (artist)       label = `${artist}'s listing`;
+        else if (title)        label = `"${title}"`;
+        armReturnTrail(label);
+      }
 
       // References are part of the seller block, which is signed-in only —
       // skip the extra query for anon viewers entirely.

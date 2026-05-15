@@ -391,6 +391,7 @@
     import { supabase, publicImageUrl } from "/lib/supabase.js";
     import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
     import { showAuthPrompt } from "/lib/auth-prompt.js";
+    import { armReturnTrail } from "/lib/return-trail.js";
 
     // withTimeout — see notes in index.html. Hard-fails any hung Supabase
     // query so the page can't sit on a permanent loading state.
@@ -703,6 +704,14 @@
       } else {
         $contactSignedIn.hidden = true;
         $contactSignedOut.hidden = false;
+        // Arm the return-trail: when the unsigned viewer taps Sign in or
+        // Create account, drop them back on this seller page once they're
+        // authenticated. Label is the seller's @handle so the post-signup
+        // banner reads "Continue to @handle's seller page →".
+        const label = profile.handle
+          ? `@${profile.handle}'s seller page`
+          : (profile.display_name ? `${profile.display_name}'s seller page` : "the seller page you were viewing");
+        armReturnTrail(label);
       }
 
       $sellerHeader.hidden = false;
