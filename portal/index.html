@@ -794,23 +794,14 @@
     }
     .dashboard-quick-actions button { flex: 1 1 auto; min-width: 140px; }
 
-    /* Public listings page panel — compact: label + Copy/Preview buttons,
-       with a collapsed "What is this for?" explainer below. */
+    /* Public listings page — minimal footprint: just two buttons + a
+       collapsed explainer. No background, no border, no padding. */
     .public-page-panel {
-      margin: 0 0 14px;
-      padding: 10px 14px;
-      background: #faf6ec;
-      border: 1px solid #ecdfb8;
-      border-radius: 8px;
-      color: #5a4400;
+      margin: 0 0 12px;
     }
     .public-page-panel[hidden] { display: none; }
     .public-page-panel .ppp-actions {
-      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
-    }
-    .public-page-panel .ppp-label {
-      font-weight: 600; font-size: 13px;
-      margin-right: auto;
+      display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
     }
     .public-page-panel button,
     .public-page-panel a {
@@ -818,12 +809,12 @@
       text-decoration: none;
       display: inline-flex; align-items: center; justify-content: center;
     }
-    .public-page-panel .ppp-status { color: var(--green); align-self: center; }
+    .public-page-panel .ppp-status { color: var(--green); align-self: center; font-size: 12px; }
     .public-page-panel .ppp-explainer { margin-top: 6px; font-size: 12px; }
     .public-page-panel .ppp-explainer > summary {
       list-style: none;
       cursor: pointer;
-      color: #7a6020;
+      color: var(--muted);
       font-style: italic;
       padding: 2px 0;
       user-select: none;
@@ -838,7 +829,7 @@
     .public-page-panel .ppp-explainer[open] > summary::before { transform: rotate(90deg); }
     .public-page-panel .ppp-explainer p {
       margin: 6px 0 0 14px;
-      color: #7a6020;
+      color: var(--muted);
       line-height: 1.5;
     }
 
@@ -1722,16 +1713,15 @@
           <button type="button" class="btn-secondary" id="quick-sales-post-btn" data-go="sales-post">Build Facebook Post</button>
         </div>
 
-        <!-- Public seller / collector page panel — compact: just Copy + Preview
-             buttons with a collapsed "What is this for?" explainer for users
-             who want to know what the link does. The URL itself isn't shown
-             since it isn't clickable anyway. Hidden #public-page-url is kept
-             so the Copy + Preview handlers can read/write the value. -->
+        <!-- Public seller / collector page — just two compact buttons + a
+             collapsed "What is this for?" explainer. No box / background;
+             space is at a premium on mobile so the panel takes only the
+             minimum room needed. Hidden #public-page-url is kept so the
+             Copy + Preview handlers can read/write the URL value. -->
         <div id="public-page-row" class="public-page-panel" hidden>
           <input type="hidden" id="public-page-url" />
           <div class="ppp-actions">
-            <span class="ppp-label">Your public listings page</span>
-            <button type="button" id="copy-public-page-btn" class="btn-secondary">Copy link</button>
+            <button type="button" id="copy-public-page-btn" class="btn-secondary">Copy Public Listings Page Link</button>
             <a id="preview-public-page-btn" class="btn-secondary" target="_blank" rel="noopener">Preview ↗</a>
             <span id="copy-public-page-status" class="small ppp-status"></span>
           </div>
