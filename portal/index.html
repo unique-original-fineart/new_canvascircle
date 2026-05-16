@@ -785,6 +785,47 @@
     .incoming-refs-banner .small { font-size: 13px; color: #2d6f43; margin-top: 2px; }
     .incoming-refs-banner button { white-space: nowrap; }
 
+    /* Top-of-dashboard quick-action buttons row. */
+    .dashboard-quick-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 4px 0 12px;
+    }
+    .dashboard-quick-actions button { flex: 1 1 auto; min-width: 140px; }
+
+    /* Public listings page panel (moved out of the Profile tab). */
+    .public-page-panel {
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      background: #faf6ec;
+      border: 1px solid #ecdfb8;
+      border-radius: 8px;
+      color: #5a4400;
+    }
+    .public-page-panel[hidden] { display: none; }
+    .public-page-panel .ppp-label { font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+    .public-page-panel .ppp-sub { font-weight: 400; color: #7a6020; }
+    .public-page-panel .ppp-actions {
+      display: flex; gap: 6px; flex-wrap: wrap; align-items: stretch;
+    }
+    .public-page-panel #public-page-url {
+      flex: 1; min-width: 180px;
+      padding: 8px 10px;
+      border: 1px solid var(--card-line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--fg);
+      font-family: inherit; font-size: 13px;
+    }
+    .public-page-panel button,
+    .public-page-panel a {
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .public-page-panel .ppp-status { margin-left: 4px; color: var(--green); align-self: center; }
+
     /* (Return-trail banner moved to /lib/welcome-banner.js — it's now a
        site-wide sticky banner that lives across every page, not just the
        portal. Triggered by /lib/return-trail.js breadcrumb.) */
@@ -814,9 +855,11 @@
     .profile-disclosure > summary::-webkit-details-marker { display: none; }
     .profile-disclosure > summary::after {
       content: "▾";
-      font-size: 12px;
+      font-size: 22px;
+      line-height: 1;
       color: var(--muted);
       transition: transform .15s ease;
+      padding-left: 8px;
     }
     .profile-disclosure[open] > summary::after { transform: rotate(180deg); }
     .profile-disclosure > summary:hover { background: #faf9f6; }
@@ -1566,6 +1609,30 @@
         <!-- Account status banner (suspended / banned) -->
         <div id="account-status-banner" class="status-banner" hidden></div>
 
+        <!-- Top-of-dashboard quick actions — always visible across all tabs.
+             "+ New post" goes to the new-listing form which has its own
+             Sale/ISO toggle. Sales Post Builder generates Facebook posts. -->
+        <div class="dashboard-quick-actions">
+          <button type="button" class="btn-primary" id="quick-new-post-btn" data-go="new-listing">+ New post</button>
+          <button type="button" class="btn-secondary" id="quick-sales-post-btn" data-go="sales-post">Build Facebook Post</button>
+        </div>
+
+        <!-- Public seller / collector page panel — moved here from inside the
+             Profile tab so it's accessible no matter which tab you're on.
+             Shows once the user has set a handle. Same URL works for both
+             For Sale and In Search Of posts so the wording reflects that. -->
+        <div id="public-page-row" class="public-page-panel" hidden>
+          <div class="ppp-row">
+            <div class="ppp-label">Your public listings page <span class="small ppp-sub">— share this link to send buyers and other collectors to all your listings (For Sale + In Search Of)</span></div>
+          </div>
+          <div class="ppp-actions">
+            <input type="text" id="public-page-url" readonly />
+            <button type="button" id="copy-public-page-btn" class="btn-secondary">Copy</button>
+            <a id="preview-public-page-btn" class="btn-secondary" target="_blank" rel="noopener">Preview ↗</a>
+            <span id="copy-public-page-status" class="small ppp-status"></span>
+          </div>
+        </div>
+
         <!-- Incoming reference requests banner — shows on the dashboard the
              moment a signed-in user has pending requests waiting for their
              response. Stays visible across all tabs so they can't miss it. -->
@@ -1589,11 +1656,8 @@
         <div class="tab-panel is-active" data-tab-panel="your-listings">
           <div class="dash-head">
             <h2>Your listings <span class="count" id="listings-count"></span></h2>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button type="button" class="btn-secondary" id="sales-post-btn" data-go="sales-post">Build Facebook Sales Post</button>
-              <button type="button" class="btn-secondary" id="add-iso-btn" data-go="new-listing" data-listing-type="iso">+ Post In Search Of</button>
-              <button type="button" class="btn-primary" id="add-listing-btn" data-go="new-listing" data-listing-type="sale">+ Add new listing</button>
-            </div>
+            <!-- "+ New post" and "Build Facebook Post" buttons moved to the
+                 top of the dashboard so they're available across all tabs. -->
           </div>
 
           <form class="dash-toolbar" id="dash-toolbar" autocomplete="off" onsubmit="return false;">
@@ -1673,17 +1737,8 @@
                 Your unique identifier on CanvasCircle. Shown alongside your display name so other users can distinguish you from anyone else with the same name.
               </p>
 
-              <!-- Shareable public seller page — only shown once a handle exists. -->
-              <div id="public-page-row" hidden style="margin-top: 12px; padding: 12px; background: #faf6ec; border: 1px solid #ecdfb8; border-radius: 6px;">
-                <div style="font-weight: 600; font-size: 13px; color: #5a4400; margin-bottom: 6px;">Your public seller page</div>
-                <p class="small" style="margin: 0 0 8px; color: #5a4400;">Share this link with potential buyers — it shows all your active listings.</p>
-                <div style="display: flex; gap: 6px; align-items: stretch; flex-wrap: wrap;">
-                  <input type="text" id="public-page-url" readonly style="flex: 1; min-width: 200px; padding: 8px 10px; border: 1px solid var(--card-line); border-radius: 6px; background: #fff; color: var(--fg); font-family: inherit; font-size: 13px;" />
-                  <button type="button" id="copy-public-page-btn" class="btn-secondary" style="white-space: nowrap;">Copy</button>
-                  <a id="preview-public-page-btn" class="btn-secondary" target="_blank" rel="noopener" style="white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center;">Preview ↗</a>
-                </div>
-                <span id="copy-public-page-status" class="small" style="margin-left: 4px; color: var(--green);"></span>
-              </div>
+              <!-- (Public seller page panel moved to the top of the
+                   dashboard — see #public-page-row above the tab strip.) -->
               <button type="button" id="change-handle-btn" class="linklike" style="margin-top: 6px; color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Change handle</button>
               <div id="change-handle-row" hidden style="margin-top: 10px; padding: 12px; background: #fff4e2; border: 1px solid #f0d6a3; border-radius: 6px;">
                 <label for="new-handle-input" style="display:block; font-weight:600; margin-bottom:6px; color:#5a4400;">New handle</label>
@@ -2635,6 +2690,21 @@
       }
       currentProfileCached = profile;          // cache for trust check on save
       $whoName.textContent = profile?.display_name || "Welcome";
+
+      // Public listings page panel — now lives at the top of the dashboard
+      // (not inside the Profile tab anymore). Populate it as soon as we
+      // have the profile so the link is available across every tab.
+      const $publicRow  = document.getElementById("public-page-row");
+      const $publicUrl  = document.getElementById("public-page-url");
+      const $previewBtn = document.getElementById("preview-public-page-btn");
+      if ($publicRow && profile?.handle) {
+        const url = `${window.location.origin}/seller?handle=${encodeURIComponent(profile.handle)}`;
+        if ($publicUrl)  $publicUrl.value = url;
+        if ($previewBtn) $previewBtn.href = url;
+        $publicRow.hidden = false;
+      } else if ($publicRow) {
+        $publicRow.hidden = true;
+      }
       // Reveal Admin tab if this user is admin.
       const $adminBtn = document.getElementById("admin-tab-btn");
       if ($adminBtn) $adminBtn.hidden = !(profile?.is_admin);
@@ -5248,18 +5318,8 @@
       if ($hint && isInitialSet) {
         $hint.innerHTML = '<strong style="color:#8a1f1a;">You haven\'t set your handle yet.</strong> Pick one to use the platform — it\'s required for posting listings.';
       }
-      // Public seller page panel — only meaningful once the user has a handle.
-      const $publicRow     = document.getElementById("public-page-row");
-      const $publicUrl     = document.getElementById("public-page-url");
-      const $previewBtn    = document.getElementById("preview-public-page-btn");
-      if ($publicRow && profile.handle) {
-        const url = `${window.location.origin}/seller?handle=${encodeURIComponent(profile.handle)}`;
-        $publicUrl.value = url;
-        $previewBtn.href = url;
-        $publicRow.hidden = false;
-      } else if ($publicRow) {
-        $publicRow.hidden = true;
-      }
+      // (The public-page panel is populated by refreshAccountView now —
+      // it lives at the top of the dashboard, not inside this tab.)
     }
 
     // ---- Copy public page URL to clipboard ----
