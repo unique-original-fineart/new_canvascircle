@@ -292,6 +292,11 @@
       display: inline-block;
     }
     button.btn-secondary:hover, a.btn-secondary:hover { border-color: var(--accent); }
+    /* Honor the `hidden` HTML attribute even on buttons/links that have
+       their own `display:` declared above. Without this, .btn-secondary's
+       `display: inline-block` overrides the browser default
+       `[hidden] { display: none }` and the buttons stay visible. */
+    button[hidden], a[hidden] { display: none !important; }
 
     /* 2-up grid on every viewport — keep cards consistent and easy to scan. */
     .listing-list {
@@ -877,16 +882,20 @@
       margin-left: 8px;
     }
     .profile-disclosure > .pd-body {
-      padding: 6px 16px 16px;
+      padding: 4px 16px 12px;
       border-top: 1px solid var(--card-line);
     }
+    /* Tighten the between-field gap on the form itself — the default
+       grid-gap of 16px adds a lot of vertical whitespace on mobile when
+       multiplied across six fields plus their explainers. */
+    .profile-disclosure #profile-form { gap: 10px !important; margin-top: 4px !important; }
     /* Per-field action row — sits directly under each input. */
     .profile-disclosure .field-actions {
       display: flex;
       gap: 8px;
       align-items: center;
       flex-wrap: wrap;
-      margin-top: 6px;
+      margin-top: 4px;
     }
     .profile-disclosure .field-actions .linklike {
       color: var(--accent);
@@ -904,9 +913,10 @@
       color: var(--muted);
       font-size: 12px;
     }
-    /* Collapsed "What is this for?" explainer per field. */
+    /* Collapsed "What is this for?" explainer per field. Tight margins to
+       avoid stacking lots of vertical space below each field on mobile. */
     .profile-disclosure .field-explainer {
-      margin-top: 8px;
+      margin-top: 4px;
       font-size: 12px;
     }
     .profile-disclosure .field-explainer > summary {
@@ -914,7 +924,7 @@
       cursor: pointer;
       color: var(--muted);
       font-style: italic;
-      padding: 2px 0;
+      padding: 1px 0;
       user-select: none;
     }
     .profile-disclosure .field-explainer > summary::-webkit-details-marker { display: none; }
@@ -1809,7 +1819,7 @@
               <span>Profile details <span class="pd-summary-sub">(name, handle, Facebook URL, email, About, location)</span></span>
             </summary>
             <div class="pd-body">
-          <form id="profile-form" autocomplete="off" onsubmit="return false;" style="display: grid; gap: 16px; margin-top: 8px;">
+          <form id="profile-form" autocomplete="off" onsubmit="return false;" style="display: grid;">
 
             <!-- Display name — locked, request-change flow (admin-reviewed
                  for non-trusted; auto-approved for trusted sellers). -->
