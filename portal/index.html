@@ -292,11 +292,14 @@
       display: inline-block;
     }
     button.btn-secondary:hover, a.btn-secondary:hover { border-color: var(--accent); }
-    /* Honor the `hidden` HTML attribute even on buttons/links that have
-       their own `display:` declared above. Without this, .btn-secondary's
-       `display: inline-block` overrides the browser default
-       `[hidden] { display: none }` and the buttons stay visible. */
-    button[hidden], a[hidden] { display: none !important; }
+    /* Honor the `hidden` HTML attribute everywhere. Without this rule,
+       any element with its own `display:` (whether from a class like
+       .btn-secondary, .incoming-refs-banner, or an inline style like
+       #prof-about-edit-actions) overrides the browser default
+       `[hidden] { display: none }` because inline styles + class
+       selectors have higher specificity. Using `!important` ensures the
+       hidden attribute always wins. */
+    [hidden] { display: none !important; }
 
     /* 2-up grid on every viewport — keep cards consistent and easy to scan. */
     .listing-list {
