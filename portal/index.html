@@ -873,6 +873,95 @@
       padding: 6px 16px 16px;
       border-top: 1px solid var(--card-line);
     }
+    /* Per-field action row — sits directly under each input. */
+    .profile-disclosure .field-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .profile-disclosure .field-actions .linklike {
+      color: var(--accent);
+      font-weight: 600;
+      background: none;
+      border: none;
+      padding: 0;
+      text-decoration: underline;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    }
+    .profile-disclosure .field-actions .linklike:hover { color: #9c7209; }
+    .profile-disclosure .field-actions .field-status {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    /* Collapsed "What is this for?" explainer per field. */
+    .profile-disclosure .field-explainer {
+      margin-top: 8px;
+      font-size: 12px;
+    }
+    .profile-disclosure .field-explainer > summary {
+      list-style: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-style: italic;
+      padding: 2px 0;
+      user-select: none;
+    }
+    .profile-disclosure .field-explainer > summary::-webkit-details-marker { display: none; }
+    .profile-disclosure .field-explainer > summary::before {
+      content: "▸";
+      display: inline-block;
+      width: 14px;
+      transition: transform .15s ease;
+    }
+    .profile-disclosure .field-explainer[open] > summary::before {
+      transform: rotate(90deg);
+    }
+    .profile-disclosure .field-explainer p {
+      margin: 6px 0 0 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    /* Pending-admin-approval row inline under a field. */
+    .profile-disclosure .pending-row {
+      margin: 6px 0 0;
+      padding: 8px 10px;
+      background: #fff4e2;
+      border: 1px solid #f0d6a3;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #5a4400;
+    }
+    .profile-disclosure .pending-row-cancel {
+      margin-left: 8px;
+      color: var(--accent);
+      font-weight: 600;
+      background: none;
+      border: none;
+      padding: 0;
+      text-decoration: underline;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+    }
+    /* Handle "@" prefix wrapper. */
+    .profile-disclosure .handle-prefix,
+    .public-page-panel .handle-prefix {
+      padding: 8px 10px;
+      background: #f1ede4;
+      border: 1px solid var(--card-line);
+      border-right: none;
+      border-radius: 6px 0 0 6px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .profile-disclosure .handle-initial-hint {
+      margin: 4px 0 0;
+      color: var(--muted);
+    }
 
     /* Suspend / Ban / Reinstate buttons in admin Sellers list */
     .seller-row .seller-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
@@ -1711,39 +1800,41 @@
               <span>Profile details <span class="pd-summary-sub">(name, handle, Facebook URL, email, About, location)</span></span>
             </summary>
             <div class="pd-body">
-          <p class="lede" style="margin-bottom: 14px; margin-top: 8px;">
-            These details appear on every listing you post. The Facebook URL powers the "Message on Facebook" button; the email powers the "Email Seller" button. Buyers see your display name and location next to the price.
-          </p>
-          <form id="profile-form" autocomplete="off" onsubmit="return false;" style="display: grid; gap: 12px;">
+          <form id="profile-form" autocomplete="off" onsubmit="return false;" style="display: grid; gap: 16px; margin-top: 8px;">
+
+            <!-- Display name — locked, request-change flow (admin-reviewed
+                 for non-trusted; auto-approved for trusted sellers). -->
             <div class="field">
               <label for="prof-name">Display name <span class="locked-tag">🔒 Locked</span></label>
               <input type="text" id="prof-name" placeholder="Your name as buyers will see it" disabled />
-              <div id="pending-name-row" hidden style="margin: 6px 0 0; padding: 6px 10px; background: #fff4e2; border: 1px solid #f0d6a3; border-radius: 6px; font-size: 12px; color: #5a4400;">
-                <strong>Pending admin approval:</strong> <span id="pending-name-value"></span>
-                <button type="button" id="pending-name-cancel" class="linklike" style="margin-left: 8px; color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Cancel request</button>
+              <div class="field-actions">
+                <button type="button" id="request-name-change-btn" class="linklike">Request name change</button>
               </div>
-              <p class="small" style="margin: 4px 0 0;">
-                Display names are locked to keep listings trustworthy. To request a change, click below — an admin will review and approve.
-                <button type="button" id="request-name-change-btn" class="linklike" style="color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Request name change</button>
-              </p>
+              <div id="pending-name-row" hidden class="pending-row">
+                <strong>Pending admin approval:</strong> <span id="pending-name-value"></span>
+                <button type="button" id="pending-name-cancel" class="linklike pending-row-cancel">Cancel request</button>
+              </div>
+              <details class="field-explainer">
+                <summary>What is this for?</summary>
+                <p>Display names are locked to keep listings trustworthy. Trusted sellers' changes go live immediately; new accounts need admin approval first.</p>
+              </details>
             </div>
+
+            <!-- Handle — change-handle flow with retirement warning. -->
             <div class="field" id="prof-handle-field">
               <label for="prof-handle">Handle</label>
               <div style="display:flex; align-items:center; gap:0;">
-                <span style="padding: 8px 10px; background: #f1ede4; border: 1px solid var(--card-line); border-right: none; border-radius: 6px 0 0 6px; color: var(--muted); font-weight: 600;">@</span>
+                <span class="handle-prefix">@</span>
                 <input type="text" id="prof-handle" disabled style="border-radius: 0 6px 6px 0; flex: 1;" />
               </div>
-              <p class="small" id="prof-handle-hint" style="margin: 4px 0 0; color: var(--muted);">
-                Your unique identifier on CanvasCircle. Shown alongside your display name so other users can distinguish you from anyone else with the same name.
-              </p>
-
-              <!-- (Public seller page panel moved to the top of the
-                   dashboard — see #public-page-row above the tab strip.) -->
-              <button type="button" id="change-handle-btn" class="linklike" style="margin-top: 6px; color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Change handle</button>
+              <div class="field-actions">
+                <button type="button" id="change-handle-btn" class="linklike">Change handle</button>
+              </div>
+              <p class="small handle-initial-hint" id="prof-handle-hint" hidden></p>
               <div id="change-handle-row" hidden style="margin-top: 10px; padding: 12px; background: #fff4e2; border: 1px solid #f0d6a3; border-radius: 6px;">
                 <label for="new-handle-input" style="display:block; font-weight:600; margin-bottom:6px; color:#5a4400;">New handle</label>
                 <div style="display:flex; align-items:center; gap:0;">
-                  <span style="padding: 8px 10px; background: #f1ede4; border: 1px solid var(--card-line); border-right: none; border-radius: 6px 0 0 6px; color: var(--muted); font-weight: 600;">@</span>
+                  <span class="handle-prefix">@</span>
                   <input type="text" id="new-handle-input"
                          pattern="^[A-Za-z][A-Za-z0-9_]{2,19}$"
                          maxlength="20"
@@ -1760,52 +1851,80 @@
                 </div>
                 <p class="small" id="change-handle-status" style="margin: 8px 0 0;"></p>
               </div>
+              <details class="field-explainer">
+                <summary>What is this for?</summary>
+                <p>Your unique identifier on CanvasCircle. Shown alongside your display name so other users can distinguish you from anyone else with the same name. Also part of the URL of your public listings page.</p>
+              </details>
             </div>
+
+            <!-- Facebook profile URL — per-field inline edit/save/cancel. -->
             <div class="field">
               <label for="prof-fb">Facebook profile URL <span style="color:#8a1f1a;">*</span></label>
               <input type="text" id="prof-fb" placeholder="https://facebook.com/your.profile" disabled />
-              <p class="small" style="margin: 4px 0 0; color: var(--muted);">Required to post listings (sale or In Search Of). Helps the admin verify accounts and lets other collectors reach you on Facebook. Email-only profiles can still browse and save.</p>
+              <div class="field-actions">
+                <button type="button" id="prof-fb-edit-btn"   class="linklike">Edit</button>
+                <button type="button" id="prof-fb-save-btn"   class="btn-primary"   hidden>Save</button>
+                <button type="button" id="prof-fb-cancel-btn" class="btn-secondary" hidden>Cancel</button>
+                <span id="prof-fb-status" class="small field-status"></span>
+              </div>
+              <details class="field-explainer">
+                <summary>What is this for?</summary>
+                <p>Required to post listings (For Sale or In Search Of). Powers the "Message on Facebook" button on your listings and helps the admin verify accounts. Email-only profiles can still browse and save.</p>
+              </details>
             </div>
+
+            <!-- Location — per-field inline edit/save/cancel. -->
             <div class="field">
               <label for="prof-loc">Location</label>
               <input type="text" id="prof-loc" placeholder="e.g. Central NJ 08852" disabled />
+              <div class="field-actions">
+                <button type="button" id="prof-loc-edit-btn"   class="linklike">Edit</button>
+                <button type="button" id="prof-loc-save-btn"   class="btn-primary"   hidden>Save</button>
+                <button type="button" id="prof-loc-cancel-btn" class="btn-secondary" hidden>Cancel</button>
+                <span id="prof-loc-status" class="small field-status"></span>
+              </div>
+              <details class="field-explainer">
+                <summary>What is this for?</summary>
+                <p>Optional. Shown to signed-in viewers on your listings so they have a general sense of where you're located — helpful for shipping conversations. City/state is plenty; no need for a full address.</p>
+              </details>
             </div>
+
+            <!-- About — existing edit/submit flow, with collapsed explainer. -->
             <div class="field">
               <label for="prof-about">About you (optional) <span id="prof-about-lock-tag" class="locked-tag">🔒 Locked</span></label>
               <textarea id="prof-about" rows="5" maxlength="1000" placeholder="A short blurb about you as a collector — your specialty, region, how long you've been collecting, anything potential buyers might want to know. Max 1000 characters." disabled style="resize: vertical; font-family: inherit; padding: 9px 12px; border: 1px solid var(--card-line); border-radius: 6px; width: 100%; background: #fff; color: var(--fg); font-size: 14px; line-height: 1.5;"></textarea>
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px; gap: 12px;">
-                <p class="small" style="margin: 0; color: var(--muted); flex: 1;">
-                  Shown on your public seller page and on the seller block of your listings. Changes are reviewed by the admin before they go live. <strong>No links or website addresses allowed.</strong>
-                  <button type="button" id="request-about-change-btn" class="linklike" style="color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Edit About</button>
-                </p>
-                <span id="prof-about-count" class="small" style="color: var(--muted); white-space: nowrap;">0 / 1000</span>
+              <div class="field-actions">
+                <button type="button" id="request-about-change-btn" class="linklike">Edit About</button>
+                <span id="prof-about-count" class="small field-status" style="margin-left:auto;">0 / 1000</span>
               </div>
-              <!-- Edit-mode action buttons. Shown only while the textarea is unlocked. -->
-              <div id="prof-about-edit-actions" hidden style="display:flex; gap:8px; margin-top:10px; align-items:center;">
+              <div id="prof-about-edit-actions" hidden style="display:flex; gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap;">
                 <button type="button" class="btn-primary"   id="submit-about-change-btn">Submit for approval</button>
                 <button type="button" class="btn-secondary" id="cancel-about-change-btn">Cancel</button>
                 <span id="submit-about-status" class="small" style="margin-left:4px;"></span>
               </div>
-              <div id="pending-about-row" hidden style="margin: 8px 0 0; padding: 8px 12px; background: #fff4e2; border: 1px solid #f0d6a3; border-radius: 6px; font-size: 12px; color: #5a4400;">
+              <div id="pending-about-row" hidden class="pending-row">
                 <strong>Pending admin approval:</strong>
                 <div id="pending-about-value" style="margin-top:4px; white-space: pre-line; font-style: italic;"></div>
-                <button type="button" id="pending-about-cancel" class="linklike" style="margin-top: 6px; color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Cancel request</button>
+                <button type="button" id="pending-about-cancel" class="linklike pending-row-cancel">Cancel request</button>
               </div>
+              <details class="field-explainer">
+                <summary>What is this for?</summary>
+                <p>A short blurb shown on your public listings page and inside your listings. Trusted sellers' edits go live immediately; new accounts need admin approval first. <strong>No links or website addresses allowed.</strong></p>
+              </details>
             </div>
+
+            <!-- Email — fully locked. To change, contact admin. -->
             <div class="field">
               <label for="prof-email">Email <span class="locked-tag">🔒 Locked</span></label>
               <input type="email" id="prof-email" placeholder="you@example.com" disabled />
-              <p class="small" style="margin: 4px 0 0;">
-                This is the email you use to sign in <em>and</em> the email buyers see on the Email Seller button. To change it, click below — we'll send confirmation links to both your current address and the new one. The change takes effect once you click both links.
-                <button type="button" id="change-email-btn" class="linklike" style="color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer;">Change my email</button>
-              </p>
+              <details class="field-explainer">
+                <summary>What is this for?</summary>
+                <p>The email you use to sign in <em>and</em> the email buyers see on the "Email Seller" button on your listings. To change it, contact <a href="mailto:admin@canvascircle.art" style="color:var(--accent);">admin@canvascircle.art</a>.</p>
+              </details>
             </div>
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-              <button type="button" class="btn-primary" id="profile-edit-btn">Edit profile</button>
-              <button type="button" class="btn-primary" id="profile-save-btn" hidden>Save profile</button>
-              <button type="button" class="btn-secondary" id="profile-cancel-btn" hidden>Cancel</button>
-              <span id="profile-status" class="sp-text-status"></span>
-            </div>
+
+            <!-- (Global Edit/Save/Cancel buttons removed — each field has its own.) -->
+            <span id="profile-status" class="sp-text-status"></span>
           </form>
             </div>
           </details>
@@ -1893,6 +2012,14 @@
             <div id="mod-empty" class="empty-state" hidden>No listings pending review.</div>
             <div id="mod-list" class="mod-list" hidden></div>
             <div id="admin-banner" class="banner" hidden style="margin-top: 10px; white-space: pre-line;"></div>
+          </section>
+
+          <section class="admin-section">
+            <h3>Pending profile changes <span class="count" id="profmod-count"></span></h3>
+            <p class="help">Display-name and About-text changes submitted by non-trusted sellers (Trusted Members are auto-approved). Approve copies the change to the seller's live profile; Reject discards it.</p>
+            <div id="profmod-loading" class="empty-state" hidden>Loading…</div>
+            <div id="profmod-empty" class="empty-state" hidden>No pending profile changes.</div>
+            <div id="profmod-list" class="mod-list" hidden></div>
           </section>
 
           <section class="admin-section">
@@ -3971,11 +4098,19 @@
     }
 
     async function refreshModerationBadge() {
-      const { count } = await supabase
-        .from("listings")
-        .select("listing_id", { count: "exact", head: true })
-        .eq("moderation_status", "pending");
-      $adminPendingBadge.textContent = count ? `(${count})` : "";
+      // Two parallel cheap counts: pending listings + pending profile changes
+      // (display_name OR about_text). Tab badge shows the combined total so
+      // the admin can see at a glance if anything anywhere needs review.
+      const [{ count: listingCount = 0 } = {}, { count: profCount = 0 } = {}] = await Promise.all([
+        supabase.from("listings")
+          .select("listing_id", { count: "exact", head: true })
+          .eq("moderation_status", "pending"),
+        supabase.from("profiles")
+          .select("user_id", { count: "exact", head: true })
+          .or("pending_display_name.not.is.null,pending_about_text.not.is.null"),
+      ]);
+      const total = (listingCount || 0) + (profCount || 0);
+      $adminPendingBadge.textContent = total ? `(${total})` : "";
     }
 
     async function loadReports() {
@@ -4090,13 +4225,158 @@
       $adminBanner.hidden = true;
       try {
         await withTimeout(
-          Promise.all([loadModerationQueue(), loadReports(), loadSellers(), loadAllListings(), loadExpiring()]),
+          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadReports(), loadSellers(), loadAllListings(), loadExpiring()]),
           15000,
           "admin tab load"
         );
       } catch (err) {
         console.warn("[admin] load timed out:", err);
         setAdminBanner("Some admin panels didn't finish loading. Tap the Admin tab again to retry.", "error");
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Profile-change moderation queue — pending display_name and about_text
+    // submissions from non-trusted sellers. Lives alongside the listing
+    // moderation queue so the admin can review everything in one place
+    // (instead of having to hunt through the Sellers panel).
+    // -----------------------------------------------------------------------
+    const $profmodList    = document.getElementById("profmod-list");
+    const $profmodCount   = document.getElementById("profmod-count");
+    const $profmodLoading = document.getElementById("profmod-loading");
+    const $profmodEmpty   = document.getElementById("profmod-empty");
+
+    async function loadProfileModQueue() {
+      $profmodLoading.hidden = false;
+      $profmodEmpty.hidden = true;
+      $profmodList.hidden = true;
+      $profmodList.innerHTML = "";
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, display_name, handle, is_trusted, pending_display_name, pending_display_name_at, about_text, pending_about_text, pending_about_at")
+        .or("pending_display_name.not.is.null,pending_about_text.not.is.null")
+        .order("pending_display_name_at", { ascending: true, nullsFirst: false });
+      $profmodLoading.hidden = true;
+      if (error) {
+        console.warn("[profmod] load failed:", error);
+        return;
+      }
+      const rows = (data || []).filter(p => p.pending_display_name != null || p.pending_about_text != null);
+      $profmodCount.textContent = rows.length ? `(${rows.length})` : "";
+      if (!rows.length) { $profmodEmpty.hidden = false; return; }
+      const frag = document.createDocumentFragment();
+      for (const p of rows) {
+        if (p.pending_display_name != null) frag.appendChild(renderProfileModRow(p, "name"));
+        if (p.pending_about_text   != null) frag.appendChild(renderProfileModRow(p, "about"));
+      }
+      $profmodList.appendChild(frag);
+      $profmodList.hidden = false;
+      // Keep the Admin tab badge in sync with combined pending counts.
+      refreshModerationBadge();
+    }
+
+    function renderProfileModRow(profile, kind) {
+      const row = document.createElement("div");
+      row.className = "mod-row";
+      row.dataset.userId = profile.user_id;
+      row.dataset.kind   = kind;
+      const sellerLabel = `${escapeHtml(profile.display_name || "(no name)")}${profile.handle ? ` <a href="/seller?handle=${encodeURIComponent(profile.handle)}" target="_blank" rel="noopener" style="color:var(--accent); font-size:12px;">@${escapeHtml(profile.handle)}</a>` : ""}`;
+      if (kind === "name") {
+        row.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:6px; padding:10px 12px; background:#fff; border:1px solid var(--card-line); border-radius:6px;">
+            <div style="font-size:12px; color:var(--muted);">${sellerLabel} &middot; <strong>Display name change</strong></div>
+            <div style="font-size:14px;"><span style="color:var(--muted); text-decoration:line-through;">${escapeHtml(profile.display_name || "(none)")}</span> &rarr; <strong>${escapeHtml(profile.pending_display_name)}</strong></div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button type="button" class="btn-reinstate" data-action="approve-name">Approve</button>
+              <button type="button" class="btn-suspend" data-action="reject-name">Reject</button>
+            </div>
+          </div>
+        `;
+        row.querySelector("[data-action=approve-name]").addEventListener("click", () => approveNameChangeQueued(profile));
+        row.querySelector("[data-action=reject-name]").addEventListener("click",  () => rejectNameChangeQueued(profile));
+      } else {
+        const requested = profile.pending_about_text;
+        row.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:6px; padding:10px 12px; background:#fff; border:1px solid var(--card-line); border-radius:6px;">
+            <div style="font-size:12px; color:var(--muted);">${sellerLabel} &middot; <strong>About text change</strong></div>
+            <div style="font-size:12px; padding:6px 8px; background:#fafaf6; border:1px solid var(--card-line); border-radius:4px; color:var(--muted); max-height:80px; overflow-y:auto;">
+              <em>Current:</em> ${profile.about_text ? escapeHtml(profile.about_text) : "(none)"}
+            </div>
+            <div style="font-size:12px; padding:6px 8px; background:#eef6ed; border:1px solid #c2e0c4; border-radius:4px; max-height:140px; overflow-y:auto; white-space:pre-wrap;">
+              <em>Requested:</em> ${requested ? escapeHtml(requested) : "(blank — remove About)"}
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button type="button" class="btn-reinstate" data-action="approve-about">Approve</button>
+              <button type="button" class="btn-suspend" data-action="reject-about">Reject</button>
+            </div>
+          </div>
+        `;
+        row.querySelector("[data-action=approve-about]").addEventListener("click", () => approveAboutChangeQueued(profile));
+        row.querySelector("[data-action=reject-about]").addEventListener("click",  () => rejectAboutChangeQueued(profile));
+      }
+      return row;
+    }
+
+    async function approveNameChangeQueued(profile) {
+      if (!profile.pending_display_name) return;
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ display_name: profile.pending_display_name, pending_display_name: null, pending_display_name_at: null })
+          .eq("user_id", profile.user_id);
+        if (error) throw error;
+        await loadProfileModQueue();
+        setAdminBanner(`Approved display name change for ${profile.display_name || "this seller"}.`, "success");
+      } catch (err) {
+        setAdminBanner("Could not approve: " + (err.message || err), "error");
+      }
+    }
+    async function rejectNameChangeQueued(profile) {
+      if (!confirm(`Reject the name change request "${profile.pending_display_name}"?`)) return;
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ pending_display_name: null, pending_display_name_at: null })
+          .eq("user_id", profile.user_id);
+        if (error) throw error;
+        await loadProfileModQueue();
+        setAdminBanner("Rejected name change request.", "success");
+      } catch (err) {
+        setAdminBanner("Could not reject: " + (err.message || err), "error");
+      }
+    }
+    async function approveAboutChangeQueued(profile) {
+      if (profile.pending_about_text == null) return;
+      const newAbout = String(profile.pending_about_text).trim();
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            about_text:         newAbout.length > 0 ? newAbout : null,
+            pending_about_text: null,
+            pending_about_at:   null,
+          })
+          .eq("user_id", profile.user_id);
+        if (error) throw error;
+        await loadProfileModQueue();
+        setAdminBanner(`Approved About change for ${profile.display_name || "this seller"}.`, "success");
+      } catch (err) {
+        setAdminBanner("Could not approve: " + (err.message || err), "error");
+      }
+    }
+    async function rejectAboutChangeQueued(profile) {
+      if (profile.pending_about_text == null) return;
+      if (!confirm(`Reject this About change request?`)) return;
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ pending_about_text: null, pending_about_at: null })
+          .eq("user_id", profile.user_id);
+        if (error) throw error;
+        await loadProfileModQueue();
+        setAdminBanner("Rejected About change request.", "success");
+      } catch (err) {
+        setAdminBanner("Could not reject: " + (err.message || err), "error");
       }
     }
 
@@ -4466,39 +4746,12 @@
         actionButtons += `<button type="button" class="btn-manage" data-action="toggle-manage" aria-expanded="false">Manage ▾</button>`;
       }
 
-      // Pending name-change banner — only shown if seller has requested one.
-      const pendingBlock = profile.pending_display_name
-        ? `<div class="pending-name-admin" data-pending-name>
-             <span><strong>Name change request:</strong>
-               <span class="old-name">${escapeHtml(profile.display_name || "(none)")}</span>
-               <span class="arrow">→</span>
-               <span class="new-name">${escapeHtml(profile.pending_display_name)}</span>
-             </span>
-             <span class="pending-actions">
-               <button type="button" class="btn-reinstate" data-action="approve-name">Approve</button>
-               <button type="button" class="btn-suspend"   data-action="reject-name">Reject</button>
-             </span>
-           </div>`
-        : "";
-
-      // Pending About-change banner — same pattern as name changes.
-      const pendingAboutBlock = profile.pending_about_text != null
-        ? `<div class="pending-name-admin" data-pending-about style="align-items: flex-start;">
-             <div style="flex: 1; min-width: 0;">
-               <strong>About change request:</strong>
-               <div style="margin-top:4px; padding:6px 8px; background:#fafaf6; border:1px solid var(--card-line); border-radius:4px; color:var(--muted); font-size:12px; max-height:80px; overflow-y:auto;">
-                 <em>Current:</em> ${profile.about_text ? escapeHtml(profile.about_text) : "(none)"}
-               </div>
-               <div style="margin-top:4px; padding:6px 8px; background:#eef6ed; border:1px solid #c2e0c4; border-radius:4px; font-size:12px; max-height:120px; overflow-y:auto; white-space: pre-wrap;">
-                 <em>Requested:</em> ${escapeHtml(profile.pending_about_text)}
-               </div>
-             </div>
-             <span class="pending-actions">
-               <button type="button" class="btn-reinstate" data-action="approve-about">Approve</button>
-               <button type="button" class="btn-suspend"   data-action="reject-about">Reject</button>
-             </span>
-           </div>`
-        : "";
+      // Pending name/About change banners and approval actions live in the
+      // Moderation queue panel above — not on the seller row. The seller
+      // row is intentionally scoped to direct admin actions (email, toggle
+      // trusted, suspend/ban).
+      const pendingBlock      = "";
+      const pendingAboutBlock = "";
 
       row.innerHTML = `
         <div class="seller-info" style="flex: 1; min-width: 200px;">
@@ -4508,8 +4761,9 @@
             ${profile.is_admin ? ` <span class="pill">admin</span>` : ""}
             ${statusPill}
             ${incomplete ? ` <span class="pill" style="background:#f3d6d3;color:#8a1f1a;border-color:#e8b3ad;">incomplete profile</span>` : ""}
-            ${profile.pending_display_name ? ` <span class="pill" style="background:#fff4e2;color:#5a4400;border-color:#f0d6a3;">pending name change</span>` : ""}
-            ${profile.pending_about_text != null ? ` <span class="pill" style="background:#fff4e2;color:#5a4400;border-color:#f0d6a3;">pending About change</span>` : ""}
+            <!-- pending name/About change pills now live in the Moderation
+                 queue panel; not duplicated here. -->
+
           </strong>
           <div class="small">
             ${escapeHtml(profile.contact_email || "(no email)")}
@@ -5201,42 +5455,126 @@
     const $profLoc      = document.getElementById("prof-loc");
     const $profAbout    = document.getElementById("prof-about");
     const $profEmail    = document.getElementById("prof-email");
-    const $profEditBtn  = document.getElementById("profile-edit-btn");
-    const $profSaveBtn  = document.getElementById("profile-save-btn");
-    const $profCancelBtn= document.getElementById("profile-cancel-btn");
     const $profStatus   = document.getElementById("profile-status");
-    // $profAbout is intentionally NOT in this list — it has its own
-    // independent edit flow (Edit About → unlocks textarea → Submit/Cancel)
-    // so the global "Edit profile" toggle doesn't fight with it.
-    const $profInputs   = [$profName, $profHandle, $profFb, $profLoc, $profEmail];
 
-    // Snapshot of last-saved values so Cancel can revert.
+    // Snapshot of last-saved values so per-field Cancel can revert.
     let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", about_text: "", contact_email: "" };
 
+    // -----------------------------------------------------------------------
+    // setProfileEditMode — kept as a thin compatibility shim for the
+    // profile-completeness gate (which redirects to the Profile tab and
+    // wants the FB URL field unlocked immediately). Each field now has its
+    // own inline edit/save/cancel; the global "Edit profile" button is gone.
+    // -----------------------------------------------------------------------
     function setProfileEditMode(editing) {
-      // When entering edit mode, force the profile-details disclosure open so
-      // the user actually sees the fields they're being asked to fill in
-      // (e.g. the profile-completeness gate redirects here).
       if (editing) {
         const $disclosure = document.getElementById("profile-disclosure");
         if ($disclosure) $disclosure.open = true;
+        // Open the FB URL field's inline edit UI specifically — that's the
+        // missing-field the gate is asking the user to fill in.
+        const $fbEditBtn = document.getElementById("prof-fb-edit-btn");
+        if ($fbEditBtn && !$fbEditBtn.hidden) $fbEditBtn.click();
       }
-      $profInputs.forEach(el => {
-        // Display name, handle, and contact email are locked permanently —
-        // display_name + contact_email are admin-approved on change, and the
-        // handle is the technical identifier that can never change. About
-        // text has its own edit flow (see setAboutEditMode below).
-        if (el.id === "prof-name" || el.id === "prof-handle" || el.id === "prof-email") {
-          el.disabled = true;
-          return;
-        }
-        el.disabled = !editing;
-      });
-      $profEditBtn.hidden   = editing;
-      $profSaveBtn.hidden   = !editing;
-      $profCancelBtn.hidden = !editing;
-      if (editing) ($profFb || $profName).focus();
     }
+
+    // -----------------------------------------------------------------------
+    // wirePerFieldEdit — handles the Edit/Save/Cancel inline lifecycle for
+    // a single profile field. Each field gets its own snapshot key + column.
+    // -----------------------------------------------------------------------
+    function wirePerFieldEdit({ inputId, editBtnId, saveBtnId, cancelBtnId, statusId, snapshotKey, column, validate, transform, beforeSave }) {
+      const $input  = document.getElementById(inputId);
+      const $edit   = document.getElementById(editBtnId);
+      const $save   = document.getElementById(saveBtnId);
+      const $cancel = document.getElementById(cancelBtnId);
+      const $status = document.getElementById(statusId);
+      if (!$input || !$edit || !$save || !$cancel) return;
+
+      $edit.addEventListener("click", () => {
+        $input.disabled = false;
+        $input.focus();
+        $edit.hidden   = true;
+        $save.hidden   = false;
+        $cancel.hidden = false;
+        $status.textContent = "";
+        $status.className = "small field-status";
+      });
+
+      $cancel.addEventListener("click", () => {
+        $input.value = profileSnapshot[snapshotKey] || "";
+        $input.disabled = true;
+        $edit.hidden   = false;
+        $save.hidden   = true;
+        $cancel.hidden = true;
+        $status.textContent = "";
+      });
+
+      $save.addEventListener("click", async () => {
+        const raw = $input.value.trim();
+        const val = transform ? transform(raw) : (raw || null);
+        if (validate) {
+          const err = validate(val);
+          if (err) { $status.textContent = err; $status.className = "small field-status err"; return; }
+        }
+        $save.disabled = true;
+        $status.textContent = "Saving…";
+        $status.className = "small field-status";
+        try {
+          if (beforeSave) await beforeSave(val);
+          const payload = { [column]: val };
+          const { error } = await supabase.from("profiles").update(payload).eq("user_id", currentUserId);
+          if (error) {
+            if (error.code === "23505" && /facebook/i.test(error.message || "")) {
+              throw new Error("That Facebook profile URL is already linked to another account. Contact admin@canvascircle.art if this is yours.");
+            }
+            throw error;
+          }
+          profileSnapshot[snapshotKey] = val || "";
+          $input.value = val || "";
+          $input.disabled = true;
+          $edit.hidden   = false;
+          $save.hidden   = true;
+          $cancel.hidden = true;
+          $status.textContent = "Saved.";
+          $status.className = "small field-status ok";
+          setTimeout(() => { $status.textContent = ""; }, 2000);
+        } catch (err) {
+          console.error(`[profile/${column}] save failed:`, err);
+          $status.textContent = "Could not save: " + (err.message || err);
+          $status.className = "small field-status err";
+        } finally {
+          $save.disabled = false;
+        }
+      });
+    }
+
+    // Wire FB URL — required, and also denylist-checked.
+    wirePerFieldEdit({
+      inputId: "prof-fb",
+      editBtnId: "prof-fb-edit-btn",
+      saveBtnId: "prof-fb-save-btn",
+      cancelBtnId: "prof-fb-cancel-btn",
+      statusId: "prof-fb-status",
+      snapshotKey: "facebook_profile_url",
+      column: "facebook_profile_url",
+      validate: (val) => val ? null : "Facebook profile URL is required to post listings.",
+      beforeSave: async (val) => {
+        const { data: banned } = await supabase.rpc("is_banned_credential", { p_email: null, p_facebook_url: val });
+        if (banned === true) {
+          throw new Error("That Facebook profile URL is on our denylist. Contact admin@canvascircle.art if you think this is a mistake.");
+        }
+      },
+    });
+
+    // Wire Location — optional, no validation.
+    wirePerFieldEdit({
+      inputId: "prof-loc",
+      editBtnId: "prof-loc-edit-btn",
+      saveBtnId: "prof-loc-save-btn",
+      cancelBtnId: "prof-loc-cancel-btn",
+      statusId: "prof-loc-status",
+      snapshotKey: "location",
+      column: "location",
+    });
 
     function fillProfileFromSnapshot() {
       $profName.value   = profileSnapshot.display_name         || "";
@@ -5281,7 +5619,6 @@
         contact_email:        profile.contact_email        || "",
       };
       fillProfileFromSnapshot();
-      setProfileEditMode(false);
       $profStatus.textContent = "";
       $profStatus.className = "sp-text-status";
       // Render the pending-name banner if there's a pending request.
@@ -5315,8 +5652,13 @@
       const $changeBtn = document.getElementById("change-handle-btn");
       if ($changeBtn) $changeBtn.textContent = isInitialSet ? "Set your handle" : "Change handle";
       const $hint = document.getElementById("prof-handle-hint");
-      if ($hint && isInitialSet) {
-        $hint.innerHTML = '<strong style="color:#8a1f1a;">You haven\'t set your handle yet.</strong> Pick one to use the platform — it\'s required for posting listings.';
+      if ($hint) {
+        if (isInitialSet) {
+          $hint.innerHTML = '<strong style="color:#8a1f1a;">You haven\'t set your handle yet.</strong> Pick one to use the platform — it\'s required for posting listings.';
+          $hint.hidden = false;
+        } else {
+          $hint.hidden = true;
+        }
       }
       // (The public-page panel is populated by refreshAccountView now —
       // it lives at the top of the dashboard, not inside this tab.)
@@ -5470,10 +5812,11 @@
     // ---- Request a display-name change (admin-approved) ----
     document.getElementById("request-name-change-btn")?.addEventListener("click", async () => {
       const current = $profName.value || "";
-      const requested = prompt(
-        "Request a new display name.\n\nUse your real first and last name. An admin will review and approve before it goes into effect.",
-        current
-      );
+      const isTrusted = !!(currentProfileCached?.is_trusted);
+      const promptCopy = isTrusted
+        ? "Update your display name.\n\nUse your real first and last name. Trusted Members' name changes go live immediately."
+        : "Request a new display name.\n\nUse your real first and last name. An admin will review and approve before it goes into effect.";
+      const requested = prompt(promptCopy, current);
       if (requested === null) return;
       const clean = requested.trim();
       if (!clean) return;
@@ -5487,16 +5830,23 @@
         return;
       }
       try {
+        // Trusted Members: auto-approve — write directly to display_name.
+        // Everyone else: queue for admin review via pending_display_name.
+        const payload = isTrusted
+          ? { display_name: clean, pending_display_name: null, pending_display_name_at: null }
+          : { pending_display_name: clean, pending_display_name_at: new Date().toISOString() };
         const { error } = await supabase
           .from("profiles")
-          .update({
-            pending_display_name:    clean,
-            pending_display_name_at: new Date().toISOString(),
-          })
+          .update(payload)
           .eq("user_id", currentUserId);
         if (error) throw error;
-        alert("Name change submitted. An admin will review it. You'll see it switch on your profile once approved.");
+        alert(isTrusted
+          ? "Display name updated."
+          : "Name change submitted. An admin will review it. You'll see it switch on your profile once approved.");
+        // Keep the in-memory cache in sync so subsequent UI reads are correct.
+        if (isTrusted && currentProfileCached) currentProfileCached.display_name = clean;
         await loadProfileForm();
+        if (isTrusted) $whoName.textContent = clean;
       } catch (err) {
         console.error("[request-name-change] failed:", err);
         alert("Could not submit: " + (err.message || err));
@@ -5875,18 +6225,26 @@
       $submitAboutBtn.disabled = true;
       $submitAboutBtn.textContent = "Submitting…";
       try {
+        // Trusted Members: auto-approve — write directly to about_text.
+        // Everyone else: queue for admin review via pending_about_text.
+        const isTrusted = !!(currentProfileCached?.is_trusted);
+        const payload = isTrusted
+          ? { about_text: clean.length ? clean : null, pending_about_text: null, pending_about_at: null }
+          : { pending_about_text: clean.length ? clean : "", pending_about_at: new Date().toISOString() };
         const { error } = await supabase
           .from("profiles")
-          .update({
-            pending_about_text: clean.length ? clean : "",
-            pending_about_at:   new Date().toISOString(),
-          })
+          .update(payload)
           .eq("user_id", currentUserId);
         if (error) throw error;
-        $submitAboutStatus.textContent = clean.length
-          ? "Submitted. An admin will review it — your current About stays live until then."
-          : "Removal request submitted. Admin will review.";
+        $submitAboutStatus.textContent = isTrusted
+          ? (clean.length ? "About updated." : "About cleared.")
+          : (clean.length
+              ? "Submitted. An admin will review it — your current About stays live until then."
+              : "Removal request submitted. Admin will review.");
         $submitAboutStatus.className = "small sp-text-status ok";
+        if (isTrusted && currentProfileCached) {
+          currentProfileCached.about_text = clean.length ? clean : null;
+        }
         await loadProfileForm();
         // loadProfileForm re-renders the locked state; clear edit-mode UI.
         setAboutEditMode(false);
@@ -5916,99 +6274,9 @@
       }
     });
 
-    // ---- Change sign-in email (which is also the public contact email) ----
-    document.getElementById("change-email-btn")?.addEventListener("click", async () => {
-      const current = $profEmail.value || "";
-      const newEmail = prompt(
-        "Change your email.\n\nThis is your sign-in email AND the email buyers see for the Email Seller button.\n\nWhen you confirm, we'll send confirmation links to BOTH your current address and the new one. You must click both for the change to take effect.",
-        current
-      );
-      if (newEmail === null) return;
-      const clean = newEmail.trim();
-      if (!clean || clean === current) return;
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
-        alert("Please enter a valid email address.");
-        return;
-      }
-      try {
-        const { error } = await supabase.auth.updateUser({ email: clean });
-        if (error) throw error;
-        alert(
-          "Confirmation sent. Check both your current inbox AND " + clean + " for confirmation links. " +
-          "The change won't take effect until you click both."
-        );
-      } catch (err) {
-        console.error("[change-email] failed:", err);
-        alert("Could not request email change: " + (err.message || err));
-      }
-    });
-
-    $profEditBtn.addEventListener("click", () => {
-      $profStatus.textContent = "";
-      $profStatus.className = "sp-text-status";
-      setProfileEditMode(true);
-    });
-
-    $profCancelBtn.addEventListener("click", () => {
-      fillProfileFromSnapshot();
-      setProfileEditMode(false);
-      $profStatus.textContent = "Changes discarded.";
-      $profStatus.className = "sp-text-status";
-    });
-
-    $profSaveBtn.addEventListener("click", async () => {
-      $profStatus.textContent = "Saving…";
-      $profStatus.className = "sp-text-status";
-      $profSaveBtn.disabled = true;
-      try {
-        // display_name and contact_email are intentionally NOT in the payload —
-        // they're locked after signup and can only be changed by the admin.
-        const payload = {
-          facebook_profile_url: $profFb.value.trim()   || null,
-          location:             $profLoc.value.trim()  || null,
-        };
-        // Block adding a Facebook URL that's on the banned-credentials denylist.
-        if (payload.facebook_profile_url) {
-          const { data: banned } = await supabase
-            .rpc("is_banned_credential", { p_email: null, p_facebook_url: payload.facebook_profile_url });
-          if (banned === true) {
-            throw new Error("That Facebook profile URL is on our denylist and can't be used. If you believe this is a mistake, contact admin@canvascircle.art.");
-          }
-        }
-        const { error } = await supabase
-          .from("profiles")
-          .update(payload)
-          .eq("user_id", currentUserId);
-        if (error) {
-          // Friendly message when the unique-index on normalized Facebook URL
-          // fires (migration 013). Postgres error code 23505 = unique_violation.
-          if (error.code === "23505" && /facebook/i.test(error.message || "")) {
-            throw new Error("That Facebook profile URL is already linked to another account on CanvasCircle. Each account must use a unique Facebook profile. If this is your URL on someone else's account, contact admin@canvascircle.art.");
-          }
-          throw error;
-        }
-        // Update snapshot to reflect the save and re-lock the form. Handle
-        // isn't in payload — it's locked — so preserve from existing snapshot.
-        profileSnapshot = {
-          display_name:         payload.display_name         || profileSnapshot.display_name || "",
-          handle:               profileSnapshot.handle       || "",
-          facebook_profile_url: payload.facebook_profile_url || "",
-          location:             payload.location             || "",
-          contact_email:        payload.contact_email        || profileSnapshot.contact_email || "",
-        };
-        setProfileEditMode(false);
-        $profStatus.textContent = "Saved.";
-        $profStatus.className = "sp-text-status ok";
-        // Refresh the signed-in chip in the dashboard header
-        if (payload.display_name) $whoName.textContent = payload.display_name;
-      } catch (err) {
-        console.error("[profile] save failed:", err);
-        $profStatus.textContent = "Could not save: " + (err.message || err);
-        $profStatus.className = "sp-text-status err";
-      } finally {
-        $profSaveBtn.disabled = false;
-      }
-    });
+    // (Change-email and global Edit/Save/Cancel handlers were removed —
+    // email is fully locked now, and per-field edit handlers above replace
+    // the old global form save.)
 
     // -----------------------------------------------------------------------
     // Back-to-top button (portal)
