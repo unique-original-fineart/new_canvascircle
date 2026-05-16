@@ -794,29 +794,23 @@
     }
     .dashboard-quick-actions button { flex: 1 1 auto; min-width: 140px; }
 
-    /* Public listings page panel (moved out of the Profile tab). */
+    /* Public listings page panel — compact: label + Copy/Preview buttons,
+       with a collapsed "What is this for?" explainer below. */
     .public-page-panel {
       margin: 0 0 14px;
-      padding: 12px 14px;
+      padding: 10px 14px;
       background: #faf6ec;
       border: 1px solid #ecdfb8;
       border-radius: 8px;
       color: #5a4400;
     }
     .public-page-panel[hidden] { display: none; }
-    .public-page-panel .ppp-label { font-weight: 600; font-size: 13px; margin-bottom: 8px; }
-    .public-page-panel .ppp-sub { font-weight: 400; color: #7a6020; }
     .public-page-panel .ppp-actions {
-      display: flex; gap: 6px; flex-wrap: wrap; align-items: stretch;
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
     }
-    .public-page-panel #public-page-url {
-      flex: 1; min-width: 180px;
-      padding: 8px 10px;
-      border: 1px solid var(--card-line);
-      border-radius: 6px;
-      background: #fff;
-      color: var(--fg);
-      font-family: inherit; font-size: 13px;
+    .public-page-panel .ppp-label {
+      font-weight: 600; font-size: 13px;
+      margin-right: auto;
     }
     .public-page-panel button,
     .public-page-panel a {
@@ -824,7 +818,29 @@
       text-decoration: none;
       display: inline-flex; align-items: center; justify-content: center;
     }
-    .public-page-panel .ppp-status { margin-left: 4px; color: var(--green); align-self: center; }
+    .public-page-panel .ppp-status { color: var(--green); align-self: center; }
+    .public-page-panel .ppp-explainer { margin-top: 6px; font-size: 12px; }
+    .public-page-panel .ppp-explainer > summary {
+      list-style: none;
+      cursor: pointer;
+      color: #7a6020;
+      font-style: italic;
+      padding: 2px 0;
+      user-select: none;
+    }
+    .public-page-panel .ppp-explainer > summary::-webkit-details-marker { display: none; }
+    .public-page-panel .ppp-explainer > summary::before {
+      content: "▸";
+      display: inline-block;
+      width: 14px;
+      transition: transform .15s ease;
+    }
+    .public-page-panel .ppp-explainer[open] > summary::before { transform: rotate(90deg); }
+    .public-page-panel .ppp-explainer p {
+      margin: 6px 0 0 14px;
+      color: #7a6020;
+      line-height: 1.5;
+    }
 
     /* (Return-trail banner moved to /lib/welcome-banner.js — it's now a
        site-wide sticky banner that lives across every page, not just the
@@ -1706,20 +1722,23 @@
           <button type="button" class="btn-secondary" id="quick-sales-post-btn" data-go="sales-post">Build Facebook Post</button>
         </div>
 
-        <!-- Public seller / collector page panel — moved here from inside the
-             Profile tab so it's accessible no matter which tab you're on.
-             Shows once the user has set a handle. Same URL works for both
-             For Sale and In Search Of posts so the wording reflects that. -->
+        <!-- Public seller / collector page panel — compact: just Copy + Preview
+             buttons with a collapsed "What is this for?" explainer for users
+             who want to know what the link does. The URL itself isn't shown
+             since it isn't clickable anyway. Hidden #public-page-url is kept
+             so the Copy + Preview handlers can read/write the value. -->
         <div id="public-page-row" class="public-page-panel" hidden>
-          <div class="ppp-row">
-            <div class="ppp-label">Your public listings page <span class="small ppp-sub">— share this link to send buyers and other collectors to all your listings (For Sale + In Search Of)</span></div>
-          </div>
+          <input type="hidden" id="public-page-url" />
           <div class="ppp-actions">
-            <input type="text" id="public-page-url" readonly />
-            <button type="button" id="copy-public-page-btn" class="btn-secondary">Copy</button>
+            <span class="ppp-label">Your public listings page</span>
+            <button type="button" id="copy-public-page-btn" class="btn-secondary">Copy link</button>
             <a id="preview-public-page-btn" class="btn-secondary" target="_blank" rel="noopener">Preview ↗</a>
             <span id="copy-public-page-status" class="small ppp-status"></span>
           </div>
+          <details class="ppp-explainer">
+            <summary>What is this for?</summary>
+            <p>Share this link to send buyers and other collectors to a clean page showing all your active listings — both For Sale and In Search Of. Anyone can view the page; contact details are only shown to signed-in members.</p>
+          </details>
         </div>
 
         <!-- Incoming reference requests banner — shows on the dashboard the
@@ -1913,13 +1932,18 @@
               </details>
             </div>
 
-            <!-- Email — fully locked. To change, contact admin. -->
+            <!-- Email — locked by default. Self-service change available via
+                 the small button inside the collapsed explainer below — this
+                 keeps the rarely-used action out of the way but accessible. -->
             <div class="field">
               <label for="prof-email">Email <span class="locked-tag">🔒 Locked</span></label>
               <input type="email" id="prof-email" placeholder="you@example.com" disabled />
               <details class="field-explainer">
                 <summary>What is this for?</summary>
-                <p>The email you use to sign in <em>and</em> the email buyers see on the "Email Seller" button on your listings. To change it, contact <a href="mailto:admin@canvascircle.art" style="color:var(--accent);">admin@canvascircle.art</a>.</p>
+                <p>The email you use to sign in <em>and</em> the email buyers see on the "Email Seller" button on your listings. To change it, tap below — we'll send confirmation links to <strong>both</strong> your current address and the new one. The change takes effect once you click both.</p>
+                <p style="margin-top:8px;">
+                  <button type="button" id="change-email-btn" class="linklike" style="color: var(--accent); font-weight: 600; background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer; font-family: inherit; font-size: 13px;">Change my email</button>
+                </p>
               </details>
             </div>
 
@@ -5673,10 +5697,11 @@
         $status.textContent = "Copied!";
         setTimeout(() => { $status.textContent = ""; }, 2000);
       } catch (err) {
-        // Fallback: select the text so user can Cmd/Ctrl+C
-        $url.select();
-        $status.textContent = "Press Cmd/Ctrl+C to copy.";
-        setTimeout(() => { $status.textContent = ""; }, 3000);
+        // Fallback (rare, e.g. denied clipboard permission): show the URL
+        // in a prompt so the user can manually select + copy. The hidden
+        // input itself can't be selected anymore.
+        prompt("Copy this link:", $url.value);
+        $status.textContent = "";
       }
     });
 
@@ -6274,9 +6299,38 @@
       }
     });
 
-    // (Change-email and global Edit/Save/Cancel handlers were removed —
-    // email is fully locked now, and per-field edit handlers above replace
-    // the old global form save.)
+    // Change-my-email — surfaced inside the email field's collapsed
+    // explainer (rarely used, so it lives behind a tap). Uses Supabase's
+    // standard updateUser({ email }) flow which sends confirmation links
+    // to both the current and new address.
+    document.getElementById("change-email-btn")?.addEventListener("click", async () => {
+      const current = $profEmail.value || "";
+      const newEmail = prompt(
+        "Change your email.\n\nThis is your sign-in email AND the email buyers see for the Email Seller button.\n\nWhen you confirm, we'll send confirmation links to BOTH your current address and the new one. You must click both for the change to take effect.",
+        current
+      );
+      if (newEmail === null) return;
+      const clean = newEmail.trim();
+      if (!clean || clean === current) return;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
+        alert("Please enter a valid email address.");
+        return;
+      }
+      try {
+        const { error } = await supabase.auth.updateUser({ email: clean });
+        if (error) throw error;
+        alert(
+          "Confirmation sent. Check both your current inbox AND " + clean + " for confirmation links. " +
+          "The change won't take effect until you click both."
+        );
+      } catch (err) {
+        console.error("[change-email] failed:", err);
+        alert("Could not request email change: " + (err.message || err));
+      }
+    });
+
+    // (Global Edit/Save/Cancel form handlers were removed — per-field edit
+    // handlers above replace the old global form save.)
 
     // -----------------------------------------------------------------------
     // Back-to-top button (portal)
