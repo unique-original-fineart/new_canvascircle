@@ -3069,7 +3069,8 @@
     function renderPreviewCard(l) {
       const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
-      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      // Compact preview thumb in the 2-up dashboard grid — 500px covers retina.
+      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 500 }) : "";
       const isSold = l.status === "sold";
       // ISO posts use status='sold' to mean "closed/found", which is not the
       // same thing as a sale completing. Skip the SOLD image overlay for ISO.
@@ -3197,7 +3198,8 @@
     function renderEditCard(l) {
       const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
-      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      // Edit modal thumb — same size as the preview card it expands from.
+      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 500 }) : "";
       const isSold = l.status === "sold";
       // ISO 'sold' means "closed/found" — don't paint the SOLD overlay on the
       // thumb. (See renderPreviewCard for the rest of this rationale.)
@@ -3464,7 +3466,8 @@
         // Repaint the card thumb immediately.
         const $thumb = card.querySelector(".card-thumb");
         if ($thumb) {
-          $thumb.innerHTML = `<img src="${publicImageUrl(newPath)}" alt="" decoding="async" />`;
+          // Small confirmation thumb after image replace — 400px is plenty.
+          $thumb.innerHTML = `<img src="${publicImageUrl(newPath, { width: 400 })}" alt="" decoding="async" />`;
         }
         setStatus(
           needsReview
@@ -4194,7 +4197,8 @@
     function renderReportRow(report, reporter) {
       const l = report.listings || {};
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
-      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      // Small admin-row thumb — just enough to recognize the listing at a glance.
+      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 300 }) : "";
       const when = new Date(report.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
       const row = document.createElement("div");
       row.className = "report-row";
@@ -4452,7 +4456,8 @@
 
     function renderExpiringRow(l) {
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
-      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      // Small admin-row thumb.
+      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 300 }) : "";
       const seller = l.profiles?.display_name || "Unknown";
       const email  = l.profiles?.contact_email || "";
       const renewedAt = l.last_renewed_at ? new Date(l.last_renewed_at) : new Date(l.created_at);
@@ -4570,7 +4575,9 @@
     function renderModItem(l) {
       const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
-      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      // Moderation thumb — slightly bigger than the other admin rows because
+      // the admin actually needs to see the artwork to approve/reject.
+      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 400 }) : "";
       const seller = l.profiles?.display_name || "Unknown";
       const sellerHandle = l.profiles?.handle || "";
       const email  = l.profiles?.contact_email || "";
@@ -5106,7 +5113,8 @@
     function renderAllListingRow(l) {
       const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
-      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      // Small admin-row thumb.
+      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 300 }) : "";
       const seller = l.profiles?.display_name || "Unknown seller";
       const sellerHandle = l.profiles?.handle || "";
       const sellerStatus = l.profiles?.account_status || "active";
@@ -6358,7 +6366,8 @@
     function renderSavedCard(l) {
       const isIso    = l.listing_type === "iso";
       const images   = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
-      const imgUrl   = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+      // Saved-listings grid uses the same 2-up layout as Your listings.
+      const imgUrl   = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 500 }) : "";
       const isSold       = l.status === "sold";
       const isNotRenewed = l.status === "not_renewed";
       // ISO 'sold' = "closed/found", not a completed sale. Suppress overlay.
@@ -6681,7 +6690,8 @@
       const frag = document.createDocumentFragment();
       for (const l of rows) {
         const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
-        const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path) : "";
+        // Sales-post picker thumb inside the modal — small preview is plenty.
+        const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 300 }) : "";
         const isSold = l.status === "sold";
         const row = document.createElement("label");
         row.className = "sp-listing-row";
@@ -6924,6 +6934,8 @@
       const path   = images[0]?.storage_path;
       if (path) {
         try {
+          // Intentionally full-size — this image is being composited into a
+          // downloadable Facebook post collage. Source quality matters here.
           const img = await loadCanvasImage(publicImageUrl(path));
           const ratio = Math.max(COLLAGE_CELL_W / img.naturalWidth, COLLAGE_CELL_H / img.naturalHeight);
           const dw = img.naturalWidth * ratio;

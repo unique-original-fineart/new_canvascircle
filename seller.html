@@ -819,7 +819,8 @@
       // ISO 'sold' = "closed/found"; we filter those out at the query so don't paint the overlay anyway.
       card.className = "card" + (listing.status === "sold" && !isIso ? " is-sold" : "");
       card.href = `/listing.html?id=${listing.listing_id}`;
-      const imgUrl = firstPath ? publicImageUrl(firstPath) : "";
+      // Seller page card — same dimensions as the main catalog grid.
+      const imgUrl = firstPath ? publicImageUrl(firstPath, { width: 600 }) : "";
       const catCls   = listing.artwork_category === "Unique/Original" ? " unique"
                      : listing.artwork_category === "Limited Edition" ? " edition" : "";
       const catLabel = listing.artwork_category || "";

@@ -581,7 +581,9 @@
       // ISO 'sold' means "closed/found" — don't paint the SOLD overlay on those.
       card.className = "card" + (listing.status === "sold" && !isIso ? " is-sold" : "");
       card.href = `/listing.html?id=${listing.listing_id}`;
-      const imgUrl = firstPath ? publicImageUrl(firstPath) : "";
+      // Catalog grid card — 2-up on mobile (~340px wide cards), auto-fill on
+      // desktop. 600px covers retina mobile and full desktop card width.
+      const imgUrl = firstPath ? publicImageUrl(firstPath, { width: 600 }) : "";
       const catCls   = listing.artwork_category === "Unique/Original" ? " unique"
                      : listing.artwork_category === "Limited Edition" ? " edition" : "";
       const catLabel = listing.artwork_category || "";
