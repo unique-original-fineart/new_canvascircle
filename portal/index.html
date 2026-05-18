@@ -3373,7 +3373,11 @@
     let currentVerifyFile    = null;
     let currentVerifyCard    = null;
 
-    const VM_MAX_DURATION_SEC = 10;
+    // 7 seconds is plenty of time to pan across the artwork while showing
+    // the handwritten date+handle card, and keeps modern phone HD/4K clips
+    // safely under the 25MB hard cap. iPhone 60fps HD at 10s came in at
+    // ~28MB which would fail the byte check — 7s solves that headroom.
+    const VM_MAX_DURATION_SEC = 7;
     const VM_MAX_BYTES        = 25 * 1024 * 1024;  // 25 MB
 
     function openVerificationModal(listing, card) {
@@ -7795,17 +7799,20 @@
       <button type="button" class="vm-close-x" data-vm-action="close" aria-label="Close">×</button>
       <h3 id="vm-title">Verify ownership</h3>
       <p class="vm-intro">
-        Record a short video (<strong>max 10 seconds</strong>) showing the
+        Submit a short video (<strong>max 7 seconds</strong>) showing the
         artwork along with a <strong>handwritten card</strong> displaying
         <strong>@yourhandle</strong> and <strong>today's date</strong>.
         Speak your name briefly if you can. We'll review within 24-48 hours.
       </p>
 
-      <!-- Stage 1: file picker -->
+      <!-- Stage 1: file picker. Note: NO `capture` attribute on the input —
+           that would force the camera to open directly. Without it, mobile
+           shows the native picker (Photo Library + Take Video options) so
+           sellers can pick a pre-recorded clip OR shoot a fresh one. -->
       <div class="vm-stage vm-pick" data-vm-stage="picker">
-        <input type="file" accept="video/*" capture="environment" id="vm-file" />
-        <label for="vm-file" class="vm-pick-btn">Choose / record video</label>
-        <p class="vm-hint">On mobile this will open your camera. Max 10 seconds and 25 MB. MP4 / MOV / WebM accepted.</p>
+        <input type="file" accept="video/*" id="vm-file" />
+        <label for="vm-file" class="vm-pick-btn">Choose video</label>
+        <p class="vm-hint">Pick a video from your phone's library or record a new one. Max <strong>7 seconds</strong>, 25 MB. MP4 / MOV / WebM accepted.</p>
         <p class="vm-err" data-vm-error hidden></p>
       </div>
 
