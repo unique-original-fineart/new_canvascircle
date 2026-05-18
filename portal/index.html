@@ -1175,6 +1175,63 @@
 
     .mod-list { display: flex; flex-direction: column; gap: 10px; }
 
+    /* Ownership-verification moderation row layout. */
+    .vermod-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+    }
+    .vermod-row .vermod-head {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .vermod-row .vermod-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 6px;
+      background: #f6f3ec;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .vermod-row .vermod-thumb img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .vermod-row .vermod-meta { flex: 1; min-width: 0; }
+    .vermod-row .vermod-meta .title { font-weight: 600; font-size: 14px; }
+    .vermod-row .vermod-meta .sub   { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .vermod-row .vermod-meta .sub a { color: var(--accent); text-decoration: none; }
+    .vermod-row video {
+      width: 100%;
+      max-height: 60vh;
+      background: #000;
+      border-radius: 6px;
+    }
+    .vermod-row .vermod-actions {
+      display: flex; gap: 6px; flex-wrap: wrap;
+    }
+    .vermod-row .vermod-actions button {
+      padding: 7px 14px;
+      border-radius: 7px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .vermod-row .btn-approve {
+      background: #d6efdf; color: #1f5b32; border: 1px solid #a8d9b8;
+    }
+    .vermod-row .btn-approve:hover { background: #c0e3cb; }
+    .vermod-row .btn-reject {
+      background: #fef6f5; color: #8a1f1a; border: 1px solid #e8b3ad;
+    }
+    .vermod-row .btn-reject:hover { background: #fbe4e0; }
+    .vermod-row .vermod-actions button:disabled { opacity: .55; cursor: not-allowed; }
+
     /* Reported-listings admin panel */
     .reports-list { display: flex; flex-direction: column; gap: 10px; }
     .report-row {
@@ -2161,6 +2218,14 @@
             <div id="profmod-loading" class="empty-state" hidden>Loading…</div>
             <div id="profmod-empty" class="empty-state" hidden>No pending profile changes.</div>
             <div id="profmod-list" class="mod-list" hidden></div>
+          </section>
+
+          <section class="admin-section">
+            <h3>Ownership verifications <span class="count" id="vermod-count"></span></h3>
+            <p class="help">Sellers' video submissions proving they physically possess the artwork. Approve sets an "Ownership Verified" badge on the listing; Reject lets the seller see your note and re-submit. Verification confirms possession only, NOT authenticity.</p>
+            <div id="vermod-loading" class="empty-state" hidden>Loading…</div>
+            <div id="vermod-empty" class="empty-state" hidden>No pending ownership verifications.</div>
+            <div id="vermod-list" class="mod-list" hidden></div>
           </section>
 
           <section class="admin-section">
@@ -4516,18 +4581,22 @@
     }
 
     async function refreshModerationBadge() {
-      // Two parallel cheap counts: pending listings + pending profile changes
-      // (display_name OR about_text). Tab badge shows the combined total so
-      // the admin can see at a glance if anything anywhere needs review.
-      const [{ count: listingCount = 0 } = {}, { count: profCount = 0 } = {}] = await Promise.all([
+      // Three parallel cheap counts: pending listings + pending profile
+      // changes (display_name OR about_text) + pending ownership
+      // verifications. Tab badge shows the combined total so the admin can
+      // see at a glance if anything anywhere needs review.
+      const [{ count: listingCount = 0 } = {}, { count: profCount = 0 } = {}, { count: verCount = 0 } = {}] = await Promise.all([
         supabase.from("listings")
           .select("listing_id", { count: "exact", head: true })
           .eq("moderation_status", "pending"),
         supabase.from("profiles")
           .select("user_id", { count: "exact", head: true })
           .or("pending_display_name.not.is.null,pending_about_text.not.is.null"),
+        supabase.from("listing_verifications")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending"),
       ]);
-      const total = (listingCount || 0) + (profCount || 0);
+      const total = (listingCount || 0) + (profCount || 0) + (verCount || 0);
       $adminPendingBadge.textContent = total ? `(${total})` : "";
     }
 
@@ -4644,13 +4713,181 @@
       $adminBanner.hidden = true;
       try {
         await withTimeout(
-          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadReports(), loadSellers(), loadAllListings(), loadExpiring()]),
+          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadVerificationModQueue(), loadReports(), loadSellers(), loadAllListings(), loadExpiring()]),
           15000,
           "admin tab load"
         );
       } catch (err) {
         console.warn("[admin] load timed out:", err);
         setAdminBanner("Some admin panels didn't finish loading. Tap the Admin tab again to retry.", "error");
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Ownership-verification moderation queue — admin reviews pending video
+    // submissions and approves/rejects them. Approve flips the listing's
+    // verification_status to 'verified' via the schema trigger; reject sets
+    // it to 'rejected' so the seller sees the optional note and can re-submit.
+    // -----------------------------------------------------------------------
+    const $vermodList    = document.getElementById("vermod-list");
+    const $vermodCount   = document.getElementById("vermod-count");
+    const $vermodLoading = document.getElementById("vermod-loading");
+    const $vermodEmpty   = document.getElementById("vermod-empty");
+
+    async function loadVerificationModQueue() {
+      $vermodLoading.hidden = false;
+      $vermodEmpty.hidden = true;
+      $vermodList.hidden = true;
+      $vermodList.innerHTML = "";
+
+      // Join the listing (artwork details + first image) and the submitter's
+      // profile in one query. RLS already gates this to admin role.
+      const { data, error } = await supabase
+        .from("listing_verifications")
+        .select(`
+          id, listing_id, submitted_by, status,
+          video_storage_path, video_size_bytes, video_duration_sec,
+          submitted_at,
+          listings ( listing_id, artist_name, artwork_title, artwork_category,
+                     listing_images ( storage_path, position ) ),
+          submitter:profiles!listing_verifications_submitted_by_fkey
+            ( user_id, display_name, handle, contact_email )
+        `)
+        .eq("status", "pending")
+        .order("submitted_at", { ascending: true });
+
+      $vermodLoading.hidden = true;
+      if (error) {
+        console.warn("[vermod] load failed:", error);
+        return;
+      }
+      const rows = data || [];
+      $vermodCount.textContent = rows.length ? `(${rows.length})` : "";
+      if (!rows.length) { $vermodEmpty.hidden = false; return; }
+
+      const frag = document.createDocumentFragment();
+      for (const r of rows) frag.appendChild(renderVerificationModRow(r));
+      $vermodList.appendChild(frag);
+      $vermodList.hidden = false;
+      refreshModerationBadge();
+    }
+
+    function renderVerificationModRow(r) {
+      const listing = r.listings || {};
+      const submitter = r.submitter || {};
+      const images = (listing.listing_images || []).slice().sort((a, b) => a.position - b.position);
+      const thumbUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 200 }) : "";
+      const submittedAgo = (() => {
+        const t = new Date(r.submitted_at).getTime();
+        const mins = Math.floor((Date.now() - t) / 60000);
+        if (mins < 60)   return `${mins}m ago`;
+        if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
+        return `${Math.floor(mins / 1440)}d ago`;
+      })();
+      const sizeMb = r.video_size_bytes ? (r.video_size_bytes / 1024 / 1024).toFixed(1) + " MB" : "";
+      const durStr = r.video_duration_sec != null ? `${r.video_duration_sec.toFixed(1)}s` : "";
+      const sellerLink = submitter.handle
+        ? `<a href="/seller?handle=${encodeURIComponent(submitter.handle)}" target="_blank" rel="noopener">@${escapeHtml(submitter.handle)}</a>`
+        : "";
+
+      const row = document.createElement("div");
+      row.className = "vermod-row";
+      row.dataset.verificationId = r.id;
+      row.innerHTML = `
+        <div class="vermod-head">
+          <div class="vermod-thumb">
+            ${thumbUrl ? `<img src="${thumbUrl}" alt="" />` : ""}
+          </div>
+          <div class="vermod-meta">
+            <div class="title">${escapeHtml(listing.artist_name || "Unknown")} — ${escapeHtml(listing.artwork_title || "Untitled")}</div>
+            <div class="sub">${escapeHtml(submitter.display_name || "(no name)")} ${sellerLink} · submitted ${submittedAgo}${durStr ? " · " + durStr : ""}${sizeMb ? " · " + sizeMb : ""}</div>
+          </div>
+        </div>
+        <video controls playsinline preload="metadata" data-video-placeholder></video>
+        <div class="vermod-actions">
+          <button type="button" class="btn-approve" data-action="approve">✓ Approve</button>
+          <button type="button" class="btn-reject"  data-action="reject">✗ Reject…</button>
+        </div>
+      `;
+
+      // Generate the signed URL asynchronously and attach it once ready.
+      // 1-hour expiry is plenty for an admin reviewing the queue in one sitting.
+      (async () => {
+        if (!r.video_storage_path) return;
+        try {
+          const { data: signed, error: signErr } = await supabase.storage
+            .from("verification-videos")
+            .createSignedUrl(r.video_storage_path, 3600);
+          if (signErr || !signed?.signedUrl) {
+            console.warn("[vermod] signed URL failed:", signErr);
+            return;
+          }
+          const $video = row.querySelector("video");
+          if ($video) $video.src = signed.signedUrl;
+        } catch (err) {
+          console.warn("[vermod] signed URL exception:", err);
+        }
+      })();
+
+      row.querySelector("[data-action=approve]").addEventListener("click", () => approveVerification(r, row));
+      row.querySelector("[data-action=reject]").addEventListener("click",  () => rejectVerification(r, row));
+      return row;
+    }
+
+    async function approveVerification(verification, row) {
+      const yes = confirm(`Approve ownership verification for "${verification.listings?.artwork_title || "this listing"}"?\n\nThis will display the green "Ownership Verified" badge on the listing.`);
+      if (!yes) return;
+      const $buttons = row.querySelectorAll("button");
+      $buttons.forEach(b => b.disabled = true);
+      try {
+        const { error } = await supabase
+          .from("listing_verifications")
+          .update({
+            status:       "approved",
+            reviewed_at:  new Date().toISOString(),
+            reviewed_by:  currentUserId,
+          })
+          .eq("id", verification.id);
+        if (error) throw error;
+        row.remove();
+        await loadVerificationModQueue();  // re-render queue + count
+        setAdminBanner(`Approved verification for "${verification.listings?.artwork_title || "listing"}".`, "success");
+      } catch (err) {
+        console.error("[approve-verification] failed:", err);
+        setAdminBanner("Could not approve: " + (err.message || err), "error");
+        $buttons.forEach(b => b.disabled = false);
+      }
+    }
+
+    async function rejectVerification(verification, row) {
+      const note = prompt(
+        `Reject ownership verification for "${verification.listings?.artwork_title || "this listing"}"?\n\n` +
+        `Optional note for the seller (shown to them so they know what to fix on a re-submission):`,
+        ""
+      );
+      // prompt returns null on Cancel, string (possibly empty) on OK.
+      if (note === null) return;
+      const trimmed = note.trim();
+      const $buttons = row.querySelectorAll("button");
+      $buttons.forEach(b => b.disabled = true);
+      try {
+        const { error } = await supabase
+          .from("listing_verifications")
+          .update({
+            status:       "rejected",
+            reviewed_at:  new Date().toISOString(),
+            reviewed_by:  currentUserId,
+            review_notes: trimmed || null,
+          })
+          .eq("id", verification.id);
+        if (error) throw error;
+        row.remove();
+        await loadVerificationModQueue();
+        setAdminBanner(`Rejected verification for "${verification.listings?.artwork_title || "listing"}".`, "success");
+      } catch (err) {
+        console.error("[reject-verification] failed:", err);
+        setAdminBanner("Could not reject: " + (err.message || err), "error");
+        $buttons.forEach(b => b.disabled = false);
       }
     }
 
