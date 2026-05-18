@@ -4740,18 +4740,23 @@
       $vermodList.hidden = true;
       $vermodList.innerHTML = "";
 
-      // Join the listing (artwork details + first image) and the submitter's
-      // profile in one query. RLS already gates this to admin role.
+      // Join the listing AND the seller's profile (the submitter IS the
+      // listing's seller, so we get their info through the listing's
+      // existing seller_id → profiles FK). The direct embed
+      // `profiles!listing_verifications_submitted_by_fkey` doesn't work
+      // because migration 020 references auth.users(id), not profiles —
+      // PostgREST can't resolve the join without a profiles-targeted FK.
       const { data, error } = await supabase
         .from("listing_verifications")
         .select(`
           id, listing_id, submitted_by, status,
           video_storage_path, video_size_bytes, video_duration_sec,
           submitted_at,
-          listings ( listing_id, artist_name, artwork_title, artwork_category,
-                     listing_images ( storage_path, position ) ),
-          submitter:profiles!listing_verifications_submitted_by_fkey
-            ( user_id, display_name, handle, contact_email )
+          listings (
+            listing_id, artist_name, artwork_title, artwork_category,
+            listing_images ( storage_path, position ),
+            profiles!listings_seller_id_fkey ( user_id, display_name, handle, contact_email )
+          )
         `)
         .eq("status", "pending")
         .order("submitted_at", { ascending: true });
@@ -4774,7 +4779,8 @@
 
     function renderVerificationModRow(r) {
       const listing = r.listings || {};
-      const submitter = r.submitter || {};
+      // Seller info now reached via the listing's existing FK to profiles.
+      const submitter = listing.profiles || {};
       const images = (listing.listing_images || []).slice().sort((a, b) => a.position - b.position);
       const thumbUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 200 }) : "";
       const submittedAgo = (() => {
