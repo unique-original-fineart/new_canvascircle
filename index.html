@@ -263,6 +263,24 @@
     }
     .card .img { aspect-ratio: 1/1; background: #f0ede6; overflow: hidden; position: relative; }
     .card .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    /* Ownership-verified badge: small green check in the top-left corner
+       of the card image. Only rendered for signed-in viewers; anon users
+       never see seller info (badge would be meaningless to them). */
+    .card .verified-corner {
+      position: absolute;
+      top: 8px; left: 8px;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: #1f5b32;
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700;
+      line-height: 1;
+      box-shadow: 0 2px 6px rgba(0,0,0,.18);
+      border: 2px solid #fff;
+      z-index: 2;
+      pointer-events: auto;
+    }
 
     /* Heart/save button — sits as a sibling of the card link to avoid
        button-inside-anchor weirdness. The wrap takes the grid slot; the
@@ -649,8 +667,15 @@
           </div>`;
       }
 
+      // Verified badge — shown only to signed-in viewers (anon users don't
+      // see seller info anywhere, so the badge is hidden from them too).
+      const viewerSignedIn = userSavesSet !== null;
+      const verifiedBadge = (viewerSignedIn && listing.verification_status === "verified")
+        ? `<div class="verified-corner" title="Ownership Verified — the seller submitted proof of possession">✓</div>`
+        : "";
+
       card.innerHTML = `
-        <div class="img">${imgInner}</div>
+        <div class="img">${imgInner}${verifiedBadge}</div>
         <div class="body">
           <div class="artist">${artistLine}</div>
           <div class="title">${titleLine}</div>
@@ -737,6 +762,7 @@
           listing_id, listing_type, artist_name, artwork_title, artwork_category,
           asking_price_usd, previous_price_usd, budget_min_usd, budget_max_usd,
           status, created_at, save_count, shipping_offered,
+          verification_status, verified_at,
           listing_images ( storage_path, position ),
           profiles!listings_seller_id_fkey!inner ( display_name, account_status )
         `, { count: "exact" })

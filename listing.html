@@ -140,6 +140,31 @@
     .badge.mood             { background: #e6e0f0; color: #4a3478; border-color: #cdc1e5; }
     .badge.cat-unique       { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
     .badge.cat-edition      { background: #d6e6f7; color: #1f4a78; border-color: #a8c8e3; }
+    /* Verified badge sits alongside the category/status pills. Click/tap
+       opens a small inline popover explaining what verification means. */
+    .badge.verified-badge {
+      background: #1f5b32;
+      color: #fff;
+      border: 1px solid #1f5b32;
+      cursor: pointer;
+      user-select: none;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .badge.verified-badge .vb-check { font-weight: 700; }
+    .badge.verified-badge:hover { background: #174d28; }
+    .verified-popover {
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: #f0f6ed;
+      border: 1px solid #c2e0c4;
+      border-radius: 8px;
+      color: #1f5b32;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .verified-popover[hidden] { display: none; }
+    .verified-popover strong { font-weight: 600; }
+    .verified-popover .vp-when { color: #2d6f43; font-size: 12px; margin-top: 4px; }
 
     .meta {
       background: var(--card-bg);
@@ -513,6 +538,7 @@
                 budget_min_usd, budget_max_usd,
                 shipping_offered, coa_included, status, moderation_status,
                 seller_mood, last_renewed_at, created_at, seller_id, save_count,
+                verification_status, verified_at,
                 listing_images ( storage_path, position ),
                 profiles!listings_seller_id_fkey ( ${profileCols} )
               `)
@@ -689,6 +715,21 @@
       const titleLine  = l.artwork_title ? escapeHtml(l.artwork_title)
                        : (isIso ? `<span style="color:var(--muted);font-style:italic;">Title unspecified</span>` : "");
 
+      // Verified badge — sits alongside the category/status pills. Anon
+      // viewers never see seller-related info, so the badge is gated on
+      // sign-in. Click → popover with the meaning copy. Verified-at date
+      // is shown in the popover, not on the badge itself, to keep the
+      // badge row compact.
+      const verifiedAt = l.verified_at ? new Date(l.verified_at) : null;
+      const verifiedAtStr = verifiedAt
+        ? verifiedAt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+        : "";
+      const verifiedBadge = (signedIn && l.verification_status === "verified")
+        ? `<span class="badge verified-badge" data-verified-popover tabindex="0" role="button" aria-label="Ownership verified — tap to learn more">
+             <span class="vb-check">✓</span> Ownership Verified
+           </span>`
+        : "";
+
       // ------ Badges row ------
       const badgesBlock = `
         <div class="badges">
@@ -700,6 +741,7 @@
           ${!isIso && l.status !== "available"
             ? `<span class="badge ${sb.cls}">${escapeHtml(sb.label)}</span>` : ""}
           ${!isIso && l.seller_mood ? `<span class="badge mood">${escapeHtml(l.seller_mood)}</span>` : ""}
+          ${verifiedBadge}
         </div>`;
 
       // ------ Meta dl ------
@@ -824,6 +866,13 @@
 
             ${priceBlock}
             ${badgesBlock}
+            ${verifiedBadge ? `
+              <div class="verified-popover" id="verified-popover" hidden>
+                <div><strong>This listing has been ownership verified.</strong></div>
+                <div>The seller submitted a short video showing this artwork along with a handwritten card displaying their @handle and the date. CanvasCircle reviewed the video before adding this badge.</div>
+                <div style="margin-top:6px;">Verification confirms <strong>physical possession</strong> only — it does not confirm authenticity of the artwork.</div>
+                ${verifiedAtStr ? `<div class="vp-when">Verified on ${escapeHtml(verifiedAtStr)}.</div>` : ""}
+              </div>` : ""}
             ${metaBlock}
             ${optionalSections}
             ${counterpartyBlock}
@@ -936,6 +985,21 @@
       }
 
       // Report-this-listing button — minimal, low-contrast link near footer.
+      // Verified badge popover — tap the badge to expand the explanation.
+      const $verifiedBtn = document.querySelector("[data-verified-popover]");
+      const $verifiedPop = document.getElementById("verified-popover");
+      if ($verifiedBtn && $verifiedPop) {
+        $verifiedBtn.addEventListener("click", () => {
+          $verifiedPop.hidden = !$verifiedPop.hidden;
+        });
+        $verifiedBtn.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            $verifiedPop.hidden = !$verifiedPop.hidden;
+          }
+        });
+      }
+
       // Signed-in only (prevents anonymous spam). One report per user per
       // listing is enforced by a DB unique constraint.
       const $reportBtn = document.getElementById("report-listing-btn");

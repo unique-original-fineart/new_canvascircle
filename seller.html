@@ -204,6 +204,22 @@
     }
     .card .img { aspect-ratio: 1/1; background: #f0ede6; overflow: hidden; position: relative; }
     .card .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    /* Ownership-verified badge: small green check in the top-left corner of
+       the card image. Signed-in viewers only. */
+    .card .verified-corner {
+      position: absolute;
+      top: 8px; left: 8px;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: #1f5b32;
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700;
+      line-height: 1;
+      box-shadow: 0 2px 6px rgba(0,0,0,.18);
+      border: 2px solid #fff;
+      z-index: 2;
+    }
     .card .iso-placeholder {
       width: 100%; height: 100%;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -585,6 +601,7 @@
           listing_id, listing_type, artist_name, artwork_title, artwork_category,
           asking_price_usd, previous_price_usd, status, created_at, save_count,
           shipping_offered, budget_min_usd, budget_max_usd,
+          verification_status, verified_at,
           listing_images ( storage_path, position )
         `)
           .eq("seller_id", profile.user_id)
@@ -596,6 +613,7 @@
           listing_id, listing_type, artist_name, artwork_title, artwork_category,
           asking_price_usd, previous_price_usd, status, created_at, save_count,
           shipping_offered, budget_min_usd, budget_max_usd,
+          verification_status, verified_at,
           listing_images ( storage_path, position )
         `)
           .eq("seller_id", profile.user_id)
@@ -776,6 +794,13 @@
       const countsParts = [];
       if (saleN > 0) countsParts.push(`${saleN} for sale`);
       if (isoN  > 0) countsParts.push(`${isoN} In Search Of`);
+      // Verified-listings stat — signed-in viewers only (matches the card
+      // badge rule). Counts both sale + ISO listings that have status='verified'.
+      if (viewerSignedIn) {
+        const verifiedN = [...listingsAll.sale, ...listingsAll.iso]
+          .filter(l => l.verification_status === "verified").length;
+        if (verifiedN > 0) countsParts.push(`${verifiedN} ✓ verified`);
+      }
       $countsItem.textContent = countsParts.length
         ? countsParts.join(" · ")
         : "No active listings";
@@ -873,8 +898,13 @@
           </div>`;
       }
 
+      // Verified badge — signed-in viewers only (matches the catalog rule).
+      const verifiedBadge = (viewerSignedIn && listing.verification_status === "verified")
+        ? `<div class="verified-corner" title="Ownership Verified">✓</div>`
+        : "";
+
       card.innerHTML = `
-        <div class="img">${imgInner}</div>
+        <div class="img">${imgInner}${verifiedBadge}</div>
         <div class="body">
           <div class="artist">${artistLine}</div>
           <div class="title">${titleLine}</div>
