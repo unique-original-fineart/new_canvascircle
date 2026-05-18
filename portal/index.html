@@ -658,6 +658,120 @@
     }
     .listing-card .replace-image-row .replace-status.err { color: var(--red); }
     .listing-card .replace-image-row .replace-status.ok  { color: var(--green); }
+
+    /* ---- Ownership verification section inside the edit modal ---- */
+    .verify-section {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      background: #faf9f6;
+    }
+    .verify-section .verify-heading {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .verify-section .verify-body { font-size: 13px; line-height: 1.5; color: var(--fg); }
+    .verify-section .verify-body p { margin: 0 0 8px; }
+    .verify-section .verify-body p:last-child { margin-bottom: 0; }
+    .verify-section .v-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px; font-weight: 600;
+    }
+    .verify-section .v-badge.pending  { background: #fff4e2; color: #5a4400; border: 1px solid #f0d6a3; }
+    .verify-section .v-badge.verified { background: #d6efdf; color: #1f5b32; border: 1px solid #a8d9b8; }
+    .verify-section .v-badge.rejected { background: #fef6f5; color: #8a1f1a; border: 1px solid #e8b3ad; }
+    .verify-section .v-note {
+      margin-top: 6px;
+      padding: 6px 8px;
+      background: #fff;
+      border: 1px solid var(--card-line);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .verify-section .v-cta {
+      margin-top: 8px;
+      padding: 7px 12px;
+      border-radius: 7px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      border: 1px solid var(--accent);
+      font-family: inherit;
+    }
+    .verify-section .v-cta:hover { background: #9c7209; }
+
+    /* ---- Verification upload modal ---- */
+    #verify-modal {
+      position: fixed; inset: 0;
+      background: rgba(20, 16, 12, .65);
+      z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    #verify-modal[hidden] { display: none !important; }
+    #verify-modal .vm-card {
+      background: #fff;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 480px;
+      padding: 22px 24px 18px;
+      box-shadow: 0 16px 48px rgba(0,0,0,.25);
+      position: relative;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    #verify-modal h3 {
+      margin: 0 0 6px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 22px; font-weight: 600;
+    }
+    #verify-modal .vm-intro { margin: 0 0 14px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    #verify-modal .vm-intro strong { color: var(--fg); }
+    #verify-modal .vm-stage[hidden] { display: none; }
+    #verify-modal .vm-pick {
+      display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+    }
+    #verify-modal .vm-pick-btn {
+      display: inline-block; text-align: center;
+      padding: 14px 18px;
+      background: var(--accent); color: #fff;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    #verify-modal .vm-pick-btn:hover { background: #9c7209; }
+    #verify-modal #vm-file { display: none; }
+    #verify-modal .vm-hint { font-size: 12px; color: var(--muted); margin: 0; }
+    #verify-modal .vm-err { color: #8a1f1a; font-size: 13px; margin: 6px 0 0; }
+    #verify-modal #vm-preview {
+      width: 100%; max-height: 50vh; background: #000;
+      border-radius: 8px; margin-bottom: 8px;
+    }
+    #verify-modal .vm-info { font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+    #verify-modal .vm-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    #verify-modal .vm-actions button { font-family: inherit; }
+    #verify-modal .vm-progress { font-size: 14px; margin: 14px 0; text-align: center; color: var(--muted); }
+    #verify-modal .vm-success { text-align: center; }
+    #verify-modal .vm-success .check { font-size: 40px; color: #1f5b32; line-height: 1; margin-bottom: 8px; }
+    #verify-modal .vm-close-x {
+      position: absolute; top: 10px; right: 12px;
+      background: none; border: none; padding: 4px 10px;
+      font-size: 24px; line-height: 1; cursor: pointer;
+      color: var(--muted); font-family: inherit;
+    }
+    #verify-modal .vm-close-x:hover { color: var(--fg); }
     .listing-card .form-grid label { font-size: 12px; margin-bottom: 3px; }
     .listing-card .form-grid input,
     .listing-card .form-grid select,
@@ -3194,6 +3308,267 @@
       window.scrollTo({ top: 0 });
     }
 
+    // ----- Ownership verification: section rendering + upload modal -----
+    //
+    // The dashboard query loads listing.verification_status (denormalized
+    // by a trigger on listing_verifications) plus the raw verification rows
+    // so we can show the latest rejection note inline if applicable. The
+    // section renders one of four states: none / pending / verified / rejected.
+    //
+    // Click "Verify ownership" → opens the single page-wide #verify-modal,
+    // pre-bound to the listing this card represents. See openVerificationModal.
+    function renderVerificationSection(l) {
+      const status = l.verification_status || "none";
+      const verifiedAt = l.verified_at ? new Date(l.verified_at) : null;
+      // Latest verification row for rejection-note display.
+      const verifs = (l.listing_verifications || []).slice().sort(
+        (a, b) => (b.submitted_at || "").localeCompare(a.submitted_at || "")
+      );
+      const latest = verifs[0];
+
+      let body = "";
+      if (status === "verified") {
+        const when = verifiedAt
+          ? verifiedAt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+          : "";
+        body = `
+          <p><span class="v-badge verified">✓ Ownership Verified${when ? " on " + escapeHtml(when) : ""}</span></p>
+          <p class="small" style="color:var(--muted);">This listing displays a verified badge on the public catalog.</p>
+        `;
+      } else if (status === "pending") {
+        body = `
+          <p><span class="v-badge pending">⏳ Verification submitted — awaiting admin review</span></p>
+          <p class="small" style="color:var(--muted);">We'll review within 24-48 hours. The listing stays live.</p>
+        `;
+      } else if (status === "rejected") {
+        const note = latest && latest.review_notes ? latest.review_notes : "";
+        body = `
+          <p><span class="v-badge rejected">✗ Verification not approved</span></p>
+          ${note ? `<div class="v-note">Admin note: ${escapeHtml(note)}</div>` : ""}
+          <p class="small" style="color:var(--muted); margin-top:6px;">You can submit a new video any time.</p>
+          <button type="button" class="v-cta" data-action="verify-start">Submit a new video</button>
+        `;
+      } else {
+        body = `
+          <p>Not yet verified. Submit a short video showing the artwork with a handwritten card displaying your <strong>@handle</strong> + today's date.</p>
+          <button type="button" class="v-cta" data-action="verify-start">Verify ownership of this listing</button>
+        `;
+      }
+
+      return `
+        <div class="verify-section">
+          <div class="verify-heading">Ownership Verification</div>
+          <div class="verify-body">${body}</div>
+        </div>
+      `;
+    }
+
+    // ---- Verification upload modal lifecycle ----
+    //
+    // One modal instance lives in the DOM (#verify-modal). State per-open:
+    //   currentVerifyListing: the listing row this open call is acting on
+    //   currentVerifyFile:    the File chosen by the seller, if any
+    //   currentVerifyCard:    the card DOM node to re-render on success
+    let currentVerifyListing = null;
+    let currentVerifyFile    = null;
+    let currentVerifyCard    = null;
+
+    const VM_MAX_DURATION_SEC = 10;
+    const VM_MAX_BYTES        = 25 * 1024 * 1024;  // 25 MB
+
+    function openVerificationModal(listing, card) {
+      currentVerifyListing = listing;
+      currentVerifyCard    = card;
+      currentVerifyFile    = null;
+      vmShowStage("picker");
+      vmSetError("");
+      const $modal = document.getElementById("verify-modal");
+      $modal.hidden = false;
+      // Reset the file input each open so picking the same file twice still fires change.
+      const $file = document.getElementById("vm-file");
+      if ($file) $file.value = "";
+    }
+
+    function closeVerificationModal() {
+      const $modal = document.getElementById("verify-modal");
+      if ($modal) $modal.hidden = true;
+      const $preview = document.getElementById("vm-preview");
+      if ($preview) { $preview.removeAttribute("src"); $preview.load?.(); }
+      currentVerifyListing = null;
+      currentVerifyFile    = null;
+      currentVerifyCard    = null;
+    }
+
+    function vmShowStage(name) {
+      const stages = document.querySelectorAll("#verify-modal [data-vm-stage]");
+      for (const s of stages) s.hidden = (s.dataset.vmStage !== name);
+    }
+    function vmSetError(msg) {
+      const $err = document.querySelector("#verify-modal [data-vm-error]");
+      if (!$err) return;
+      $err.textContent = msg || "";
+      $err.hidden = !msg;
+    }
+    function vmSetInfo(msg) {
+      const $info = document.querySelector("#verify-modal [data-vm-info]");
+      if ($info) $info.textContent = msg || "";
+    }
+
+    // Read a File's duration via a temporary <video> element. Returns
+    // duration in seconds (or rejects on error/timeout).
+    function readVideoDuration(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const v = document.createElement("video");
+        v.preload = "metadata";
+        v.muted = true;
+        v.playsInline = true;
+        const cleanup = () => { try { URL.revokeObjectURL(url); } catch {} };
+        const t = setTimeout(() => { cleanup(); reject(new Error("Couldn't read video duration.")); }, 8000);
+        v.onloadedmetadata = () => {
+          clearTimeout(t);
+          const d = v.duration;
+          cleanup();
+          if (!isFinite(d) || d <= 0) reject(new Error("Video has no duration."));
+          else resolve(d);
+        };
+        v.onerror = () => { clearTimeout(t); cleanup(); reject(new Error("Couldn't open the video file.")); };
+        v.src = url;
+      });
+    }
+
+    // Compute SHA-256 hex digest of a Blob using Web Crypto. Used to detect
+    // a video being reused across listings (a strong fraud signal).
+    async function sha256Hex(blob) {
+      const buf = await blob.arrayBuffer();
+      const hash = await crypto.subtle.digest("SHA-256", buf);
+      return Array.from(new Uint8Array(hash))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+
+    // Wire up the verify-modal events once. The handlers reference the
+    // closure-scope state above so each open call is correctly scoped.
+    (function initVerifyModal() {
+      const $modal = document.getElementById("verify-modal");
+      if (!$modal) return;
+      const $file = document.getElementById("vm-file");
+      const $preview = document.getElementById("vm-preview");
+
+      // Click on the overlay (outside the card) closes the modal.
+      $modal.addEventListener("click", (e) => {
+        if (e.target === $modal) closeVerificationModal();
+      });
+      // Delegate all data-vm-action buttons.
+      $modal.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-vm-action]");
+        if (!btn) return;
+        const action = btn.dataset.vmAction;
+        if (action === "close")  closeVerificationModal();
+        if (action === "retake") { currentVerifyFile = null; vmShowStage("picker"); vmSetError(""); }
+        if (action === "submit") submitVerification();
+      });
+
+      // File picked → validate, then show preview.
+      $file?.addEventListener("change", async (e) => {
+        vmSetError("");
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith("video/")) {
+          vmSetError("Please choose a video file.");
+          return;
+        }
+        if (file.size > VM_MAX_BYTES) {
+          vmSetError(`File is ${(file.size / 1024 / 1024).toFixed(1)}MB — max is 25MB. Try recording shorter or at lower resolution.`);
+          return;
+        }
+        let duration;
+        try {
+          duration = await readVideoDuration(file);
+        } catch (err) {
+          vmSetError(err.message || "Couldn't read the video.");
+          return;
+        }
+        if (duration > VM_MAX_DURATION_SEC + 0.5) {
+          vmSetError(`Video is ${duration.toFixed(1)}s — max is ${VM_MAX_DURATION_SEC}s. Re-record a shorter clip.`);
+          return;
+        }
+        currentVerifyFile = file;
+        $preview.src = URL.createObjectURL(file);
+        vmSetInfo(`${(file.size / 1024 / 1024).toFixed(1)}MB · ${duration.toFixed(1)}s`);
+        vmShowStage("preview");
+      });
+    })();
+
+    async function submitVerification() {
+      const listing = currentVerifyListing;
+      const file    = currentVerifyFile;
+      if (!listing || !file) return;
+      vmShowStage("uploading");
+      const $progress = document.querySelector("[data-vm-progress]");
+      const setProg = (t) => { if ($progress) $progress.textContent = t; };
+
+      try {
+        setProg("Hashing video…");
+        const hash = await sha256Hex(file);
+
+        // Insert the listing_verifications row first to reserve an id; then
+        // upload the file to the bucket at {listing_id}/{verification_id}.{ext}.
+        // If the upload fails we can clean up the orphan row (admin manual or
+        // a future cron); the trigger handles the listing.verification_status
+        // flip the moment the row is inserted.
+        const newId = crypto.randomUUID();
+        const ext = (file.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "mp4";
+        const path = `${listing.listing_id}/${newId}.${ext}`;
+
+        setProg("Uploading video…");
+        const { error: uploadErr } = await supabase.storage
+          .from("verification-videos")
+          .upload(path, file, { contentType: file.type || "video/mp4", upsert: false });
+        if (uploadErr) throw uploadErr;
+
+        setProg("Recording submission…");
+        const duration = await readVideoDuration(file).catch(() => null);
+        const { error: insertErr } = await supabase
+          .from("listing_verifications")
+          .insert({
+            id: newId,
+            listing_id: listing.listing_id,
+            submitted_by: currentUserId,
+            status: "pending",
+            video_storage_path: path,
+            video_hash: hash,
+            video_size_bytes: file.size,
+            video_duration_sec: duration != null ? Number(duration.toFixed(2)) : null,
+          });
+        if (insertErr) {
+          // Best-effort cleanup of the orphaned upload — no need to surface
+          // failure here, the admin can sweep it manually if it persists.
+          try { await supabase.storage.from("verification-videos").remove([path]); } catch {}
+          throw insertErr;
+        }
+
+        // Local state: re-render this card with status='pending'.
+        listing.verification_status = "pending";
+        listing.verified_at = null;
+        listing.listing_verifications = [
+          ...(listing.listing_verifications || []),
+          { id: newId, status: "pending", review_notes: null,
+            submitted_at: new Date().toISOString(), reviewed_at: null },
+        ];
+        if (currentVerifyCard) {
+          const newCard = renderEditCard(listing);
+          currentVerifyCard.replaceWith(newCard);
+        }
+
+        vmShowStage("success");
+      } catch (err) {
+        console.error("[verify-upload] failed:", err);
+        vmShowStage("preview");
+        vmSetError("Could not submit: " + (err.message || err));
+      }
+    }
+
     // ----- Edit form (inside modal). Same as the old inline edit card. -----
     function renderEditCard(l) {
       const isIso = l.listing_type === "iso";
@@ -3342,6 +3717,8 @@
           </div>
         </div>
 
+        ${renderVerificationSection(l)}
+
         <div class="card-footer">
           <a class="view-link" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View on catalog ↗</a>
           <div class="actions">
@@ -3374,6 +3751,7 @@
       card.querySelector("[data-action=remove]")?.addEventListener("click", () => removeCard(card, listing));
       card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => toggleSaversList(card, listing));
       card.querySelector("[data-action=renew]")?.addEventListener("click", () => renewCard(card, listing));
+      card.querySelector("[data-action=verify-start]")?.addEventListener("click", () => openVerificationModal(listing, card));
 
       // Replace image flow — button opens hidden file picker; on change we
       // compress + upload + swap the listing_images row + refresh the thumb.
@@ -4017,7 +4395,9 @@
               moderation_reason, moderation_reason_at,
               seller_mood, last_renewed_at, created_at,
               save_count, view_count,
-              listing_images ( storage_path, position )
+              verification_status, verified_at,
+              listing_images ( storage_path, position ),
+              listing_verifications ( id, status, review_notes, submitted_at, reviewed_at )
             `)
             .eq("seller_id", userId)
             .order("created_at", { ascending: false }),
@@ -7406,5 +7786,54 @@
       if (document.visibilityState === "visible") refreshPortalIfStale(false);
     });
   </script>
+
+  <!-- Ownership verification upload modal — opened from the Edit Listing
+       modal's verification section. Single instance for the whole portal,
+       repurposed per click via openVerificationModal(listing, card). -->
+  <div id="verify-modal" hidden>
+    <div class="vm-card" role="dialog" aria-modal="true" aria-labelledby="vm-title">
+      <button type="button" class="vm-close-x" data-vm-action="close" aria-label="Close">×</button>
+      <h3 id="vm-title">Verify ownership</h3>
+      <p class="vm-intro">
+        Record a short video (<strong>max 10 seconds</strong>) showing the
+        artwork along with a <strong>handwritten card</strong> displaying
+        <strong>@yourhandle</strong> and <strong>today's date</strong>.
+        Speak your name briefly if you can. We'll review within 24-48 hours.
+      </p>
+
+      <!-- Stage 1: file picker -->
+      <div class="vm-stage vm-pick" data-vm-stage="picker">
+        <input type="file" accept="video/*" capture="environment" id="vm-file" />
+        <label for="vm-file" class="vm-pick-btn">Choose / record video</label>
+        <p class="vm-hint">On mobile this will open your camera. Max 10 seconds and 25 MB. MP4 / MOV / WebM accepted.</p>
+        <p class="vm-err" data-vm-error hidden></p>
+      </div>
+
+      <!-- Stage 2: preview before submit -->
+      <div class="vm-stage" data-vm-stage="preview" hidden>
+        <video id="vm-preview" controls playsinline></video>
+        <p class="vm-info" data-vm-info></p>
+        <div class="vm-actions">
+          <button type="button" class="btn-secondary" data-vm-action="retake">Choose different video</button>
+          <button type="button" class="btn-primary"   data-vm-action="submit">Submit for review</button>
+        </div>
+      </div>
+
+      <!-- Stage 3: uploading -->
+      <div class="vm-stage" data-vm-stage="uploading" hidden>
+        <p class="vm-progress" data-vm-progress>Uploading… please wait.</p>
+      </div>
+
+      <!-- Stage 4: success -->
+      <div class="vm-stage vm-success" data-vm-stage="success" hidden>
+        <div class="check">✓</div>
+        <p><strong>Submitted!</strong></p>
+        <p class="vm-info">We'll review your verification video within 24-48 hours. You'll see the status change on this listing once it's reviewed.</p>
+        <div class="vm-actions" style="justify-content: center; margin-top: 14px;">
+          <button type="button" class="btn-primary" data-vm-action="close">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
