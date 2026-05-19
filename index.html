@@ -486,10 +486,15 @@
         <select id="f-seller" title="Seller">
           <option value="">All sellers</option>
         </select>
-        <select id="f-trust" title="Trust signals" hidden>
-          <option value="">All listings</option>
-          <option value="verified">Ownership Verified</option>
-          <option value="established">Established Member</option>
+        <select id="f-trust-member" title="Member trust level" hidden>
+          <option value="">All Member Trust Levels</option>
+          <option value="established">Established Members</option>
+          <option value="non-established">Non-Established Members</option>
+        </select>
+        <select id="f-trust-verify" title="Ownership verification" hidden>
+          <option value="">Verified and Unverified Ownership</option>
+          <option value="verified">Verified Ownership</option>
+          <option value="unverified">Unverified Ownership</option>
         </select>
         <div class="price-pair">
           <input type="number" id="f-min" placeholder="Min $" min="0" step="50" />
@@ -563,8 +568,9 @@
     const $q        = document.getElementById("q");
     const $cat      = document.getElementById("f-category");
     const $statusF  = document.getElementById("f-status");
-    const $seller   = document.getElementById("f-seller");
-    const $trust    = document.getElementById("f-trust");
+    const $seller       = document.getElementById("f-seller");
+    const $trustMember  = document.getElementById("f-trust-member");
+    const $trustVerify  = document.getElementById("f-trust-verify");
     const $min      = document.getElementById("f-min");
     const $max      = document.getElementById("f-max");
     const $sort     = document.getElementById("f-sort");
@@ -786,12 +792,15 @@
       if (filters.cat)    q = q.eq("artwork_category", filters.cat);
       if (filters.seller) q = q.eq("profiles.display_name", filters.seller);
 
-      // Trust-signal filter (signed-in viewers only; the dropdown is hidden
-      // for anonymous viewers so we never see a non-empty value from them).
-      // The "verified" branch leans on listings.verification_status; the
-      // "established" branch filters on the joined profiles.is_trusted flag.
-      if (filters.trust === "verified")    q = q.eq("verification_status", "verified");
-      else if (filters.trust === "established") q = q.eq("profiles.is_trusted", true);
+      // Trust filters (signed-in viewers only; the dropdowns are hidden for
+      // anonymous viewers so we never see non-empty values from them). Each
+      // filter is independent — picking "Established Members" + "Verified
+      // Ownership" returns the intersection. Leaving either at its default
+      // (empty string) means "no filter on this dimension".
+      if (filters.trustMember === "established")         q = q.eq("profiles.is_trusted", true);
+      else if (filters.trustMember === "non-established") q = q.eq("profiles.is_trusted", false);
+      if (filters.trustVerify === "verified")            q = q.eq("verification_status", "verified");
+      else if (filters.trustVerify === "unverified")     q = q.neq("verification_status", "verified");
 
       // Price/budget filter — column depends on the tab. For ISO we filter by
       // budget_max (so "max $500" finds requests willing to pay up to $500+).
@@ -834,9 +843,10 @@
         q:       $q.value.trim(),
         cat:     $cat.value,
         statusF: $statusF.value,
-        seller:  $seller.value,
-        trust:   $trust.value,
-        min:     $min.value,
+        seller:       $seller.value,
+        trustMember:  $trustMember.value,
+        trustVerify:  $trustVerify.value,
+        min:          $min.value,
         max:     $max.value,
         sort:    $sort.value,
       };
@@ -1022,15 +1032,18 @@
       const authTimedOut = (viewerOrTimeout === "__timeout__");
 
       if (viewer) {
-        $seller.hidden = false;
-        $trust.hidden  = false;
+        $seller.hidden       = false;
+        $trustMember.hidden  = false;
+        $trustVerify.hidden  = false;
         try { userSavesSet = await getCurrentUserSaves(); }
         catch (e) { userSavesSet = null; }
       } else {
-        $seller.hidden = true;
-        $seller.value  = "";
-        $trust.hidden  = true;
-        $trust.value   = "";
+        $seller.hidden       = true;
+        $seller.value        = "";
+        $trustMember.hidden  = true;
+        $trustMember.value   = "";
+        $trustVerify.hidden  = true;
+        $trustVerify.value   = "";
         userSavesSet = null;
       }
 
@@ -1039,7 +1052,7 @@
       await populateDropdowns();
       $status.hidden = true;
       await applyFilters();
-      if (totalCount === 0 && !$q.value && !$cat.value && !$seller.value && !$trust.value && !$min.value && !$max.value) {
+      if (totalCount === 0 && !$q.value && !$cat.value && !$seller.value && !$trustMember.value && !$trustVerify.value && !$min.value && !$max.value) {
         // Truly empty catalog (not just zero-match filters).
         $status.hidden = false;
         $status.textContent = currentTab === "iso"
@@ -1067,7 +1080,8 @@
         sessionStorage.setItem(FILTER_KEY, JSON.stringify({
           tab: currentTab,
           q: $q.value, cat: $cat.value, statusF: $statusF.value,
-          seller: $seller.value, trust: $trust.value,
+          seller: $seller.value,
+          trustMember: $trustMember.value, trustVerify: $trustVerify.value,
           min: $min.value, max: $max.value, sort: $sort.value,
         }));
       } catch (e) { /* private mode etc — ignore */ }
@@ -1081,8 +1095,9 @@
         if (s.q       != null) $q.value       = s.q;
         if (s.cat     != null) $cat.value     = s.cat;
         if (s.statusF != null) $statusF.value = s.statusF;
-        if (s.seller  != null) $seller.value  = s.seller;
-        if (s.trust   != null) $trust.value   = s.trust;
+        if (s.seller       != null) $seller.value       = s.seller;
+        if (s.trustMember  != null) $trustMember.value  = s.trustMember;
+        if (s.trustVerify  != null) $trustVerify.value  = s.trustVerify;
         if (s.min     != null) $min.value     = s.min;
         if (s.max     != null) $max.value     = s.max;
         if (s.sort    != null) $sort.value    = s.sort;
@@ -1130,7 +1145,7 @@
       filterDebounce = setTimeout(applyFilters, 250);
     }
     [$q, $min, $max].forEach(el => el.addEventListener("input", debouncedApply));
-    [$cat, $statusF, $seller, $trust, $sort].forEach(el => {
+    [$cat, $statusF, $seller, $trustMember, $trustVerify, $sort].forEach(el => {
       el.addEventListener("change", () => { saveFilterState(); applyFilters(); });
     });
     $clear.addEventListener("click", () => {
@@ -1138,7 +1153,8 @@
       $cat.value = "";
       $statusF.value = "available";
       $seller.value = "";
-      $trust.value = "";
+      $trustMember.value = "";
+      $trustVerify.value = "";
       $min.value = "";
       $max.value = "";
       $sort.value = "newest";
