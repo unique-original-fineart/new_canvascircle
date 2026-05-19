@@ -149,9 +149,35 @@
       cursor: pointer;
       user-select: none;
       display: inline-flex; align-items: center; gap: 4px;
+      transition: background .15s ease, box-shadow .15s ease;
     }
     .badge.verified-badge .vb-check { font-weight: 700; }
-    .badge.verified-badge:hover { background: #174d28; }
+    .badge.verified-badge .vb-chev {
+      font-size: 10px; opacity: .85; margin-left: 2px;
+      transition: transform .2s ease;
+      display: inline-block;
+    }
+    .badge.verified-badge[aria-expanded="true"] .vb-chev { transform: rotate(180deg); }
+    .badge.verified-badge:hover,
+    .badge.verified-badge:focus-visible {
+      background: #174d28;
+      box-shadow: 0 0 0 3px rgba(31,91,50,.22);
+      outline: none;
+    }
+    /* Inline hint sits to the right of the badge so users don't have to
+       guess whether the pill is interactive. Hidden visually when the
+       popover is already open. */
+    .verified-hint {
+      display: inline-flex; align-items: center;
+      font-size: 12px;
+      color: #1f5b32;
+      margin-left: 4px;
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-style: dotted;
+      text-underline-offset: 3px;
+    }
+    .verified-hint[hidden] { display: none; }
     .verified-popover {
       margin-top: 8px;
       padding: 10px 12px;
@@ -725,9 +751,13 @@
         ? verifiedAt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
         : "";
       const verifiedBadge = (signedIn && l.verification_status === "verified")
-        ? `<span class="badge verified-badge" data-verified-popover tabindex="0" role="button" aria-label="Ownership verified — tap to learn more">
+        ? `<span class="badge verified-badge" data-verified-popover tabindex="0" role="button"
+                 aria-controls="verified-popover" aria-expanded="false"
+                 aria-label="Ownership verified — tap to learn more">
              <span class="vb-check">✓</span> Ownership Verified
-           </span>`
+             <span class="vb-chev" aria-hidden="true">▾</span>
+           </span>
+           <span class="verified-hint" id="verified-hint" tabindex="0" role="button" aria-label="What does Ownership Verified mean?">What's this?</span>`
         : "";
 
       // ------ Badges row ------
@@ -985,17 +1015,34 @@
       }
 
       // Report-this-listing button — minimal, low-contrast link near footer.
-      // Verified badge popover — tap the badge to expand the explanation.
-      const $verifiedBtn = document.querySelector("[data-verified-popover]");
-      const $verifiedPop = document.getElementById("verified-popover");
+      // Verified badge popover — tap the badge OR the "What's this?" hint to
+      // expand the explanation. Chevron rotates and aria-expanded flips so
+      // the badge looks like a real disclosure widget instead of a passive pill.
+      const $verifiedBtn  = document.querySelector("[data-verified-popover]");
+      const $verifiedHint = document.getElementById("verified-hint");
+      const $verifiedPop  = document.getElementById("verified-popover");
+      function toggleVerifiedPopover() {
+        if (!$verifiedPop) return;
+        const willOpen = $verifiedPop.hidden;
+        $verifiedPop.hidden = !willOpen;
+        if ($verifiedBtn)  $verifiedBtn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        if ($verifiedHint) $verifiedHint.hidden = willOpen;  // hide the hint once they've discovered it
+      }
       if ($verifiedBtn && $verifiedPop) {
-        $verifiedBtn.addEventListener("click", () => {
-          $verifiedPop.hidden = !$verifiedPop.hidden;
-        });
+        $verifiedBtn.addEventListener("click", toggleVerifiedPopover);
         $verifiedBtn.addEventListener("keydown", (e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            $verifiedPop.hidden = !$verifiedPop.hidden;
+            toggleVerifiedPopover();
+          }
+        });
+      }
+      if ($verifiedHint && $verifiedPop) {
+        $verifiedHint.addEventListener("click", toggleVerifiedPopover);
+        $verifiedHint.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleVerifiedPopover();
           }
         });
       }

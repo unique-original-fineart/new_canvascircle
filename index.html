@@ -282,7 +282,7 @@
     .card .verified-corner {
       position: absolute;
       top: 8px; left: 8px;
-      width: 26px; height: 26px;
+      width: 28px; height: 28px;
       border-radius: 50%;
       background: #1f5b32;
       color: #fff;
@@ -292,7 +292,37 @@
       box-shadow: 0 2px 6px rgba(0,0,0,.18);
       border: 2px solid #fff;
       z-index: 2;
+      cursor: pointer;
       pointer-events: auto;
+      -webkit-tap-highlight-color: rgba(31,91,50,.25);
+    }
+    .card .verified-corner:focus-visible {
+      outline: 3px solid rgba(31,91,50,.55);
+      outline-offset: 2px;
+    }
+    /* Floating toast shown when a card's verified check is tapped — gives
+       mobile users (who can't see the title= tooltip) the same explanation
+       desktop users get on hover. Auto-dismisses after a few seconds or on
+       next tap anywhere else. */
+    .verified-toast {
+      position: fixed;
+      left: 50%; bottom: 24px;
+      transform: translateX(-50%);
+      max-width: 340px;
+      width: calc(100% - 32px);
+      background: #1f5b32;
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      font-size: 13px;
+      line-height: 1.45;
+      z-index: 9999;
+      text-align: center;
+    }
+    .verified-toast[hidden] { display: none; }
+    .verified-toast .vt-title {
+      display: block; font-weight: 700; margin-bottom: 4px;
     }
 
     /* Heart/save button — sits as a sibling of the card link to avoid
@@ -1146,8 +1176,51 @@
         e.preventDefault();
         e.stopPropagation();
         onHeartClick(btn);
+        return;
+      }
+      // Verified-corner taps — show the toast instead of navigating to the
+      // listing. Mobile has no hover state for the title= tooltip, so this
+      // is how mobile users discover what the badge means.
+      const corner = e.target.closest(".verified-corner");
+      if (corner) {
+        e.preventDefault();
+        e.stopPropagation();
+        showVerifiedToast();
       }
     });
+
+    // Verified-corner toast. One singleton element appended on first use;
+    // dismissed by tapping anywhere else or after a few seconds. Wrapped in
+    // a tiny IIFE so the timer + handler can share state without polluting
+    // the outer scope.
+    let __verifiedToastTimer = null;
+    function showVerifiedToast() {
+      let toast = document.getElementById("verified-toast");
+      if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "verified-toast";
+        toast.className = "verified-toast";
+        toast.setAttribute("role", "status");
+        toast.innerHTML =
+          `<span class="vt-title">✓ Ownership Verified</span>` +
+          `The seller submitted a short video proving they physically possess this artwork. ` +
+          `Open the listing for details.`;
+        document.body.appendChild(toast);
+      }
+      toast.hidden = false;
+      clearTimeout(__verifiedToastTimer);
+      __verifiedToastTimer = setTimeout(() => { toast.hidden = true; }, 4500);
+    }
+    // Tap anywhere else dismisses the toast immediately. Uses capture phase
+    // so we run BEFORE the grid's own click handler (which would re-trigger
+    // on a fresh corner tap).
+    document.addEventListener("click", (e) => {
+      const toast = document.getElementById("verified-toast");
+      if (toast && !toast.hidden && !e.target.closest(".verified-corner") && !e.target.closest(".verified-toast")) {
+        toast.hidden = true;
+        clearTimeout(__verifiedToastTimer);
+      }
+    }, true);
 
     // Text + number inputs debounce so each keystroke doesn't fire a request.
     // Selects fire immediately (they only change on commit).
