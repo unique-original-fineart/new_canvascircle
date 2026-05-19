@@ -228,6 +228,67 @@
     .banner.error   { background: #fef6f5; border-color: #f1c4be; color: var(--red); }
     .banner.info    { background: #eaf1fb; border-color: #cad9ee; color: #1f4583; }
 
+    /* Persistent banner that surfaces revoked Ownership Verified badges
+       across all listings — separate from the transient .banner element
+       because that one gets clobbered by save/error status messages. Stays
+       at the top of the dashboard until the seller either re-verifies the
+       affected listings or dismisses it for the session. */
+    .revoked-banner {
+      margin-top: 14px;
+      padding: 12px 14px 10px;
+      border-radius: 10px;
+      background: #fff0ef;
+      border: 1px solid #f1a99c;
+      color: #7a2517;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .revoked-banner[hidden] { display: none; }
+    .revoked-banner .rb-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .revoked-banner .rb-list {
+      margin: 6px 0 8px;
+      padding-left: 20px;
+    }
+    .revoked-banner .rb-list li { margin-bottom: 3px; }
+    .revoked-banner .rb-reason {
+      color: #5a1a10;
+      font-style: italic;
+    }
+    .revoked-banner .rb-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .revoked-banner .rb-dismiss {
+      background: transparent;
+      border: 1px solid #d18579;
+      color: #7a2517;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .revoked-banner .rb-dismiss:hover { background: #f9d8d3; }
+    .revoked-banner .rb-scroll {
+      background: #7a2517;
+      color: #fff;
+      border: 1px solid #7a2517;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .revoked-banner .rb-scroll:hover { background: #5a1a10; }
+
     .signed-in-row {
       display: flex; align-items: center; justify-content: space-between;
       gap: 12px; flex-wrap: wrap;
@@ -1968,6 +2029,7 @@
           </form>
 
           <div id="dashboard-banner" class="banner" hidden></div>
+          <div id="revoked-banner" class="revoked-banner" hidden></div>
           <div id="listings-loading" class="empty-state" hidden>Loading your listings&hellip;</div>
           <div id="listings-error"   class="banner error" hidden></div>
           <div id="listings-empty"   class="empty-state" hidden>
@@ -3503,7 +3565,14 @@
             " — submit a new verification video to restore the badge.",
             "error"
           );
+          // Drop the session-dismissal flag so the persistent banner
+          // resurfaces with this newly-revoked listing in the next refresh.
+          try { sessionStorage.removeItem(REVOKED_DISMISS_KEY); } catch (e) {}
         }
+
+        // Refresh the persistent revoked-banner so the global count stays
+        // in sync with reality regardless of how the status changed.
+        refreshRevokedBanner();
       } catch (e) {
         console.warn("[refreshVerificationStateAfterSave] failed:", e);
       }
@@ -4153,6 +4222,92 @@
       $dashBanner.hidden = false;
     }
 
+    // ---- Persistent revoked-badges banner ----
+    //
+    // Lives separately from $dashBanner so the transient save/error
+    // messages don't clobber it. Surfaces every listing with status =
+    // 'revoked' (whether revoked by the admin manually or auto-revoked by
+    // the DB trigger when a material field or the primary image changed).
+    // Without this banner, a seller with many listings could easily miss
+    // that a card lost its badge — the only signal otherwise is inside
+    // each individual listing card.
+    //
+    // The dismiss button stores a session-only flag so the banner can be
+    // hidden while the seller works on something else. It re-appears on
+    // page reload or new tab. Re-verifying a listing removes it from the
+    // 'revoked' bucket (via the state machine precedence in migration
+    // 022), which shrinks or clears the banner naturally on next refresh.
+    const REVOKED_DISMISS_KEY = "cc_revoked_banner_dismissed";
+    function refreshRevokedBanner() {
+      const $banner = document.getElementById("revoked-banner");
+      if (!$banner) return;
+      const revoked = (allListings || []).filter(l => l.verification_status === "revoked");
+      if (!revoked.length) {
+        $banner.hidden = true;
+        $banner.innerHTML = "";
+        // Clear any session dismissal if there are no revoked listings.
+        try { sessionStorage.removeItem(REVOKED_DISMISS_KEY); } catch (e) {}
+        return;
+      }
+
+      // Honor a session-level dismissal — but only if the dismiss-set still
+      // matches what's revoked right now. If a NEW listing was revoked since
+      // dismissal, we surface the banner again.
+      let dismissedSet = null;
+      try {
+        const raw = sessionStorage.getItem(REVOKED_DISMISS_KEY);
+        if (raw) dismissedSet = new Set(JSON.parse(raw));
+      } catch (e) { dismissedSet = null; }
+      const currentIds = revoked.map(l => l.listing_id).sort();
+      if (dismissedSet) {
+        const allDismissed = currentIds.every(id => dismissedSet.has(id));
+        if (allDismissed) {
+          $banner.hidden = true;
+          $banner.innerHTML = "";
+          return;
+        }
+      }
+
+      // Pull the most recent revoke_reason per listing for the banner copy.
+      const reasonFor = (l) => {
+        const latest = (l.listing_verifications || [])
+          .filter(v => v.status === "approved" && v.revoked_at)
+          .sort((a, b) => (b.revoked_at || "").localeCompare(a.revoked_at || ""))[0];
+        return latest?.revoke_reason || "Badge removed";
+      };
+
+      const items = revoked.map(l => `
+        <li>
+          <strong>${escapeHtml(l.artist_name || "Unknown")} — ${escapeHtml(l.artwork_title || "Untitled")}</strong>
+          — <span class="rb-reason">${escapeHtml(reasonFor(l))}</span>
+        </li>
+      `).join("");
+
+      const n = revoked.length;
+      $banner.innerHTML = `
+        <div class="rb-title">⚠️ ${n} of your listing${n === 1 ? "" : "s"} ${n === 1 ? "had" : "have had"} the Ownership Verified badge revoked</div>
+        <ul class="rb-list">${items}</ul>
+        <div>Open each card below and click <strong>Submit a new video</strong> to restore the badge after admin review. If a listing's content has changed (artist / title / category / primary image), the badge auto-revokes — re-submit a fresh video that matches the current listing.</div>
+        <div class="rb-foot">
+          <button type="button" class="rb-scroll" data-action="rb-scroll">Scroll to first revoked listing</button>
+          <button type="button" class="rb-dismiss" data-action="rb-dismiss">Dismiss for this session</button>
+        </div>
+      `;
+      $banner.hidden = false;
+
+      $banner.querySelector("[data-action=rb-scroll]")?.addEventListener("click", () => {
+        const firstRevokedId = revoked[0]?.listing_id;
+        if (!firstRevokedId) return;
+        const card = document.querySelector(`.listing-card[data-listing-id="${firstRevokedId}"], [data-listing-id="${firstRevokedId}"]`);
+        if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      $banner.querySelector("[data-action=rb-dismiss]")?.addEventListener("click", () => {
+        try { sessionStorage.setItem(REVOKED_DISMISS_KEY, JSON.stringify(currentIds)); } catch (e) {}
+        $banner.hidden = true;
+        $banner.innerHTML = "";
+      });
+    }
+
     async function removeCard(card, listing) {
       const id = card.dataset.listingId;
       const label = `${listing.artist_name || "Unknown"} — ${listing.artwork_title || "Untitled"}`;
@@ -4603,6 +4758,7 @@
       }
       applyFilters();
       refreshNotRenewedBanner();
+      refreshRevokedBanner();
     }
 
     // Warn before navigation if there are unsaved changes
