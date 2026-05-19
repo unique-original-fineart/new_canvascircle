@@ -167,6 +167,19 @@
     @media (min-width: 720px) {
       .price-pair { grid-column: span 2; min-width: 200px; }
     }
+    /* Trust-signal selects have long labels ("All Member Trust Levels",
+       "Verified and Unverified Ownership") that overflow a single grid
+       track. Span 2 tracks so the full label is always readable on every
+       viewport — same trick the price-pair already uses. */
+    #f-trust-member,
+    #f-trust-verify {
+      grid-column: span 2;
+      min-width: 0;
+    }
+    @media (min-width: 720px) {
+      #f-trust-member,
+      #f-trust-verify { grid-column: span 2; min-width: 240px; }
+    }
     .toolbar input[type="search"],
     .toolbar input[type="number"],
     .toolbar select {
