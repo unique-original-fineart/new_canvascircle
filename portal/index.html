@@ -758,6 +758,69 @@
       color: var(--muted);
       font-style: italic;
     }
+
+    /* "Pill + chevron + popover" pattern — mirrors the listing modal's
+       Ownership Verified pill on the public catalog. Used inside the
+       seller portal listing card to communicate state at a glance:
+         verified  → solid green pill, no chevron (sellers know what it means)
+         pending   → solid amber pill + click-to-expand explanation
+         revoked   → solid red pill + click-to-expand reason
+         rejected  → solid red pill + click-to-expand admin note
+       Container styles (.verify-section) above still apply for the outer
+       box; these classes target the pill itself. */
+    .verify-section .vp-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 13px; font-weight: 600;
+      line-height: 1.1;
+      user-select: none;
+      transition: filter .15s ease, box-shadow .15s ease;
+      max-width: 100%;       /* never overflow the card column */
+    }
+    .verify-section .vp-badge.is-clickable { cursor: pointer; }
+    .verify-section .vp-badge.is-clickable:hover,
+    .verify-section .vp-badge.is-clickable:focus-visible {
+      filter: brightness(0.92);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0,0,0,.08);
+    }
+    .verify-section .vp-badge.verified {
+      background: #1f5b32; color: #fff; border: 1px solid #1f5b32;
+    }
+    .verify-section .vp-badge.pending {
+      background: #c47a05; color: #fff; border: 1px solid #c47a05;
+    }
+    .verify-section .vp-badge.rejected {
+      background: #8a1f1a; color: #fff; border: 1px solid #8a1f1a;
+    }
+    .verify-section .vp-chev {
+      font-size: 10px; opacity: .9;
+      transition: transform .2s ease;
+      display: inline-block;
+    }
+    .verify-section .vp-badge[aria-expanded="true"] .vp-chev { transform: rotate(180deg); }
+    .verify-section .vp-popover {
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--fg);
+      /* Allow long auto-revoke reasons or admin notes to wrap inside the
+         narrow mobile card without forcing horizontal scroll. */
+      word-break: break-word;
+    }
+    .verify-section .vp-popover[hidden] { display: none; }
+    .verify-section .vp-popover strong { font-weight: 700; }
+    /* Mobile cards are ~165px wide — drop the badge font slightly to keep
+       "✗ Not Approved ▾" on a single line and avoid wrapping the chevron. */
+    @media (max-width: 540px) {
+      .verify-section .vp-badge { font-size: 12px; padding: 5px 10px; }
+      .verify-section .vp-popover { font-size: 12px; padding: 8px 10px; }
+    }
     .verify-section .v-cta {
       margin-top: 8px;
       padding: 7px 12px;
@@ -3468,17 +3531,21 @@
 
       let body = "";
       if (status === "verified") {
-        const when = verifiedAt
-          ? verifiedAt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
-          : "";
+        // Static pill — no chevron, no popover. The seller already knows
+        // what verified means; cluttering it up would be redundant.
         body = `
-          <p><span class="v-badge verified">✓ Ownership Verified${when ? " on " + escapeHtml(when) : ""}</span></p>
-          <p class="small" style="color:var(--muted);">This listing displays a verified badge on the public catalog.</p>
+          <span class="vp-badge verified" aria-label="Ownership Verified">
+            <span class="vb-check">✓</span> Ownership Verified
+          </span>
         `;
       } else if (status === "pending") {
         body = `
-          <p><span class="v-badge pending">⏳ Verification submitted — awaiting admin review</span></p>
-          <p class="small" style="color:var(--muted);">We'll review within 24-48 hours. The listing stays live.</p>
+          <span class="vp-badge pending is-clickable" data-vp-toggle role="button" tabindex="0" aria-expanded="false" aria-controls="vp-pop-${escapeHtml(l.listing_id)}">
+            ⏳ Pending Review <span class="vp-chev" aria-hidden="true">▾</span>
+          </span>
+          <div class="vp-popover" id="vp-pop-${escapeHtml(l.listing_id)}" hidden>
+            Your verification video was submitted and is awaiting admin review. We'll review within 24-48 hours; the listing stays live in the meantime.
+          </div>
         `;
       } else if (status === "revoked") {
         // Revoked = listing used to be verified but the badge was removed —
@@ -3489,18 +3556,26 @@
           ? latestRevoked.revoke_reason
           : "Badge removed.";
         body = `
-          <p><span class="v-badge rejected">✗ Ownership Verified badge revoked</span></p>
-          <div class="v-note"><strong>Reason:</strong> ${escapeHtml(reason)}</div>
-          <p class="small" style="color:var(--muted); margin-top:6px;">Submit a new video reflecting the current listing to restore the badge — admin review applies.</p>
-          <button type="button" class="v-cta" data-action="verify-start">Submit a new video</button>
+          <span class="vp-badge rejected is-clickable" data-vp-toggle role="button" tabindex="0" aria-expanded="false" aria-controls="vp-pop-${escapeHtml(l.listing_id)}">
+            <span class="vb-check">✗</span> Revoked <span class="vp-chev" aria-hidden="true">▾</span>
+          </span>
+          <div class="vp-popover" id="vp-pop-${escapeHtml(l.listing_id)}" hidden>
+            <strong>Reason:</strong> ${escapeHtml(reason)}<br>
+            Submit a new video reflecting the current listing to restore the badge — admin review applies.
+          </div>
+          <button type="button" class="v-cta" data-action="verify-start" style="margin-top:8px;">Submit a new video</button>
         `;
       } else if (status === "rejected") {
         const note = latest && latest.review_notes ? latest.review_notes : "";
         body = `
-          <p><span class="v-badge rejected">✗ Verification not approved</span></p>
-          ${note ? `<div class="v-note">Admin note: ${escapeHtml(note)}</div>` : ""}
-          <p class="small" style="color:var(--muted); margin-top:6px;">You can submit a new video any time.</p>
-          <button type="button" class="v-cta" data-action="verify-start">Submit a new video</button>
+          <span class="vp-badge rejected is-clickable" data-vp-toggle role="button" tabindex="0" aria-expanded="false" aria-controls="vp-pop-${escapeHtml(l.listing_id)}">
+            <span class="vb-check">✗</span> Not Approved <span class="vp-chev" aria-hidden="true">▾</span>
+          </span>
+          <div class="vp-popover" id="vp-pop-${escapeHtml(l.listing_id)}" hidden>
+            ${note ? `<strong>Admin note:</strong> ${escapeHtml(note)}<br>` : ""}
+            You can submit a new video any time.
+          </div>
+          <button type="button" class="v-cta" data-action="verify-start" style="margin-top:8px;">Submit a new video</button>
         `;
       } else {
         body = `
@@ -3971,6 +4046,27 @@
       card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => toggleSaversList(card, listing));
       card.querySelector("[data-action=renew]")?.addEventListener("click", () => renewCard(card, listing));
       card.querySelector("[data-action=verify-start]")?.addEventListener("click", () => openVerificationModal(listing, card));
+
+      // Verification badge popover toggle — pending / revoked / rejected
+      // pills are click-to-expand to show the explanation/reason. Verified
+      // is intentionally static (no chevron, no listener) since the seller
+      // already knows what the badge means.
+      const $vpBadge = card.querySelector("[data-vp-toggle]");
+      const $vpPop   = card.querySelector(".vp-popover");
+      if ($vpBadge && $vpPop) {
+        const toggle = () => {
+          const willOpen = $vpPop.hidden;
+          $vpPop.hidden = !willOpen;
+          $vpBadge.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        };
+        $vpBadge.addEventListener("click", toggle);
+        $vpBadge.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggle();
+          }
+        });
+      }
 
       // Replace image flow — button opens hidden file picker; on change we
       // compress + upload + swap the listing_images row + refresh the thumb.
