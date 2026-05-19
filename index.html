@@ -486,8 +486,10 @@
         <select id="f-seller" title="Seller">
           <option value="">All sellers</option>
         </select>
-        <select id="f-artist" title="Artist">
-          <option value="">All artists</option>
+        <select id="f-trust" title="Trust signals" hidden>
+          <option value="">All listings</option>
+          <option value="verified">Ownership Verified</option>
+          <option value="established">Established Member</option>
         </select>
         <div class="price-pair">
           <input type="number" id="f-min" placeholder="Min $" min="0" step="50" />
@@ -562,7 +564,7 @@
     const $cat      = document.getElementById("f-category");
     const $statusF  = document.getElementById("f-status");
     const $seller   = document.getElementById("f-seller");
-    const $artist   = document.getElementById("f-artist");
+    const $trust    = document.getElementById("f-trust");
     const $min      = document.getElementById("f-min");
     const $max      = document.getElementById("f-max");
     const $sort     = document.getElementById("f-sort");
@@ -764,7 +766,7 @@
           status, created_at, save_count, shipping_offered,
           verification_status, verified_at,
           listing_images ( storage_path, position ),
-          profiles!listings_seller_id_fkey!inner ( display_name, account_status )
+          profiles!listings_seller_id_fkey!inner ( display_name, account_status, is_trusted )
         `, { count: "exact" })
         .eq("listing_type", tab)
         .eq("moderation_status", "approved")
@@ -783,7 +785,13 @@
 
       if (filters.cat)    q = q.eq("artwork_category", filters.cat);
       if (filters.seller) q = q.eq("profiles.display_name", filters.seller);
-      if (filters.artist) q = q.eq("artist_name", filters.artist);
+
+      // Trust-signal filter (signed-in viewers only; the dropdown is hidden
+      // for anonymous viewers so we never see a non-empty value from them).
+      // The "verified" branch leans on listings.verification_status; the
+      // "established" branch filters on the joined profiles.is_trusted flag.
+      if (filters.trust === "verified")    q = q.eq("verification_status", "verified");
+      else if (filters.trust === "established") q = q.eq("profiles.is_trusted", true);
 
       // Price/budget filter — column depends on the tab. For ISO we filter by
       // budget_max (so "max $500" finds requests willing to pay up to $500+).
@@ -827,7 +835,7 @@
         cat:     $cat.value,
         statusF: $statusF.value,
         seller:  $seller.value,
-        artist:  $artist.value,
+        trust:   $trust.value,
         min:     $min.value,
         max:     $max.value,
         sort:    $sort.value,
@@ -944,35 +952,25 @@
       }
     }
 
-    // Populate the seller + artist dropdowns. Re-runs on each tab switch so
-    // the options reflect what's actually available on that tab.
+    // Populate the seller dropdown. Re-runs on each tab switch so the options
+    // reflect what's actually available on that tab. The artist dropdown was
+    // removed — users now search by artist via the text search box.
     async function populateDropdowns() {
       const tab = currentTab;
-      const [sellersResp, artistsResp] = await Promise.all([
-        supabase
-          .from("listings")
-          .select("profiles!listings_seller_id_fkey!inner ( display_name, account_status )")
-          .eq("listing_type", tab)
-          .eq("moderation_status", "approved")
-          .eq("profiles.account_status", "active"),
-        supabase
-          .from("listings")
-          .select("artist_name")
-          .eq("listing_type", tab)
-          .eq("moderation_status", "approved"),
-      ]);
+      const sellersResp = await supabase
+        .from("listings")
+        .select("profiles!listings_seller_id_fkey!inner ( display_name, account_status )")
+        .eq("listing_type", tab)
+        .eq("moderation_status", "approved")
+        .eq("profiles.account_status", "active");
       const sellerNames = [...new Set(
         (sellersResp.data || []).map(r => r.profiles?.display_name).filter(Boolean)
-      )].sort((a,b) => a.localeCompare(b));
-      const artistNames = [...new Set(
-        (artistsResp.data || []).map(r => r.artist_name).filter(Boolean)
       )].sort((a,b) => a.localeCompare(b));
       // Seller dropdown is renamed "Buyer" on ISO tab — option text stays the same,
       // only the first-option label differs.
       const firstSellerOpt = $seller.querySelector("option");
       if (firstSellerOpt) firstSellerOpt.textContent = tab === "iso" ? "All buyers" : "All sellers";
       populateOptions($seller, sellerNames);
-      populateOptions($artist, artistNames);
     }
 
     // Show / hide / relabel toolbar pieces depending on which tab is active.
@@ -1025,11 +1023,14 @@
 
       if (viewer) {
         $seller.hidden = false;
+        $trust.hidden  = false;
         try { userSavesSet = await getCurrentUserSaves(); }
         catch (e) { userSavesSet = null; }
       } else {
         $seller.hidden = true;
-        $seller.value = "";
+        $seller.value  = "";
+        $trust.hidden  = true;
+        $trust.value   = "";
         userSavesSet = null;
       }
 
@@ -1038,7 +1039,7 @@
       await populateDropdowns();
       $status.hidden = true;
       await applyFilters();
-      if (totalCount === 0 && !$q.value && !$cat.value && !$seller.value && !$artist.value && !$min.value && !$max.value) {
+      if (totalCount === 0 && !$q.value && !$cat.value && !$seller.value && !$trust.value && !$min.value && !$max.value) {
         // Truly empty catalog (not just zero-match filters).
         $status.hidden = false;
         $status.textContent = currentTab === "iso"
@@ -1066,7 +1067,7 @@
         sessionStorage.setItem(FILTER_KEY, JSON.stringify({
           tab: currentTab,
           q: $q.value, cat: $cat.value, statusF: $statusF.value,
-          seller: $seller.value, artist: $artist.value,
+          seller: $seller.value, trust: $trust.value,
           min: $min.value, max: $max.value, sort: $sort.value,
         }));
       } catch (e) { /* private mode etc — ignore */ }
@@ -1081,7 +1082,7 @@
         if (s.cat     != null) $cat.value     = s.cat;
         if (s.statusF != null) $statusF.value = s.statusF;
         if (s.seller  != null) $seller.value  = s.seller;
-        if (s.artist  != null) $artist.value  = s.artist;
+        if (s.trust   != null) $trust.value   = s.trust;
         if (s.min     != null) $min.value     = s.min;
         if (s.max     != null) $max.value     = s.max;
         if (s.sort    != null) $sort.value    = s.sort;
@@ -1091,16 +1092,14 @@
       try { sessionStorage.removeItem(FILTER_KEY); } catch (e) {}
     }
 
-    // Tab switching — clears seller/artist (they're tab-specific) and resets
-    // status filter, then re-populates dropdowns and re-runs filters.
+    // Tab switching — clears the seller dropdown (its options are tab-
+    // specific, so values from the other tab won't exist here) and resets
+    // status to default. Trust filter is global, so it carries over.
     async function switchTab(newTab) {
       if (newTab !== "sale" && newTab !== "iso") return;
       if (newTab === currentTab) return;
       currentTab = newTab;
-      // These filter values are tab-specific — values from the other tab won't
-      // exist in this tab's option list, so clear them.
-      $seller.value = "";
-      $artist.value = "";
+      $seller.value  = "";
       $statusF.value = "available";
       applyTabUiMode();
       saveFilterState();
@@ -1131,7 +1130,7 @@
       filterDebounce = setTimeout(applyFilters, 250);
     }
     [$q, $min, $max].forEach(el => el.addEventListener("input", debouncedApply));
-    [$cat, $statusF, $seller, $artist, $sort].forEach(el => {
+    [$cat, $statusF, $seller, $trust, $sort].forEach(el => {
       el.addEventListener("change", () => { saveFilterState(); applyFilters(); });
     });
     $clear.addEventListener("click", () => {
@@ -1139,7 +1138,7 @@
       $cat.value = "";
       $statusF.value = "available";
       $seller.value = "";
-      $artist.value = "";
+      $trust.value = "";
       $min.value = "";
       $max.value = "";
       $sort.value = "newest";
