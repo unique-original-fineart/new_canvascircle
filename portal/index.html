@@ -3390,6 +3390,11 @@
         (a, b) => (b.submitted_at || "").localeCompare(a.submitted_at || "")
       );
       const latest = verifs[0];
+      // Latest revoked-approved row drives the revoke-reason copy. Picking
+      // the most recently revoked row gives the seller the freshest context.
+      const latestRevoked = (l.listing_verifications || [])
+        .filter(v => v.status === "approved" && v.revoked_at)
+        .sort((a, b) => (b.revoked_at || "").localeCompare(a.revoked_at || ""))[0];
 
       let body = "";
       if (status === "verified") {
@@ -3404,6 +3409,20 @@
         body = `
           <p><span class="v-badge pending">⏳ Verification submitted — awaiting admin review</span></p>
           <p class="small" style="color:var(--muted);">We'll review within 24-48 hours. The listing stays live.</p>
+        `;
+      } else if (status === "revoked") {
+        // Revoked = listing used to be verified but the badge was removed —
+        // either by an admin (revoked_by is set) or automatically by the DB
+        // trigger when the seller changed the artist/title/category or
+        // swapped the primary image. The revoke_reason explains which.
+        const reason = latestRevoked && latestRevoked.revoke_reason
+          ? latestRevoked.revoke_reason
+          : "Badge removed.";
+        body = `
+          <p><span class="v-badge rejected">✗ Ownership Verified badge revoked</span></p>
+          <div class="v-note"><strong>Reason:</strong> ${escapeHtml(reason)}</div>
+          <p class="small" style="color:var(--muted); margin-top:6px;">Submit a new video reflecting the current listing to restore the badge — admin review applies.</p>
+          <button type="button" class="v-cta" data-action="verify-start">Submit a new video</button>
         `;
       } else if (status === "rejected") {
         const note = latest && latest.review_notes ? latest.review_notes : "";
@@ -3426,6 +3445,60 @@
           <div class="verify-body">${body}</div>
         </div>
       `;
+    }
+
+    // After a save that could have triggered an auto-revoke server-side
+    // (artist/title/category change OR primary image swap), refetch the
+    // listing's verification state and re-render the card section in place.
+    // If the badge was just revoked, flash a banner with the reason so the
+    // seller sees the change immediately — without this, they wouldn't
+    // know the badge had been taken until they navigated away and back.
+    async function refreshVerificationStateAfterSave(listingId, card, prevStatus) {
+      try {
+        const { data } = await supabase
+          .from("listings")
+          .select(`
+            verification_status, verified_at,
+            listing_verifications ( id, status, review_notes, submitted_at, reviewed_at, revoked_at, revoke_reason )
+          `)
+          .eq("listing_id", listingId)
+          .single();
+        if (!data) return;
+
+        // Update in-memory state.
+        const idx = allListings.findIndex(x => x.listing_id === listingId);
+        if (idx >= 0) {
+          allListings[idx].verification_status   = data.verification_status;
+          allListings[idx].verified_at           = data.verified_at;
+          allListings[idx].listing_verifications = data.listing_verifications;
+        }
+
+        // Re-render just the verification section in this card without
+        // touching any of the seller's in-progress edits elsewhere.
+        const $section = card.querySelector(".verify-section");
+        if ($section) {
+          const listingForRender = idx >= 0 ? allListings[idx] : data;
+          const tmp = document.createElement("div");
+          tmp.innerHTML = renderVerificationSection(listingForRender);
+          const newSection = tmp.firstElementChild;
+          if (newSection) $section.replaceWith(newSection);
+        }
+
+        // Flash a banner if the status just flipped to revoked.
+        if (prevStatus === "verified" && data.verification_status === "revoked") {
+          const latestRev = (data.listing_verifications || [])
+            .filter(v => v.status === "approved" && v.revoked_at)
+            .sort((a, b) => (b.revoked_at || "").localeCompare(a.revoked_at || ""))[0];
+          const reason = latestRev?.revoke_reason || "the listing changed materially";
+          showDashBanner(
+            "⚠️ Ownership Verified badge was revoked on this listing. Reason: " + reason +
+            " — submit a new verification video to restore the badge.",
+            "error"
+          );
+        }
+      } catch (e) {
+        console.warn("[refreshVerificationStateAfterSave] failed:", e);
+      }
     }
 
     // ---- Verification upload modal lifecycle ----
@@ -3912,7 +3985,14 @@
         // Update local + bootstrap state so thumb + future renders are correct.
         listing.listing_images = [{ storage_path: newPath, position: 0 }];
         const idx = allListings.findIndex(x => x.listing_id === id);
+        const prevVerificationStatus = idx >= 0 ? allListings[idx].verification_status : null;
         if (idx >= 0) allListings[idx].listing_images = [{ storage_path: newPath, position: 0 }];
+
+        // Swapping the primary image is one of the four material changes
+        // that auto-revoke an Ownership Verified badge server-side. Refetch
+        // verification state and update the card now — same protocol as
+        // saveCard() above.
+        refreshVerificationStateAfterSave(id, card, prevVerificationStatus);
 
         // Repaint the card thumb immediately.
         const $thumb = card.querySelector(".card-thumb");
@@ -4285,6 +4365,9 @@
           { label: "save", timeoutMs: 10000, maxRetries: 3, onRetry: (n) => { saveBtn.textContent = `Retrying (${n}/3)…`; } }
         );
         const idx = allListings.findIndex(x => x.listing_id === id);
+        // Capture the pre-save verification status so we can detect a flip
+        // to 'revoked' after the trigger fires server-side.
+        const prevStatus = idx >= 0 ? allListings[idx].verification_status : null;
         if (idx >= 0) Object.assign(allListings[idx], payload);
         markDirty(card, false);
         card.classList.remove("has-error");
@@ -4300,6 +4383,12 @@
         }
         // Show success banner LAST so it isn't clobbered by other refreshes.
         showDashBanner(successMsg, "success");
+        // If the save touched any of the four material fields, the DB trigger
+        // may have auto-revoked the verification badge. Refetch verification
+        // state and re-render the card section so the seller sees it now,
+        // not after navigating away and back. Fire-and-forget — banner will
+        // be overwritten with the revoke warning if that fires.
+        refreshVerificationStateAfterSave(id, card, prevStatus);
         return true;
       } catch (err) {
         console.error("[saveCard] failed:", err);
@@ -4466,7 +4555,7 @@
               save_count, view_count,
               verification_status, verified_at,
               listing_images ( storage_path, position ),
-              listing_verifications ( id, status, review_notes, submitted_at, reviewed_at )
+              listing_verifications ( id, status, review_notes, submitted_at, reviewed_at, revoked_at, revoke_reason )
             `)
             .eq("seller_id", userId)
             .order("created_at", { ascending: false }),
