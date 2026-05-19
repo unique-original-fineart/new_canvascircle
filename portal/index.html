@@ -760,15 +760,15 @@
     }
 
     /* "Pill + chevron + popover" pattern — mirrors the listing modal's
-       Ownership Verified pill on the public catalog. Used inside the
-       seller portal listing card to communicate state at a glance:
-         verified  → solid green pill, no chevron (sellers know what it means)
-         pending   → solid amber pill + click-to-expand explanation
-         revoked   → solid red pill + click-to-expand reason
-         rejected  → solid red pill + click-to-expand admin note
-       Container styles (.verify-section) above still apply for the outer
-       box; these classes target the pill itself. */
-    .verify-section .vp-badge {
+       Ownership Verified pill on the public catalog. Used in BOTH the
+       seller preview card (.preview-card) and the seller edit modal
+       (.verify-section). Selectors are unscoped so the same classes work
+       in either place. State colors:
+         verified  → solid green, no chevron (sellers know what it means)
+         pending   → solid amber + click-to-expand explanation
+         revoked   → solid red + click-to-expand reason
+         rejected  → solid red + click-to-expand admin note */
+    .vp-badge {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 6px 12px;
       border-radius: 999px;
@@ -776,31 +776,25 @@
       line-height: 1.1;
       user-select: none;
       transition: filter .15s ease, box-shadow .15s ease;
-      max-width: 100%;       /* never overflow the card column */
+      max-width: 100%;
     }
-    .verify-section .vp-badge.is-clickable { cursor: pointer; }
-    .verify-section .vp-badge.is-clickable:hover,
-    .verify-section .vp-badge.is-clickable:focus-visible {
+    .vp-badge.is-clickable { cursor: pointer; }
+    .vp-badge.is-clickable:hover,
+    .vp-badge.is-clickable:focus-visible {
       filter: brightness(0.92);
       outline: none;
       box-shadow: 0 0 0 3px rgba(0,0,0,.08);
     }
-    .verify-section .vp-badge.verified {
-      background: #1f5b32; color: #fff; border: 1px solid #1f5b32;
-    }
-    .verify-section .vp-badge.pending {
-      background: #c47a05; color: #fff; border: 1px solid #c47a05;
-    }
-    .verify-section .vp-badge.rejected {
-      background: #8a1f1a; color: #fff; border: 1px solid #8a1f1a;
-    }
-    .verify-section .vp-chev {
+    .vp-badge.verified { background: #1f5b32; color: #fff; border: 1px solid #1f5b32; }
+    .vp-badge.pending  { background: #c47a05; color: #fff; border: 1px solid #c47a05; }
+    .vp-badge.rejected { background: #8a1f1a; color: #fff; border: 1px solid #8a1f1a; }
+    .vp-chev {
       font-size: 10px; opacity: .9;
       transition: transform .2s ease;
       display: inline-block;
     }
-    .verify-section .vp-badge[aria-expanded="true"] .vp-chev { transform: rotate(180deg); }
-    .verify-section .vp-popover {
+    .vp-badge[aria-expanded="true"] .vp-chev { transform: rotate(180deg); }
+    .vp-popover {
       margin-top: 8px;
       padding: 10px 12px;
       background: #fff;
@@ -809,14 +803,32 @@
       font-size: 13px;
       line-height: 1.45;
       color: var(--fg);
-      /* Allow long auto-revoke reasons or admin notes to wrap inside the
-         narrow mobile card without forcing horizontal scroll. */
       word-break: break-word;
     }
-    .verify-section .vp-popover[hidden] { display: none; }
-    .verify-section .vp-popover strong { font-weight: 700; }
-    /* Mobile cards are ~165px wide — drop the badge font slightly to keep
-       "✗ Not Approved ▾" on a single line and avoid wrapping the chevron. */
+    .vp-popover[hidden] { display: none; }
+    .vp-popover strong { font-weight: 700; }
+    /* Compact variant used in the preview-card body (2-up dashboard grid).
+       The preview card is much narrower than the edit modal, so we shrink
+       the pill text and tighten paddings to keep "✗ Not Approved ▾" on a
+       single line. */
+    .preview-card .vp-badge {
+      font-size: 12px;
+      padding: 4px 10px;
+    }
+    .preview-card .vp-popover {
+      font-size: 12px;
+      padding: 8px 10px;
+      margin-top: 6px;
+    }
+    .preview-card .pc-verification {
+      margin-top: 4px;
+    }
+    /* Hide the orphan "Submit a new video" inline button in the preview-
+       card variant — the user can click Edit to access the full re-submit
+       flow inside the modal. Keeps the preview card compact. */
+    .preview-card .pc-verification .v-cta { display: none; }
+    /* Mobile breakpoint for the edit-modal variant only — preview-card
+       already uses its smaller-text rules above. */
     @media (max-width: 540px) {
       .verify-section .vp-badge { font-size: 12px; padding: 5px 10px; }
       .verify-section .vp-popover { font-size: 12px; padding: 8px 10px; }
@@ -3378,6 +3390,82 @@
     }
 
     // ----- Preview card (compact, clicked Edit opens modal) -----
+    // Compact verification badge rendered directly on the dashboard preview
+    // card (the small thumbnail tile in the 2-up grid, BEFORE the seller
+    // clicks Edit). Uses the same .vp-badge classes as the edit-modal
+    // version so styling and chevron animation match. Returns "" for
+    // listings that have no verification yet — we don't want to clutter
+    // unverified preview cards with a redundant "Not yet verified" pill.
+    // Each popover ID is namespaced "pc-vp-pop-" so it doesn't collide
+    // with the edit-modal popover (which uses "vp-pop-" prefix) when both
+    // happen to be in the DOM at the same time.
+    function renderPreviewVerificationBadge(l) {
+      const status = l.verification_status || "none";
+      if (status === "none") return "";
+
+      const popId = `pc-vp-pop-${escapeHtml(l.listing_id)}`;
+      const verifs = (l.listing_verifications || []).slice().sort(
+        (a, b) => (b.submitted_at || "").localeCompare(a.submitted_at || "")
+      );
+      const latest = verifs[0];
+      const latestRevoked = (l.listing_verifications || [])
+        .filter(v => v.status === "approved" && v.revoked_at)
+        .sort((a, b) => (b.revoked_at || "").localeCompare(a.revoked_at || ""))[0];
+
+      if (status === "verified") {
+        return `
+          <div class="pc-verification">
+            <span class="vp-badge verified" aria-label="Ownership Verified">
+              ✓ Ownership Verified
+            </span>
+          </div>
+        `;
+      }
+      if (status === "pending") {
+        return `
+          <div class="pc-verification">
+            <span class="vp-badge pending is-clickable" data-vp-toggle role="button" tabindex="0" aria-expanded="false" aria-controls="${popId}">
+              ⏳ Pending Review <span class="vp-chev" aria-hidden="true">▾</span>
+            </span>
+            <div class="vp-popover" id="${popId}" hidden>
+              Your verification video is awaiting admin review. We'll review within 24-48 hours; the listing stays live in the meantime.
+            </div>
+          </div>
+        `;
+      }
+      if (status === "revoked") {
+        const reason = latestRevoked && latestRevoked.revoke_reason
+          ? latestRevoked.revoke_reason
+          : "Badge removed.";
+        return `
+          <div class="pc-verification">
+            <span class="vp-badge rejected is-clickable" data-vp-toggle role="button" tabindex="0" aria-expanded="false" aria-controls="${popId}">
+              ✗ Revoked <span class="vp-chev" aria-hidden="true">▾</span>
+            </span>
+            <div class="vp-popover" id="${popId}" hidden>
+              <strong>Reason:</strong> ${escapeHtml(reason)}<br>
+              Click Edit and submit a new video to restore the badge.
+            </div>
+          </div>
+        `;
+      }
+      if (status === "rejected") {
+        const note = latest && latest.review_notes ? latest.review_notes : "";
+        return `
+          <div class="pc-verification">
+            <span class="vp-badge rejected is-clickable" data-vp-toggle role="button" tabindex="0" aria-expanded="false" aria-controls="${popId}">
+              ✗ Not Approved <span class="vp-chev" aria-hidden="true">▾</span>
+            </span>
+            <div class="vp-popover" id="${popId}" hidden>
+              ${note ? `<strong>Admin note:</strong> ${escapeHtml(note)}<br>` : ""}
+              Click Edit and submit a new video to try again.
+            </div>
+          </div>
+        `;
+      }
+      return "";
+    }
+
     function renderPreviewCard(l) {
       const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
@@ -3437,6 +3525,7 @@
                    : ""}
                </div>`
             : ""}
+          ${renderPreviewVerificationBadge(l)}
           <div class="pc-metrics">
             ${saveCnt > 0
               ? `<button type="button" class="pc-metric-btn" data-action="show-savers">♥ ${saveCnt} ${saveCnt === 1 ? "save" : "saves"}</button>`
@@ -3453,6 +3542,29 @@
       `;
       card.querySelector("[data-action=open-edit]").addEventListener("click", () => openEditModal(l));
       card.querySelector("[data-action=renew-now]")?.addEventListener("click", () => renewListingDirect(l));
+
+      // Verification badge popover toggle on the preview card. Same pattern
+      // as inside the edit modal — pending / revoked / rejected pills are
+      // click-to-expand. Verified is static (no chevron, no listener).
+      const $pcVpBadge = card.querySelector(".pc-verification [data-vp-toggle]");
+      const $pcVpPop   = card.querySelector(".pc-verification .vp-popover");
+      if ($pcVpBadge && $pcVpPop) {
+        const toggle = (e) => {
+          // Stop propagation so the click doesn't bubble up and trigger
+          // any card-wide handlers (e.g. open-edit) by accident.
+          e?.stopPropagation();
+          const willOpen = $pcVpPop.hidden;
+          $pcVpPop.hidden = !willOpen;
+          $pcVpBadge.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        };
+        $pcVpBadge.addEventListener("click", toggle);
+        $pcVpBadge.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggle(e);
+          }
+        });
+      }
       card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => toggleSaversList(card, l));
       return card;
     }
