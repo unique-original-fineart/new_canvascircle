@@ -2229,6 +2229,14 @@
           </section>
 
           <section class="admin-section">
+            <h3>Verified listings — revoke badge <span class="count" id="verlist-count"></span></h3>
+            <p class="help">All listings that currently display the green "Ownership Verified" badge, newest first. Use <strong>Revoke</strong> for buyer complaints, rule violations, or any time the badge no longer reflects reality. Note: the DB already auto-revokes when a seller changes artist / title / category / primary image — those don't need admin action. A revoke reason is required and is stored permanently in the audit trail.</p>
+            <div id="verlist-loading" class="empty-state" hidden>Loading…</div>
+            <div id="verlist-empty"   class="empty-state" hidden>No listings currently have the verified badge.</div>
+            <div id="verlist-list"    class="mod-list" hidden></div>
+          </section>
+
+          <section class="admin-section">
             <h3>Reported listings <span class="count" id="reports-count"></span></h3>
             <p class="help">Listings users have flagged as violating the community rules. Open the listing to review, then either reject it (via the All listings panel) or dismiss the report if it's a false alarm.</p>
             <div id="reports-loading" class="empty-state" hidden>Loading…</div>
@@ -4802,7 +4810,7 @@
       $adminBanner.hidden = true;
       try {
         await withTimeout(
-          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadVerificationModQueue(), loadReports(), loadSellers(), loadAllListings(), loadExpiring()]),
+          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadVerificationModQueue(), loadVerifiedListings(), loadReports(), loadSellers(), loadAllListings(), loadExpiring()]),
           15000,
           "admin tab load"
         );
@@ -4822,6 +4830,12 @@
     const $vermodCount   = document.getElementById("vermod-count");
     const $vermodLoading = document.getElementById("vermod-loading");
     const $vermodEmpty   = document.getElementById("vermod-empty");
+
+    // Currently-verified-listings panel — admin can revoke any badge here.
+    const $verlistList    = document.getElementById("verlist-list");
+    const $verlistCount   = document.getElementById("verlist-count");
+    const $verlistLoading = document.getElementById("verlist-loading");
+    const $verlistEmpty   = document.getElementById("verlist-empty");
 
     async function loadVerificationModQueue() {
       $vermodLoading.hidden = false;
@@ -4982,6 +4996,126 @@
       } catch (err) {
         console.error("[reject-verification] failed:", err);
         setAdminBanner("Could not reject: " + (err.message || err), "error");
+        $buttons.forEach(b => b.disabled = false);
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Currently-verified-listings panel — lets the admin manually revoke
+    // any badge (buyer complaints, rule violations, etc.). The DB also
+    // auto-revokes on material listing changes (artist/title/category/
+    // primary image) — those don't show up here because the trigger fires
+    // synchronously on UPDATE/INSERT/DELETE.
+    //
+    // Sorted by most-recently-verified first, capped at 100 rows so the
+    // panel stays snappy. If verified listings ever pass 100, we'll add
+    // search/pagination — easy follow-up.
+    // -----------------------------------------------------------------------
+    async function loadVerifiedListings() {
+      $verlistLoading.hidden = false;
+      $verlistEmpty.hidden = true;
+      $verlistList.hidden = true;
+      $verlistList.innerHTML = "";
+
+      const { data, error } = await supabase
+        .from("listings")
+        .select(`
+          listing_id, artist_name, artwork_title, artwork_category,
+          verified_at, status, moderation_status,
+          listing_images ( storage_path, position ),
+          profiles!listings_seller_id_fkey ( user_id, display_name, handle )
+        `)
+        .eq("verification_status", "verified")
+        .order("verified_at", { ascending: false })
+        .limit(100);
+
+      $verlistLoading.hidden = true;
+      if (error) {
+        console.warn("[verlist] load failed:", error);
+        return;
+      }
+      const rows = data || [];
+      $verlistCount.textContent = rows.length ? `(${rows.length})` : "";
+      if (!rows.length) { $verlistEmpty.hidden = false; return; }
+
+      const frag = document.createDocumentFragment();
+      for (const r of rows) frag.appendChild(renderVerifiedListingRow(r));
+      $verlistList.appendChild(frag);
+      $verlistList.hidden = false;
+    }
+
+    function renderVerifiedListingRow(l) {
+      const seller = l.profiles || {};
+      const images = (l.listing_images || []).slice().sort((a, b) => a.position - b.position);
+      const thumbUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 200 }) : "";
+      const verifiedAgo = (() => {
+        if (!l.verified_at) return "";
+        const t = new Date(l.verified_at).getTime();
+        const days = Math.floor((Date.now() - t) / 86400000);
+        if (days < 1)  return "today";
+        if (days === 1) return "1d ago";
+        return `${days}d ago`;
+      })();
+      const sellerLink = seller.handle
+        ? `<a href="/seller?handle=${encodeURIComponent(seller.handle)}" target="_blank" rel="noopener">@${escapeHtml(seller.handle)}</a>`
+        : "";
+      const listingLink = `<a href="/listing.html?id=${encodeURIComponent(l.listing_id)}" target="_blank" rel="noopener">View listing ↗</a>`;
+
+      const row = document.createElement("div");
+      row.className = "vermod-row";
+      row.dataset.listingId = l.listing_id;
+      row.innerHTML = `
+        <div class="vermod-head">
+          <div class="vermod-thumb">
+            ${thumbUrl ? `<img src="${thumbUrl}" alt="" />` : ""}
+          </div>
+          <div class="vermod-meta">
+            <div class="title">${escapeHtml(l.artist_name || "Unknown")} — ${escapeHtml(l.artwork_title || "Untitled")}</div>
+            <div class="sub">${escapeHtml(seller.display_name || "(no name)")} ${sellerLink} · verified ${verifiedAgo} · ${listingLink}</div>
+          </div>
+        </div>
+        <div class="vermod-actions">
+          <button type="button" class="btn-reject" data-action="revoke">Revoke verification…</button>
+        </div>
+      `;
+
+      row.querySelector("[data-action=revoke]").addEventListener("click", () => revokeVerifiedListing(l, row));
+      return row;
+    }
+
+    async function revokeVerifiedListing(listing, row) {
+      const reason = prompt(
+        `Revoke the Ownership Verified badge for "${listing.artwork_title || "this listing"}"?\n\n` +
+        `Reason is REQUIRED and is stored permanently in the audit trail. The seller can see this on their dashboard. ` +
+        `Example: "Buyer complaint — seller refused to send verification video on request."`,
+        ""
+      );
+      if (reason === null) return;  // Cancel
+      const trimmed = reason.trim();
+      if (!trimmed) {
+        setAdminBanner("A revoke reason is required.", "error");
+        return;
+      }
+      const $buttons = row.querySelectorAll("button");
+      $buttons.forEach(b => b.disabled = true);
+      try {
+        // RPC enforces is_admin() + non-empty reason server-side too.
+        const { data, error } = await supabase.rpc("revoke_listing_verification", {
+          p_listing_id: listing.listing_id,
+          p_reason:     trimmed,
+        });
+        if (error) throw error;
+        row.remove();
+        // Refresh the count + list — if no other verified listings exist,
+        // the empty state surfaces correctly.
+        await loadVerifiedListings();
+        setAdminBanner(
+          `Revoked Ownership Verified badge on "${listing.artwork_title || "listing"}" (${data || 0} row${(data || 0) === 1 ? "" : "s"} updated).`,
+          "success"
+        );
+      } catch (err) {
+        console.error("[revoke-verification] failed:", err);
+        setAdminBanner("Could not revoke: " + (err.message || err), "error");
         $buttons.forEach(b => b.disabled = false);
       }
     }
