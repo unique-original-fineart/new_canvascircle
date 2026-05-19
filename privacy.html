@@ -114,12 +114,12 @@
     <section class="hero">
       <h1>Privacy Policy</h1>
       <p>What CanvasCircle collects, why, and your rights.</p>
-      <p class="effective">Effective date: May 15, 2026 &middot; Version 1.4</p>
+      <p class="effective">Effective date: May 19, 2026 &middot; Version 1.5</p>
     </section>
 
     <section class="section">
       <h2>Summary</h2>
-      <p>CanvasCircle is a free art listing platform. We collect the minimum information needed to run the Service: a single email address (used both to sign you in and as the public contact email on your listings), a password, a display name, a unique @handle, a Facebook profile URL (required to post listings), an optional location, the listings you create, the listings you save, and basic technical data needed to keep the site secure. We don't sell your data. We don't run ads. We don't track you across other sites.</p>
+      <p>CanvasCircle is a free art listing platform. We collect the minimum information needed to run the Service: a single email address (used both to sign you in and as the public contact email on your listings), a password, a display name, a unique @handle, a Facebook profile URL (required to post listings), an optional location, the listings you create, the listings you save, and basic technical data needed to keep the site secure. Sellers may also choose to submit a short Ownership Verification video for a listing — these videos are stored privately, used only for admin review, and then automatically deleted within about 24 hours (see Section 5). We don't sell your data. We don't run ads. We don't track you across other sites.</p>
     </section>
 
     <section class="section">
@@ -137,6 +137,7 @@
         <li><strong>Optional "About" blurb:</strong> a short free-form text (up to 1,000 characters) you can write on your Profile to describe yourself as a collector. About text is reviewed by the admin before it goes live. Once approved, it is publicly visible on your seller page and on the seller block of your listings. <strong>Do not include personal information you don't want to be public</strong> (home address, phone number, real legal documents, etc.) — once approved, this text is visible to anyone, signed in or not.</li>
         <li><strong>Optional reference relationships:</strong> if you request another user to be a sales reference for you (or accept being one for someone else), CanvasCircle stores the relationship — which two accounts are linked, who initiated, the status (pending / accepted / rejected), and the timestamps. Accepted reference relationships are publicly visible on the seller's profile (showing the referrer's display name + @handle).</li>
         <li><strong>Listings:</strong> for items you offer for sale — artist, title, description, dimensions, photos, price, condition, and other fields you fill in. For "In Search Of" (ISO) buyer requests — artist or title you're seeking, optional reference image, budget range, and any other details you provide.</li>
+        <li><strong>Optional Ownership Verification submissions:</strong> if you choose to apply for the Ownership Verified badge on one of your listings, you upload a short video (up to 7 seconds, 25&nbsp;MB) showing the artwork together with a handwritten card displaying your @handle and the date filmed. The video is stored in a private bucket — only the reviewing admin can access it via a short-lived signed URL. After review (typically within a day or two), the video bytes are automatically deleted within about 24 hours. We retain only a non-reversible audit record of the submission: the decision (approved or rejected), the SHA-256 fingerprint of the video, submission and review timestamps, the reviewing admin's identifier, video size and duration, and any rejection note. The fingerprint cannot be used to reconstruct the video — it's kept indefinitely to detect a video being reused across submissions, which is a fraud signal. See Section 5 for what other users see, and Section 7 for retention details.</li>
         <li><strong>Communications:</strong> messages you send us through the "Contact Admin" feature or by email.</li>
       </ul>
       <h3>Information we collect automatically</h3>
@@ -186,6 +187,7 @@
         <li><strong>"In Search Of" (ISO) buyer requests</strong> follow the same rules — anonymous viewers don't see who posted them, signed-in viewers do.</li>
         <li><strong>When you save another user's listing</strong>, the seller of that listing can see your display name, your @handle, the date you saved it, your contact email, and your Facebook profile URL — so they can reach out to interested buyers directly. This save-time visibility is shown only to the seller of the listing you saved, not to anyone else.</li>
         <li><strong>When you appear as someone's sales reference</strong> (after you've accepted their request), your display name and @handle appear on their seller page and on the seller block of their listings. Buyers seeing those references may reach out to you via your own listings' contact methods to ask about your experience.</li>
+        <li><strong>Ownership Verified badge.</strong> If the admin approves your Ownership Verification submission for a listing, an "Ownership Verified" badge is shown on that listing and counted on your public seller page. The badge itself is visible only to signed-in viewers (consistent with the seller-info gating above) and includes the date the listing was verified. <strong>The verification video itself is never publicly visible.</strong> Only the reviewing admin sees it during the moderation window, after which the bytes are deleted. Pending submissions, rejection notes, and the cryptographic fingerprint of submitted videos are visible only to you and the admin.</li>
       </ul>
 
       <h3>Visible only to you (and the admin)</h3>
@@ -193,6 +195,7 @@
         <li>Pending and rejected reference requests</li>
         <li>Your pending About-text submission (if any)</li>
         <li>Your pending display-name change request (if any)</li>
+        <li>Pending and rejected Ownership Verification submissions, including any rejection note the admin left for you</li>
         <li>Your sign-in email, until you choose to post a listing or make a save (at which point it becomes your public contact email under the rules above)</li>
       </ul>
 
@@ -214,6 +217,7 @@
     <section class="section">
       <h2>7. How long we keep your information</h2>
       <p>We keep your account information and listings for as long as your account is active. If you delete a listing, we remove it from public view; backup copies may persist for a short time before being purged. If you close your account, we delete or anonymize your personal information within a reasonable time, except where retention is needed to resolve disputes, prevent fraud, or comply with legal obligations.</p>
+      <p><strong>Ownership Verification videos</strong> follow a stricter, automated schedule. The raw video bytes are automatically deleted from storage within approximately 24 hours after the admin completes their review (approval or rejection). We retain — indefinitely — only the non-reversible audit record described in Section 2: the decision, SHA-256 fingerprint of the original file, timestamps, reviewing admin, video size, duration, and any rejection note. The fingerprint cannot be used to reconstruct or view the original video. We retain it to detect a video being reused across multiple submissions, which is a strong fraud signal.</p>
     </section>
 
     <section class="section">

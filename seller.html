@@ -796,10 +796,15 @@
       if (isoN  > 0) countsParts.push(`${isoN} In Search Of`);
       // Verified-listings stat — signed-in viewers only (matches the card
       // badge rule). Counts both sale + ISO listings that have status='verified'.
+      // Label is intentionally explicit (no abbreviations) so a casual visitor
+      // immediately understands what the check means without prior context.
       if (viewerSignedIn) {
         const verifiedN = [...listingsAll.sale, ...listingsAll.iso]
           .filter(l => l.verification_status === "verified").length;
-        if (verifiedN > 0) countsParts.push(`${verifiedN} ✓ verified`);
+        if (verifiedN > 0) {
+          const noun = verifiedN === 1 ? "Listing" : "Listings";
+          countsParts.push(`${verifiedN} ✓ Ownership Verified ${noun}`);
+        }
       }
       $countsItem.textContent = countsParts.length
         ? countsParts.join(" · ")
