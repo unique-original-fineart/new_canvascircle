@@ -3774,6 +3774,12 @@
     let currentVerifyListing = null;
     let currentVerifyFile    = null;
     let currentVerifyCard    = null;
+    // Flips to true the moment submitVerification commits the new pending row.
+    // closeVerificationModal reads this to decide whether to ALSO close the
+    // edit modal + refresh the preview grid — so clicking "Done" on the
+    // success card wraps up the whole flow instead of dropping the seller
+    // back into the now-stale edit modal.
+    let currentVerifySucceeded = false;
 
     // 7 seconds is plenty of time to pan across the artwork while showing
     // the handwritten date+handle card, and keeps modern phone HD/4K clips
@@ -3783,9 +3789,10 @@
     const VM_MAX_BYTES        = 25 * 1024 * 1024;  // 25 MB
 
     function openVerificationModal(listing, card) {
-      currentVerifyListing = listing;
-      currentVerifyCard    = card;
-      currentVerifyFile    = null;
+      currentVerifyListing   = listing;
+      currentVerifyCard      = card;
+      currentVerifyFile      = null;
+      currentVerifySucceeded = false;  // reset for each new open
       vmShowStage("picker");
       vmSetError("");
       const $modal = document.getElementById("verify-modal");
@@ -3800,9 +3807,23 @@
       if ($modal) $modal.hidden = true;
       const $preview = document.getElementById("vm-preview");
       if ($preview) { $preview.removeAttribute("src"); $preview.load?.(); }
-      currentVerifyListing = null;
-      currentVerifyFile    = null;
-      currentVerifyCard    = null;
+
+      // If the verification submission committed successfully, finish the
+      // workflow cleanly: close the surrounding edit modal too, re-render
+      // the preview grid so the new "Pending" badge appears on the card
+      // without requiring a Save or page reload, and surface a success
+      // banner so the seller knows the upload landed.
+      const didSucceed = currentVerifySucceeded;
+      if (didSucceed) {
+        if ($editModal && !$editModal.hidden) closeEditModal();
+        applyFilters();
+        showDashBanner("Verification video submitted — awaiting admin review. The pending badge is now visible on your listing card.", "success");
+      }
+
+      currentVerifyListing   = null;
+      currentVerifyFile      = null;
+      currentVerifyCard      = null;
+      currentVerifySucceeded = false;
     }
 
     function vmShowStage(name) {
@@ -3967,6 +3988,10 @@
           currentVerifyCard.replaceWith(newCard);
         }
 
+        // Signals closeVerificationModal to wrap up the whole workflow
+        // (close edit modal + refresh preview grid + show success banner)
+        // when the seller clicks Done.
+        currentVerifySucceeded = true;
         vmShowStage("success");
       } catch (err) {
         console.error("[verify-upload] failed:", err);
