@@ -135,7 +135,7 @@
     <section class="hero">
       <h1>Terms of Use</h1>
       <p>The rules for using CanvasCircle.</p>
-      <p class="effective">Effective date: May 19, 2026 &middot; Version 1.3</p>
+      <p class="effective">Effective date: May 19, 2026 &middot; Version 1.4</p>
     </section>
 
     <div class="toc">
@@ -249,7 +249,16 @@
       <p><strong>What the badge means — and doesn't mean.</strong> When the admin approves your submission, an "Ownership Verified" badge appears on the listing. The badge confirms <strong>physical possession only</strong> — that you, on the date you filmed, physically had the artwork in your hands. It is <strong>not</strong> a guarantee of authenticity, provenance, condition, title, or the seller's legal right to sell. CanvasCircle is not an authenticator, appraiser, or escrow agent (see Section 3). Buyers should continue to perform their own due diligence regardless of badge status.</p>
       <p><strong>Review and decision.</strong> The admin reviews each submission and either approves or rejects it at the admin's sole discretion. Rejections may include a brief note visible only to you so you can resubmit if you'd like. Decisions are final and not subject to appeal beyond resubmitting a new video.</p>
       <p><strong>Storage and deletion of video bytes.</strong> Verification videos are stored in a private bucket that no public, anonymous, or third-party access can read. Only the admin generates short-lived signed URLs for review purposes. After review, the underlying video bytes are automatically deleted within approximately 24 hours. A non-reversible audit record of the submission — its decision (approved / rejected), the SHA-256 cryptographic fingerprint of the original video, submission and review timestamps, the reviewing admin's identifier, and any rejection notes — is retained indefinitely for fraud prevention, audit, and reuse-detection purposes. The fingerprint cannot be used to reconstruct the video.</p>
-      <p><strong>"Sticky" verified state.</strong> Once a listing has been ownership-verified, the badge remains on that listing even if you later submit another video that is rejected. The badge does <strong>not</strong> transfer between listings — each listing is verified individually. The admin may revoke a previously granted badge at any time at the admin's sole discretion (for example, if subsequent evidence indicates the original submission was falsified).</p>
+      <p><strong>"Sticky" verified state.</strong> Once a listing has been ownership-verified, the badge remains on that listing even if you later submit another video that is rejected. The badge does <strong>not</strong> transfer between listings — each listing is verified individually. The admin may revoke a previously granted badge at any time at the admin's sole discretion (for example, if subsequent evidence indicates the original submission was falsified, if a buyer reports that you refused to share the verification video on request, or for any rule violation). When the admin revokes, the seller is shown the reason in their portal and may submit a new verification video; that new submission is reviewed in the normal way.</p>
+
+      <p><strong>Automatic revocation on material listing changes.</strong> If you edit a listing in a way that changes <em>what the listing is about</em>, the previously granted badge is <strong>automatically revoked</strong> by the platform, without admin involvement, the moment you save the change. The four fields that trigger automatic revocation are:</p>
+      <ul>
+        <li><strong>Artist name</strong></li>
+        <li><strong>Artwork title</strong></li>
+        <li><strong>Artwork category</strong> (Unique/Original ↔ Limited Edition)</li>
+        <li><strong>The primary (cover) image</strong> on the listing</li>
+      </ul>
+      <p>This is necessary because the original verification video showed the artwork as it existed when the listing was first verified. If any of those four fields change, the video no longer corresponds to what the listing actually offers, and the badge would mislead buyers. Edits to other fields — price, description, dimensions, medium, condition, status (Available/Pending/Sold), shipping, etc. — do <strong>not</strong> affect the badge. After an automatic revocation, you can submit a fresh verification video reflecting the new state of the listing; admin review applies as normal. The seller is shown the specific field that triggered the revocation in their portal so the change can be understood and (if desired) re-verified.</p>
       <p><strong>Honesty and prohibited behavior.</strong> By submitting a verification video you represent and warrant that:</p>
       <ul>
         <li>The video depicts the actual artwork in the listing, in your physical possession, on or before the filming date shown on the handwritten card.</li>
