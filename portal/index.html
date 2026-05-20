@@ -3782,6 +3782,15 @@
           try { sessionStorage.removeItem(REVOKED_DISMISS_KEY); } catch (e) {}
         }
 
+        // Re-render the dashboard preview grid against the freshly-updated
+        // allListings so any preview card for this listing flips its badge
+        // from green ✓ to red ✗ (or to a new pending state) without a page
+        // reload. saveCard() also calls applyFilters() right after the
+        // save, but THAT runs before this async fetch completes — it sees
+        // stale verification_status. Running it again here, with the new
+        // state in place, is what actually lands the visual update.
+        if (typeof applyFilters === "function") applyFilters();
+
         // Refresh the persistent revoked-banner so the global count stays
         // in sync with reality regardless of how the status changed.
         refreshRevokedBanner();
