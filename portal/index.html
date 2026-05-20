@@ -1520,6 +1520,45 @@
     .seller-row .trusted-reset-link:hover { color: #9c7209; }
     .seller-row .trusted-reset-link:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; }
 
+    /* Path to Established Member — discreet progress block on Profile tab.
+       Rows are a two-line layout on mobile (label + dots/count stacked) and
+       a single-line layout on wider screens. The optional inline CTA is a
+       small accent-color link nudging the seller toward the relevant action. */
+    .ep-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      grid-template-areas: "label dots count" "cta cta cta";
+      gap: 4px 12px;
+      align-items: center;
+      padding: 10px 12px;
+      background: #faf9f6;
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .ep-row.ep-row-met {
+      background: #eaf6ec;
+      border-color: #b7dcc2;
+      color: #1f5b32;
+    }
+    .ep-row .ep-label { grid-area: label; font-weight: 600; }
+    .ep-row .ep-dots  { grid-area: dots; letter-spacing: 2px; font-size: 14px; line-height: 1; }
+    .ep-row .ep-count { grid-area: count; font-variant-numeric: tabular-nums; color: var(--muted); }
+    .ep-row.ep-row-met .ep-count { color: #1f5b32; font-weight: 600; }
+    .ep-row .ep-cta {
+      grid-area: cta;
+      font-size: 12px;
+      margin-top: 2px;
+    }
+    .ep-row .ep-dot-on  { color: #1f5b32; }
+    .ep-row .ep-dot-off { color: #c7c1b3; }
+    @media (max-width: 540px) {
+      .ep-row {
+        grid-template-columns: 1fr auto;
+        grid-template-areas: "label count" "dots dots" "cta cta";
+      }
+    }
+
     /* ------ Admin all-listings view ------ */
     .admin-toolbar {
       display: grid;
@@ -2293,6 +2332,21 @@
           </form>
             </div>
           </details>
+
+          <!-- ============================================================ -->
+          <!-- Path to Established Member — progress against 4+3 criteria.   -->
+          <!-- Hidden once the user is_trusted = true (already Established). -->
+          <!-- ============================================================ -->
+          <div id="established-progress-section" hidden style="margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--card-line);">
+            <h3 style="margin: 0 0 6px; font-size: 16px;">Path to Established Member</h3>
+            <p class="small" style="margin: 0 0 12px; color: var(--muted);">
+              Established Member is a public trust badge that unlocks: edits going live without admin review, the ability to be requested as a Reference by other sellers, and inclusion in the catalog's Established Members filter. You're auto-promoted the moment you meet both criteria below.
+              <a href="/guidelines.html#selling" target="_blank" rel="noopener" style="color: var(--accent);">Learn more ↗</a>
+            </p>
+            <div id="established-progress-rows" style="display: grid; gap: 8px; max-width: 460px;">
+              <!-- Filled by renderEstablishedProgress() -->
+            </div>
+          </div>
 
           <!-- ============================================================ -->
           <!-- References section — separate from the main edit form        -->
@@ -7081,6 +7135,9 @@
       // Refresh the references section (outgoing + incoming requests). This
       // is fire-and-forget — the profile form is fully usable while it loads.
       loadReferences().catch(err => console.warn("[refs] load failed:", err));
+      // Render the Path to Established Member progress block. Hidden if the
+      // user is already Established (is_trusted = true).
+      loadEstablishedProgress(profile).catch(err => console.warn("[established-progress] load failed:", err));
       // Reflect handle state in the UI — if NULL, the "Change handle" button
       // becomes a "Set handle" button (different copy, no retirement warning).
       const isInitialSet = !profile.handle;
@@ -7310,6 +7367,106 @@
     // Backed by migration 019 (table + RPCs request_reference,
     // respond_to_reference). See seller_references RLS for read rules.
     // -----------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------
+    // Path to Established Member — discreet progress indicator on Profile tab.
+    //
+    // Criteria (mirrors migration 023's recompute_user_trusted function):
+    //   - 4+ active sale listings with verification_status = 'verified'
+    //   - 3+ currently-accepted Sales References (seller_references.status =
+    //     'accepted' where seller_user_id = current user)
+    //
+    // When both are met, the DB trigger auto-promotes the user (sets
+    // profiles.is_trusted = true). We HIDE this entire section once that
+    // happens, so promoted users don't see a stale "you need X" UI.
+    //
+    // If the admin has locked is_trusted_locked = true for this user, the
+    // trigger won't auto-promote them even when criteria are met — but we
+    // still show progress here because the criteria themselves are still
+    // the public definition of Established. The admin's manual override is
+    // out-of-band by design.
+    // -----------------------------------------------------------------------
+    const EP_TARGET_VERIFIED   = 4;
+    const EP_TARGET_REFERENCES = 3;
+
+    async function loadEstablishedProgress(profile) {
+      const $section = document.getElementById("established-progress-section");
+      if (!$section) return;
+
+      // Already Established — hide the whole section.
+      if (profile && profile.is_trusted) {
+        $section.hidden = true;
+        return;
+      }
+      const userId = profile?.user_id;
+      if (!userId) { $section.hidden = true; return; }
+
+      try {
+        const [vRes, rRes] = await Promise.all([
+          supabase
+            .from("listings")
+            .select("listing_id", { count: "exact", head: true })
+            .eq("seller_id", userId)
+            .eq("listing_type", "sale")
+            .eq("verification_status", "verified"),
+          supabase
+            .from("seller_references")
+            .select("id", { count: "exact", head: true })
+            .eq("seller_user_id", userId)
+            .eq("status", "accepted"),
+        ]);
+        renderEstablishedProgress(vRes.count || 0, rRes.count || 0);
+        $section.hidden = false;
+      } catch (err) {
+        console.warn("[established-progress] count fetch failed:", err);
+        $section.hidden = true;
+      }
+    }
+
+    function renderEstablishedProgress(verifiedCount, referenceCount) {
+      const $rows = document.getElementById("established-progress-rows");
+      if (!$rows) return;
+
+      function buildRow(label, current, target, ctaHtml) {
+        const reached = Math.min(current, target);
+        const dots = [];
+        for (let i = 0; i < reached;  i++) dots.push('<span class="ep-dot ep-dot-on">●</span>');
+        for (let i = reached; i < target; i++) dots.push('<span class="ep-dot ep-dot-off">○</span>');
+        const isMet = current >= target;
+        return `
+          <div class="ep-row ${isMet ? "ep-row-met" : ""}">
+            <div class="ep-label">${escapeHtml(label)}</div>
+            <div class="ep-dots">${dots.join("")}</div>
+            <div class="ep-count">${current} / ${target}${isMet ? " ✓" : ""}</div>
+            ${ctaHtml ? `<div class="ep-cta">${ctaHtml}</div>` : ""}
+          </div>
+        `;
+      }
+
+      // Inline CTAs only show on unmet rows, to nudge action without
+      // gamifying the experience.
+      const vCta = verifiedCount  >= EP_TARGET_VERIFIED
+        ? ""
+        : `<a href="#" data-tab-go="listings" style="color: var(--accent);">Go verify a listing →</a>`;
+      const rCta = referenceCount >= EP_TARGET_REFERENCES
+        ? ""
+        : `<a href="#refs-section" style="color: var(--accent);">Request a reference →</a>`;
+
+      $rows.innerHTML =
+        buildRow("Ownership Verified sale listings", verifiedCount,  EP_TARGET_VERIFIED,   vCta) +
+        buildRow("Accepted Sales References",        referenceCount, EP_TARGET_REFERENCES, rCta);
+
+      // Wire the inline "Go verify a listing →" tab-switch (anchor isn't
+      // a real URL — it's a tab navigator).
+      $rows.querySelectorAll('[data-tab-go="listings"]').forEach(a => {
+        a.addEventListener("click", (e) => {
+          e.preventDefault();
+          const btn = document.querySelector('.tab-btn[data-tab="listings"]');
+          if (btn) btn.click();
+        });
+      });
+    }
+
     const $yourRefsList   = document.getElementById("your-refs-list");
     const $yourRefsCount  = document.getElementById("your-refs-count");
     const $yourRefsEmpty  = document.getElementById("your-refs-empty");
