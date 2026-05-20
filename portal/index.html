@@ -1489,6 +1489,36 @@
       user-select: none;
     }
     .seller-row label.toggle input { width: 16px; height: 16px; cursor: pointer; }
+    /* Lock-state indicator next to the Trusted toggle. "🔒 manual" tag
+       shows when admin has explicitly set the user's trusted state via
+       the toggle (is_trusted_locked = true). "auto" tag shows when the
+       auto-promotion trigger is free to evaluate this user. */
+    .seller-row .trusted-lock-state {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: #fff4e2;
+      color: #5a4400;
+      border: 1px solid #f0d6a3;
+      white-space: nowrap;
+    }
+    .seller-row .trusted-lock-state.trusted-lock-auto {
+      background: #e9f6ec;
+      color: var(--green);
+      border-color: #b9deca;
+    }
+    .seller-row .trusted-reset-link {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--accent);
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+      font-family: inherit;
+    }
+    .seller-row .trusted-reset-link:hover { color: #9c7209; }
+    .seller-row .trusted-reset-link:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; }
 
     /* ------ Admin all-listings view ------ */
     .admin-toolbar {
@@ -6009,7 +6039,7 @@
         .from("profiles")
         .select(`
           user_id, display_name, handle, contact_email, location,
-          is_trusted, is_admin, account_status, created_at,
+          is_trusted, is_trusted_locked, is_admin, account_status, created_at,
           facebook_profile_url, about_text,
           pending_display_name, pending_display_name_at,
           pending_about_text, pending_about_at
@@ -6139,6 +6169,10 @@
             <input type="checkbox" data-user-id="${profile.user_id}" ${profile.is_trusted ? "checked" : ""} ${status !== "active" ? "disabled" : ""} />
             Trusted
           </label>
+          ${profile.is_trusted_locked
+            ? `<span class="trusted-lock-state" title="You've manually set this user's trusted state. Auto-promotion trigger will not touch it.">🔒 manual</span>
+               <button type="button" class="trusted-reset-link" data-action="reset-trusted-lock" title="Clear the manual lock so the auto-promotion trigger can evaluate this user again">Reset to auto</button>`
+            : `<span class="trusted-lock-state trusted-lock-auto" title="No manual override — auto-promotion trigger may set this user to trusted if they meet the 4 verified listings + 3 references criteria.">auto</span>`}
           <div class="seller-actions">
             ${actionButtons}
             ${manageActions ? `<div class="seller-manage-panel">${manageActions}</div>` : ""}
@@ -6147,6 +6181,7 @@
       `;
       const cb = row.querySelector("input[type=checkbox]");
       cb.addEventListener("change", () => toggleTrusted(profile, cb));
+      row.querySelector("[data-action=reset-trusted-lock]")?.addEventListener("click", () => resetTrustedLock(profile, row));
       row.querySelector("[data-action=email]")?.addEventListener("click",        () => emailSellerDirect(profile));
       row.querySelector("[data-action=suspend]")?.addEventListener("click",      () => suspendSeller(profile));
       row.querySelector("[data-action=ban]")?.addEventListener("click",          () => banSeller(profile));
@@ -6787,22 +6822,62 @@
       const newValue = checkbox.checked;
       checkbox.disabled = true;
       try {
+        // Set BOTH is_trusted and is_trusted_locked = true. The lock ensures
+        // the auto-promotion trigger from migration 023 won't undo this
+        // manual decision on a later listing/reference change. Admin can
+        // release the lock via the "Reset to auto" link if they want the
+        // trigger to take over again.
         const { error } = await supabase
           .from("profiles")
-          .update({ is_trusted: newValue })
+          .update({ is_trusted: newValue, is_trusted_locked: true })
           .eq("user_id", profile.user_id);
         if (error) throw error;
         profile.is_trusted = newValue;
+        profile.is_trusted_locked = true;
         setAdminBanner(
-          `${profile.display_name || "Seller"} is ${newValue ? "now trusted" : "no longer trusted"}.`,
+          `${profile.display_name || "Seller"} is ${newValue ? "now trusted" : "no longer trusted"} (locked — auto-promotion won't override).`,
           "success"
         );
+        // Refresh the row visually to show the new "🔒 manual" indicator.
+        await loadSellers();
       } catch (err) {
         console.error("[toggleTrusted] failed:", err);
         checkbox.checked = !newValue; // revert
         setAdminBanner("Could not update trusted status: " + (err.message || err), "error");
       } finally {
         checkbox.disabled = false;
+      }
+    }
+
+    // Releases the admin-set lock on is_trusted_locked. After this fires,
+    // the auto-promotion trigger from migration 023 can act on this user
+    // again. The RPC also immediately runs recompute, so if the user meets
+    // the 4+3 criteria they'll be auto-promoted in the same call.
+    async function resetTrustedLock(profile, row) {
+      const ok = confirm(
+        `Reset trusted lock for "${profile.display_name || profile.handle || "this seller"}"?\n\n` +
+        `Effect: the auto-promotion trigger will be allowed to evaluate this user again. If they currently meet 4 verified listings + 3 accepted references, they'll be auto-promoted to Established Member immediately. If not, their status stays as-is until they meet the criteria later.\n\n` +
+        `Continue?`
+      );
+      if (!ok) return;
+      const $btn = row.querySelector("[data-action=reset-trusted-lock]");
+      if ($btn) $btn.disabled = true;
+      try {
+        const { data, error } = await supabase.rpc("admin_reset_trusted_lock", {
+          p_user_id: profile.user_id,
+        });
+        if (error) throw error;
+        profile.is_trusted_locked = false;
+        profile.is_trusted = !!data;
+        setAdminBanner(
+          `Lock cleared for ${profile.display_name || "seller"}. They are ${data ? "now trusted (criteria met)" : "currently not trusted (criteria not met)"}.`,
+          "success"
+        );
+        await loadSellers();
+      } catch (err) {
+        console.error("[resetTrustedLock] failed:", err);
+        setAdminBanner("Could not reset lock: " + (err.message || err), "error");
+        if ($btn) $btn.disabled = false;
       }
     }
 
