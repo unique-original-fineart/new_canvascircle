@@ -4991,6 +4991,17 @@
       for (const l of rows) frag.appendChild(renderPreviewCard(l));
       $listingsList.appendChild(frag);
       $listingsList.hidden = false;
+
+      // The persistent revoked-banner derives from allListings — refresh
+      // it any time the grid re-renders so it can't go stale. Without
+      // this call, e.g. submitting a new verification video on a revoked
+      // listing flips the preview card to "Pending" but leaves the red
+      // revoked banner still listing the listing until the next page
+      // reload. (refreshNotRenewedBanner intentionally NOT called here
+      // because it shares $dashBanner with the transient success/error
+      // banners — calling it from inside applyFilters would clobber
+      // showDashBanner messages set right before applyFilters runs.)
+      if (typeof refreshRevokedBanner === "function") refreshRevokedBanner();
     }
 
     [$dashQ, $dashType, $dashStatus, $dashSort].forEach(el => el.addEventListener("input", applyFilters));
