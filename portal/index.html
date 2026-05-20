@@ -289,6 +289,48 @@
     }
     .revoked-banner .rb-scroll:hover { background: #5a1a10; }
 
+    /* One-time congratulations banner shown the first time a user
+       becomes Established. Dismissed via localStorage so it doesn't
+       reappear after acknowledgment. Tied to user_id so a different
+       user signing in on the same browser sees their own welcome. */
+    .ew-banner {
+      margin-top: 14px;
+      padding: 16px 18px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #eaf6ec, #d6efdf);
+      border: 1px solid #b7dcc2;
+      color: #1f5b32;
+      font-size: 14px;
+      line-height: 1.5;
+      box-shadow: 0 4px 12px rgba(31,91,50,.08);
+    }
+    .ew-banner[hidden] { display: none; }
+    .ew-banner .ew-title {
+      font-weight: 700;
+      font-size: 17px;
+      margin-bottom: 6px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ew-banner .ew-list {
+      margin: 8px 0 12px;
+      padding-left: 22px;
+    }
+    .ew-banner .ew-list li { margin-bottom: 4px; }
+    .ew-banner .ew-foot {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .ew-banner .ew-dismiss {
+      background: #1f5b32;
+      color: #fff;
+      border: 1px solid #1f5b32;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .ew-banner .ew-dismiss:hover { background: #174d28; }
+
     .signed-in-row {
       display: flex; align-items: center; justify-content: space-between;
       gap: 12px; flex-wrap: wrap;
@@ -2174,6 +2216,7 @@
 
           <div id="dashboard-banner" class="banner" hidden></div>
           <div id="revoked-banner" class="revoked-banner" hidden></div>
+          <div id="established-welcome-banner" class="ew-banner" hidden></div>
           <div id="listings-loading" class="empty-state" hidden>Loading your listings&hellip;</div>
           <div id="listings-error"   class="banner error" hidden></div>
           <div id="listings-empty"   class="empty-state" hidden>
@@ -4670,6 +4713,59 @@
       });
     }
 
+    // ---- One-time Established Member welcome banner ----
+    //
+    // Shows the FIRST time a user lands in the dashboard with is_trusted =
+    // true AND no localStorage dismissal flag for this user yet. Dismissal
+    // writes a per-user-id key so a different user signing in on the same
+    // browser still sees their own welcome.
+    //
+    // We use localStorage instead of a DB column because (a) it's simpler,
+    // (b) sellers visiting on multiple devices seeing the banner once per
+    // device is a reasonable behavior, (c) no migration needed.
+    const ESTABLISHED_WELCOME_KEY_PREFIX = "cc_established_welcome_dismissed_";
+    function maybeShowEstablishedWelcomeBanner(profile) {
+      const $banner = document.getElementById("established-welcome-banner");
+      if (!$banner) return;
+
+      // Only fire when the user is currently Established.
+      if (!profile || !profile.is_trusted) {
+        $banner.hidden = true;
+        $banner.innerHTML = "";
+        return;
+      }
+
+      // Check the per-user dismissal flag.
+      const key = ESTABLISHED_WELCOME_KEY_PREFIX + profile.user_id;
+      let dismissed = false;
+      try { dismissed = localStorage.getItem(key) === "1"; } catch (e) { /* private mode */ }
+      if (dismissed) { $banner.hidden = true; return; }
+
+      $banner.innerHTML = `
+        <div class="ew-title">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#1f5b32;color:#fff;font-size:14px;font-weight:700;">✓</span>
+          You're now an Established Member!
+        </div>
+        <div>You met the criteria — <strong>4 Ownership Verified sale listings</strong> and <strong>3 accepted Sales References</strong>. Here's what just unlocked:</div>
+        <ul class="ew-list">
+          <li>Your listings post and edit go live <strong>without per-change admin review</strong>.</li>
+          <li>Other sellers can request you as a <strong>Sales Reference</strong>.</li>
+          <li>Public <strong>Established Member badge</strong> visible on your seller page and listings.</li>
+          <li>Inclusion in the catalog's <strong>Established Members</strong> filter.</li>
+        </ul>
+        <div class="ew-foot">
+          <button type="button" class="ew-dismiss" data-action="ew-dismiss">Got it — let's go</button>
+          <a href="/guidelines.html#selling" target="_blank" rel="noopener" style="color:#1f5b32; font-size:13px;">Learn more about Established Members ↗</a>
+        </div>
+      `;
+      $banner.hidden = false;
+      $banner.querySelector("[data-action=ew-dismiss]")?.addEventListener("click", () => {
+        try { localStorage.setItem(key, "1"); } catch (e) { /* private mode */ }
+        $banner.hidden = true;
+        $banner.innerHTML = "";
+      });
+    }
+
     async function removeCard(card, listing) {
       const id = card.dataset.listingId;
       const label = `${listing.artist_name || "Unknown"} — ${listing.artwork_title || "Untitled"}`;
@@ -5158,6 +5254,10 @@
       applyFilters();
       refreshNotRenewedBanner();
       refreshRevokedBanner();
+      // One-time welcome banner for users who just became Established.
+      // Reads from the cached profile loaded earlier in the dashboard
+      // boot sequence. Safe no-op if not yet trusted.
+      maybeShowEstablishedWelcomeBanner(currentProfileCached);
     }
 
     // Warn before navigation if there are unsaved changes
