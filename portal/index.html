@@ -339,6 +339,29 @@
     }
     .signed-in-row .who .name  { font-weight: 600; }
     .signed-in-row .who .email { color: var(--muted); font-size: 13px; }
+    /* Top-of-dashboard identity row — display name + @handle + (when
+       applicable) Established Member pill, all on one line. Wraps to
+       additional lines on narrow viewports without losing readability. */
+    .signed-in-row .who .name-row {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+    }
+    .signed-in-row .who .who-handle {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 13px;
+    }
+    .signed-in-row .who .who-established {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #1f5b32;
+      color: #fff;
+      border: 1px solid #1f5b32;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: help;
+    }
 
     .quicklinks { display: grid; gap: 8px; margin-top: 6px; }
     .quicklinks a {
@@ -2123,7 +2146,11 @@
       <section data-view="account" hidden>
         <div class="signed-in-row">
           <div class="who">
-            <div class="name" id="who-name">&nbsp;</div>
+            <div class="name-row">
+              <span class="name" id="who-name">&nbsp;</span>
+              <span class="who-handle" id="who-handle" hidden></span>
+              <span class="who-established" id="who-established" hidden title="You're an Established Member — see Guidelines for what this unlocks.">✓ Established Member</span>
+            </div>
             <div class="email" id="who-email">&nbsp;</div>
           </div>
           <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
@@ -2377,15 +2404,20 @@
           </details>
 
           <!-- ============================================================ -->
-          <!-- Path to Established Member — progress against 4+3 criteria.   -->
-          <!-- Hidden once the user is_trusted = true (already Established). -->
+          <!-- Path to / progress as Established Member.                     -->
+          <!-- Visible for ALL users (Established or not). For Established   -->
+          <!-- users this becomes a celebratory display showing their actual -->
+          <!-- counts with green-checked rows. Hidden only when the profile  -->
+          <!-- hasn't loaded yet.                                            -->
           <!-- ============================================================ -->
           <div id="established-progress-section" hidden style="margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--card-line);">
-            <h3 style="margin: 0 0 6px; font-size: 16px;">Path to Established Member</h3>
-            <p class="small" style="margin: 0 0 12px; color: var(--muted);">
-              Established Member is a public trust badge that unlocks: edits going live without admin review, the ability to be requested as a Reference by other sellers, and inclusion in the catalog's Established Members filter. You're auto-promoted the moment you meet both criteria below.
-              <a href="/guidelines.html#selling" target="_blank" rel="noopener" style="color: var(--accent);">Learn more ↗</a>
+            <h3 id="established-progress-heading" style="margin: 0 0 6px; font-size: 16px;">Path to Established Member</h3>
+            <p id="established-progress-explainer" class="small" style="margin: 0 0 12px; color: var(--muted);">
+              <!-- Filled by renderEstablishedProgress() — text varies by state. -->
             </p>
+            <div id="established-progress-celebration" hidden style="margin: 0 0 12px; padding: 10px 12px; background: #eaf6ec; border: 1px solid #b7dcc2; border-radius: 8px; color: #1f5b32; font-size: 13px; line-height: 1.45;">
+              <!-- Filled by renderEstablishedProgress() when isEstablished. -->
+            </div>
             <div id="established-progress-rows" style="display: grid; gap: 8px; max-width: 460px;">
               <!-- Filled by renderEstablishedProgress() -->
             </div>
@@ -3288,6 +3320,22 @@
       }
       currentProfileCached = profile;          // cache for trust check on save
       $whoName.textContent = profile?.display_name || "Welcome";
+      // @handle and Established Member pill in the identity row. Both
+      // gated on profile data we already have — no extra queries needed.
+      const $whoHandle      = document.getElementById("who-handle");
+      const $whoEstablished = document.getElementById("who-established");
+      if ($whoHandle) {
+        if (profile?.handle) {
+          $whoHandle.textContent = "@" + profile.handle;
+          $whoHandle.hidden = false;
+        } else {
+          $whoHandle.textContent = "";
+          $whoHandle.hidden = true;
+        }
+      }
+      if ($whoEstablished) {
+        $whoEstablished.hidden = !profile?.is_trusted;
+      }
 
       // Public listings page panel — now lives at the top of the dashboard
       // (not inside the Profile tab anymore). Populate it as soon as we
@@ -7493,13 +7541,10 @@
       const $section = document.getElementById("established-progress-section");
       if (!$section) return;
 
-      // Already Established — hide the whole section.
-      if (profile && profile.is_trusted) {
-        $section.hidden = true;
-        return;
-      }
       const userId = profile?.user_id;
       if (!userId) { $section.hidden = true; return; }
+
+      const isEstablished = !!profile?.is_trusted;
 
       try {
         const [vRes, rRes] = await Promise.all([
@@ -7515,7 +7560,7 @@
             .eq("seller_user_id", userId)
             .eq("status", "accepted"),
         ]);
-        renderEstablishedProgress(vRes.count || 0, rRes.count || 0);
+        renderEstablishedProgress(vRes.count || 0, rRes.count || 0, isEstablished);
         $section.hidden = false;
       } catch (err) {
         console.warn("[established-progress] count fetch failed:", err);
@@ -7523,9 +7568,51 @@
       }
     }
 
-    function renderEstablishedProgress(verifiedCount, referenceCount) {
-      const $rows = document.getElementById("established-progress-rows");
+    function renderEstablishedProgress(verifiedCount, referenceCount, isEstablished) {
+      const $rows        = document.getElementById("established-progress-rows");
+      const $heading     = document.getElementById("established-progress-heading");
+      const $explainer   = document.getElementById("established-progress-explainer");
+      const $celebration = document.getElementById("established-progress-celebration");
       if (!$rows) return;
+
+      // Header text + explainer text + optional celebratory strip vary by
+      // state. Established users see a green congratulations strip + the
+      // word "your" in the heading; non-Established see the "Path to..."
+      // framing with a nudge to keep going.
+      const verifiedMet   = verifiedCount  >= EP_TARGET_VERIFIED;
+      const referencesMet = referenceCount >= EP_TARGET_REFERENCES;
+      const metBothCriteria = verifiedMet && referencesMet;
+
+      if (isEstablished) {
+        if ($heading) $heading.textContent = "Established Member status";
+        if ($explainer) {
+          $explainer.innerHTML =
+            `You're an Established Member — your listings publish without per-edit admin review, other sellers can request you as a Reference, your public seller page shows the badge, and you're included in the catalog's Established Members filter. ` +
+            `<a href="/guidelines.html#established-member" target="_blank" rel="noopener" style="color: var(--accent);">Learn more ↗</a>`;
+        }
+        if ($celebration) {
+          // Path 1 (criteria-met) vs Path 2 (admin-promoted but below
+          // thresholds) get slightly different congratulations copy —
+          // the badge is the same, but the framing differs so a Path 2
+          // member doesn't see "you crushed it" when their counts are 0/4.
+          const text = metBothCriteria
+            ? `<strong>✓ Congrats — you've met (and exceeded) the auto-criteria.</strong> Your status is solid. Keep building — verified listings and references compound your reputation over time.`
+            : `<strong>✓ You're an Established Member by direct admin promotion.</strong> Building your verified listings and references below isn't required for status — but doing so strengthens the trust signal buyers see on your listings.`;
+          $celebration.innerHTML = text;
+          $celebration.hidden = false;
+        }
+      } else {
+        if ($heading) $heading.textContent = "Path to Established Member";
+        if ($explainer) {
+          $explainer.innerHTML =
+            `Established Member is a public trust badge that unlocks: edits going live without admin review, the ability to be requested as a Reference by other sellers, and inclusion in the catalog's Established Members filter. You're auto-promoted the moment you meet both criteria below. ` +
+            `<a href="/guidelines.html#established-member" target="_blank" rel="noopener" style="color: var(--accent);">Learn more ↗</a>`;
+        }
+        if ($celebration) {
+          $celebration.hidden = true;
+          $celebration.innerHTML = "";
+        }
+      }
 
       function buildRow(label, current, target, ctaHtml) {
         const reached = Math.min(current, target);
@@ -7543,12 +7630,12 @@
         `;
       }
 
-      // Inline CTAs only show on unmet rows, to nudge action without
-      // gamifying the experience.
-      const vCta = verifiedCount  >= EP_TARGET_VERIFIED
+      // CTAs nudge progress — but only for non-Established users. Once
+      // you're Established the section is informational, not a checklist.
+      const vCta = (isEstablished || verifiedMet)
         ? ""
         : `<a href="#" data-tab-go="listings" style="color: var(--accent);">Go verify a listing →</a>`;
-      const rCta = referenceCount >= EP_TARGET_REFERENCES
+      const rCta = (isEstablished || referencesMet)
         ? ""
         : `<a href="#refs-section" style="color: var(--accent);">Request a reference →</a>`;
 
@@ -7557,7 +7644,7 @@
         buildRow("Accepted Sales References",        referenceCount, EP_TARGET_REFERENCES, rCta);
 
       // Wire the inline "Go verify a listing →" tab-switch (anchor isn't
-      // a real URL — it's a tab navigator).
+      // a real URL — it's a tab navigator). Safe no-op when no CTA rendered.
       $rows.querySelectorAll('[data-tab-go="listings"]').forEach(a => {
         a.addEventListener("click", (e) => {
           e.preventDefault();
