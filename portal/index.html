@@ -3310,6 +3310,31 @@
       return false;
     }
 
+    // The three field-level fields that the DB trigger in migration 022
+    // auto-revokes an Ownership Verified badge on (the fourth — primary
+    // image — is detected separately in the image-replace flow). Mirror of
+    // the `UPDATE OF artist_name, artwork_title, artwork_category` column
+    // list in the trigger; keep these in sync.
+    const AUTO_REVOKE_FIELDS = {
+      artist_name:      "artist name",
+      artwork_title:    "artwork title",
+      artwork_category: "artwork category",
+    };
+    function describeAutoRevokeChanges(payload, bootstrap) {
+      if (!bootstrap) return [];
+      const changed = [];
+      for (const [f, label] of Object.entries(AUTO_REVOKE_FIELDS)) {
+        if ((payload[f] ?? null) !== (bootstrap[f] ?? null)) changed.push(label);
+      }
+      return changed;
+    }
+    function formatChangeList(arr) {
+      if (arr.length === 0) return "";
+      if (arr.length === 1) return arr[0];
+      if (arr.length === 2) return `${arr[0]} and ${arr[1]}`;
+      return arr.slice(0, -1).join(", ") + ", and " + arr[arr.length - 1];
+    }
+
     // A profile is "complete enough to post listings" if the seller has a
     // display name AND at least one contact channel (Facebook URL or email).
     // Buyers who only save listings don't need this — the gate only fires
@@ -4226,6 +4251,24 @@
         $status.textContent = text;
         $status.className = "replace-status" + (kind ? " " + kind : "");
       }
+
+      // Auto-revoke guardrail for the primary image swap — mirrors the
+      // saveCard check for artist/title/category. The DB's listing_images
+      // trigger will revoke the badge as soon as we write the new
+      // storage_path. Surface the consequence as a confirm BEFORE we do
+      // any upload work so the seller can back out cheaply.
+      // Source of truth is allListings (the in-memory bootstrap) so we
+      // don't depend on the `listing` parameter being current.
+      const bootstrap = allListings.find(x => x.listing_id === id);
+      if (bootstrap?.verification_status === "verified") {
+        const ok = confirm(
+          `Heads up: replacing the primary image will revoke the Ownership Verified badge on this listing.\n\n` +
+          `Because the verification video shows the previous artwork image, the badge will be removed automatically. You can submit a new verification video reflecting the new image right after; the badge will return once an admin approves it.\n\n` +
+          `Continue with the image change?`
+        );
+        if (!ok) return;
+      }
+
       try {
         if (!file.type.startsWith("image/")) throw new Error("Pick an image file.");
         if (file.size > 25 * 1024 * 1024)    throw new Error("Image is over 25MB.");
@@ -4732,12 +4775,38 @@
         return false;
       }
 
+      // Auto-revoke guardrail. If this listing currently displays the
+      // Ownership Verified badge AND the seller is changing one of the
+      // three field-level material attributes (artist/title/category), the
+      // DB trigger will revoke the badge on save. Surface the consequence
+      // as a confirm BEFORE the save runs so the seller can back out.
+      // (The fourth material attribute — primary image — is handled in the
+      // image-replace flow with its own confirm, since it never reaches
+      // saveCard.)
+      const bootstrap = allListings.find(x => x.listing_id === id);
+      if (bootstrap?.verification_status === "verified") {
+        const changed = describeAutoRevokeChanges(payload, bootstrap);
+        if (changed.length > 0) {
+          const fieldList = formatChangeList(changed);
+          const ok = confirm(
+            `Heads up: this save will revoke the Ownership Verified badge on this listing.\n\n` +
+            `You're changing: ${fieldList}.\n\n` +
+            `Because the verification video shows the previous version of this listing, the badge will be removed automatically when you save. You can submit a new verification video reflecting the updated listing right after; the badge will return once an admin approves it.\n\n` +
+            `Continue with the save?`
+          );
+          if (!ok) {
+            // Bail without resetting the form — keep the seller's in-progress
+            // edits so they can either tweak further or save again.
+            return false;
+          }
+        }
+      }
+
       // Non-trusted sellers: content edits re-queue the listing for admin
       // moderation. Logistics changes (price, status, shipping, mood) don't.
       let needsReview = false;
       const isTrusted = !!currentProfileCached?.is_trusted;
       if (!isTrusted) {
-        const bootstrap = allListings.find(x => x.listing_id === id);
         if (listingHasContentEdits(payload, bootstrap)) {
           payload.moderation_status = "pending";
           // Clear any prior rejection note so the seller doesn't see a stale
