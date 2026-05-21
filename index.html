@@ -512,7 +512,7 @@
 
     <form class="toolbar" id="toolbar" autocomplete="off">
       <div class="toolbar-row search-row">
-        <input type="search" id="q" placeholder="Search artist or title&hellip;" />
+        <input type="search" id="q" placeholder="Search artist, title, or seller&hellip;" />
         <button type="button" class="clear-btn" id="clear">Clear</button>
       </div>
       <div class="toolbar-row filter-row">
@@ -1008,22 +1008,54 @@
     // Populate the seller dropdown. Re-runs on each tab switch so the options
     // reflect what's actually available on that tab. The artist dropdown was
     // removed — users now search by artist via the text search box.
+    //
+    // Each option's value is the bare display_name (so the eq("profiles.
+    // display_name", ...) filter keeps matching as before), but the visible
+    // label includes the @handle as a tiebreaker — important once multiple
+    // sellers share a common display name.
     async function populateDropdowns() {
       const tab = currentTab;
       const sellersResp = await supabase
         .from("listings")
-        .select("profiles!listings_seller_id_fkey!inner ( display_name, account_status )")
+        .select("profiles!listings_seller_id_fkey!inner ( display_name, handle, account_status )")
         .eq("listing_type", tab)
         .eq("moderation_status", "approved")
         .eq("profiles.account_status", "active");
-      const sellerNames = [...new Set(
-        (sellersResp.data || []).map(r => r.profiles?.display_name).filter(Boolean)
-      )].sort((a,b) => a.localeCompare(b));
-      // Seller dropdown is renamed "Buyer" on ISO tab — option text stays the same,
-      // only the first-option label differs.
+      // Dedupe by display_name (filter value). Track each unique seller's
+      // handle so we can render "Display Name (@handle)" as the label.
+      const sellerByName = new Map();
+      for (const row of sellersResp.data || []) {
+        const p = row.profiles;
+        if (!p?.display_name) continue;
+        if (!sellerByName.has(p.display_name)) {
+          sellerByName.set(p.display_name, p.handle || "");
+        }
+      }
+      const sellers = Array.from(sellerByName.entries())
+        .map(([name, handle]) => ({ name, handle }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      // Seller dropdown is renamed "Buyer" on ISO tab — option text stays the
+      // same, only the first-option label differs.
       const firstSellerOpt = $seller.querySelector("option");
       if (firstSellerOpt) firstSellerOpt.textContent = tab === "iso" ? "All buyers" : "All sellers";
-      populateOptions($seller, sellerNames);
+
+      // Preserve any currently-selected seller across tab switches.
+      const prevValue = $seller.value;
+      // Manually rebuild the seller dropdown: option value = display_name,
+      // option label = "Display Name (@handle)" when handle exists.
+      $seller.innerHTML = "";
+      if (firstSellerOpt) $seller.appendChild(firstSellerOpt);
+      for (const s of sellers) {
+        const opt = document.createElement("option");
+        opt.value = s.name;
+        opt.textContent = s.handle ? `${s.name} (@${s.handle})` : s.name;
+        $seller.appendChild(opt);
+      }
+      // Restore selection (if the prior selection still exists).
+      if (prevValue && [...$seller.options].some(o => o.value === prevValue)) {
+        $seller.value = prevValue;
+      }
     }
 
     // Show / hide / relabel toolbar pieces depending on which tab is active.

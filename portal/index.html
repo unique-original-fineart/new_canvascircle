@@ -2170,6 +2170,10 @@
           <button type="button" class="btn-primary" id="quick-new-post-btn" data-go="new-listing">+ New post</button>
           <button type="button" class="btn-secondary" id="quick-sales-post-btn" data-go="sales-post">Build Facebook Post</button>
         </div>
+        <!-- Cap indicator for non-Established Members. Hidden for Established
+             users (no cap). Shows the current count vs. the 10-sale-listing
+             cap so the seller knows where they stand. -->
+        <div id="listing-cap-indicator" hidden style="margin-top: 6px; font-size: 12px; color: var(--muted); padding: 0 4px;"></div>
 
         <!-- Public seller / collector page — just two compact buttons + a
              collapsed "What is this for?" explainer. No box / background;
@@ -2444,17 +2448,28 @@
             <!-- Request form -->
             <div id="request-ref-form" style="padding: 12px; background: #faf9f6; border: 1px solid var(--card-line); border-radius: 6px; margin-bottom: 14px;">
               <label for="request-ref-handle" class="small" style="display: block; font-weight: 600; margin-bottom: 6px;">Request a new reference</label>
-              <div style="display:flex; align-items:stretch; gap:6px; flex-wrap: wrap;">
-                <div style="display:flex; align-items:stretch; gap:0; flex: 1; min-width: 200px;">
-                  <span style="padding: 8px 10px; background: #f1ede4; border: 1px solid var(--card-line); border-right: none; border-radius: 6px 0 0 6px; color: var(--muted); font-weight: 600;">@</span>
-                  <input type="text" id="request-ref-handle" placeholder="handle"
-                         pattern="^[A-Za-z][A-Za-z0-9_]{2,19}$" maxlength="20"
-                         style="border-radius: 0 6px 6px 0; flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--card-line); font-family: inherit; font-size: 14px;" />
+              <div style="display:flex; align-items:stretch; gap:6px; flex-wrap: wrap; position: relative;">
+                <div style="flex: 1; min-width: 200px; position: relative;">
+                  <input type="text" id="request-ref-handle"
+                         placeholder="Search by display name or @handle…"
+                         autocomplete="off"
+                         style="width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--card-line); border-radius: 6px; font-family: inherit; font-size: 14px;" />
+                  <!-- Autocomplete dropdown — populated from the
+                       search_established_members RPC as the user types.
+                       Filters out the caller themselves AND anyone the
+                       caller already has an active relationship with. -->
+                  <div id="request-ref-results" hidden
+                       style="position: absolute; left: 0; right: 0; top: 100%;
+                              margin-top: 2px; background: #fff;
+                              border: 1px solid var(--card-line); border-radius: 6px;
+                              box-shadow: 0 6px 18px rgba(0,0,0,.08);
+                              max-height: 260px; overflow-y: auto; z-index: 50;">
+                  </div>
                 </div>
                 <button type="button" class="btn-primary" id="request-ref-submit-btn">Send request</button>
               </div>
               <p class="small" id="request-ref-hint" style="margin: 6px 0 0; color: var(--muted);">
-                Enter the @handle of an <strong>Established Member</strong> you've transacted with. They'll get a request to accept or decline.
+                Start typing the display name or @handle of an <strong>Established Member</strong> you've transacted with. Pick a result from the dropdown, then click <em>Send request</em>.
               </p>
             </div>
 
@@ -5223,6 +5238,55 @@
       // banners — calling it from inside applyFilters would clobber
       // showDashBanner messages set right before applyFilters runs.)
       if (typeof refreshRevokedBanner === "function") refreshRevokedBanner();
+      // Refresh the non-Established 10-sale-listing cap indicator.
+      // Same source-of-truth pattern: derives from allListings + the
+      // cached profile's is_trusted flag.
+      if (typeof updateListingCapIndicator === "function") updateListingCapIndicator();
+    }
+
+    // ---- Non-Established 10-sale-listing cap indicator ----
+    //
+    // Hidden entirely for Established Members (no cap). For everyone
+    // else, shows their current active sale-listing count vs. the cap
+    // of 10. "Active" = status in (available, pending, not_renewed) —
+    // matches migration 027's DB trigger exactly. ISO posts are NOT
+    // counted.
+    //
+    // We don't disable the "+ New post" button at the cap because that
+    // button is the entry point to BOTH sale and ISO listing creation,
+    // and ISO is unrestricted. The DB trigger will block any over-cap
+    // sale-listing insert with a clean error message; the new-listing
+    // form's existing error handler surfaces it.
+    const NON_ESTABLISHED_LISTING_CAP = 10;
+    function updateListingCapIndicator() {
+      const $indicator = document.getElementById("listing-cap-indicator");
+      if (!$indicator) return;
+
+      const isTrusted = !!currentProfileCached?.is_trusted;
+      if (isTrusted) {
+        $indicator.hidden = true;
+        $indicator.innerHTML = "";
+        return;
+      }
+
+      const activeSale = (allListings || []).filter(l =>
+        l.listing_type === "sale" &&
+        (l.status === "available" || l.status === "pending" || l.status === "not_renewed")
+      ).length;
+      const cap = NON_ESTABLISHED_LISTING_CAP;
+      const atCap = activeSale >= cap;
+
+      $indicator.hidden = false;
+      if (atCap) {
+        $indicator.innerHTML =
+          `<strong style="color:#8a1f1a;">⚠ Sale listing cap reached (${activeSale} / ${cap}).</strong> ` +
+          `New sale listings are blocked until you remove or sell an existing one — or become an Established Member ` +
+          `(see Profile tab). ISO posts remain unrestricted.`;
+      } else {
+        $indicator.innerHTML =
+          `${activeSale} of ${cap} active sale listings ` +
+          `<span style="color: var(--muted);">— cap lifts when you become an Established Member.</span>`;
+      }
     }
 
     [$dashQ, $dashType, $dashStatus, $dashSort].forEach(el => el.addEventListener("input", applyFilters));
@@ -7940,7 +8004,7 @@
     $requestRefSubmitBtn?.addEventListener("click", async () => {
       const raw = ($requestRefHandle.value || "").trim().replace(/^@+/, "");
       if (!raw) {
-        setRefHint("Enter the @handle of the Established Member you want to request from.", "err");
+        setRefHint("Pick an Established Member from the search dropdown, or type their full @handle.", "err");
         return;
       }
       $requestRefSubmitBtn.disabled = true;
@@ -7950,6 +8014,8 @@
         if (error) throw error;
         setRefHint(`Request sent to @${raw}. They'll see it next time they're in their portal.`, "ok");
         $requestRefHandle.value = "";
+        const $results = document.getElementById("request-ref-results");
+        if ($results) { $results.innerHTML = ""; $results.hidden = true; }
         await loadReferences();
       } catch (err) {
         console.error("[request-ref] failed:", err);
@@ -7960,6 +8026,106 @@
         $requestRefSubmitBtn.textContent = "Send request";
       }
     });
+
+    // ---- Autocomplete: search Established Members by display_name or handle ----
+    //
+    // Calls the `search_established_members(p_query, p_limit)` RPC from
+    // migration 026. The RPC filters out the caller, non-Established users,
+    // suspended accounts, and anyone the caller already has an active
+    // reference relationship with — so every row in the dropdown is a valid
+    // target. Debounced 200ms so each keystroke doesn't fire a request.
+    (function wireReferenceSearch() {
+      const $input   = document.getElementById("request-ref-handle");
+      const $results = document.getElementById("request-ref-results");
+      if (!$input || !$results) return;
+
+      let searchTimer = null;
+      let searchSeq   = 0;  // race-guard so a stale response can't overwrite a newer one
+
+      async function runSearch(q) {
+        const mySeq = ++searchSeq;
+        const trimmed = (q || "").trim().replace(/^@+/, "");
+        if (trimmed.length < 2) {
+          $results.innerHTML = "";
+          $results.hidden = true;
+          return;
+        }
+        try {
+          const { data, error } = await supabase.rpc("search_established_members", {
+            p_query: trimmed, p_limit: 10
+          });
+          if (mySeq !== searchSeq) return;  // a newer request superseded this
+          if (error) {
+            console.warn("[refs-search] failed:", error);
+            $results.innerHTML = "";
+            $results.hidden = true;
+            return;
+          }
+          renderSearchResults(data || [], trimmed);
+        } catch (err) {
+          if (mySeq !== searchSeq) return;
+          console.warn("[refs-search] exception:", err);
+        }
+      }
+
+      function renderSearchResults(rows, query) {
+        if (rows.length === 0) {
+          $results.innerHTML = `
+            <div style="padding: 10px 12px; color: var(--muted); font-size: 13px; font-style: italic;">
+              No Established Members match "${escapeHtml(query)}". They might not exist yet, may have suspended accounts, or you already have an active reference relationship with them.
+            </div>`;
+          $results.hidden = false;
+          return;
+        }
+        $results.innerHTML = rows.map(r => `
+          <div class="ref-search-row" data-handle="${escapeHtml(r.handle || "")}" data-name="${escapeHtml(r.display_name || "")}"
+               style="display:flex; flex-direction:column; gap:2px;
+                      padding: 8px 12px; cursor: pointer;
+                      border-bottom: 1px solid var(--card-line);">
+            <div style="font-weight: 600; color: var(--fg);">${escapeHtml(r.display_name || "(no name)")}</div>
+            <div style="color: var(--muted); font-size: 12px;">@${escapeHtml(r.handle || "")}</div>
+          </div>
+        `).join("");
+        // Remove the bottom border on the last row so it sits flush with the dropdown.
+        const last = $results.lastElementChild;
+        if (last) last.style.borderBottom = "none";
+        $results.hidden = false;
+
+        // Click a row to populate the input with the @handle. User then
+        // clicks Send to fire the actual request_reference RPC. We picked
+        // populate-then-confirm over auto-send so the seller has a clear
+        // beat to review before committing — and so accidental clicks
+        // don't fire requests.
+        $results.querySelectorAll(".ref-search-row").forEach(el => {
+          // Hover highlight without needing a CSS file edit.
+          el.addEventListener("mouseenter", () => el.style.background = "#f4f1ea");
+          el.addEventListener("mouseleave", () => el.style.background = "");
+          el.addEventListener("click", () => {
+            $input.value = el.dataset.handle;
+            $results.innerHTML = "";
+            $results.hidden = true;
+            setRefHint(`Selected ${el.dataset.name || "@" + el.dataset.handle}. Click Send request to fire it off.`, "");
+            $input.focus();
+          });
+        });
+      }
+
+      $input.addEventListener("input", () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => runSearch($input.value), 200);
+      });
+      // Hide dropdown when input loses focus, but allow click-on-row to fire
+      // first by deferring the hide on a microtask.
+      $input.addEventListener("blur", () => {
+        setTimeout(() => { $results.hidden = true; }, 120);
+      });
+      // Re-open when focused if there's content + cached results.
+      $input.addEventListener("focus", () => {
+        if ($input.value.trim().length >= 2 && $results.innerHTML.trim() !== "") {
+          $results.hidden = false;
+        }
+      });
+    })();
 
     // ---- Edit About text inline (admin-approved on submit) ----
     // Click "Edit About" → unlocks the textarea, swaps the lock tag, and
