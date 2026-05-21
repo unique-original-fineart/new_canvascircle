@@ -7815,16 +7815,32 @@
       const p = r.reference || {};
       const row = document.createElement("div");
       row.dataset.refId = r.id;
-      row.style.cssText = "display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; background:#fff; border:1px solid var(--card-line); border-radius:6px; flex-wrap:wrap;";
+      // target_demoted rows render with a grayed-out background so they
+      // visually read as "this row is no longer actionable, just a notice."
+      const isDemoted = r.status === "target_demoted";
+      const rowBg = isDemoted ? "#f4f1ea" : "#fff";
+      const rowOpacity = isDemoted ? "0.82" : "1";
+      row.style.cssText = `display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; background:${rowBg}; border:1px solid var(--card-line); border-radius:6px; flex-wrap:wrap; opacity:${rowOpacity};`;
       let statusBadge;
       let statusColor;
       let actionLabel = "Revoke";
+      let extraNote = "";
       if (r.status === "accepted") {
         statusBadge = "✓ Accepted";
         statusColor = "var(--green)";
       } else if (r.status === "pending") {
         statusBadge = "⏳ Pending response";
         statusColor = "#5a4400";
+      } else if (r.status === "target_demoted") {
+        statusBadge = "✗ Auto-cancelled";
+        statusColor = "#8a1f1a";
+        actionLabel = "Dismiss";
+        // This is the key surface for the soft-cancel — the requester needs
+        // to see *why* their pending row went away. Without this line they'd
+        // wonder if the target rejected them or the system glitched.
+        extraNote = `<div class="small" style="margin-top:4px; color:var(--muted); font-style:italic;">
+          @${escapeHtml(p.handle || "this user")} is no longer an Established Member, so this pending request was auto-cancelled. Click Dismiss to clean it up, then request someone else.
+        </div>`;
       } else { // rejected
         statusBadge = "✗ Rejected";
         statusColor = "#8a1f1a";
@@ -7846,10 +7862,11 @@
             <span style="color:${statusColor}; font-weight:600;">${statusBadge}</span>
             ${inactiveNote}
           </div>
+          ${extraNote}
         </div>
         <button type="button" class="btn-secondary" data-action="revoke-ref">${actionLabel}</button>
       `;
-      row.querySelector("[data-action=revoke-ref]").addEventListener("click", () => revokeReference(r.id, p.display_name || `@${p.handle}`));
+      row.querySelector("[data-action=revoke-ref]").addEventListener("click", () => revokeReference(r.id, p.display_name || `@${p.handle}`, r.status));
       return row;
     }
 
@@ -7888,8 +7905,13 @@
       return row;
     }
 
-    async function revokeReference(id, label) {
-      if (!confirm(`Remove reference relationship with ${label}? They'll no longer appear on your profile (if accepted), or your pending request will be withdrawn.`)) return;
+    async function revokeReference(id, label, status) {
+      // target_demoted rows are just a notice the user is acknowledging —
+      // skip the confirm dialog since there's nothing destructive about
+      // dismissing it (the request was already auto-cancelled server-side).
+      if (status !== "target_demoted") {
+        if (!confirm(`Remove reference relationship with ${label}? They'll no longer appear on your profile (if accepted), or your pending request will be withdrawn.`)) return;
+      }
       try {
         const { error } = await supabase.from("seller_references").delete().eq("id", id);
         if (error) throw error;
