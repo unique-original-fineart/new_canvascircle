@@ -138,15 +138,17 @@
     .badge.cat-unique       { background: var(--status-success-tint); color: var(--status-success-deep); border-color: var(--status-success-soft); }
     .badge.cat-edition      { background: var(--status-info-tint); color: var(--status-info); border-color: var(--status-info-soft); }
     /* Verified badge sits alongside the category/status pills. Click/tap
-       opens a small inline popover explaining what verification means. */
+       opens a small inline popover explaining what verification means.
+       Phase 4: gradient bg — this is the highest-trust signal in the
+       UI, so it gets the full brand treatment rather than solid blue. */
     .badge.verified-badge {
-      background: var(--status-success-deep);
+      background: var(--brand-gradient);
       color: var(--text-inverse);
-      border: 1px solid var(--status-success-deep);
+      border: 1px solid transparent;
       cursor: pointer;
       user-select: none;
       display: inline-flex; align-items: center; gap: 4px;
-      transition: background .15s ease, box-shadow .15s ease;
+      transition: filter .15s ease, box-shadow .15s ease;
     }
     .badge.verified-badge .vb-check { font-weight: 700; }
     .badge.verified-badge .vb-chev {
@@ -157,8 +159,8 @@
     .badge.verified-badge[aria-expanded="true"] .vb-chev { transform: rotate(180deg); }
     .badge.verified-badge:hover,
     .badge.verified-badge:focus-visible {
-      background: var(--status-success-deep);
-      box-shadow: 0 0 0 3px rgba(31,91,50,.22);
+      filter: brightness(1.10);
+      box-shadow: 0 0 0 3px rgba(45,127,255,.30);
       outline: none;
     }
     /* Inline hint sits to the right of the badge so users don't have to
@@ -237,8 +239,11 @@
       text-decoration: none; font-size: 14px; font-weight: 600;
       border: 1px solid var(--card-line); background: var(--surface-1); color: var(--fg);
     }
-    .seller-actions a.primary { background: var(--accent); border-color: var(--accent); color: var(--text-inverse); }
-    .seller-actions a:hover  { filter: brightness(.97); }
+    /* Primary contact CTA gets the brand gradient — it's the action that
+       drives the transaction. Secondary buttons stay outlined. */
+    .seller-actions a.primary { background: var(--brand-gradient); border-color: transparent; color: var(--text-inverse); }
+    .seller-actions a.primary:hover { filter: brightness(1.10); }
+    .seller-actions a:not(.primary):hover { filter: brightness(1.10); }
 
     .buying-tips-nudge {
       margin-top: 12px;
@@ -812,7 +817,7 @@
       // "Established Member" indicator — only on accounts the admin has
       // marked is_trusted. Small inline checkmark + plain text, not a badge/pill.
       const establishedRow = seller.is_trusted ? `
-          <div class="established-member" style="display:inline-flex; align-items:center; gap:6px; margin-top:4px; color:var(--green); font-size:13px; font-weight:600;">
+          <div class="established-member" style="display:inline-flex; align-items:center; gap:6px; margin-top:4px; padding:3px 11px; border-radius:999px; background:var(--brand-gradient); color:var(--text-inverse); font-size:13px; font-weight:600;">
             <svg width="14" height="14" viewBox="0 0 16 16" style="flex-shrink:0;" aria-hidden="true">
               <circle cx="8" cy="8" r="7" fill="#2a7a3e"/>
               <path d="M5 8.5 L7 10.5 L11 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>

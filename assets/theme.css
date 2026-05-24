@@ -33,12 +33,18 @@
 :root {
   /* ---------- Surface & background ----------
      --bg is the logo's outer-ring navy.
-     --surface-1 is a notch lighter so cards lift off the page.
+     --surface-1 is meaningfully lighter so cards lift cleanly off the page
+     (post-feedback: previously too close to --bg, page felt flat).
      --surface-2 / --surface-3 step lighter in turn for nested depth. */
-  --bg:              #0A1538;   /* page background — logo navy */
-  --surface-1:       #16204F;   /* card / panel face */
-  --surface-2:       #1B2659;   /* nested surface, a touch lighter */
-  --surface-3:       #243170;   /* alternating block bg / hover state */
+  --bg:              #0A1538;   /* page background — logo navy (used by nested elements like hover states) */
+  --surface-1:       #1A2459;   /* card / panel face — ~50% more lift than original */
+  --surface-2:       #243170;   /* nested surface */
+  --surface-3:       #2D3D85;   /* alternating block bg / hover state */
+
+  /* The body's actual painted background is set further down with a subtle
+     radial gradient (--bg-gradient-top → --bg). The solid --bg above stays
+     for nested usage. */
+  --bg-gradient-top: #0E1B48;   /* slightly brighter navy at the top of the page */
 
   /* ---------- Text tiers ----------
      Pure white on navy is harsh. --text is a slightly cool off-white
@@ -54,10 +60,11 @@
 
   /* ---------- Borders & dividers ----------
      A touch lighter than the surface they bound, so the seam reads as
-     a line rather than as a transition. */
-  --border:          #1F2A5C;   /* default card / panel border */
-  --border-soft:     #18234D;   /* lighter divider, sub-row separators */
-  --border-strong:   #2E3A75;   /* slightly stronger separator */
+     a line rather than as a transition. Re-tuned alongside the surface
+     bump so borders stay above their host surfaces. */
+  --border:          #2D3D85;   /* default card / panel border — matches surface-3 step */
+  --border-soft:     #243170;   /* subtler divider, same family as surface-2 */
+  --border-strong:   #3D4DA5;   /* more prominent separator */
 
   /* ---------- Shadow ----------
      On dark backgrounds, drop shadows need higher opacity to read.
@@ -195,3 +202,79 @@
   --green:     var(--status-success);
   --red:       var(--status-danger);
 }
+
+/* =================================================================
+   Gradient utility classes — Phase 4 brand element touches
+
+   The brand gradient is the strongest piece of visual identity. Used
+   sparingly on a small set of high-signal surfaces:
+     - Primary CTAs (Submit a Listing, Message on Facebook)
+     - Verified Ownership badge / Established Member pill (trust signals)
+     - Card hover/focus border (catalog grid) — uses conic version so the
+       gradient sweeps around the card like the logo's arc
+
+   Anything else stays solid color. Gradient on too many things = noise.
+   ================================================================= */
+
+/* Filled gradient background. White text included since most use cases
+   are buttons/badges on the gradient. */
+.cc-gradient-bg {
+  background: var(--brand-gradient);
+  color: var(--text-inverse);
+  border-color: transparent;
+}
+.cc-gradient-bg:hover {
+  /* Tiny brightness lift on hover. Keeps the gradient intact but signals
+     interactivity. */
+  filter: brightness(1.08);
+}
+
+/* Gradient border via padding-box + border-box layering. The inner
+   background paints over the padding-box only, leaving the outer
+   conic-gradient visible exclusively in the 2px border slot.
+
+   Used for card hover/focus. Default card state keeps a flat border;
+   --cc-card-bg lets a card override the inner fill (e.g. an alternating
+   surface tier) without rewriting the whole rule. */
+.cc-conic-border {
+  position: relative;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--cc-card-bg, var(--surface-1)),
+                    var(--cc-card-bg, var(--surface-1))) padding-box,
+    conic-gradient(
+      from 180deg at 50% 50%,
+      var(--brand-orange)  0deg,
+      var(--brand-magenta) 90deg,
+      var(--brand-purple)  180deg,
+      var(--brand-blue)    270deg,
+      var(--brand-orange)  360deg
+    ) border-box;
+}
+
+/* =================================================================
+   Page background — subtle ambient gradient
+
+   Soft radial from a slightly brighter navy at the top-center fading
+   to the base --bg. Feels like overhead stage lighting. Fixed
+   attachment so long scrolls don't run out of gradient.
+
+   !important is intentional: theme.css is the source of truth for
+   page chrome, and each page's inline <style> block still has its
+   own `body { background: var(--bg) }` rule that would otherwise
+   override (the inline <style> tag comes after <link rel=theme.css>
+   in cascade order). The override here unifies the page treatment
+   without requiring an 8-file edit to remove inline rules.
+   ================================================================= */
+body {
+  background:
+    radial-gradient(
+      ellipse 1400px 900px at 50% 0%,
+      var(--bg-gradient-top) 0%,
+      var(--bg) 70%
+    ) !important;
+  background-attachment: fixed !important;
+  background-color: var(--bg) !important;
+  min-height: 100vh;
+}
+

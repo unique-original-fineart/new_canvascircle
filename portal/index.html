@@ -167,20 +167,23 @@
       box-shadow: 0 0 0 3px rgba(184,134,11,.15);
     }
 
+    /* Full-width form submit (Sign in button) — the primary entry point.
+       Gets the brand gradient since it's THE action on this surface. */
     button.primary {
       width: 100%;
       padding: 12px 14px;
       border-radius: 8px;
-      border: 1px solid var(--accent);
-      background: var(--accent);
+      border: 1px solid transparent;
+      background: var(--brand-gradient);
       color: var(--text-inverse);
       font-size: 15px;
       font-weight: 600;
       font-family: inherit;
       cursor: pointer;
       margin-top: 6px;
+      transition: filter .15s ease;
     }
-    button.primary:hover  { filter: brightness(.95); }
+    button.primary:hover  { filter: brightness(1.10); }
     button.primary:disabled { opacity: .6; cursor: not-allowed; }
     button.ghost {
       padding: 8px 12px;
@@ -349,9 +352,9 @@
     }
     .signed-in-row .who .who-established {
       display: inline-flex; align-items: center; gap: 4px;
-      background: var(--status-success-deep);
+      background: var(--brand-gradient);
       color: var(--text-inverse);
-      border: 1px solid var(--status-success-deep);
+      border: 1px solid transparent;
       padding: 3px 9px;
       border-radius: 999px;
       font-size: 12px;
@@ -1057,10 +1060,12 @@
     .save-all-bar .btn-discard:hover { border-color: rgba(255,255,255,.6); }
     .save-all-bar .btn-save-all {
       padding: 8px 14px; border-radius: 8px;
-      background: var(--accent); color: var(--text-inverse);
-      border: 1px solid var(--accent);
+      background: var(--brand-gradient); color: var(--text-inverse);
+      border: 1px solid transparent;
       font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: filter .15s ease;
     }
+    .save-all-bar .btn-save-all:hover { filter: brightness(1.10); }
     .save-all-bar .btn-save-all:disabled { opacity: .55; cursor: not-allowed; }
 
     /* Account view banner — sits above the listings */
@@ -1671,6 +1676,7 @@
     .all-listing-row .al-controls select {
       padding: 6px 28px 6px 10px; border-radius: 6px;
       border: 1px solid var(--card-line); background: var(--surface-1);
+      color: var(--fg);
       font-size: 13px; font-family: inherit;
       min-width: 150px; width: auto;
     }
@@ -1878,6 +1884,7 @@
       border-radius: 8px;
       border: 1px solid var(--card-line);
       background: var(--surface-1);
+      color: var(--fg);
       font-size: 14px;
       font-family: inherit;
       min-height: 70px; resize: vertical;
@@ -1942,6 +1949,11 @@
       font-size: 14px; font-family: inherit;
       min-height: 240px;
       background: var(--surface-1);
+      color: var(--fg);
+      /* color: only affects what's RENDERED in the textarea on this page —
+         when the seller copies this text and pastes into Facebook, the
+         clipboard carries plain text (no color attribute), so FB renders
+         it in whatever color FB uses (black on white in their light theme). */
     }
     .sp-output textarea:focus {
       outline: none; border-color: var(--accent);
