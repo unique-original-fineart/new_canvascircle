@@ -139,12 +139,13 @@
     .badge.cat-edition      { background: var(--status-info-tint); color: var(--status-info); border-color: var(--status-info-soft); }
     /* Verified badge sits alongside the category/status pills. Click/tap
        opens a small inline popover explaining what verification means.
-       Phase 4: gradient bg — this is the highest-trust signal in the
-       UI, so it gets the full brand treatment rather than solid blue. */
+       Phase 4: full brand gradient + NO border — borderless treatment
+       reserved for trust badges so they feel premium and "lit from
+       within" rather than outlined. */
     .badge.verified-badge {
       background: var(--brand-gradient);
       color: var(--text-inverse);
-      border: 1px solid transparent;
+      border: none;
       cursor: pointer;
       user-select: none;
       display: inline-flex; align-items: center; gap: 4px;
@@ -234,16 +235,19 @@
     }
     .report-link:hover { color: var(--fg); }
     .seller-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    /* Both contact CTAs (Message on Facebook + Email Seller) share the
+       blue single-hue gradient. Visual hierarchy comes from positioning,
+       not from primary/secondary distinction — both are equally valid
+       ways to reach the seller. */
     .seller-actions a {
       display: inline-block; padding: 9px 14px; border-radius: 8px;
       text-decoration: none; font-size: 14px; font-weight: 600;
-      border: 1px solid var(--card-line); background: var(--surface-1); color: var(--fg);
+      border: 1px solid var(--action-border);
+      background: var(--action-bg);
+      color: var(--action-fg);
+      transition: filter .15s ease;
     }
-    /* Primary contact CTA gets the brand gradient — it's the action that
-       drives the transaction. Secondary buttons stay outlined. */
-    .seller-actions a.primary { background: var(--brand-gradient); border-color: transparent; color: var(--text-inverse); }
-    .seller-actions a.primary:hover { filter: brightness(1.10); }
-    .seller-actions a:not(.primary):hover { filter: brightness(1.10); }
+    .seller-actions a:hover { filter: brightness(1.10); }
 
     .buying-tips-nudge {
       margin-top: 12px;

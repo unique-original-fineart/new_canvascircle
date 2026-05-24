@@ -119,24 +119,40 @@
   --status-info-tint:        rgba(111,168,255,0.15);
   --status-info-soft:        rgba(111,168,255,0.40);
 
-  /* ---------- Category badges (Unique / Limited Edition / ISO / Mood) ----------
-     Per Phase 0 decision: solid gradient-stop colors for each badge type.
-     Unique → PURPLE (premium, one-of-a-kind)
-     Limited → BLUE (exclusive small print run)
-     ISO → BLUE (sits on different listings than Limited, so no collision)
-     Mood → ORANGE (warm, expressive) */
-  --badge-unique-bg:         rgba(139,31,196,0.18);
-  --badge-unique-fg:         #C68DEB;
-  --badge-unique-border:     rgba(139,31,196,0.40);
-  --badge-limited-bg:        rgba(45,127,255,0.18);
-  --badge-limited-fg:        #6FA8FF;
-  --badge-limited-border:    rgba(45,127,255,0.40);
-  --badge-iso-bg:            rgba(45,127,255,0.18);
-  --badge-iso-fg:            #6FA8FF;
-  --badge-iso-border:        rgba(45,127,255,0.40);
-  --badge-mood-bg:           rgba(255,106,26,0.15);
-  --badge-mood-fg:           #FFA176;
-  --badge-mood-border:       rgba(255,106,26,0.40);
+  /* ---------- Category & action badges — single-hue gradients ----------
+     Design hierarchy (post-feedback):
+       - Full warm-to-cool brand gradient is reserved for the two highest
+         trust signals only: Verified Ownership + Established Member.
+       - Every other branded element (category badges, contact CTAs, mood
+         pill) uses a single-hue gradient that runs from the saturated
+         brand color to a whiter version of itself, paired with a solid
+         border in the same hue. This keeps them visible on the navy bg
+         without competing with the trust badges for attention.
+
+     Hue assignments:
+       Unique/Original  → ORANGE  (warm, "one-of-a-kind" energy)
+       Limited Edition  → MAGENTA (exclusive, small print run)
+       ISO              → BLUE    (calm, "looking for")
+       Mood             → BLUE    (subtle expressive accent)
+       Message/Email    → BLUE    (action CTAs share the cool family) */
+  --badge-unique-bg:         linear-gradient(135deg, #FF6A1A 0%, #FFA070 100%);
+  --badge-unique-fg:         #FFFFFF;
+  --badge-unique-border:     #FF6A1A;
+  --badge-limited-bg:        linear-gradient(135deg, #E91E63 0%, #F472A1 100%);
+  --badge-limited-fg:        #FFFFFF;
+  --badge-limited-border:    #E91E63;
+  --badge-iso-bg:            linear-gradient(135deg, #2D7FFF 0%, #79AEFF 100%);
+  --badge-iso-fg:            #FFFFFF;
+  --badge-iso-border:        #2D7FFF;
+  --badge-mood-bg:           linear-gradient(135deg, #2D7FFF 0%, #79AEFF 100%);
+  --badge-mood-fg:           #FFFFFF;
+  --badge-mood-border:       #2D7FFF;
+  /* Action CTA gradient (Message on Facebook, Email Seller, primary
+     contact on seller page). Reuses the blue-family gradient so contact
+     CTAs feel unified. */
+  --action-bg:               linear-gradient(135deg, #2D7FFF 0%, #79AEFF 100%);
+  --action-border:           #2D7FFF;
+  --action-fg:               #FFFFFF;
 
   /* ---------- ISO placeholder gradient (empty ISO hero) ----------
      Subtle two-stop navy diagonal — lighter than the page, hinting at

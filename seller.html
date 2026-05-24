@@ -117,27 +117,23 @@
       margin: 0 0 10px;
     }
     .seller-header .contact-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    .seller-header .contact-actions a.primary {
-      background: var(--brand-gradient);
-      color: var(--text-inverse);
+    /* Both contact CTAs share the same blue single-hue gradient — Guy's
+       call that they're equally-valid contact methods, no primary/
+       secondary hierarchy. Visual order comes from layout, not styling. */
+    .seller-header .contact-actions a.primary,
+    .seller-header .contact-actions a.secondary {
+      background: var(--action-bg);
+      color: var(--action-fg);
       text-decoration: none;
       padding: 9px 18px;
       border-radius: 6px;
       font-weight: 600;
       font-size: 14px;
+      border: 1px solid var(--action-border);
       transition: filter .15s ease;
     }
-    .seller-header .contact-actions a.primary:hover { filter: brightness(1.10); }
-    .seller-header .contact-actions a.secondary {
-      color: var(--accent);
-      text-decoration: none;
-      padding: 9px 14px;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 14px;
-      border: 1px solid var(--card-line);
-    }
-    .seller-header .contact-actions a.secondary:hover { border-color: var(--accent); }
+    .seller-header .contact-actions a.primary:hover,
+    .seller-header .contact-actions a.secondary:hover { filter: brightness(1.10); }
     .seller-header .signed-out-contact {
       padding: 14px;
       background: var(--accent-softer);
