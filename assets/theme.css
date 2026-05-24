@@ -1,0 +1,168 @@
+/* =================================================================
+   CanvasCircle theme tokens — single source of truth for colors.
+
+   Phase 1 (variable extraction): values mirror the current light /
+   beige / gold palette so introducing this file is visually a no-op.
+
+   Phase 2 (dark mode swap): this file is the one file edited to
+   re-skin the entire site. All eight pages link this stylesheet
+   in <head> BEFORE their own <style> block, so vars defined here
+   are available everywhere.
+
+   Naming convention is *by role*, not by value:
+     --text-muted        (not --gray-6b)
+     --surface-1         (not --white)
+     --status-success    (not --green)
+     --accent-tint       (not --light-gold-fff4e2)
+   This is what makes Phase 2 a values-only swap.
+
+   The previously-defined inline :root variables (--bg, --fg,
+   --muted, --accent, --card-bg, --card-line, --shadow, --green,
+   --red) are preserved as aliases at the bottom of this file for
+   backward compatibility — every existing var(--bg) reference in
+   the eight pages keeps working unchanged.
+   ================================================================= */
+
+:root {
+  /* ---------- Surface & background ---------- */
+  --bg:              #faf9f6;   /* page background */
+  --surface-1:       #ffffff;   /* card / panel face */
+  --surface-2:       #fafaf6;   /* nested surface, a touch darker than surface-1 */
+  --surface-3:       #f4f1ea;   /* subtle alternating block bg (rare) */
+
+  /* ---------- Text tiers ---------- */
+  --text:            #1a1a1a;   /* primary body text */
+  --text-soft:       #555555;   /* between primary and muted */
+  --text-muted:      #6b6b6b;   /* secondary, captions, helper text */
+
+  /* ---------- Borders & dividers ---------- */
+  --border:          #e8e4dc;   /* default card / panel border */
+  --border-soft:     #f0ede6;   /* lighter divider, sub-row separators */
+  --border-strong:   #cccccc;   /* slightly stronger separator (rare) */
+
+  /* ---------- Shadow ---------- */
+  --shadow:          0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
+
+  /* ---------- Brand ---------- */
+  --brand-navy:      #0A1538;   /* logo outer ring; theme-color meta */
+  --brand-orange:    #FF6A1A;   /* gradient stop 1 */
+  --brand-magenta:   #E91E63;   /* gradient stop 2 */
+  --brand-purple:    #8B1FC4;   /* gradient stop 3 */
+  --brand-blue:      #2D7FFF;   /* gradient stop 4 */
+  /* Gradient utility — for selective use in Phase 4 brand touches */
+  --brand-gradient:  linear-gradient(135deg, #FF6A1A 0%, #E91E63 35%, #8B1FC4 65%, #2D7FFF 100%);
+
+  /* ---------- Accent (gold — retires in Phase 2) ---------- */
+  --accent:          #b8860b;   /* primary gold */
+  --accent-deep:     #7a4a00;   /* dark gold, text on gold tint */
+  --accent-deeper:   #5a4400;   /* deepest gold */
+  --accent-tint:     #fff4e2;   /* light gold background fill */
+  --accent-soft:     #f0d6a3;   /* gold border tone */
+  --accent-softer:   #fbf6e9;   /* very light gold wash */
+
+  /* ---------- Status: success (green family) ---------- */
+  --status-success:        #2a7a3e;   /* primary green */
+  --status-success-deep:   #1f5b32;   /* text on light green */
+  --status-success-tint:   #d6efdf;   /* success banner / pill bg */
+  --status-success-soft:   #a8d9b8;   /* success border */
+  --status-success-wash:   #eaf6ec;   /* very light success bg */
+
+  /* ---------- Status: danger (red family) ---------- */
+  --status-danger:         #a8281f;
+  --status-danger-deep:    #8a1f1a;   /* sold/closed deeper */
+  --status-danger-tint:    #fef6f5;
+  --status-danger-soft:    #f1c4be;
+  --status-danger-strong:  #c93f3f;   /* error text where needed brighter */
+
+  /* ---------- Status: info (blue family — buying tips, notes) ---------- */
+  --status-info:           #1f4a78;
+  --status-info-tint:      #d6e6f7;
+  --status-info-soft:      #a8c8e3;
+
+  /* ---------- Category badges (mapped to gradient stops as solid colors) ----------
+     Per redesign decision: status pills + category badges use the four
+     gradient stop colors as SOLID fills, not the gradient itself, to keep
+     them on-brand while remaining individually distinguishable. The
+     current light theme keeps using the legacy gold-family fills for
+     these — Phase 2 swaps in the brand-* values above. */
+  --badge-unique-bg:       #fff4e2;
+  --badge-unique-fg:       #7a4a00;
+  --badge-unique-border:   #f0d6a3;
+  --badge-limited-bg:      #d6efdf;
+  --badge-limited-fg:      #1f5b32;
+  --badge-limited-border:  #a8d9b8;
+  --badge-iso-bg:          #d6e6f7;
+  --badge-iso-fg:          #1f4a78;
+  --badge-iso-border:      #a8c8e3;
+  --badge-mood-bg:         #e6e0f0;
+  --badge-mood-fg:         #4a3478;
+  --badge-mood-border:     #cdc1e5;
+
+  /* ---------- ISO placeholder gradient (two-stop wash for empty ISO heroes) ----------
+     A subtle warm-cream diagonal — slightly more decorative than --surface-3.
+     The two stops differ only marginally; the gradient is what makes it feel
+     like a placeholder rather than a flat box. Phase 2 will swap to a navy
+     wash. */
+  --iso-placeholder-1:     #f8f5ee;
+  --iso-placeholder-2:     #efece4;
+
+  /* ---------- Status: warn (amber — pending verification, unsaved changes) ---------- */
+  --status-warn:           #c47a05;   /* solid amber pill / pending badge */
+  --status-warn-deep:      #b97f17;   /* dirty-flag text */
+  --status-warn-border:    #d69b3a;   /* dirty-card border */
+  --status-warn-tint:      #fbe9c7;   /* light amber hover bg */
+
+  /* ---------- Status: info banner (slightly different blue family from --status-info) ----
+     The portal uses a softer, cooler blue for informational banners than the
+     buying-tips info color. Distinct token so Phase 2 can tune separately. */
+  --banner-info-bg:        #eaf1fb;
+  --banner-info-border:    #cad9ee;
+  --banner-info-text:      #1f4583;
+
+  /* ---------- Banner: revoked / serious warning (red-orange family) ----------
+     Used by .revoked-banner and related "ban hammer" UI in the admin portal.
+     Visually distinct from regular danger colors (which signal SOLD / error)
+     so the family gets its own tokens. */
+  --banner-revoked-bg:     #fff0ef;
+  --banner-revoked-border: #f1a99c;
+  --banner-revoked-text:   #5a1a10;
+  --banner-revoked-strong: #d18579;
+  --banner-revoked-soft:   #f9d8d3;
+  --banner-revoked-tint:   #fef0ee;
+
+  /* ---------- Neutral grays (delisted / inactive / placeholder states) ---------- */
+  --neutral-bg:            #ececec;
+  --neutral-text:          #4a4a4a;
+  --neutral-border:        #d4d4d4;
+  --neutral-warm:          #c7c1b3;   /* warm gray for verification-off dots */
+
+  /* ---------- Hover-state offsets (slightly darker variants used on hover) ---------- */
+  --status-success-darker: #0f3a1d;   /* deeper than --status-success-deep */
+  --status-success-mid:    #2d6f43;   /* between success and success-deep */
+  --status-success-hover:  #174d28;   /* hover-deep green */
+  --status-success-hover-bg: #c0e3cb; /* hover bg for save buttons */
+  --status-success-wash-2: #eef6ed;   /* slight variant of --status-success-wash */
+
+  /* ---------- Chrome (toolbar / floating UI dark accents) ---------- */
+  --chrome-dark:           #1f1a17;   /* save-all-bar bg, deep warm black */
+
+  /* ---------- Manage-open & vermod surfaces (warm cream / border tints) ---------- */
+  --surface-cream:         #f3f1ea;   /* lighter than --surface-3 */
+  --surface-warm:          #f6f3ec;   /* warmer than --surface-2 */
+  --surface-cream-border:  #d8d2c4;   /* cream-band border */
+
+  /* ---------- Pure black (for video letterboxing where bg must be neutral) ---------- */
+  --letterbox:             #000000;
+
+  /* ---------- Legacy aliases — preserve existing var(--bg) etc. references ----------
+     The eight pages currently use --bg, --fg, --muted, --accent, --card-bg,
+     --card-line, --shadow, --green, --red. We keep these names working by
+     also defining the new tokens with the same shape — but we want a single
+     vocabulary going forward, so the legacy names alias the new tokens. */
+  --fg:        var(--text);
+  --muted:     var(--text-muted);
+  --card-bg:   var(--surface-1);
+  --card-line: var(--border);
+  --green:     var(--status-success);
+  --red:       var(--status-danger);
+}

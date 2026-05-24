@@ -28,20 +28,14 @@
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
   <link rel="manifest" href="/assets/manifest.webmanifest" />
   <meta name="theme-color" content="#0A1538" />
+
+  <!-- Brand tokens. Single source of truth for colors across all pages.
+       Loaded BEFORE the inline <style> block so vars are available. -->
+  <link rel="stylesheet" href="/assets/theme.css" />
   <meta name="robots" content="noindex" />
 
   <style>
-    :root {
-      --bg:        #faf9f6;
-      --fg:        #1a1a1a;
-      --muted:     #6b6b6b;
-      --accent:    #b8860b;
-      --card-bg:   #ffffff;
-      --card-line: #e8e4dc;
-      --shadow:    0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
-      --green:     #2a7a3e;
-      --red:       #a8281f;
-    }
+    /* Color variables now live in /assets/theme.css (see <link> above). */
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
@@ -55,7 +49,7 @@
     header.site {
       padding: 18px 16px;
       border-bottom: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       display: flex; align-items: center; justify-content: space-between;
     }
     header.site .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); }
@@ -112,19 +106,19 @@
     .locked-tag {
       display: inline-block; margin-left: 6px;
       padding: 1px 6px; border-radius: 4px;
-      background: #f0ede6; color: var(--muted);
+      background: var(--border-soft); color: var(--muted);
       font-size: 10px; font-weight: 600; letter-spacing: .3px;
       vertical-align: 1px;
     }
 
     .saved-info-note {
-      background: #fbf6e9; border: 1px solid #e9dcad;
+      background: var(--accent-softer); border: 1px solid var(--accent-soft);
       border-left: 4px solid var(--accent);
       border-radius: 8px;
       padding: 10px 14px;
       margin: 8px 0 14px;
       font-size: 13px; line-height: 1.5;
-      color: #5a4400;
+      color: var(--accent-deeper);
     }
     .saved-info-note .linklike {
       background: none; border: none; padding: 0;
@@ -138,7 +132,7 @@
       padding: 11px 14px;
       border-radius: 8px;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--fg);
       font-size: 15px;
       font-family: inherit;
@@ -146,7 +140,7 @@
     /* Disabled inputs (locked profile fields) read like saved values rather
        than active form fields. Gray fill, no caret, normal text color. */
     input:disabled, select:disabled, textarea:disabled {
-      background: #f4f1ea;
+      background: var(--surface-3);
       color: var(--fg);
       opacity: 1;
       cursor: default;
@@ -179,7 +173,7 @@
       border-radius: 8px;
       border: 1px solid var(--accent);
       background: var(--accent);
-      color: #fff;
+      color: var(--surface-1);
       font-size: 15px;
       font-weight: 600;
       font-family: inherit;
@@ -192,13 +186,13 @@
       padding: 8px 12px;
       border-radius: 8px;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--muted);
       font-size: 13px;
       font-family: inherit;
       cursor: pointer;
     }
-    button.ghost:hover { color: var(--fg); border-color: #ccc; }
+    button.ghost:hover { color: var(--fg); border-color: var(--border-strong); }
     button.linklike {
       background: none;
       border: none;
@@ -224,12 +218,12 @@
       border-radius: 8px;
       font-size: 13px;
       border: 1px solid var(--card-line);
-      background: #fbf6e9;
-      color: #5a4400;
+      background: var(--accent-softer);
+      color: var(--accent-deeper);
     }
-    .banner.success { background: #e9f6ec; border-color: #b9deca; color: var(--green); }
-    .banner.error   { background: #fef6f5; border-color: #f1c4be; color: var(--red); }
-    .banner.info    { background: #eaf1fb; border-color: #cad9ee; color: #1f4583; }
+    .banner.success { background: var(--status-success-wash); border-color: var(--status-success-soft); color: var(--green); }
+    .banner.error   { background: var(--status-danger-tint); border-color: var(--status-danger-soft); color: var(--red); }
+    .banner.info    { background: var(--banner-info-bg); border-color: var(--banner-info-border); color: var(--banner-info-text); }
 
     /* Persistent banner that surfaces revoked Ownership Verified badges
        across all listings — separate from the transient .banner element
@@ -240,9 +234,9 @@
       margin-top: 14px;
       padding: 12px 14px 10px;
       border-radius: 10px;
-      background: #fff0ef;
-      border: 1px solid #f1a99c;
-      color: #7a2517;
+      background: var(--banner-revoked-bg);
+      border: 1px solid var(--banner-revoked-border);
+      color: var(--status-danger);
       font-size: 13px;
       line-height: 1.45;
     }
@@ -260,7 +254,7 @@
     }
     .revoked-banner .rb-list li { margin-bottom: 3px; }
     .revoked-banner .rb-reason {
-      color: #5a1a10;
+      color: var(--banner-revoked-text);
       font-style: italic;
     }
     .revoked-banner .rb-foot {
@@ -273,24 +267,24 @@
     }
     .revoked-banner .rb-dismiss {
       background: transparent;
-      border: 1px solid #d18579;
-      color: #7a2517;
+      border: 1px solid var(--banner-revoked-strong);
+      color: var(--status-danger);
       padding: 4px 10px;
       border-radius: 6px;
       font-size: 12px;
       cursor: pointer;
     }
-    .revoked-banner .rb-dismiss:hover { background: #f9d8d3; }
+    .revoked-banner .rb-dismiss:hover { background: var(--banner-revoked-soft); }
     .revoked-banner .rb-scroll {
-      background: #7a2517;
-      color: #fff;
-      border: 1px solid #7a2517;
+      background: var(--status-danger);
+      color: var(--surface-1);
+      border: 1px solid var(--status-danger);
       padding: 4px 12px;
       border-radius: 6px;
       font-size: 12px;
       cursor: pointer;
     }
-    .revoked-banner .rb-scroll:hover { background: #5a1a10; }
+    .revoked-banner .rb-scroll:hover { background: var(--banner-revoked-text); }
 
     /* One-time congratulations banner shown the first time a user
        becomes Established. Dismissed via localStorage so it doesn't
@@ -300,9 +294,9 @@
       margin-top: 14px;
       padding: 16px 18px;
       border-radius: 10px;
-      background: linear-gradient(135deg, #eaf6ec, #d6efdf);
-      border: 1px solid #b7dcc2;
-      color: #1f5b32;
+      background: linear-gradient(135deg, var(--status-success-wash), var(--status-success-tint));
+      border: 1px solid var(--status-success-soft);
+      color: var(--status-success-deep);
       font-size: 14px;
       line-height: 1.5;
       box-shadow: 0 4px 12px rgba(31,91,50,.08);
@@ -323,16 +317,16 @@
       display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     }
     .ew-banner .ew-dismiss {
-      background: #1f5b32;
-      color: #fff;
-      border: 1px solid #1f5b32;
+      background: var(--status-success-deep);
+      color: var(--surface-1);
+      border: 1px solid var(--status-success-deep);
       padding: 6px 14px;
       border-radius: 6px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
     }
-    .ew-banner .ew-dismiss:hover { background: #174d28; }
+    .ew-banner .ew-dismiss:hover { background: var(--status-success-hover); }
 
     .signed-in-row {
       display: flex; align-items: center; justify-content: space-between;
@@ -355,9 +349,9 @@
     }
     .signed-in-row .who .who-established {
       display: inline-flex; align-items: center; gap: 4px;
-      background: #1f5b32;
-      color: #fff;
-      border: 1px solid #1f5b32;
+      background: var(--status-success-deep);
+      color: var(--surface-1);
+      border: 1px solid var(--status-success-deep);
       padding: 3px 9px;
       border-radius: 999px;
       font-size: 12px;
@@ -372,7 +366,7 @@
       padding: 12px 14px;
       border-radius: 10px;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--fg);
       text-decoration: none;
       font-size: 14px;
@@ -401,7 +395,7 @@
       border-radius: 8px;
       border: 1px solid var(--accent);
       background: var(--accent);
-      color: #fff;
+      color: var(--surface-1);
       font-size: 13px;
       font-weight: 600;
       font-family: inherit;
@@ -412,7 +406,7 @@
       padding: 8px 12px;
       border-radius: 8px;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--fg);
       font-size: 13px;
       font-family: inherit;
@@ -446,12 +440,12 @@
       padding: 10px;
       border: 1px solid var(--card-line);
       border-radius: 10px;
-      background: #fff;
+      background: var(--surface-1);
     }
     .listing-row .thumb {
       width: 72px; height: 72px;
       border-radius: 8px;
-      background: #f0ede6;
+      background: var(--border-soft);
       overflow: hidden;
       position: relative;
     }
@@ -461,7 +455,7 @@
       position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
       background: rgba(168,40,31,.55);
-      color: #fff; font-weight: 800; font-size: 11px; letter-spacing: 2px;
+      color: var(--surface-1); font-weight: 800; font-size: 11px; letter-spacing: 2px;
     }
     .listing-row .meta .artist { font-weight: 600; font-size: 14px; line-height: 1.3; }
     .listing-row .meta .title  { color: var(--muted); font-size: 13px; }
@@ -470,13 +464,13 @@
     .pill {
       font-size: 10px; font-weight: 700; padding: 2px 7px;
       border-radius: 999px; border: 1px solid var(--card-line);
-      background: #efe9d8; color: #6a4c00;
+      background: var(--accent-soft); color: var(--accent-deep);
     }
-    .pill.status-available { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
-    .pill.status-sold      { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
-    .pill.status-pending   { background: #fce6c4; color: #7a4a00; border-color: #f1c98a; }
+    .pill.status-available { background: var(--status-success-tint); color: var(--status-success-deep); border-color: var(--status-success-soft); }
+    .pill.status-sold      { background: var(--status-danger-soft); color: var(--status-danger-deep); border-color: var(--status-danger-soft); }
+    .pill.status-pending   { background: var(--accent-soft); color: var(--accent-deep); border-color: var(--accent-soft); }
     .pill.status-delisted, .pill.status-not_renewed, .pill.status-rejected, .pill.status-pending_review {
-      background: #ececec; color: #4a4a4a; border-color: #d4d4d4;
+      background: var(--neutral-bg); color: var(--neutral-text); border-color: var(--neutral-border);
     }
     .listing-row .actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
     @media (max-width: 600px) {
@@ -511,7 +505,7 @@
       padding: 9px 12px;
       border-radius: 8px;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--fg);
       font-size: 14px;
       font-family: inherit;
@@ -537,7 +531,7 @@
     }
     .preview-card .pc-img {
       aspect-ratio: 1/1;
-      background: #f0ede6;
+      background: var(--border-soft);
       overflow: hidden;
       position: relative;
     }
@@ -550,7 +544,7 @@
       position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
       background: rgba(168, 40, 31, .55);
-      color: #fff; font-weight: 800; font-size: 24px; letter-spacing: 4px;
+      color: var(--surface-1); font-weight: 800; font-size: 24px; letter-spacing: 4px;
     }
     .preview-card .pc-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; position: relative; }
     .preview-card .pc-artist {
@@ -573,18 +567,18 @@
     .preview-card .pc-pill {
       font-size: 10px; font-weight: 700; letter-spacing: .3px;
       padding: 3px 7px; border-radius: 999px;
-      background: #efe9d8; color: #6a4c00; border: 1px solid #e3d8b1;
+      background: var(--accent-soft); color: var(--accent-deep); border: 1px solid var(--accent-soft);
       white-space: nowrap;
     }
-    .preview-card .pc-pill.status-available { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
-    .preview-card .pc-pill.status-sold      { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
+    .preview-card .pc-pill.status-available { background: var(--status-success-tint); color: var(--status-success-deep); border-color: var(--status-success-soft); }
+    .preview-card .pc-pill.status-sold      { background: var(--status-danger-soft); color: var(--status-danger-deep); border-color: var(--status-danger-soft); }
     .preview-card .pc-pill.status-pending,
-    .preview-card .pc-pill.status-pending_review { background: #fce6c4; color: #7a4a00; border-color: #f1c98a; }
-    .preview-card .pc-pill.status-not_renewed { background: #fff4e2; color: #5a4400; border-color: #f0d6a3; }
+    .preview-card .pc-pill.status-pending_review { background: var(--accent-soft); color: var(--accent-deep); border-color: var(--accent-soft); }
+    .preview-card .pc-pill.status-not_renewed { background: var(--accent-tint); color: var(--accent-deeper); border-color: var(--accent-soft); }
     .preview-card .pc-pill.status-delisted, .preview-card .pc-pill.status-rejected {
-      background: #ececec; color: #4a4a4a; border-color: #d4d4d4;
+      background: var(--neutral-bg); color: var(--neutral-text); border-color: var(--neutral-border);
     }
-    .preview-card .pc-mod-pill { background: #fff4e2; color: #5a4400; border-color: #f0d6a3; }
+    .preview-card .pc-mod-pill { background: var(--accent-tint); color: var(--accent-deeper); border-color: var(--accent-soft); }
     .preview-card .pc-mod-banner {
       display: flex; flex-direction: column; gap: 2px;
       margin: 4px 0 2px;
@@ -603,12 +597,12 @@
     }
     .preview-card .pc-mod-banner .pc-mod-reason strong { font-weight: 700; }
     .preview-card .pc-mod-pending {
-      background: #fff4e2; color: #5a4400;
-      border: 1px solid #f0d6a3;
+      background: var(--accent-tint); color: var(--accent-deeper);
+      border: 1px solid var(--accent-soft);
     }
     .preview-card .pc-mod-rejected {
-      background: #fef0ee; color: #8a1f1a;
-      border: 1px solid #f1c4be;
+      background: var(--banner-revoked-tint); color: var(--status-danger-deep);
+      border: 1px solid var(--status-danger-soft);
     }
     .preview-card .pc-metrics {
       font-size: 11px; color: var(--muted);
@@ -627,7 +621,7 @@
       left: 8px; right: 8px; bottom: 8px;
       z-index: 5;
       margin: 0; padding: 8px 26px 8px 10px;
-      background: #fff;
+      background: var(--surface-1);
       border: 1px solid var(--card-line);
       border-radius: 6px;
       box-shadow: 0 4px 14px rgba(0,0,0,.18);
@@ -644,7 +638,7 @@
       display: flex; align-items: center; justify-content: center;
       border-radius: 4px;
     }
-    .preview-card .savers-close:hover { background: #f0ede6; color: var(--fg); }
+    .preview-card .savers-close:hover { background: var(--border-soft); color: var(--fg); }
     .preview-card .pc-actions {
       padding: 8px 10px; border-top: 1px solid var(--card-line);
       display: flex; gap: 6px; align-items: center; justify-content: space-between;
@@ -652,14 +646,14 @@
     }
     .preview-card .pc-actions .btn-edit {
       padding: 7px 14px; border-radius: 7px;
-      border: 1px solid var(--accent); background: var(--accent); color: #fff;
+      border: 1px solid var(--accent); background: var(--accent); color: var(--surface-1);
       font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
       flex: 1; min-width: 0;
     }
     .preview-card .pc-actions .btn-edit:hover { filter: brightness(.95); }
     .preview-card .pc-actions .btn-renew {
       padding: 7px 12px; border-radius: 7px;
-      border: 1px solid #1f5b32; background: #1f5b32; color: #fff;
+      border: 1px solid var(--status-success-deep); background: var(--status-success-deep); color: var(--surface-1);
       font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
     }
     .preview-card .pc-actions .pc-view {
@@ -680,7 +674,7 @@
     }
     .edit-modal-overlay.is-open { display: flex; }
     .edit-modal {
-      background: #fff;
+      background: var(--surface-1);
       border-radius: 14px;
       width: 100%;
       max-width: 720px;
@@ -703,7 +697,7 @@
       cursor: pointer; color: var(--muted);
       padding: 4px 10px; border-radius: 6px;
     }
-    .edit-modal-header .em-close:hover { color: var(--fg); background: #f4f1ea; }
+    .edit-modal-header .em-close:hover { color: var(--fg); background: var(--surface-3); }
     .edit-modal-body { padding: 18px 20px; }
 
     /* ------ Editable listing card (now used inside the edit modal) ------ */
@@ -717,8 +711,8 @@
       gap: 10px;
       transition: box-shadow .15s ease, border-color .15s ease;
     }
-    .listing-card.is-dirty       { border-color: #d69b3a; box-shadow: 0 0 0 2px rgba(214,155,58,.18); }
-    .listing-card.has-error      { border-color: #c93f3f; box-shadow: 0 0 0 3px rgba(201,63,63,.20); }
+    .listing-card.is-dirty       { border-color: var(--status-warn-border); box-shadow: 0 0 0 2px rgba(214,155,58,.18); }
+    .listing-card.has-error      { border-color: var(--status-danger-strong); box-shadow: 0 0 0 3px rgba(201,63,63,.20); }
     .listing-card .card-head {
       display: grid;
       grid-template-columns: 64px 1fr;
@@ -726,19 +720,19 @@
     }
     .listing-card .card-thumb {
       width: 64px; height: 64px;
-      border-radius: 8px; background: #f0ede6;
+      border-radius: 8px; background: var(--border-soft);
       overflow: hidden; position: relative;
     }
     .listing-card .card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .listing-card .card-thumb.is-sold::after {
       content: "SOLD"; position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(168,40,31,.55); color: #fff;
+      background: rgba(168,40,31,.55); color: var(--surface-1);
       font-weight: 800; font-size: 10px; letter-spacing: 1.5px;
     }
     .listing-card .head-meta .pills { display: flex; gap: 6px; flex-wrap: wrap; }
     .listing-card .head-meta .dirty-flag {
-      color: #b97f17; font-weight: 700; font-size: 11px; margin-top: 4px;
+      color: var(--status-warn-deep); font-weight: 700; font-size: 11px; margin-top: 4px;
     }
 
     /* Per-listing metrics row (saves + views) */
@@ -758,7 +752,7 @@
     .card-metrics .metric.is-clickable:hover { text-decoration: underline; }
     .card-metrics .metric .icon { font-size: 14px; line-height: 1; }
     .savers-list {
-      background: #fbf9f4;
+      background: var(--surface-2);
       border: 1px solid var(--card-line);
       border-radius: 8px;
       padding: 10px 12px;
@@ -794,7 +788,7 @@
       padding: 12px 14px;
       border: 1px solid var(--card-line);
       border-radius: 8px;
-      background: #faf9f6;
+      background: var(--bg);
     }
     .verify-section .verify-heading {
       margin: 0 0 8px;
@@ -813,13 +807,13 @@
       border-radius: 999px;
       font-size: 12px; font-weight: 600;
     }
-    .verify-section .v-badge.pending  { background: #fff4e2; color: #5a4400; border: 1px solid #f0d6a3; }
-    .verify-section .v-badge.verified { background: #d6efdf; color: #1f5b32; border: 1px solid #a8d9b8; }
-    .verify-section .v-badge.rejected { background: #fef6f5; color: #8a1f1a; border: 1px solid #e8b3ad; }
+    .verify-section .v-badge.pending  { background: var(--accent-tint); color: var(--accent-deeper); border: 1px solid var(--accent-soft); }
+    .verify-section .v-badge.verified { background: var(--status-success-tint); color: var(--status-success-deep); border: 1px solid var(--status-success-soft); }
+    .verify-section .v-badge.rejected { background: var(--status-danger-tint); color: var(--status-danger-deep); border: 1px solid var(--status-danger-soft); }
     .verify-section .v-note {
       margin-top: 6px;
       padding: 6px 8px;
-      background: #fff;
+      background: var(--surface-1);
       border: 1px solid var(--card-line);
       border-radius: 6px;
       font-size: 12px;
@@ -853,9 +847,9 @@
       outline: none;
       box-shadow: 0 0 0 3px rgba(0,0,0,.08);
     }
-    .vp-badge.verified { background: #1f5b32; color: #fff; border: 1px solid #1f5b32; }
-    .vp-badge.pending  { background: #c47a05; color: #fff; border: 1px solid #c47a05; }
-    .vp-badge.rejected { background: #8a1f1a; color: #fff; border: 1px solid #8a1f1a; }
+    .vp-badge.verified { background: var(--status-success-deep); color: var(--surface-1); border: 1px solid var(--status-success-deep); }
+    .vp-badge.pending  { background: var(--status-warn); color: var(--surface-1); border: 1px solid var(--status-warn); }
+    .vp-badge.rejected { background: var(--status-danger-deep); color: var(--surface-1); border: 1px solid var(--status-danger-deep); }
     .vp-chev {
       font-size: 10px; opacity: .9;
       transition: transform .2s ease;
@@ -865,7 +859,7 @@
     .vp-popover {
       margin-top: 8px;
       padding: 10px 12px;
-      background: #fff;
+      background: var(--surface-1);
       border: 1px solid var(--card-line);
       border-radius: 8px;
       font-size: 13px;
@@ -908,11 +902,11 @@
       font-size: 13px; font-weight: 600;
       cursor: pointer;
       background: var(--accent);
-      color: #fff;
+      color: var(--surface-1);
       border: 1px solid var(--accent);
       font-family: inherit;
     }
-    .verify-section .v-cta:hover { background: #9c7209; }
+    .verify-section .v-cta:hover { background: var(--accent-deep); }
 
     /* ---- Verification upload modal ---- */
     #verify-modal {
@@ -924,7 +918,7 @@
     }
     #verify-modal[hidden] { display: none !important; }
     #verify-modal .vm-card {
-      background: #fff;
+      background: var(--surface-1);
       border-radius: 14px;
       width: 100%;
       max-width: 480px;
@@ -948,19 +942,19 @@
     #verify-modal .vm-pick-btn {
       display: inline-block; text-align: center;
       padding: 14px 18px;
-      background: var(--accent); color: #fff;
+      background: var(--accent); color: var(--surface-1);
       border: 1px solid var(--accent);
       border-radius: 8px;
       font-size: 14px; font-weight: 600;
       cursor: pointer;
       font-family: inherit;
     }
-    #verify-modal .vm-pick-btn:hover { background: #9c7209; }
+    #verify-modal .vm-pick-btn:hover { background: var(--accent-deep); }
     #verify-modal #vm-file { display: none; }
     #verify-modal .vm-hint { font-size: 12px; color: var(--muted); margin: 0; }
-    #verify-modal .vm-err { color: #8a1f1a; font-size: 13px; margin: 6px 0 0; }
+    #verify-modal .vm-err { color: var(--status-danger-deep); font-size: 13px; margin: 6px 0 0; }
     #verify-modal #vm-preview {
-      width: 100%; max-height: 50vh; background: #000;
+      width: 100%; max-height: 50vh; background: var(--letterbox);
       border-radius: 8px; margin-bottom: 8px;
     }
     #verify-modal .vm-info { font-size: 12px; color: var(--muted); margin: 0 0 12px; }
@@ -968,7 +962,7 @@
     #verify-modal .vm-actions button { font-family: inherit; }
     #verify-modal .vm-progress { font-size: 14px; margin: 14px 0; text-align: center; color: var(--muted); }
     #verify-modal .vm-success { text-align: center; }
-    #verify-modal .vm-success .check { font-size: 40px; color: #1f5b32; line-height: 1; margin-bottom: 8px; }
+    #verify-modal .vm-success .check { font-size: 40px; color: var(--status-success-deep); line-height: 1; margin-bottom: 8px; }
     #verify-modal .vm-close-x {
       position: absolute; top: 10px; right: 12px;
       background: none; border: none; padding: 4px 10px;
@@ -984,7 +978,7 @@
       padding: 7px 10px;
       border-radius: 7px;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--fg);
       font-size: 13px;
       font-family: inherit;
@@ -1014,12 +1008,12 @@
     .listing-card .card-footer .actions { display: flex; gap: 6px; flex-wrap: wrap; }
     .listing-card .btn-danger {
       padding: 7px 11px; border-radius: 7px;
-      border: 1px solid #e8b3ad;
-      background: #fef6f5; color: #8a1f1a;
+      border: 1px solid var(--status-danger-soft);
+      background: var(--status-danger-tint); color: var(--status-danger-deep);
       font-size: 12px; font-weight: 600; font-family: inherit;
       cursor: pointer;
     }
-    .listing-card .btn-danger:hover { background: #fbe4e0; }
+    .listing-card .btn-danger:hover { background: var(--status-danger-tint); }
 
     /* Back-to-top button (portal) — lifted to clear the Save All bar. */
     #portal-back-to-top {
@@ -1028,7 +1022,7 @@
       width: 44px; height: 44px;
       border-radius: 50%;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--fg);
       font-size: 20px;
       cursor: pointer;
@@ -1038,12 +1032,12 @@
       z-index: 60;
     }
     #portal-back-to-top.visible { display: flex; }
-    #portal-back-to-top:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    #portal-back-to-top:hover { background: var(--accent); color: var(--surface-1); border-color: var(--accent); }
 
     /* ------ Save All sticky bar ------ */
     .save-all-bar {
       position: fixed; left: 0; right: 0; bottom: 0;
-      background: #1f1a17; color: #fff;
+      background: var(--chrome-dark); color: var(--surface-1);
       padding: 10px 16px;
       display: none;
       align-items: center; justify-content: space-between;
@@ -1056,14 +1050,14 @@
     .save-all-bar .actions { display: flex; gap: 8px; }
     .save-all-bar .btn-discard {
       padding: 8px 14px; border-radius: 8px;
-      background: transparent; color: #fff;
+      background: transparent; color: var(--surface-1);
       border: 1px solid rgba(255,255,255,.3);
       font-size: 13px; cursor: pointer; font-family: inherit;
     }
     .save-all-bar .btn-discard:hover { border-color: rgba(255,255,255,.6); }
     .save-all-bar .btn-save-all {
       padding: 8px 14px; border-radius: 8px;
-      background: var(--accent); color: #fff;
+      background: var(--accent); color: var(--surface-1);
       border: 1px solid var(--accent);
       font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
     }
@@ -1073,7 +1067,7 @@
     #dashboard-banner.banner { display: block; margin: 0 0 12px; white-space: pre-line; }
     #dashboard-banner.banner[hidden] { display: none; }
     #dashboard-banner.banner.success {
-      background: #d6efdf; border-color: #1f5b32; color: #0f3a1d;
+      background: var(--status-success-tint); border-color: var(--status-success-deep); color: var(--status-success-darker);
       font-weight: 600; padding: 14px 16px; font-size: 14px;
     }
     #dashboard-banner.banner.success::before { content: "✓ "; font-weight: 700; }
@@ -1086,8 +1080,8 @@
     }
     .status-banner h3 { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
     .status-banner p  { margin: 0; font-size: 14px; line-height: 1.5; }
-    .status-banner.suspended { background: #fff4e2; border: 1px solid #f0d6a3; color: #5a4400; }
-    .status-banner.banned    { background: #fef6f5; border: 1px solid #f1c4be; color: #8a1f1a; }
+    .status-banner.suspended { background: var(--accent-tint); border: 1px solid var(--accent-soft); color: var(--accent-deeper); }
+    .status-banner.banned    { background: var(--status-danger-tint); border: 1px solid var(--status-danger-soft); color: var(--status-danger-deep); }
 
     /* Incoming reference requests banner — top-of-dashboard, prominent. */
     .incoming-refs-banner {
@@ -1096,10 +1090,10 @@
       gap: 14px;
       padding: 12px 16px;
       margin: 4px 0 16px;
-      background: #f0f6ed;
-      border: 1px solid #c2e0c4;
+      background: var(--status-success-tint);
+      border: 1px solid var(--status-success-soft);
       border-radius: 10px;
-      color: #1f5b32;
+      color: var(--status-success-deep);
     }
     /* Honor the `hidden` HTML attribute — without this rule, the
        `display: flex` above would force-show the banner even when
@@ -1108,7 +1102,7 @@
     .incoming-refs-banner[hidden] { display: none; }
     .incoming-refs-banner .irb-text { flex: 1; min-width: 0; }
     .incoming-refs-banner strong { font-size: 15px; font-weight: 700; display: block; }
-    .incoming-refs-banner .small { font-size: 13px; color: #2d6f43; margin-top: 2px; }
+    .incoming-refs-banner .small { font-size: 13px; color: var(--status-success-mid); margin-top: 2px; }
     .incoming-refs-banner button { white-space: nowrap; }
 
     /* Top-of-dashboard quick-action buttons row. */
@@ -1169,7 +1163,7 @@
     .profile-disclosure {
       border: 1px solid var(--card-line);
       border-radius: 8px;
-      background: #fff;
+      background: var(--surface-1);
       margin-bottom: 18px;
     }
     .profile-disclosure > summary {
@@ -1195,7 +1189,7 @@
       padding-left: 8px;
     }
     .profile-disclosure[open] > summary::after { transform: rotate(180deg); }
-    .profile-disclosure > summary:hover { background: #faf9f6; }
+    .profile-disclosure > summary:hover { background: var(--bg); }
     .profile-disclosure > summary .pd-summary-sub {
       font-weight: 400;
       font-size: 12px;
@@ -1229,7 +1223,7 @@
       font-family: inherit;
       font-size: 13px;
     }
-    .profile-disclosure .field-actions .linklike:hover { color: #9c7209; }
+    .profile-disclosure .field-actions .linklike:hover { color: var(--accent-deep); }
     .profile-disclosure .field-actions .field-status {
       color: var(--muted);
       font-size: 12px;
@@ -1267,11 +1261,11 @@
     .profile-disclosure .pending-row {
       margin: 6px 0 0;
       padding: 8px 10px;
-      background: #fff4e2;
-      border: 1px solid #f0d6a3;
+      background: var(--accent-tint);
+      border: 1px solid var(--accent-soft);
       border-radius: 6px;
       font-size: 12px;
-      color: #5a4400;
+      color: var(--accent-deeper);
     }
     .profile-disclosure .pending-row-cancel {
       margin-left: 8px;
@@ -1289,7 +1283,7 @@
     .profile-disclosure .handle-prefix,
     .public-page-panel .handle-prefix {
       padding: 8px 10px;
-      background: #f1ede4;
+      background: var(--surface-3);
       border: 1px solid var(--card-line);
       border-right: none;
       border-radius: 6px 0 0 6px;
@@ -1307,19 +1301,19 @@
       padding: 6px 11px; border-radius: 7px;
       font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
     }
-    .seller-row .btn-suspend { border: 1px solid #f0d6a3; background: #fff4e2; color: #5a4400; }
-    .seller-row .btn-suspend:hover { background: #fbe9c7; }
-    .seller-row .btn-ban     { border: 1px solid #e8b3ad; background: #fef6f5; color: #8a1f1a; }
-    .seller-row .btn-ban:hover { background: #fbe4e0; }
-    .seller-row .btn-reinstate { border: 1px solid #a8d9b8; background: #d6efdf; color: #1f5b32; }
-    .seller-row .btn-reinstate:hover { background: #c0e3cb; }
+    .seller-row .btn-suspend { border: 1px solid var(--accent-soft); background: var(--accent-tint); color: var(--accent-deeper); }
+    .seller-row .btn-suspend:hover { background: var(--status-warn-tint); }
+    .seller-row .btn-ban     { border: 1px solid var(--status-danger-soft); background: var(--status-danger-tint); color: var(--status-danger-deep); }
+    .seller-row .btn-ban:hover { background: var(--status-danger-tint); }
+    .seller-row .btn-reinstate { border: 1px solid var(--status-success-soft); background: var(--status-success-tint); color: var(--status-success-deep); }
+    .seller-row .btn-reinstate:hover { background: var(--status-success-hover-bg); }
     .seller-row .seller-actions button:disabled { opacity: .55; cursor: not-allowed; }
     /* "Manage" disclosure that gates the destructive actions (Suspend, Ban,
        Reinstate). Default-closed so admins can't accidentally tap a
        destructive button when intending to email a seller. */
-    .seller-row .btn-manage { border: 1px solid var(--card-line); background: #fff; color: var(--muted); }
-    .seller-row .btn-manage:hover { background: #faf9f6; color: var(--fg); }
-    .seller-row .btn-manage.open { background: #f3f1ea; color: var(--fg); border-color: #d8d2c4; }
+    .seller-row .btn-manage { border: 1px solid var(--card-line); background: var(--surface-1); color: var(--muted); }
+    .seller-row .btn-manage:hover { background: var(--bg); color: var(--fg); }
+    .seller-row .btn-manage.open { background: var(--surface-cream); color: var(--fg); border-color: var(--surface-cream-border); }
     .seller-row .seller-manage-panel {
       display: none;
       flex-basis: 100%;
@@ -1362,7 +1356,7 @@
 
     /* ------ Admin tab ------ */
     .admin-section {
-      background: #fff;
+      background: var(--surface-1);
       border: 1px solid var(--card-line);
       border-radius: 12px;
       padding: 16px 18px;
@@ -1385,7 +1379,7 @@
       flex-direction: column;
       gap: 10px;
       padding: 12px 14px;
-      background: #fff;
+      background: var(--surface-1);
       border: 1px solid var(--card-line);
       border-radius: 8px;
     }
@@ -1399,7 +1393,7 @@
       width: 64px;
       height: 64px;
       border-radius: 6px;
-      background: #f6f3ec;
+      background: var(--surface-warm);
       flex-shrink: 0;
       overflow: hidden;
     }
@@ -1413,7 +1407,7 @@
     .vermod-row video {
       width: 100%;
       max-height: 60vh;
-      background: #000;
+      background: var(--letterbox);
       border-radius: 6px;
     }
     .vermod-row .vermod-actions {
@@ -1427,13 +1421,13 @@
       font-family: inherit;
     }
     .vermod-row .btn-approve {
-      background: #d6efdf; color: #1f5b32; border: 1px solid #a8d9b8;
+      background: var(--status-success-tint); color: var(--status-success-deep); border: 1px solid var(--status-success-soft);
     }
-    .vermod-row .btn-approve:hover { background: #c0e3cb; }
+    .vermod-row .btn-approve:hover { background: var(--status-success-hover-bg); }
     .vermod-row .btn-reject {
-      background: #fef6f5; color: #8a1f1a; border: 1px solid #e8b3ad;
+      background: var(--status-danger-tint); color: var(--status-danger-deep); border: 1px solid var(--status-danger-soft);
     }
-    .vermod-row .btn-reject:hover { background: #fbe4e0; }
+    .vermod-row .btn-reject:hover { background: var(--status-danger-tint); }
     .vermod-row .vermod-actions button:disabled { opacity: .55; cursor: not-allowed; }
 
     /* Reported-listings admin panel */
@@ -1443,22 +1437,22 @@
       grid-template-columns: 64px 1fr auto;
       gap: 12px; align-items: start;
       padding: 12px;
-      border: 1px solid #f0d6a3;
+      border: 1px solid var(--accent-soft);
       border-radius: 10px;
-      background: #fff4e2;
+      background: var(--accent-tint);
     }
     .report-row .rr-thumb {
       width: 64px; height: 64px; border-radius: 7px; overflow: hidden;
-      background: #f0ede6;
+      background: var(--border-soft);
     }
     .report-row .rr-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .report-row .rr-title { font-size: 14px; }
     .report-row .rr-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
     .report-row .rr-reason {
       margin-top: 6px; padding: 6px 10px;
-      background: #fff; border-radius: 6px;
+      background: var(--surface-1); border-radius: 6px;
       font-size: 13px; line-height: 1.4;
-      border: 1px solid #f0d6a3;
+      border: 1px solid var(--accent-soft);
     }
     .report-row .rr-actions {
       display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
@@ -1480,10 +1474,10 @@
       padding: 10px;
       border: 1px solid var(--card-line);
       border-radius: 10px;
-      background: #fbf9f4;
+      background: var(--surface-2);
     }
     .mod-item .mod-thumb {
-      width: 80px; height: 80px; border-radius: 8px; background: #f0ede6;
+      width: 80px; height: 80px; border-radius: 8px; background: var(--border-soft);
       overflow: hidden; position: relative;
     }
     .mod-item .mod-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -1497,29 +1491,29 @@
     .mod-item .mod-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
     .mod-item .btn-approve {
       padding: 7px 14px; border-radius: 7px;
-      border: 1px solid #1f5b32; background: #1f5b32; color: #fff;
+      border: 1px solid var(--status-success-deep); background: var(--status-success-deep); color: var(--surface-1);
       font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
     }
     .mod-item .btn-approve:hover { filter: brightness(.92); }
     .mod-item .btn-reject {
       padding: 7px 14px; border-radius: 7px;
-      border: 1px solid #e8b3ad; background: #fef6f5; color: #8a1f1a;
+      border: 1px solid var(--status-danger-soft); background: var(--status-danger-tint); color: var(--status-danger-deep);
       font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
     }
-    .mod-item .btn-reject:hover { background: #fbe4e0; }
+    .mod-item .btn-reject:hover { background: var(--status-danger-tint); }
 
     .sellers-list-scroll {
       max-height: 480px;
       overflow-y: auto;
       border: 1px solid var(--card-line);
       border-radius: 10px;
-      background: #fff;
+      background: var(--surface-1);
     }
     #sellers-filter {
       width: 100%; box-sizing: border-box;
       padding: 9px 12px; margin: 0 0 10px;
       border-radius: 8px; border: 1px solid var(--card-line);
-      background: #fff; font-size: 14px; font-family: inherit;
+      background: var(--surface-1); font-size: 14px; font-family: inherit;
     }
     #sellers-filter:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
     .seller-row {
@@ -1533,7 +1527,7 @@
     .pending-name-admin {
       margin: 8px 0 4px;
       padding: 8px 12px;
-      background: #fff4e2; border: 1px solid #f0d6a3;
+      background: var(--accent-tint); border: 1px solid var(--accent-soft);
       border-radius: 8px;
       display: flex; gap: 10px; align-items: center; justify-content: space-between;
       flex-wrap: wrap;
@@ -1549,7 +1543,7 @@
       display: inline-block; margin-left: 6px;
       font-size: 10px; font-weight: 700;
       padding: 2px 7px; border-radius: 999px;
-      background: #e6e0f0; color: #4a3478; border: 1px solid #cdc1e5;
+      background: var(--badge-mood-bg); color: var(--badge-mood-fg); border: 1px solid var(--badge-mood-border);
     }
     .seller-row label.toggle {
       display: flex; align-items: center; gap: 8px;
@@ -1565,15 +1559,15 @@
       font-size: 11px;
       padding: 2px 7px;
       border-radius: 4px;
-      background: #fff4e2;
-      color: #5a4400;
-      border: 1px solid #f0d6a3;
+      background: var(--accent-tint);
+      color: var(--accent-deeper);
+      border: 1px solid var(--accent-soft);
       white-space: nowrap;
     }
     .seller-row .trusted-lock-state.trusted-lock-auto {
-      background: #e9f6ec;
+      background: var(--status-success-wash);
       color: var(--green);
-      border-color: #b9deca;
+      border-color: var(--status-success-soft);
     }
     .seller-row .trusted-reset-link {
       background: none;
@@ -1585,7 +1579,7 @@
       text-decoration: underline;
       font-family: inherit;
     }
-    .seller-row .trusted-reset-link:hover { color: #9c7209; }
+    .seller-row .trusted-reset-link:hover { color: var(--accent-deep); }
     .seller-row .trusted-reset-link:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; }
 
     /* Path to Established Member — discreet progress block on Profile tab.
@@ -1599,27 +1593,27 @@
       gap: 4px 12px;
       align-items: center;
       padding: 10px 12px;
-      background: #faf9f6;
+      background: var(--bg);
       border: 1px solid var(--card-line);
       border-radius: 8px;
       font-size: 13px;
     }
     .ep-row.ep-row-met {
-      background: #eaf6ec;
-      border-color: #b7dcc2;
-      color: #1f5b32;
+      background: var(--status-success-wash);
+      border-color: var(--status-success-soft);
+      color: var(--status-success-deep);
     }
     .ep-row .ep-label { grid-area: label; font-weight: 600; }
     .ep-row .ep-dots  { grid-area: dots; letter-spacing: 2px; font-size: 14px; line-height: 1; }
     .ep-row .ep-count { grid-area: count; font-variant-numeric: tabular-nums; color: var(--muted); }
-    .ep-row.ep-row-met .ep-count { color: #1f5b32; font-weight: 600; }
+    .ep-row.ep-row-met .ep-count { color: var(--status-success-deep); font-weight: 600; }
     .ep-row .ep-cta {
       grid-area: cta;
       font-size: 12px;
       margin-top: 2px;
     }
-    .ep-row .ep-dot-on  { color: #1f5b32; }
-    .ep-row .ep-dot-off { color: #c7c1b3; }
+    .ep-row .ep-dot-on  { color: var(--status-success-deep); }
+    .ep-row .ep-dot-off { color: var(--neutral-warm); }
     @media (max-width: 540px) {
       .ep-row {
         grid-template-columns: 1fr auto;
@@ -1640,7 +1634,7 @@
     .admin-toolbar input[type="search"], .admin-toolbar select {
       width: 100%; padding: 8px 11px;
       border-radius: 8px; border: 1px solid var(--card-line);
-      background: #fff; color: var(--fg);
+      background: var(--surface-1); color: var(--fg);
       font-size: 13px; font-family: inherit; min-width: 0;
     }
     .admin-toolbar select { padding-right: 24px; }
@@ -1657,13 +1651,13 @@
       padding: 10px;
       border: 1px solid var(--card-line);
       border-radius: 10px;
-      background: #fff;
+      background: var(--surface-1);
     }
     @media (min-width: 720px) {
       .all-listing-row { grid-template-columns: 56px 2fr 1fr auto; align-items: center; }
     }
     .all-listing-row .al-thumb {
-      width: 56px; height: 56px; border-radius: 7px; background: #f0ede6;
+      width: 56px; height: 56px; border-radius: 7px; background: var(--border-soft);
       overflow: hidden; position: relative;
     }
     .all-listing-row .al-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -1676,7 +1670,7 @@
     }
     .all-listing-row .al-controls select {
       padding: 6px 28px 6px 10px; border-radius: 6px;
-      border: 1px solid var(--card-line); background: #fff;
+      border: 1px solid var(--card-line); background: var(--surface-1);
       font-size: 13px; font-family: inherit;
       min-width: 150px; width: auto;
     }
@@ -1687,10 +1681,10 @@
     .all-listing-row .al-controls .view-link:hover { text-decoration: underline; }
     .all-listing-row .al-controls .btn-danger {
       padding: 5px 10px; border-radius: 6px;
-      border: 1px solid #e8b3ad; background: #fef6f5; color: #8a1f1a;
+      border: 1px solid var(--status-danger-soft); background: var(--status-danger-tint); color: var(--status-danger-deep);
       font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
     }
-    .all-listing-row .al-controls .btn-danger:hover { background: #fbe4e0; }
+    .all-listing-row .al-controls .btn-danger:hover { background: var(--status-danger-tint); }
 
     /* ------ Saved-listings grid ------ */
     .saved-grid {
@@ -1718,13 +1712,13 @@
       box-shadow: 0 4px 10px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06);
     }
     .saved-card .img {
-      aspect-ratio: 1/1; background: #f0ede6; overflow: hidden; position: relative;
+      aspect-ratio: 1/1; background: var(--border-soft); overflow: hidden; position: relative;
     }
     .saved-card .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .saved-card.is-sold .img::after {
       content: "SOLD"; position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(168,40,31,.55); color: #fff;
+      background: rgba(168,40,31,.55); color: var(--surface-1);
       font-weight: 800; font-size: 22px; letter-spacing: 3px;
     }
     .saved-card .body { padding: 10px 12px 12px; }
@@ -1756,8 +1750,8 @@
       position: absolute;
       top: 8px; right: 8px;
       display: inline-flex; align-items: center; gap: 4px;
-      background: #fff;
-      color: #c93f3f;
+      background: var(--surface-1);
+      color: var(--status-danger-strong);
       border: 1px solid var(--card-line);
       border-radius: 999px;
       padding: 4px 9px 4px 8px;
@@ -1781,13 +1775,13 @@
       font-size: 22px; font-weight: 600;
     }
     .nl-guidelines-callout {
-      background: #fbf6e9; border: 1px solid #e9dcad;
+      background: var(--accent-softer); border: 1px solid var(--accent-soft);
       border-left: 4px solid var(--accent);
       border-radius: 10px;
       padding: 12px 14px;
       margin: 12px 0 14px;
       font-size: 14px; line-height: 1.5;
-      color: #5a4400;
+      color: var(--accent-deeper);
     }
     .nl-guidelines-callout strong { color: var(--fg); }
     .nl-guidelines-callout a {
@@ -1796,7 +1790,7 @@
     .nl-legal-note {
       margin: 0 0 14px;
       padding: 10px 12px;
-      background: #f4f1ea;
+      background: var(--surface-3);
       border: 1px solid var(--card-line);
       border-radius: 8px;
       font-size: 12px; line-height: 1.5;
@@ -1808,12 +1802,12 @@
       border-radius: 12px;
       padding: 14px;
       text-align: center;
-      background: #fbf9f4;
+      background: var(--surface-2);
       transition: border-color .15s ease, background .15s ease;
       cursor: pointer;
     }
-    .nl-image-zone:hover { border-color: var(--accent); background: #fbf6e9; }
-    .nl-image-zone.has-file { padding: 0; background: #fff; cursor: default; }
+    .nl-image-zone:hover { border-color: var(--accent); background: var(--accent-softer); }
+    .nl-image-zone.has-file { padding: 0; background: var(--surface-1); cursor: default; }
     .nl-image-zone input[type=file] { display: none; }
     .nl-image-zone .placeholder {
       padding: 30px 16px;
@@ -1824,12 +1818,12 @@
     .nl-preview-wrap { position: relative; }
     .nl-preview-wrap img {
       width: 100%; max-height: 360px; object-fit: contain;
-      display: block; border-radius: 10px; background: #f0ede6;
+      display: block; border-radius: 10px; background: var(--border-soft);
     }
     .nl-preview-wrap .nl-replace-btn {
       position: absolute; bottom: 10px; right: 10px;
       padding: 6px 12px; border-radius: 8px;
-      background: rgba(0,0,0,.65); color: #fff;
+      background: rgba(0,0,0,.65); color: var(--surface-1);
       border: none; font-size: 12px; font-family: inherit; cursor: pointer;
     }
     .nl-form-grid {
@@ -1848,7 +1842,7 @@
       padding: 10px 12px;
       border-radius: 8px;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--fg);
       font-size: 14px;
       font-family: inherit;
@@ -1867,7 +1861,7 @@
 
     /* ------ Sales post builder ------ */
     .sp-step {
-      background: #fff;
+      background: var(--surface-1);
       border: 1px solid var(--card-line);
       border-radius: 12px;
       padding: 16px;
@@ -1883,7 +1877,7 @@
       padding: 10px 12px;
       border-radius: 8px;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       font-size: 14px;
       font-family: inherit;
       min-height: 70px; resize: vertical;
@@ -1906,7 +1900,7 @@
       overflow-y: auto;
       border: 1px solid var(--card-line);
       border-radius: 8px;
-      background: #fbf9f4;
+      background: var(--surface-2);
     }
     .sp-listing-row {
       display: grid;
@@ -1918,18 +1912,18 @@
       cursor: pointer;
     }
     .sp-listing-row:last-child { border-bottom: none; }
-    .sp-listing-row:hover { background: #fff; }
+    .sp-listing-row:hover { background: var(--surface-1); }
     .sp-listing-row input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; }
     .sp-listing-row .sp-thumb {
       width: 56px; height: 56px;
-      border-radius: 6px; background: #f0ede6;
+      border-radius: 6px; background: var(--border-soft);
       overflow: hidden; position: relative;
     }
     .sp-listing-row .sp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .sp-listing-row .sp-thumb.is-sold::after {
       content: "SOLD"; position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(168,40,31,.55); color: #fff;
+      background: rgba(168,40,31,.55); color: var(--surface-1);
       font-size: 9px; font-weight: 800; letter-spacing: 1px;
     }
     .sp-listing-row .sp-meta .sp-artist { font-size: 13px; font-weight: 600; line-height: 1.2; }
@@ -1947,7 +1941,7 @@
       border: 1px solid var(--card-line);
       font-size: 14px; font-family: inherit;
       min-height: 240px;
-      background: #fff;
+      background: var(--surface-1);
     }
     .sp-output textarea:focus {
       outline: none; border-color: var(--accent);
@@ -1961,7 +1955,7 @@
       border: 1px solid var(--card-line);
       border-radius: 10px;
       padding: 10px;
-      background: #fff;
+      background: var(--surface-1);
     }
     .sp-collage img {
       width: 100%; height: auto; display: block;
@@ -1981,7 +1975,7 @@
       font-size: 13px;
       padding: 32px 16px;
       border-top: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
     }
   </style>
 </head>
@@ -2052,9 +2046,9 @@
             </p>
           </div>
           <div class="field">
-            <label for="signup-handle">Handle <span style="color:#8a1f1a;">*</span></label>
+            <label for="signup-handle">Handle <span style="color:var(--status-danger-deep);">*</span></label>
             <div style="display:flex; align-items:center; gap:0;">
-              <span style="padding: 8px 10px; background: #f1ede4; border: 1px solid var(--card-line); border-right: none; border-radius: 6px 0 0 6px; color: var(--muted); font-weight: 600;">@</span>
+              <span style="padding: 8px 10px; background: var(--surface-3); border: 1px solid var(--card-line); border-right: none; border-radius: 6px 0 0 6px; color: var(--muted); font-weight: 600;">@</span>
               <input type="text" id="signup-handle" required autocomplete="off"
                      placeholder="janesmith"
                      pattern="^[A-Za-z][A-Za-z0-9_]{2,19}$"
@@ -2307,8 +2301,8 @@
                 <button type="button" id="change-handle-btn" class="linklike">Change handle</button>
               </div>
               <p class="small handle-initial-hint" id="prof-handle-hint" hidden></p>
-              <div id="change-handle-row" hidden style="margin-top: 10px; padding: 12px; background: #fff4e2; border: 1px solid #f0d6a3; border-radius: 6px;">
-                <label for="new-handle-input" style="display:block; font-weight:600; margin-bottom:6px; color:#5a4400;">New handle</label>
+              <div id="change-handle-row" hidden style="margin-top: 10px; padding: 12px; background: var(--accent-tint); border: 1px solid var(--accent-soft); border-radius: 6px;">
+                <label for="new-handle-input" style="display:block; font-weight:600; margin-bottom:6px; color:var(--accent-deeper);">New handle</label>
                 <div style="display:flex; align-items:center; gap:0;">
                   <span class="handle-prefix">@</span>
                   <input type="text" id="new-handle-input"
@@ -2318,7 +2312,7 @@
                          style="border-radius: 0 6px 6px 0; flex: 1;" />
                 </div>
                 <p class="small" id="new-handle-hint" style="margin: 6px 0; color: var(--muted);">3-20 characters, must start with a letter, then letters/digits/underscores only.</p>
-                <p class="small" id="change-handle-warning" style="margin: 8px 0; color: #5a4400;">
+                <p class="small" id="change-handle-warning" style="margin: 8px 0; color: var(--accent-deeper);">
                   <strong>Heads up:</strong> Your current handle (<span id="current-handle-display"></span>) will be <strong>permanently retired</strong> when you change it. No one — including you — will ever be able to claim it again. Anyone who saved a link to your current handle won't find you that way anymore.
                 </p>
                 <div style="display:flex; gap:8px; margin-top:8px;">
@@ -2335,7 +2329,7 @@
 
             <!-- Facebook profile URL — per-field inline edit/save/cancel. -->
             <div class="field">
-              <label for="prof-fb">Facebook profile URL <span style="color:#8a1f1a;">*</span></label>
+              <label for="prof-fb">Facebook profile URL <span style="color:var(--status-danger-deep);">*</span></label>
               <input type="text" id="prof-fb" placeholder="https://facebook.com/your.profile" disabled />
               <div class="field-actions">
                 <button type="button" id="prof-fb-edit-btn"   class="linklike">Edit</button>
@@ -2368,7 +2362,7 @@
             <!-- About — existing edit/submit flow, with collapsed explainer. -->
             <div class="field">
               <label for="prof-about">About you (optional) <span id="prof-about-lock-tag" class="locked-tag">🔒 Locked</span></label>
-              <textarea id="prof-about" rows="5" maxlength="1000" placeholder="A short blurb about you as a collector — your specialty, region, how long you've been collecting, anything potential buyers might want to know. Max 1000 characters." disabled style="resize: vertical; font-family: inherit; padding: 9px 12px; border: 1px solid var(--card-line); border-radius: 6px; width: 100%; background: #fff; color: var(--fg); font-size: 14px; line-height: 1.5;"></textarea>
+              <textarea id="prof-about" rows="5" maxlength="1000" placeholder="A short blurb about you as a collector — your specialty, region, how long you've been collecting, anything potential buyers might want to know. Max 1000 characters." disabled style="resize: vertical; font-family: inherit; padding: 9px 12px; border: 1px solid var(--card-line); border-radius: 6px; width: 100%; background: var(--surface-1); color: var(--fg); font-size: 14px; line-height: 1.5;"></textarea>
               <div class="field-actions">
                 <button type="button" id="request-about-change-btn" class="linklike">Edit About</button>
                 <span id="prof-about-count" class="small field-status" style="margin-left:auto;">0 / 1000</span>
@@ -2422,7 +2416,7 @@
             <p id="established-progress-explainer" class="small" style="margin: 0 0 12px; color: var(--muted);">
               <!-- Filled by renderEstablishedProgress() — text varies by state. -->
             </p>
-            <div id="established-progress-celebration" hidden style="margin: 0 0 12px; padding: 10px 12px; background: #eaf6ec; border: 1px solid #b7dcc2; border-radius: 8px; color: #1f5b32; font-size: 13px; line-height: 1.45;">
+            <div id="established-progress-celebration" hidden style="margin: 0 0 12px; padding: 10px 12px; background: var(--status-success-wash); border: 1px solid var(--status-success-soft); border-radius: 8px; color: var(--status-success-deep); font-size: 13px; line-height: 1.45;">
               <!-- Filled by renderEstablishedProgress() when isEstablished. -->
             </div>
             <div id="established-progress-rows" style="display: grid; gap: 8px; max-width: 460px;">
@@ -2449,7 +2443,7 @@
             </div>
 
             <!-- Request form -->
-            <div id="request-ref-form" style="padding: 12px; background: #faf9f6; border: 1px solid var(--card-line); border-radius: 6px; margin-bottom: 14px;">
+            <div id="request-ref-form" style="padding: 12px; background: var(--bg); border: 1px solid var(--card-line); border-radius: 6px; margin-bottom: 14px;">
               <label for="request-ref-handle" class="small" style="display: block; font-weight: 600; margin-bottom: 6px;">Request a new reference</label>
               <div style="display:flex; align-items:stretch; gap:6px; flex-wrap: wrap; position: relative;">
                 <div style="flex: 1; min-width: 200px; position: relative;">
@@ -2463,7 +2457,7 @@
                        caller already has an active relationship with. -->
                   <div id="request-ref-results" hidden
                        style="position: absolute; left: 0; right: 0; top: 100%;
-                              margin-top: 2px; background: #fff;
+                              margin-top: 2px; background: var(--surface-1);
                               border: 1px solid var(--card-line); border-radius: 6px;
                               box-shadow: 0 6px 18px rgba(0,0,0,.08);
                               max-height: 260px; overflow-y: auto; z-index: 50;">
@@ -3080,7 +3074,7 @@
     function setHandleHint(text, kind) {
       $signupHandleHint.textContent = text;
       $signupHandleHint.style.color = kind === "ok" ? "var(--green)"
-                                    : kind === "err" ? "#8a1f1a"
+                                    : kind === "err" ? "var(--status-danger-deep)"
                                     : "var(--muted)";
     }
     async function checkHandleAvailability() {
@@ -3706,7 +3700,7 @@
       const imgInner = imgUrl
         ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />`
         : (isIso
-            ? `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8f5ee,#efece4);color:var(--muted);font-size:12px;gap:4px;"><span style="font-size:26px;opacity:.55;">🔍</span><span>In Search Of</span></div>`
+            ? `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--iso-placeholder-1),var(--iso-placeholder-2));color:var(--muted);font-size:12px;gap:4px;"><span style="font-size:26px;opacity:.55;">🔍</span><span>In Search Of</span></div>`
             : "");
 
       const card = document.createElement("div");
@@ -3721,7 +3715,7 @@
           <div class="pc-title">${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</div>
           <div class="pc-price-row">
             <span class="pc-price">${escapeHtml(priceLabel)}</span>
-            ${isIso ? `<span class="pill" style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px;">WANTED</span>` : ""}
+            ${isIso ? `<span class="pill" style="background:var(--accent-tint);color:var(--accent-deep);border:1px solid var(--accent-soft);font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px;">WANTED</span>` : ""}
           </div>
           ${l.moderation_status && l.moderation_status !== "approved"
             ? `<div class="pc-mod-banner pc-mod-${escapeHtml(l.moderation_status)}">
@@ -4243,7 +4237,7 @@
       const thumbInner = imgUrl
         ? `<img src="${imgUrl}" alt="" loading="lazy" />`
         : (isIso
-            ? `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8f5ee,#efece4);color:var(--muted);font-size:12px;gap:4px;"><span style="font-size:26px;opacity:.55;">🔍</span><span>No image</span></div>`
+            ? `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--iso-placeholder-1),var(--iso-placeholder-2));color:var(--muted);font-size:12px;gap:4px;"><span style="font-size:26px;opacity:.55;">🔍</span><span>No image</span></div>`
             : "");
 
       card.innerHTML = `
@@ -4253,7 +4247,7 @@
           </div>
           <div class="head-meta">
             <div class="pills">
-              ${isIso ? `<span class="pill" style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;">WANTED</span>` : ""}
+              ${isIso ? `<span class="pill" style="background:var(--accent-tint);color:var(--accent-deep);border:1px solid var(--accent-soft);">WANTED</span>` : ""}
               ${!isIso ? `<span class="pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>` : ""}
               ${l.moderation_status && l.moderation_status !== "approved"
                 ? `<span class="pill" data-mod="${escapeHtml(l.moderation_status)}">${escapeHtml(l.moderation_status)}</span>` : ""}
@@ -4374,7 +4368,7 @@
           <a class="view-link" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View on catalog ↗</a>
           <div class="actions">
             ${l.status === "not_renewed"
-              ? `<button type="button" class="btn-primary" data-action="renew" style="background:#1f5b32; border-color:#1f5b32;">Renew</button>`
+              ? `<button type="button" class="btn-primary" data-action="renew" style="background:var(--status-success-deep); border-color:var(--status-success-deep);">Renew</button>`
               : ""}
             <button type="button" class="btn-danger" data-action="remove" title="Permanently delete this listing">Remove</button>
             <button type="button" class="btn-secondary" data-action="reset">Reset</button>
@@ -4809,7 +4803,7 @@
 
       $banner.innerHTML = `
         <div class="ew-title">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#1f5b32;color:#fff;font-size:14px;font-weight:700;">✓</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--status-success-deep);color:var(--surface-1);font-size:14px;font-weight:700;">✓</span>
           You're now an Established Member!
         </div>
         <div>Either you've met the auto-criteria — <strong>4 Ownership Verified sale listings</strong> and <strong>3 accepted Sales References</strong> — or the CanvasCircle admin promoted your account directly based on existing trust. Either way, the status is the same. Here's what just unlocked:</div>
@@ -4822,7 +4816,7 @@
         </ul>
         <div class="ew-foot">
           <button type="button" class="ew-dismiss" data-action="ew-dismiss">Got it — let's go</button>
-          <a href="/guidelines.html#established-member" target="_blank" rel="noopener" style="color:#1f5b32; font-size:13px;">Learn more about Established Members ↗</a>
+          <a href="/guidelines.html#established-member" target="_blank" rel="noopener" style="color:var(--status-success-deep); font-size:13px;">Learn more about Established Members ↗</a>
         </div>
       `;
       $banner.hidden = false;
@@ -5283,7 +5277,7 @@
       $indicator.hidden = false;
       if (atCap) {
         $indicator.innerHTML =
-          `<strong style="color:#8a1f1a;">⚠ Sale listing cap reached (${activeSale} / ${cap}).</strong> ` +
+          `<strong style="color:var(--status-danger-deep);">⚠ Sale listing cap reached (${activeSale} / ${cap}).</strong> ` +
           `New sale listings are blocked until you remove or sell an existing one — or become an Established Member ` +
           `(see Profile tab). ISO posts remain unrestricted.`;
       } else {
@@ -5939,7 +5933,7 @@
       const sellerLabel = `${escapeHtml(profile.display_name || "(no name)")}${profile.handle ? ` <a href="/seller?handle=${encodeURIComponent(profile.handle)}" target="_blank" rel="noopener" style="color:var(--accent); font-size:12px;">@${escapeHtml(profile.handle)}</a>` : ""}`;
       if (kind === "name") {
         row.innerHTML = `
-          <div style="display:flex; flex-direction:column; gap:6px; padding:10px 12px; background:#fff; border:1px solid var(--card-line); border-radius:6px;">
+          <div style="display:flex; flex-direction:column; gap:6px; padding:10px 12px; background:var(--surface-1); border:1px solid var(--card-line); border-radius:6px;">
             <div style="font-size:12px; color:var(--muted);">${sellerLabel} &middot; <strong>Display name change</strong></div>
             <div style="font-size:14px;"><span style="color:var(--muted); text-decoration:line-through;">${escapeHtml(profile.display_name || "(none)")}</span> &rarr; <strong>${escapeHtml(profile.pending_display_name)}</strong></div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -5953,12 +5947,12 @@
       } else {
         const requested = profile.pending_about_text;
         row.innerHTML = `
-          <div style="display:flex; flex-direction:column; gap:6px; padding:10px 12px; background:#fff; border:1px solid var(--card-line); border-radius:6px;">
+          <div style="display:flex; flex-direction:column; gap:6px; padding:10px 12px; background:var(--surface-1); border:1px solid var(--card-line); border-radius:6px;">
             <div style="font-size:12px; color:var(--muted);">${sellerLabel} &middot; <strong>About text change</strong></div>
-            <div style="font-size:12px; padding:6px 8px; background:#fafaf6; border:1px solid var(--card-line); border-radius:4px; color:var(--muted); max-height:80px; overflow-y:auto;">
+            <div style="font-size:12px; padding:6px 8px; background:var(--surface-2); border:1px solid var(--card-line); border-radius:4px; color:var(--muted); max-height:80px; overflow-y:auto;">
               <em>Current:</em> ${profile.about_text ? escapeHtml(profile.about_text) : "(none)"}
             </div>
-            <div style="font-size:12px; padding:6px 8px; background:#eef6ed; border:1px solid #c2e0c4; border-radius:4px; max-height:140px; overflow-y:auto; white-space:pre-wrap;">
+            <div style="font-size:12px; padding:6px 8px; background:var(--status-success-wash-2); border:1px solid var(--status-success-soft); border-radius:4px; max-height:140px; overflow-y:auto; white-space:pre-wrap;">
               <em>Requested:</em> ${requested ? escapeHtml(requested) : "(blank — remove About)"}
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -6089,8 +6083,8 @@
       const daysSinceRenew = Math.floor((Date.now() - renewedAt.getTime()) / 86400000);
       const daysLeft = RENEWAL_WINDOW_DAYS - daysSinceRenew;
       let statusText;
-      if (l.status === "not_renewed") statusText = `<span style="color:#8a1f1a;font-weight:600;">Expired</span>`;
-      else if (daysLeft <= 0)         statusText = `<span style="color:#8a1f1a;font-weight:600;">Overdue ${-daysLeft}d</span>`;
+      if (l.status === "not_renewed") statusText = `<span style="color:var(--status-danger-deep);font-weight:600;">Expired</span>`;
+      else if (daysLeft <= 0)         statusText = `<span style="color:var(--status-danger-deep);font-weight:600;">Overdue ${-daysLeft}d</span>`;
       else                            statusText = `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
 
       const row = document.createElement("div");
@@ -6222,7 +6216,7 @@
       }
       const thumbInner = imgUrl
         ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />`
-        : (isIso ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f1ede4;color:var(--muted);font-size:20px;">🔍</div>` : "");
+        : (isIso ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--surface-3);color:var(--muted);font-size:20px;">🔍</div>` : "");
 
       const item = document.createElement("div");
       item.className = "mod-item" + (isIso ? " is-iso" : "");
@@ -6230,7 +6224,7 @@
       item.innerHTML = `
         <div class="mod-thumb">${thumbInner}</div>
         <div class="mod-meta">
-          <strong>${isIso ? `<span style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;padding:1px 6px;border-radius:4px;font-size:11px;margin-right:6px;">ISO</span>` : ""}${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))} – ${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</strong>
+          <strong>${isIso ? `<span style="background:var(--accent-tint);color:var(--accent-deep);border:1px solid var(--accent-soft);padding:1px 6px;border-radius:4px;font-size:11px;margin-right:6px;">ISO</span>` : ""}${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))} – ${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</strong>
           <div class="mod-sub">
             ${escapeHtml(seller)}${sellerHandle ? ` <a href="/seller?handle=${encodeURIComponent(sellerHandle)}" target="_blank" rel="noopener" style="color:var(--accent);" title="Open public seller page">@${escapeHtml(sellerHandle)}</a>` : ""}${email ? ` · ${escapeHtml(email)}` : ""}
             · ${escapeHtml(priceLabel)}
@@ -6368,9 +6362,9 @@
       // Status pill (suspended / banned only — active is the silent default).
       let statusPill = "";
       if (status === "suspended") {
-        statusPill = ` <span class="pill" style="background:#fff4e2;color:#5a4400;border-color:#f0d6a3;">suspended</span>`;
+        statusPill = ` <span class="pill" style="background:var(--accent-tint);color:var(--accent-deeper);border-color:var(--accent-soft);">suspended</span>`;
       } else if (status === "banned") {
-        statusPill = ` <span class="pill" style="background:#fef6f5;color:#8a1f1a;border-color:#e8b3ad;">banned</span>`;
+        statusPill = ` <span class="pill" style="background:var(--status-danger-tint);color:var(--status-danger-deep);border-color:var(--status-danger-soft);">banned</span>`;
       }
 
       // Email button is always-visible (safe action). Destructive actions
@@ -6419,7 +6413,7 @@
             ${profile.handle ? ` <a href="/seller?handle=${encodeURIComponent(profile.handle)}" target="_blank" rel="noopener" style="font-weight:400; color:var(--accent); font-size:13px;" title="Open public seller page">@${escapeHtml(profile.handle)}</a>` : ""}
             ${profile.is_admin ? ` <span class="pill">admin</span>` : ""}
             ${statusPill}
-            ${incomplete ? ` <span class="pill" style="background:#f3d6d3;color:#8a1f1a;border-color:#e8b3ad;">incomplete profile</span>` : ""}
+            ${incomplete ? ` <span class="pill" style="background:var(--status-danger-soft);color:var(--status-danger-deep);border-color:var(--status-danger-soft);">incomplete profile</span>` : ""}
             <!-- pending name/About change pills now live in the Moderation
                  queue panel; not duplicated here. -->
 
@@ -6766,7 +6760,7 @@
       // Image cell — ISO can lack an image.
       const thumbInner = imgUrl
         ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />`
-        : (isIso ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f1ede4;color:var(--muted);font-size:18px;">🔍</div>` : "");
+        : (isIso ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--surface-3);color:var(--muted);font-size:18px;">🔍</div>` : "");
 
       const row = document.createElement("div");
       row.className = "all-listing-row" + (isIso ? " is-iso" : "");
@@ -6776,12 +6770,12 @@
         <div class="al-meta">
           <strong>${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))} – ${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</strong>
           <div class="sub">
-            ${escapeHtml(seller)}${sellerHandle ? ` <a href="/seller?handle=${encodeURIComponent(sellerHandle)}" target="_blank" rel="noopener" style="color:var(--accent);" title="Open public seller page">@${escapeHtml(sellerHandle)}</a>` : ""}${sellerStatus !== "active" ? ` · <span style="color:#8a1f1a;">${escapeHtml(sellerStatus)}</span>` : ""}
+            ${escapeHtml(seller)}${sellerHandle ? ` <a href="/seller?handle=${encodeURIComponent(sellerHandle)}" target="_blank" rel="noopener" style="color:var(--accent);" title="Open public seller page">@${escapeHtml(sellerHandle)}</a>` : ""}${sellerStatus !== "active" ? ` · <span style="color:var(--status-danger-deep);">${escapeHtml(sellerStatus)}</span>` : ""}
             · ${escapeHtml(priceLabel)}
             · ${days === 0 ? "today" : days + "d ago"}
           </div>
           <div class="pills">
-            ${isIso ? `<span class="pill" style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;">ISO</span>` : ""}
+            ${isIso ? `<span class="pill" style="background:var(--accent-tint);color:var(--accent-deep);border:1px solid var(--accent-soft);">ISO</span>` : ""}
             <span class="pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>
             ${l.moderation_status && l.moderation_status !== "approved"
               ? `<span class="pill">${l.moderation_status === "pending" ? "Pending Review" : escapeHtml(l.moderation_status)}</span>` : ""}
@@ -7362,7 +7356,7 @@
       const $hint = document.getElementById("prof-handle-hint");
       if ($hint) {
         if (isInitialSet) {
-          $hint.innerHTML = '<strong style="color:#8a1f1a;">You haven\'t set your handle yet.</strong> Pick one to use the platform — it\'s required for posting listings.';
+          $hint.innerHTML = '<strong style="color:var(--status-danger-deep);">You haven\'t set your handle yet.</strong> Pick one to use the platform — it\'s required for posting listings.';
           $hint.hidden = false;
         } else {
           $hint.hidden = true;
@@ -7407,7 +7401,7 @@
     function setNewHandleHint(text, kind) {
       $newHandleHint.textContent = text;
       $newHandleHint.style.color = kind === "ok" ? "var(--green)"
-                                 : kind === "err" ? "#8a1f1a"
+                                 : kind === "err" ? "var(--status-danger-deep)"
                                  : "var(--muted)";
     }
 
@@ -7738,7 +7732,7 @@
     function setRefHint(text, kind) {
       $requestRefHint.textContent = text;
       $requestRefHint.style.color = kind === "ok"  ? "var(--green)"
-                                  : kind === "err" ? "#8a1f1a"
+                                  : kind === "err" ? "var(--status-danger-deep)"
                                   : "var(--muted)";
     }
 
@@ -7860,9 +7854,9 @@
       const p = r.seller || {};
       const row = document.createElement("div");
       row.dataset.refId = r.id;
-      row.style.cssText = "display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; background:#fff; border:1px solid var(--card-line); border-radius:6px; flex-wrap:wrap;";
+      row.style.cssText = "display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; background:var(--surface-1); border:1px solid var(--card-line); border-radius:6px; flex-wrap:wrap;";
       const inactiveNote = (p.account_status !== "active")
-        ? `<span style="color:#8a1f1a; font-size:12px; margin-left:6px;">(currently hidden from public — their account isn't active)</span>`
+        ? `<span style="color:var(--status-danger-deep); font-size:12px; margin-left:6px;">(currently hidden from public — their account isn't active)</span>`
         : "";
       row.innerHTML = `
         <div style="min-width:0; flex:1;">
@@ -7886,7 +7880,7 @@
       // target_demoted rows render with a grayed-out background so they
       // visually read as "this row is no longer actionable, just a notice."
       const isDemoted = r.status === "target_demoted";
-      const rowBg = isDemoted ? "#f4f1ea" : "#fff";
+      const rowBg = isDemoted ? "var(--surface-3)" : "var(--surface-1)";
       const rowOpacity = isDemoted ? "0.82" : "1";
       row.style.cssText = `display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; background:${rowBg}; border:1px solid var(--card-line); border-radius:6px; flex-wrap:wrap; opacity:${rowOpacity};`;
       let statusBadge;
@@ -7898,10 +7892,10 @@
         statusColor = "var(--green)";
       } else if (r.status === "pending") {
         statusBadge = "⏳ Pending response";
-        statusColor = "#5a4400";
+        statusColor = "var(--accent-deeper)";
       } else if (r.status === "target_demoted") {
         statusBadge = "✗ Auto-cancelled";
-        statusColor = "#8a1f1a";
+        statusColor = "var(--status-danger-deep)";
         actionLabel = "Dismiss";
         // This is the key surface for the soft-cancel — the requester needs
         // to see *why* their pending row went away. Without this line they'd
@@ -7911,13 +7905,13 @@
         </div>`;
       } else { // rejected
         statusBadge = "✗ Rejected";
-        statusColor = "#8a1f1a";
+        statusColor = "var(--status-danger-deep)";
         actionLabel = "Remove";
       }
       // Inactive warning when accepted but reference is no longer trusted/active.
       const stillValid = r.status !== "accepted" || (p.is_trusted && p.account_status === "active");
       const inactiveNote = (r.status === "accepted" && !stillValid)
-        ? `<span style="color:#8a1f1a; font-size:12px; margin-left:6px;">(currently hidden from public — referrer is no longer Established or active)</span>`
+        ? `<span style="color:var(--status-danger-deep); font-size:12px; margin-left:6px;">(currently hidden from public — referrer is no longer Established or active)</span>`
         : "";
       row.innerHTML = `
         <div style="min-width:0; flex:1;">
@@ -7942,14 +7936,14 @@
       const p = r.seller || {};
       const row = document.createElement("div");
       row.dataset.refId = r.id;
-      row.style.cssText = "padding:12px; background:#fff; border:1px solid var(--card-line); border-radius:6px;";
+      row.style.cssText = "padding:12px; background:var(--surface-1); border:1px solid var(--card-line); border-radius:6px;";
       const joined = p.created_at
         ? new Date(p.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long" })
         : "—";
       const establishedTag = p.is_trusted
         ? `<span style="display:inline-flex; align-items:center; gap:4px; color:var(--green); font-weight:600; font-size:12px; margin-left:6px;">
              <svg width="12" height="12" viewBox="0 0 16 16" style="flex-shrink:0;" aria-hidden="true">
-               <circle cx="8" cy="8" r="7" fill="#2a7a3e"/>
+               <circle cx="8" cy="8" r="7" fill="var(--status-success)"/>
                <path d="M5 8.5 L7 10.5 L11 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
              </svg>Established
            </span>` : "";
@@ -8102,7 +8096,7 @@
         // don't fire requests.
         $results.querySelectorAll(".ref-search-row").forEach(el => {
           // Hover highlight without needing a CSS file edit.
-          el.addEventListener("mouseenter", () => el.style.background = "#f4f1ea");
+          el.addEventListener("mouseenter", () => el.style.background = "var(--surface-3)");
           el.addEventListener("mouseleave", () => el.style.background = "");
           el.addEventListener("click", () => {
             $input.value = el.dataset.handle;
@@ -8332,7 +8326,7 @@
 
       const imgInner = imgUrl
         ? `<img src="${imgUrl}" alt="" loading="lazy" />`
-        : (isIso ? `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8f5ee,#efece4);color:var(--muted);font-size:12px;gap:4px;"><span style="font-size:26px;opacity:.55;">🔍</span><span>In Search Of</span></div>` : "");
+        : (isIso ? `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--iso-placeholder-1),var(--iso-placeholder-2));color:var(--muted);font-size:12px;gap:4px;"><span style="font-size:26px;opacity:.55;">🔍</span><span>In Search Of</span></div>` : "");
 
       const wrap = document.createElement("div");
       wrap.className = "saved-card-wrap";
@@ -8349,7 +8343,7 @@
           <div class="row">
             <span class="price-block">
               ${isIso
-                ? `<span class="price">${escapeHtml(priceLabel)}</span><span class="pill" style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px;">WANTED</span>`
+                ? `<span class="price">${escapeHtml(priceLabel)}</span><span class="pill" style="background:var(--accent-tint);color:var(--accent-deep);border:1px solid var(--accent-soft);font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px;">WANTED</span>`
                 : `<span class="price">${priceLabel}<span class="ship-suffix">${shipSuffix}</span></span>${prev ? `<span class="prev">$${prev}</span>` : ""}`}
             </span>
             <span class="pill" title="Total saves">♥ ${saveCnt}</span>
@@ -8849,6 +8843,8 @@
 
     async function drawCellOnCanvas(ctx, listing, x, y) {
       // Header strip (dark bar with artist – title)
+      // Canvas API doesn't accept CSS variables; these hex codes mirror the
+      // dark/light surface tokens but are intentionally inlined. TODO phase 4.
       ctx.fillStyle = "#1f1a17";
       ctx.fillRect(x, y, COLLAGE_CELL_W, COLLAGE_HEADER_H);
       ctx.fillStyle = "#ffffff";

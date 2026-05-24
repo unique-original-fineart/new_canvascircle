@@ -12,6 +12,10 @@
   <link rel="manifest" href="/assets/manifest.webmanifest" />
   <meta name="theme-color" content="#0A1538" />
 
+  <!-- Brand tokens. Single source of truth for colors across all pages.
+       Loaded BEFORE the inline <style> block so vars are available. -->
+  <link rel="stylesheet" href="/assets/theme.css" />
+
   <meta property="og:title"       content="Privacy Policy — CanvasCircle" />
   <meta property="og:description" content="What CanvasCircle collects, why, and your rights." />
   <meta property="og:type"        content="website" />
@@ -20,15 +24,7 @@
   <meta name="twitter:card"       content="summary_large_image" />
 
   <style>
-    :root {
-      --bg:        #faf9f6;
-      --fg:        #1a1a1a;
-      --muted:     #6b6b6b;
-      --accent:    #b8860b;
-      --card-bg:   #ffffff;
-      --card-line: #e8e4dc;
-      --shadow:    0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
-    }
+    /* Color variables now live in /assets/theme.css (see <link> above). */
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
@@ -42,7 +38,7 @@
     header.site {
       padding: 18px 16px;
       border-bottom: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       display: flex; align-items: center; justify-content: space-between;
     }
     header.site .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); }
@@ -92,7 +88,7 @@
     footer {
       text-align: center; color: var(--muted);
       font-size: 13px; padding: 32px 16px;
-      border-top: 1px solid var(--card-line); background: #fff;
+      border-top: 1px solid var(--card-line); background: var(--surface-1);
     }
   </style>
 </head>
@@ -280,7 +276,7 @@
       width: 44px; height: 44px;
       border-radius: 50%;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--fg);
       font-size: 20px;
       cursor: pointer;
@@ -291,7 +287,7 @@
       transition: opacity .15s ease;
     }
     #back-to-top.visible { display: flex; }
-    #back-to-top:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    #back-to-top:hover { background: var(--accent); color: var(--surface-1); border-color: var(--accent); }
   </style>
   <button type="button" id="back-to-top" aria-label="Back to top">↑</button>
   <script>

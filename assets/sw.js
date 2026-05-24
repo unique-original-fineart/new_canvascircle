@@ -37,6 +37,7 @@ const CROSS_ORIGIN_CACHE_HOSTS = new Set([
 const SHELL_ASSETS = [
   '/',
   '/index.html',
+  '/assets/theme.css',
   '/assets/manifest.webmanifest',
   '/assets/favicon.ico',
   '/assets/favicon.svg',

@@ -12,23 +12,17 @@
   <link rel="manifest" href="/assets/manifest.webmanifest" />
   <meta name="theme-color" content="#0A1538" />
 
+  <!-- Brand tokens. Single source of truth for colors across all pages.
+       Loaded BEFORE the inline <style> block so vars are available. -->
+  <link rel="stylesheet" href="/assets/theme.css" />
+
   <!-- Default OG tags; populated dynamically below once data loads. -->
   <meta property="og:type"        content="article" />
   <meta property="og:image"       content="https://canvascircle.art/assets/og-image.png" />
   <meta name="twitter:card"       content="summary_large_image" />
 
   <style>
-    :root {
-      --bg:        #faf9f6;
-      --fg:        #1a1a1a;
-      --muted:     #6b6b6b;
-      --accent:    #b8860b;
-      --card-bg:   #ffffff;
-      --card-line: #e8e4dc;
-      --shadow:    0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
-      --green:     #2a7a3e;
-      --red:       #a8281f;
-    }
+    /* Color variables now live in /assets/theme.css (see <link> above). */
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
@@ -41,7 +35,7 @@
     header {
       padding: 18px 16px;
       border-bottom: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       display: flex; align-items: center; justify-content: space-between;
     }
     header .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); }
@@ -61,13 +55,13 @@
       max-width: 540px;
       padding: 12px 16px;
       border-radius: 8px;
-      background: #fff;
+      background: var(--surface-1);
       border: 1px solid var(--card-line);
       color: var(--muted);
       text-align: center;
       font-size: 14px;
     }
-    #status.error { color: var(--red); border-color: #f1c4be; background: #fef6f5; }
+    #status.error { color: var(--red); border-color: var(--status-danger-soft); background: var(--status-danger-tint); }
 
     .back { display: inline-block; margin: 12px 0; color: var(--muted); text-decoration: none; font-size: 14px; }
     .back:hover { color: var(--accent); }
@@ -85,7 +79,7 @@
     .gallery .main-img {
       width: 100%;
       aspect-ratio: 1/1;
-      background: #f0ede6;
+      background: var(--border-soft);
       border-radius: 12px;
       overflow: hidden;
       box-shadow: var(--shadow);
@@ -99,7 +93,7 @@
       top: 12px; right: 12px;
       display: inline-flex; align-items: center; gap: 6px;
       background: rgba(255,255,255,.94);
-      color: #555;
+      color: var(--text-soft);
       border: none;
       border-radius: 999px;
       padding: 7px 13px 7px 12px;
@@ -109,10 +103,10 @@
       transition: transform .12s ease, background .12s ease;
       z-index: 2;
     }
-    .heart-btn:hover { transform: scale(1.04); background: #fff; }
+    .heart-btn:hover { transform: scale(1.04); background: var(--surface-1); }
     .heart-btn .heart-glyph { font-size: 18px; line-height: 1; }
-    .heart-btn.is-saved { background: #fff; }
-    .heart-btn.is-saved .heart-glyph { color: #c93f3f; }
+    .heart-btn.is-saved { background: var(--surface-1); }
+    .heart-btn.is-saved .heart-glyph { color: var(--status-danger-strong); }
     .heart-btn[disabled] { opacity: .55; cursor: progress; }
     .gallery .thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
     .gallery .thumbs img {
@@ -135,20 +129,20 @@
     .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
     .badge {
       display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px;
-      font-weight: 600; background: #efe9d8; color: #6a4c00; border: 1px solid #e3d8b1;
+      font-weight: 600; background: var(--accent-soft); color: var(--accent-deep); border: 1px solid var(--accent-soft);
     }
-    .badge.status-sold      { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
-    .badge.status-pending   { background: #fce6c4; color: #7a4a00; border-color: #f1c98a; }
-    .badge.status-available { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
-    .badge.mood             { background: #e6e0f0; color: #4a3478; border-color: #cdc1e5; }
-    .badge.cat-unique       { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
-    .badge.cat-edition      { background: #d6e6f7; color: #1f4a78; border-color: #a8c8e3; }
+    .badge.status-sold      { background: var(--status-danger-soft); color: var(--status-danger-deep); border-color: var(--status-danger-soft); }
+    .badge.status-pending   { background: var(--accent-soft); color: var(--accent-deep); border-color: var(--accent-soft); }
+    .badge.status-available { background: var(--status-success-tint); color: var(--status-success-deep); border-color: var(--status-success-soft); }
+    .badge.mood             { background: var(--badge-mood-bg); color: var(--badge-mood-fg); border-color: var(--badge-mood-border); }
+    .badge.cat-unique       { background: var(--status-success-tint); color: var(--status-success-deep); border-color: var(--status-success-soft); }
+    .badge.cat-edition      { background: var(--status-info-tint); color: var(--status-info); border-color: var(--status-info-soft); }
     /* Verified badge sits alongside the category/status pills. Click/tap
        opens a small inline popover explaining what verification means. */
     .badge.verified-badge {
-      background: #1f5b32;
-      color: #fff;
-      border: 1px solid #1f5b32;
+      background: var(--status-success-deep);
+      color: var(--surface-1);
+      border: 1px solid var(--status-success-deep);
       cursor: pointer;
       user-select: none;
       display: inline-flex; align-items: center; gap: 4px;
@@ -163,7 +157,7 @@
     .badge.verified-badge[aria-expanded="true"] .vb-chev { transform: rotate(180deg); }
     .badge.verified-badge:hover,
     .badge.verified-badge:focus-visible {
-      background: #174d28;
+      background: var(--status-success-deep);
       box-shadow: 0 0 0 3px rgba(31,91,50,.22);
       outline: none;
     }
@@ -173,7 +167,7 @@
     .verified-hint {
       display: inline-flex; align-items: center;
       font-size: 12px;
-      color: #1f5b32;
+      color: var(--status-success-deep);
       margin-left: 4px;
       cursor: pointer;
       text-decoration: underline;
@@ -184,16 +178,16 @@
     .verified-popover {
       margin-top: 8px;
       padding: 10px 12px;
-      background: #f0f6ed;
-      border: 1px solid #c2e0c4;
+      background: var(--status-success-tint);
+      border: 1px solid var(--status-success-soft);
       border-radius: 8px;
-      color: #1f5b32;
+      color: var(--status-success-deep);
       font-size: 13px;
       line-height: 1.5;
     }
     .verified-popover[hidden] { display: none; }
     .verified-popover strong { font-weight: 600; }
-    .verified-popover .vp-when { color: #2d6f43; font-size: 12px; margin-top: 4px; }
+    .verified-popover .vp-when { color: var(--status-success); font-size: 12px; margin-top: 4px; }
 
     .meta {
       background: var(--card-bg);
@@ -241,28 +235,28 @@
     .seller-actions a {
       display: inline-block; padding: 9px 14px; border-radius: 8px;
       text-decoration: none; font-size: 14px; font-weight: 600;
-      border: 1px solid var(--card-line); background: #fff; color: var(--fg);
+      border: 1px solid var(--card-line); background: var(--surface-1); color: var(--fg);
     }
-    .seller-actions a.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .seller-actions a.primary { background: var(--accent); border-color: var(--accent); color: var(--surface-1); }
     .seller-actions a:hover  { filter: brightness(.97); }
 
     .buying-tips-nudge {
       margin-top: 12px;
       padding: 10px 12px;
-      background: #fbf6e9;
-      border: 1px solid #e9dcad;
+      background: var(--accent-softer);
+      border: 1px solid var(--accent-soft);
       border-radius: 8px;
       font-size: 13px;
-      color: #5a4400;
+      color: var(--accent-deeper);
       line-height: 1.45;
     }
     .not-renewed-warning {
       margin: 0 0 14px;
       padding: 12px 14px;
-      background: #fff4e2;
-      border: 1px solid #f0d6a3;
+      background: var(--accent-tint);
+      border: 1px solid var(--accent-soft);
       border-radius: 10px;
-      color: #5a4400;
+      color: var(--accent-deeper);
       font-size: 14px;
       line-height: 1.5;
     }
@@ -276,7 +270,7 @@
     .transaction-disclaimer {
       margin-top: 10px;
       padding: 10px 12px;
-      background: #f4f1ea;
+      background: var(--surface-3);
       border: 1px solid var(--card-line);
       border-radius: 8px;
       font-size: 12px;
@@ -303,7 +297,7 @@
       font-size: 13px;
       padding: 32px 16px;
       border-top: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       margin-top: 48px;
     }
   </style>
@@ -731,7 +725,7 @@
       const heroBlock = heroUrl
         ? `<img id="hero" src="${heroUrl}" alt="" />`
         : (isIso
-            ? `<div class="iso-hero-placeholder" style="aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8f5ee 0%,#efece4 100%);color:var(--muted);gap:6px;border-radius:8px;">
+            ? `<div class="iso-hero-placeholder" style="aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--iso-placeholder-1) 0%,var(--iso-placeholder-2) 100%);color:var(--muted);gap:6px;border-radius:8px;">
                  <div style="font-size:48px;opacity:.55;">🔍</div>
                  <div style="font-size:14px;letter-spacing:.3px;">In Search Of</div>
                  <div style="font-size:12px;">No reference image provided</div>
@@ -766,7 +760,7 @@
       // ------ Badges row ------
       const badgesBlock = `
         <div class="badges">
-          ${isIso ? `<span class="badge" style="background:#fff4e2;color:#7a4a00;border:1px solid #f1c98a;">WANTED</span>` : ""}
+          ${isIso ? `<span class="badge" style="background:var(--accent-tint);color:var(--accent-deep);border:1px solid var(--accent-soft);">WANTED</span>` : ""}
           ${l.artwork_category
             ? `<span class="badge ${l.artwork_category === "Unique/Original" ? "cat-unique"
                 : l.artwork_category === "Limited Edition" ? "cat-edition" : ""}">${escapeHtml(l.artwork_category)}</span>`
@@ -838,7 +832,7 @@
                     style="background:none; border:none; padding:0; color:var(--accent); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">
               About this seller <span id="about-toggle-glyph">▾</span>
             </button>
-            <div id="about-text-panel" hidden style="margin-top:6px; padding:10px 12px; background:#fafaf6; border:1px solid var(--card-line); border-radius:6px; font-size:13px; line-height:1.5; white-space:pre-line; color:var(--fg); text-align:left;">${escapeHtml(seller.about_text)}</div>
+            <div id="about-text-panel" hidden style="margin-top:6px; padding:10px 12px; background:var(--surface-2); border:1px solid var(--card-line); border-radius:6px; font-size:13px; line-height:1.5; white-space:pre-line; color:var(--fg); text-align:left;">${escapeHtml(seller.about_text)}</div>
           </div>` : "";
 
       const counterpartyBlock = signedIn ? `

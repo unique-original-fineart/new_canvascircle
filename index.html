@@ -36,6 +36,10 @@
   <link rel="manifest" href="/assets/manifest.webmanifest" />
   <meta name="theme-color" content="#0A1538" />
 
+  <!-- Brand tokens. Single source of truth for colors across all pages.
+       Loaded BEFORE the inline <style> block so vars are available. -->
+  <link rel="stylesheet" href="/assets/theme.css" />
+
   <!-- Performance: warm up the TLS + DNS to the Supabase storage host so the
        first image request lands on a ready connection. Shaves ~100ms off
        LCP on cold loads. -->
@@ -85,16 +89,7 @@
   </script>
 
   <style>
-    :root {
-      --bg:        #faf9f6;
-      --fg:        #1a1a1a;
-      --muted:     #6b6b6b;
-      --accent:    #b8860b;
-      --card-bg:   #ffffff;
-      --card-line: #e8e4dc;
-      --shadow:    0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
-      --green:     #2a7a3e;
-    }
+    /* Color variables now live in /assets/theme.css (see <link> above). */
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
@@ -106,7 +101,7 @@
     header {
       padding: 18px 16px;
       border-bottom: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       display: flex; align-items: center; justify-content: space-between;
     }
     header .brand { display: flex; align-items: center; gap: 10px; }
@@ -190,7 +185,7 @@
       padding: 9px 12px;
       border-radius: 8px;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--fg);
       font-size: 14px;
       font-family: inherit;
@@ -214,7 +209,7 @@
       padding: 9px 14px;
       border-radius: 8px;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--muted);
       cursor: pointer;
       font-size: 13px;
@@ -223,7 +218,7 @@
     }
     .toolbar .clear-btn:hover {
       color: var(--fg);
-      border-color: #ccc;
+      border-color: var(--border-strong);
     }
     .stats {
       color: var(--muted);
@@ -237,13 +232,13 @@
       max-width: 540px;
       padding: 16px;
       border-radius: 8px;
-      background: #fff;
+      background: var(--surface-1);
       border: 1px solid var(--card-line);
       color: var(--muted);
       text-align: center;
       font-size: 14px;
     }
-    #status.error { color: #a8281f; border-color: #f1c4be; background: #fef6f5; }
+    #status.error { color: var(--status-danger); border-color: var(--status-danger-soft); background: var(--status-danger-tint); }
     .empty .empty-title { color: var(--fg); font-weight: 600; margin-bottom: 4px; }
     .loading-more {
       text-align: center;
@@ -277,7 +272,7 @@
       transform: translateY(-1px);
       box-shadow: 0 4px 10px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06);
     }
-    .card .img { aspect-ratio: 1/1; background: #f0ede6; overflow: hidden; position: relative; }
+    .card .img { aspect-ratio: 1/1; background: var(--border-soft); overflow: hidden; position: relative; }
     .card .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
     /* Ownership-verified badge: small green check in the top-left corner
        of the card image. Only rendered for signed-in viewers; anon users
@@ -287,13 +282,13 @@
       top: 8px; left: 8px;
       width: 28px; height: 28px;
       border-radius: 50%;
-      background: #1f5b32;
-      color: #fff;
+      background: var(--status-success-deep);
+      color: var(--surface-1);
       display: flex; align-items: center; justify-content: center;
       font-size: 14px; font-weight: 700;
       line-height: 1;
       box-shadow: 0 2px 6px rgba(0,0,0,.18);
-      border: 2px solid #fff;
+      border: 2px solid var(--surface-1);
       z-index: 2;
       cursor: pointer;
       pointer-events: auto;
@@ -313,8 +308,8 @@
       transform: translateX(-50%);
       max-width: 340px;
       width: calc(100% - 32px);
-      background: #1f5b32;
-      color: #fff;
+      background: var(--status-success-deep);
+      color: var(--surface-1);
       padding: 12px 16px;
       border-radius: 10px;
       box-shadow: 0 8px 24px rgba(0,0,0,.25);
@@ -337,7 +332,7 @@
       top: 8px; right: 8px;
       display: inline-flex; align-items: center; gap: 4px;
       background: rgba(255,255,255,.92);
-      color: #555;
+      color: var(--text-soft);
       border: none;
       border-radius: 999px;
       padding: 4px 9px 4px 8px;
@@ -347,10 +342,10 @@
       transition: transform .12s ease, background .12s ease;
       z-index: 2;
     }
-    .card-wrap .heart-btn:hover { transform: scale(1.06); background: #fff; }
+    .card-wrap .heart-btn:hover { transform: scale(1.06); background: var(--surface-1); }
     .card-wrap .heart-btn .heart-glyph { font-size: 14px; line-height: 1; }
-    .card-wrap .heart-btn.is-saved { background: #fff; }
-    .card-wrap .heart-btn.is-saved .heart-glyph { color: #c93f3f; }
+    .card-wrap .heart-btn.is-saved { background: var(--surface-1); }
+    .card-wrap .heart-btn.is-saved .heart-glyph { color: var(--status-danger-strong); }
     .card-wrap .heart-btn[disabled] { opacity: .55; cursor: progress; }
     .card .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; }
     .card .artist {
@@ -380,14 +375,14 @@
     .card .cat    {
       font-size: 10px; font-weight: 700; letter-spacing: .3px;
       padding: 3px 7px; border-radius: 999px;
-      background: #efe9d8; color: #6a4c00; border: 1px solid #e3d8b1;
+      background: var(--accent-soft); color: var(--accent-deep); border: 1px solid var(--accent-soft);
       white-space: nowrap; line-height: 1.2;
     }
-    .card .cat.unique     { background: #d6efdf; color: #1f5b32; border-color: #a8d9b8; }
-    .card .cat.edition    { background: #d6e6f7; color: #1f4a78; border-color: #a8c8e3; }
-    .card .cat.sold       { background: #f3d6d3; color: #8a1f1a; border-color: #e8b3ad; }
-    .card .cat.not-renewed{ background: #fff4e2; color: #5a4400; border-color: #f0d6a3; }
-    .card .cat.pending-sale{ background: #fce6c4; color: #7a4a00; border-color: #f1c98a; }
+    .card .cat.unique     { background: var(--status-success-tint); color: var(--status-success-deep); border-color: var(--status-success-soft); }
+    .card .cat.edition    { background: var(--status-info-tint); color: var(--status-info); border-color: var(--status-info-soft); }
+    .card .cat.sold       { background: var(--status-danger-soft); color: var(--status-danger-deep); border-color: var(--status-danger-soft); }
+    .card .cat.not-renewed{ background: var(--accent-tint); color: var(--accent-deeper); border-color: var(--accent-soft); }
+    .card .cat.pending-sale{ background: var(--accent-soft); color: var(--accent-deep); border-color: var(--accent-soft); }
 
     /* Pills always live on their own row below the price — keeps card heights
        uniform whether or not there's a price drop / strikethrough showing. */
@@ -423,7 +418,7 @@
       font-size: 13px;
       padding: 32px 16px;
       border-top: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
     }
 
     /* Catalog top-level tabs: For Sale / In Search Of */
@@ -452,13 +447,13 @@
     /* ISO card styling. Reuses .card structure but swaps the price area
        for budget + paints the badge amber instead of green. */
     .card .cat.iso-wanted {
-      background: #fff4e2; color: #7a4a00; border-color: #f1c98a;
+      background: var(--accent-tint); color: var(--accent-deep); border-color: var(--accent-soft);
     }
     .card .iso-placeholder {
       width: 100%; height: 100%;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       color: var(--muted); font-size: 13px; gap: 4px;
-      background: linear-gradient(135deg, #f8f5ee 0%, #efece4 100%);
+      background: linear-gradient(135deg, var(--iso-placeholder-1) 0%, var(--iso-placeholder-2) 100%);
     }
     .card .iso-placeholder .glyph { font-size: 32px; opacity: .55; }
     .card .iso-placeholder .label { letter-spacing: .3px; }
@@ -472,7 +467,7 @@
       width: 44px; height: 44px;
       border-radius: 50%;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--fg);
       font-size: 20px;
       cursor: pointer;
@@ -483,7 +478,7 @@
       transition: opacity .15s ease;
     }
     #back-to-top.visible { display: flex; }
-    #back-to-top:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    #back-to-top:hover { background: var(--accent); color: var(--surface-1); border-color: var(--accent); }
   </style>
 </head>
 <body>

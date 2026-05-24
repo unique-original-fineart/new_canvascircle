@@ -12,6 +12,10 @@
   <link rel="manifest" href="/assets/manifest.webmanifest" />
   <meta name="theme-color" content="#0A1538" />
 
+  <!-- Brand tokens. Single source of truth for colors across all pages.
+       Loaded BEFORE the inline <style> block so vars are available. -->
+  <link rel="stylesheet" href="/assets/theme.css" />
+
   <meta property="og:title"       content="Buying, Shipping, &amp; Selling Guidelines — CanvasCircle" />
   <meta property="og:description" content="Guidelines for safer transactions, smoother payments, better shipping outcomes, and clearer listings." />
   <meta property="og:type"        content="website" />
@@ -20,15 +24,7 @@
   <meta name="twitter:card"       content="summary_large_image" />
 
   <style>
-    :root {
-      --bg:        #faf9f6;
-      --fg:        #1a1a1a;
-      --muted:     #6b6b6b;
-      --accent:    #b8860b;
-      --card-bg:   #ffffff;
-      --card-line: #e8e4dc;
-      --shadow:    0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
-    }
+    /* Color variables now live in /assets/theme.css (see <link> above). */
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
@@ -42,7 +38,7 @@
     header.site {
       padding: 18px 16px;
       border-bottom: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       display: flex; align-items: center; justify-content: space-between;
     }
     header.site .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); }
@@ -68,8 +64,8 @@
     .hero p { margin: 0; color: var(--muted); }
 
     .notice {
-      background: #fbf6e9;
-      border: 1px solid #e9dcad;
+      background: var(--accent-softer);
+      border: 1px solid var(--accent-soft);
       border-radius: 12px;
       padding: 14px 16px;
       margin: 16px 0;
@@ -103,7 +99,7 @@
       font-size: 13px;
       padding: 32px 16px;
       border-top: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
     }
   </style>
 </head>
@@ -143,7 +139,7 @@
 
     <section class="section" id="selling">
       <h2>Selling Guidelines</h2>
-      <div style="padding: 12px 14px; background: #fff4e2; border: 1px solid #f0d6a3; border-radius: 6px; margin-bottom: 14px; color: #5a4400;">
+      <div style="padding: 12px 14px; background: var(--accent-tint); border: 1px solid var(--accent-soft); border-radius: 6px; margin-bottom: 14px; color: var(--accent-deeper);">
         <strong>Who can list:</strong> CanvasCircle is for collectors selling pieces from their own personal collections. The following are <strong>not permitted</strong> to list on this platform:
         <ul style="margin: 8px 0 0; padding-left: 20px;">
           <li><strong>Artists</strong> selling their own original work — please use a platform built for artists.</li>
@@ -153,9 +149,9 @@
         <p style="margin: 8px 0 0;">Listings that fall into any of these categories will be removed and the account may be suspended.</p>
       </div>
 
-      <div style="padding: 14px 16px; background: #eaf6ec; border: 1px solid #b7dcc2; border-radius: 6px; margin-bottom: 14px; color: #1f5b32;">
+      <div style="padding: 14px 16px; background: var(--status-success-wash); border: 1px solid var(--status-success-soft); border-radius: 6px; margin-bottom: 14px; color: var(--status-success-deep);">
         <strong style="display: inline-flex; align-items: center; gap: 6px;">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#1f5b32;color:#fff;font-size:12px;font-weight:700;">✓</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--status-success-deep);color:var(--surface-1);font-size:12px;font-weight:700;">✓</span>
           Get the Ownership Verified badge — free, fast, and it sells faster.
         </strong>
         <p style="margin: 8px 0 0;">Submit a short video (≤7 sec) showing the artwork in your hands with a handwritten card displaying your <strong>@handle</strong> + today's date. The admin reviews; approved listings get a green ✓ badge that signals to buyers you actually have the piece. No fee.</p>
@@ -185,15 +181,15 @@
 
           <p style="margin: 10px 0 0;"><strong>Manual revocation by admin.</strong> CanvasCircle may also revoke a badge at any time for rule violations or buyer complaints (for example, if a buyer reports that you refused to send them the verification video when asked).</p>
 
-          <p style="margin: 10px 0 0;">Full policy details: <a href="/terms.html" style="color:#1f5b32; text-decoration: underline;">Terms of Use § 5 Ownership Verification</a> and <a href="/privacy.html" style="color:#1f5b32; text-decoration: underline;">Privacy Policy</a>.</p>
+          <p style="margin: 10px 0 0;">Full policy details: <a href="/terms.html" style="color:var(--status-success-deep); text-decoration: underline;">Terms of Use § 5 Ownership Verification</a> and <a href="/privacy.html" style="color:var(--status-success-deep); text-decoration: underline;">Privacy Policy</a>.</p>
         </details>
 
-        <p style="margin: 10px 0 0; padding-top: 10px; border-top: 1px solid #b7dcc2; font-size: 13px;"><em>Important:</em> the badge confirms <strong>physical possession only</strong>, not authenticity, condition, or provenance. Submitting falsified, AI-generated, or reused videos will result in revocation, listing removal, and may result in your account being banned.</p>
+        <p style="margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--status-success-soft); font-size: 13px;"><em>Important:</em> the badge confirms <strong>physical possession only</strong>, not authenticity, condition, or provenance. Submitting falsified, AI-generated, or reused videos will result in revocation, listing removal, and may result in your account being banned.</p>
       </div>
 
-      <div style="padding: 14px 16px; background: #eaf6ec; border: 1px solid #b7dcc2; border-radius: 6px; margin-bottom: 14px; color: #1f5b32;">
+      <div style="padding: 14px 16px; background: var(--status-success-wash); border: 1px solid var(--status-success-soft); border-radius: 6px; margin-bottom: 14px; color: var(--status-success-deep);">
         <strong style="display: inline-flex; align-items: center; gap: 6px;">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#1f5b32;color:#fff;font-size:12px;font-weight:700;">★</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--status-success-deep);color:var(--surface-1);font-size:12px;font-weight:700;">★</span>
           Build your References — the most powerful trust signal on the platform.
         </strong>
         <p style="margin: 8px 0 0;">You can ask any <strong>Established Member</strong> to appear as a <strong>Reference</strong> on your seller profile — regardless of whether you're Established yet yourself. Accepted References show up by display name and @handle on every one of your listings and on your public seller page. Buyers are explicitly told in our Buying Guidelines to click through your References and reach out to those members to ask how their transactions with you went — references are the closest thing to a Yelp review the platform offers, and they matter even more for newer sellers without their own track record on CanvasCircle.</p>
@@ -210,11 +206,11 @@
           </ul>
           <p style="margin: 10px 0 0;"><strong>Rules:</strong> You can have up to 5 active <em>outgoing</em> reference requests (pending + accepted combined). There's no cap on how many sellers you may agree to be a reference for. The <em>target</em> of any reference request must be an Established Member — only Established Members can be vouched for. You don't have to be Established yourself to send a request, but you do have to be Established for someone else to request you as their reference. Coordinated mutual references between related accounts, or vouching for users you have no genuine experience with, can result in suspension or banning of all involved accounts.</p>
           <p style="margin: 10px 0 0;"><strong>Use them well:</strong> Only request references from members you've actually completed a transaction with. When a member accepts being your reference, treat that as a real commitment — they're putting their reputation alongside yours. If you ever find yourself in a dispute, your References may get pinged by the buyer, so transact honestly.</p>
-          <p style="margin: 10px 0 0;">Full policy: <a href="/terms.html" style="color:#1f5b32; text-decoration: underline;">Terms of Use § 5</a> (Sales References subsection).</p>
+          <p style="margin: 10px 0 0;">Full policy: <a href="/terms.html" style="color:var(--status-success-deep); text-decoration: underline;">Terms of Use § 5</a> (Sales References subsection).</p>
         </details>
       </div>
 
-      <div id="established-member" style="padding: 14px 16px; background: #fff; border: 1px solid var(--card-line); border-radius: 6px; margin-bottom: 14px;">
+      <div id="established-member" style="padding: 14px 16px; background: var(--surface-1); border: 1px solid var(--card-line); border-radius: 6px; margin-bottom: 14px;">
         <strong style="font-size: 16px;">Becoming an Established Member</strong>
         <p style="margin: 8px 0 0;">There are <strong>two paths</strong> to Established Member status. Either one results in exactly the same badge and the same privileges.</p>
 
@@ -284,7 +280,7 @@
       width: 44px; height: 44px;
       border-radius: 50%;
       border: 1px solid var(--card-line);
-      background: #fff;
+      background: var(--surface-1);
       color: var(--fg);
       font-size: 20px;
       cursor: pointer;
@@ -295,7 +291,7 @@
       transition: opacity .15s ease;
     }
     #back-to-top.visible { display: flex; }
-    #back-to-top:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    #back-to-top:hover { background: var(--accent); color: var(--surface-1); border-color: var(--accent); }
   </style>
   <button type="button" id="back-to-top" aria-label="Back to top">↑</button>
   <script>
