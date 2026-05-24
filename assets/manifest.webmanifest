@@ -1,19 +1,19 @@
 {
-  "name": "Canvas Circle | Fine Art Listing Platform",
-  "short_name": "Canvas Circle",
+  "name": "CanvasCircle | Fine Art Listing Platform",
+  "short_name": "CanvasCircle",
   "description": "Browse fine art listings and connect directly with sellers.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#faf9f6",
-  "theme_color": "#1a1a1a",
+  "background_color": "#0A1538",
+  "theme_color": "#0A1538",
   "icons": [
     {
       "src": "/assets/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "/assets/icons/icon-512.png",

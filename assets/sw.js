@@ -9,11 +9,12 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
-// CACHE_VERSION is deliberately held at cc-v2 here even though the SW logic
-// changed (we now cache esm.sh too). Bumping would delete the user's HTML
-// cache, leaving the very next cold-start vulnerable. The new cross-origin
-// caching is purely additive, so the existing cache stays useful.
-const CACHE_VERSION = 'cc-v2';
+// CACHE_VERSION bumped to cc-v3-logo on 2026-05-24 so existing PWA users get
+// the new CanvasCircle favicon/manifest/icons instead of the cached old ones.
+// On activate, the previous cache (cc-v2) is deleted — the very next HTML
+// request goes to network, but that's acceptable here: the favicon change is
+// a brand identity fix that needs to ship widely.
+const CACHE_VERSION = 'cc-v3-logo';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. Their URLs
@@ -29,13 +30,22 @@ const CROSS_ORIGIN_CACHE_HOSTS = new Set([
   'cdnjs.cloudflare.com',
   'unpkg.com',
 ]);
+// Paths must match the actual served URLs. These live under /assets/ on
+// Cloudflare Pages, NOT at the root — a previous version of this list had
+// them at root and the precache silently 404'd (the .catch in install masks
+// the failure, so the file appears precached but isn't).
 const SHELL_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.webmanifest',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/apple-touch-icon.png',
+  '/assets/manifest.webmanifest',
+  '/assets/favicon.ico',
+  '/assets/favicon.svg',
+  '/assets/favicon-96x96.png',
+  '/assets/icons/icon-192.png',
+  '/assets/icons/icon-512.png',
+  '/assets/icons/apple-touch-icon.png',
+  '/assets/logo.svg',
+  '/assets/logo-dark-bg.svg',
 ];
 
 // Pre-cache the supabase-js library as part of install so it's available
