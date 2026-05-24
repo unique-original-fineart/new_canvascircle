@@ -1992,6 +1992,39 @@
       border-top: 1px solid var(--card-line);
       background: var(--surface-1);
     }
+
+    /* ===========================================================================
+       iOS Safari select fix — portal-wide
+
+       Same problem we hit on the catalog: iOS Safari ignores `color:` on
+       <select> and renders the label + default arrow in OS-default DARK text,
+       which is invisible on the navy bg. The bulletproof fix is to disable
+       native appearance entirely and supply a custom SVG chevron via
+       background-image so the dropdown still LOOKS like a dropdown.
+
+       This single rule covers every <select> in the portal — dashboard
+       filters, Your-Listings edit cards, admin toolbar, all-listings inline
+       controls, and the new-listing form. Listed below the per-component
+       rules so background-image cascades correctly while each component's
+       background-color stays intact.
+
+       The dropdown CHEVRON color uses #7C8499 (--text-muted equivalent) so it
+       reads on navy without competing with the label text.
+       =========================================================================== */
+    .dash-toolbar select,
+    .listing-card .form-grid select,
+    .admin-toolbar select,
+    .all-listing-row .al-controls select,
+    .nl-form-grid select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%237C8499' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 12px 8px;
+      padding-right: 32px;
+    }
   </style>
 </head>
 <body>
