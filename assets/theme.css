@@ -294,3 +294,29 @@ body {
   min-height: 100vh;
 }
 
+/* =================================================================
+   Header → content seam — 1px brand-gradient line
+
+   Each page's inline <style> sets `border-bottom: 1px solid
+   var(--card-line)` on the header, which is invisible (navy on navy).
+   Override that with a transparent border so the spacing stays right,
+   then paint a 1px gradient stripe via ::after positioned at the
+   bottom edge. Gives the header a clean defined edge AND quietly
+   carries the brand gradient as a horizontal accent.
+
+   Targets `body > header` to match both <header> and <header class="site">
+   variants used across pages.
+   ================================================================= */
+body > header {
+  border-bottom-color: transparent !important;
+  position: relative;
+}
+body > header::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1px;
+  background: var(--brand-gradient);
+  pointer-events: none;
+}
+

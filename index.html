@@ -38,7 +38,7 @@
 
   <!-- Brand tokens. Single source of truth for colors across all pages.
        Loaded BEFORE the inline <style> block so vars are available. -->
-  <link rel="stylesheet" href="/assets/theme.css?v=5" />
+  <link rel="stylesheet" href="/assets/theme.css?v=6" />
 
   <!-- Performance: warm up the TLS + DNS to the Supabase storage host so the
        first image request lands on a ready connection. Shaves ~100ms off
@@ -123,7 +123,19 @@
       margin: 0; color: var(--muted);
       font-size: 14px; line-height: 1.45;
     }
-    .hero p.tagline strong { color: var(--fg); font-weight: 600; }
+    /* Brand-gradient text on the "CanvasCircle" word — ties the hero into
+       the brand without adding another element. background-clip:text +
+       transparent fill is the standard technique; works in all modern
+       browsers. The `color:` fallback ensures the word stays readable
+       if the browser doesn't support clip-to-text. */
+    .hero p.tagline strong {
+      background: var(--brand-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: var(--fg);
+      font-weight: 700;
+    }
 
     /* ---- Filter toolbar ---- */
     .toolbar {
@@ -542,7 +554,7 @@
     </nav>
   </header>
 
-  <script type="module" src="/lib/nav-auth.js?v=2"></script>
+  <script type="module" src="/lib/nav-auth.js?v=3"></script>
 
   <main>
     <section class="hero">
