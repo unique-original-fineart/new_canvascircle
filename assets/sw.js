@@ -14,7 +14,7 @@
 // versions. The previous cache (cc-v3-logo) is deleted on activate — the very
 // next HTML request goes to network, but that's the price of shipping a visual
 // re-skin widely.
-const CACHE_VERSION = 'cc-v7-mobile-fixes-2';
+const CACHE_VERSION = 'cc-v8-header-logo';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. Their URLs
@@ -47,6 +47,7 @@ const SHELL_ASSETS = [
   '/assets/icons/apple-touch-icon.png',
   '/assets/logo.svg',
   '/assets/logo-dark-bg.svg',
+  '/assets/logo-on-white.svg',
 ];
 
 // Pre-cache the supabase-js library as part of install so it's available
