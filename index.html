@@ -187,9 +187,21 @@
       border: 1px solid var(--card-line);
       background: var(--surface-1);
       color: var(--fg);
+      /* iOS Safari ignores `color:` on <select> and renders the label
+         in its OS-default dark text. -webkit-text-fill-color is the
+         narrower property iOS respects, so the dropdown label stays
+         legible in dark mode. We keep the native appearance so the
+         iOS picker still pops up and shows its own chevron arrow. */
+      -webkit-text-fill-color: var(--fg);
       font-size: 14px;
       font-family: inherit;
       min-width: 0;          /* let grid items shrink properly */
+    }
+    .toolbar input[type="search"]::placeholder,
+    .toolbar input[type="number"]::placeholder {
+      color: var(--text-muted);
+      -webkit-text-fill-color: var(--text-muted);
+      opacity: 1;
     }
     /* Use the browser-native dropdown arrow (smaller, well-positioned).
        Just make sure the text doesn't run under it. */
