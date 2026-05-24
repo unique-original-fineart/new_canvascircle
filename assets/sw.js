@@ -9,12 +9,12 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
-// CACHE_VERSION bumped to cc-v3-logo on 2026-05-24 so existing PWA users get
-// the new CanvasCircle favicon/manifest/icons instead of the cached old ones.
-// On activate, the previous cache (cc-v2) is deleted — the very next HTML
-// request goes to network, but that's acceptable here: the favicon change is
-// a brand identity fix that needs to ship widely.
-const CACHE_VERSION = 'cc-v3-logo';
+// CACHE_VERSION bumped to cc-v4-dark on 2026-05-24 so existing PWA users get
+// the new dark theme.css and dark-bg logo SVG instead of the cached light
+// versions. The previous cache (cc-v3-logo) is deleted on activate — the very
+// next HTML request goes to network, but that's the price of shipping a visual
+// re-skin widely.
+const CACHE_VERSION = 'cc-v4-dark';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. Their URLs

@@ -1,164 +1,193 @@
 /* =================================================================
    CanvasCircle theme tokens — single source of truth for colors.
 
-   Phase 1 (variable extraction): values mirror the current light /
-   beige / gold palette so introducing this file is visually a no-op.
+   Phase 1 (variable extraction): values mirrored the current light /
+   beige / gold palette so introducing this file was a visual no-op.
 
-   Phase 2 (dark mode swap): this file is the one file edited to
-   re-skin the entire site. All eight pages link this stylesheet
-   in <head> BEFORE their own <style> block, so vars defined here
-   are available everywhere.
+   ★ Phase 2 (dark mode swap) — CURRENT STATE ★
+   The values below have been re-skinned to a dark theme built around
+   the logo's locked palette:
+     #0A1538 navy   (page bg / brand outer ring)
+     #FF6A1A orange (gradient stop 1)
+     #E91E63 magenta(gradient stop 2)
+     #8B1FC4 purple (gradient stop 3)
+     #2D7FFF blue   (gradient stop 4 / new --accent role replacing gold)
+
+   Status colors moved from green/red/amber to BLUE/MAGENTA/ORANGE —
+   per the Phase 0 decision that status badges use solid colors FROM
+   the gradient (not the gradient itself). Same for Unique/Original
+   and Limited Edition badges.
 
    Naming convention is *by role*, not by value:
-     --text-muted        (not --gray-6b)
-     --surface-1         (not --white)
-     --status-success    (not --green)
-     --accent-tint       (not --light-gold-fff4e2)
-   This is what makes Phase 2 a values-only swap.
+     --text-muted        (not --gray-7c)
+     --surface-1         (not --card-navy)
+     --status-success    (not --blue)
+     --accent-tint       (not --transparent-blue)
+   This is why Phase 2 was a values-only swap.
 
-   The previously-defined inline :root variables (--bg, --fg,
-   --muted, --accent, --card-bg, --card-line, --shadow, --green,
-   --red) are preserved as aliases at the bottom of this file for
-   backward compatibility — every existing var(--bg) reference in
-   the eight pages keeps working unchanged.
+   The legacy aliases (--bg, --fg, --muted, --accent, --card-bg,
+   --card-line, --shadow, --green, --red) at the bottom keep every
+   existing var() reference in the eight pages working unchanged.
    ================================================================= */
 
 :root {
-  /* ---------- Surface & background ---------- */
-  --bg:              #faf9f6;   /* page background */
-  --surface-1:       #ffffff;   /* card / panel face */
-  --surface-2:       #fafaf6;   /* nested surface, a touch darker than surface-1 */
-  --surface-3:       #f4f1ea;   /* subtle alternating block bg (rare) */
+  /* ---------- Surface & background ----------
+     --bg is the logo's outer-ring navy.
+     --surface-1 is a notch lighter so cards lift off the page.
+     --surface-2 / --surface-3 step lighter in turn for nested depth. */
+  --bg:              #0A1538;   /* page background — logo navy */
+  --surface-1:       #16204F;   /* card / panel face */
+  --surface-2:       #1B2659;   /* nested surface, a touch lighter */
+  --surface-3:       #243170;   /* alternating block bg / hover state */
 
-  /* ---------- Text tiers ---------- */
-  --text:            #1a1a1a;   /* primary body text */
-  --text-soft:       #555555;   /* between primary and muted */
-  --text-muted:      #6b6b6b;   /* secondary, captions, helper text */
+  /* ---------- Text tiers ----------
+     Pure white on navy is harsh. --text is a slightly cool off-white
+     that softens the contrast without sacrificing legibility (13.7:1
+     on --bg — well above WCAG AAA). */
+  --text:            #E5E7EB;   /* primary body text */
+  --text-soft:       #A8B0C2;   /* between primary and muted */
+  --text-muted:      #7C8499;   /* secondary, captions, helper text */
+  --text-inverse:    #FFFFFF;   /* text drawn ON a filled colored background
+                                   (buttons, status pills, hero overlays).
+                                   STAYS white in both light AND dark modes —
+                                   solid-color buttons want white text either way. */
 
-  /* ---------- Borders & dividers ---------- */
-  --border:          #e8e4dc;   /* default card / panel border */
-  --border-soft:     #f0ede6;   /* lighter divider, sub-row separators */
-  --border-strong:   #cccccc;   /* slightly stronger separator (rare) */
+  /* ---------- Borders & dividers ----------
+     A touch lighter than the surface they bound, so the seam reads as
+     a line rather than as a transition. */
+  --border:          #1F2A5C;   /* default card / panel border */
+  --border-soft:     #18234D;   /* lighter divider, sub-row separators */
+  --border-strong:   #2E3A75;   /* slightly stronger separator */
 
-  /* ---------- Shadow ---------- */
-  --shadow:          0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
+  /* ---------- Shadow ----------
+     On dark backgrounds, drop shadows need higher opacity to read.
+     The classic light-mode "0,0,0,.04" is invisible against navy. */
+  --shadow:                0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-elevated:       0 4px 14px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.35);
+  --shadow-image-inset:    inset 0 1px 3px rgba(0,0,0,0.4);  /* off-black image
+                                   container with subtle inset shadow, so
+                                   white-bg artwork photos don't float as
+                                   cutouts (memory decision). */
+  --focus-ring:            0 0 0 3px rgba(45,127,255,0.30);   /* accent (blue) focus ring */
+  --focus-ring-success:    0 0 0 3px rgba(45,127,255,0.30);   /* same — success is blue too in dark */
 
-  /* ---------- Brand ---------- */
-  --brand-navy:      #0A1538;   /* logo outer ring; theme-color meta */
-  --brand-orange:    #FF6A1A;   /* gradient stop 1 */
-  --brand-magenta:   #E91E63;   /* gradient stop 2 */
-  --brand-purple:    #8B1FC4;   /* gradient stop 3 */
-  --brand-blue:      #2D7FFF;   /* gradient stop 4 */
-  /* Gradient utility — for selective use in Phase 4 brand touches */
+  /* ---------- Brand (UNCHANGED — logo palette is constant) ---------- */
+  --brand-navy:      #0A1538;
+  --brand-orange:    #FF6A1A;
+  --brand-magenta:   #E91E63;
+  --brand-purple:    #8B1FC4;
+  --brand-blue:      #2D7FFF;
   --brand-gradient:  linear-gradient(135deg, #FF6A1A 0%, #E91E63 35%, #8B1FC4 65%, #2D7FFF 100%);
 
-  /* ---------- Accent (gold — retires in Phase 2) ---------- */
-  --accent:          #b8860b;   /* primary gold */
-  --accent-deep:     #7a4a00;   /* dark gold, text on gold tint */
-  --accent-deeper:   #5a4400;   /* deepest gold */
-  --accent-tint:     #fff4e2;   /* light gold background fill */
-  --accent-soft:     #f0d6a3;   /* gold border tone */
-  --accent-softer:   #fbf6e9;   /* very light gold wash */
+  /* ---------- Accent (gold RETIRED → BLUE) ----------
+     The previous gold accent was the "primary interactive" color: links,
+     focus rings, primary CTA buttons. In dark mode, blue takes that role —
+     it's calm, trustworthy, and part of the brand gradient. */
+  --accent:          #2D7FFF;
+  --accent-deep:     #6FA8FF;   /* lighter blue — text on dark accent surfaces */
+  --accent-deeper:   #95BFFF;   /* deepest legibility on translucent blue */
+  --accent-tint:     rgba(45,127,255,0.12);
+  --accent-soft:     rgba(45,127,255,0.35);
+  --accent-softer:   rgba(45,127,255,0.06);
 
-  /* ---------- Status: success (green family) ---------- */
-  --status-success:        #2a7a3e;   /* primary green */
-  --status-success-deep:   #1f5b32;   /* text on light green */
-  --status-success-tint:   #d6efdf;   /* success banner / pill bg */
-  --status-success-soft:   #a8d9b8;   /* success border */
-  --status-success-wash:   #eaf6ec;   /* very light success bg */
+  /* ---------- Status: success — now BLUE (Available, Verified Ownership, Active) ----
+     Maps from green to gradient-stop blue. */
+  --status-success:          #2D7FFF;
+  --status-success-deep:     #6FA8FF;
+  --status-success-tint:     rgba(45,127,255,0.15);
+  --status-success-soft:     rgba(45,127,255,0.40);
+  --status-success-wash:     rgba(45,127,255,0.08);
 
-  /* ---------- Status: danger (red family) ---------- */
-  --status-danger:         #a8281f;
-  --status-danger-deep:    #8a1f1a;   /* sold/closed deeper */
-  --status-danger-tint:    #fef6f5;
-  --status-danger-soft:    #f1c4be;
-  --status-danger-strong:  #c93f3f;   /* error text where needed brighter */
+  /* ---------- Status: danger — now MAGENTA (SOLD, Error, Closed) ----
+     Maps from red to gradient-stop magenta. */
+  --status-danger:           #E91E63;
+  --status-danger-deep:      #FF5285;
+  --status-danger-tint:      rgba(233,30,99,0.15);
+  --status-danger-soft:      rgba(233,30,99,0.40);
+  --status-danger-strong:    #FF3F73;
 
-  /* ---------- Status: info (blue family — buying tips, notes) ---------- */
-  --status-info:           #1f4a78;
-  --status-info-tint:      #d6e6f7;
-  --status-info-soft:      #a8c8e3;
+  /* ---------- Status: info — lighter BLUE (buying tips, notes) ----
+     Distinct from --accent so info banners don't get confused with primary CTAs. */
+  --status-info:             #6FA8FF;
+  --status-info-tint:        rgba(111,168,255,0.15);
+  --status-info-soft:        rgba(111,168,255,0.40);
 
-  /* ---------- Category badges (mapped to gradient stops as solid colors) ----------
-     Per redesign decision: status pills + category badges use the four
-     gradient stop colors as SOLID fills, not the gradient itself, to keep
-     them on-brand while remaining individually distinguishable. The
-     current light theme keeps using the legacy gold-family fills for
-     these — Phase 2 swaps in the brand-* values above. */
-  --badge-unique-bg:       #fff4e2;
-  --badge-unique-fg:       #7a4a00;
-  --badge-unique-border:   #f0d6a3;
-  --badge-limited-bg:      #d6efdf;
-  --badge-limited-fg:      #1f5b32;
-  --badge-limited-border:  #a8d9b8;
-  --badge-iso-bg:          #d6e6f7;
-  --badge-iso-fg:          #1f4a78;
-  --badge-iso-border:      #a8c8e3;
-  --badge-mood-bg:         #e6e0f0;
-  --badge-mood-fg:         #4a3478;
-  --badge-mood-border:     #cdc1e5;
+  /* ---------- Category badges (Unique / Limited Edition / ISO / Mood) ----------
+     Per Phase 0 decision: solid gradient-stop colors for each badge type.
+     Unique → PURPLE (premium, one-of-a-kind)
+     Limited → BLUE (exclusive small print run)
+     ISO → BLUE (sits on different listings than Limited, so no collision)
+     Mood → ORANGE (warm, expressive) */
+  --badge-unique-bg:         rgba(139,31,196,0.18);
+  --badge-unique-fg:         #C68DEB;
+  --badge-unique-border:     rgba(139,31,196,0.40);
+  --badge-limited-bg:        rgba(45,127,255,0.18);
+  --badge-limited-fg:        #6FA8FF;
+  --badge-limited-border:    rgba(45,127,255,0.40);
+  --badge-iso-bg:            rgba(45,127,255,0.18);
+  --badge-iso-fg:            #6FA8FF;
+  --badge-iso-border:        rgba(45,127,255,0.40);
+  --badge-mood-bg:           rgba(255,106,26,0.15);
+  --badge-mood-fg:           #FFA176;
+  --badge-mood-border:       rgba(255,106,26,0.40);
 
-  /* ---------- ISO placeholder gradient (two-stop wash for empty ISO heroes) ----------
-     A subtle warm-cream diagonal — slightly more decorative than --surface-3.
-     The two stops differ only marginally; the gradient is what makes it feel
-     like a placeholder rather than a flat box. Phase 2 will swap to a navy
-     wash. */
-  --iso-placeholder-1:     #f8f5ee;
-  --iso-placeholder-2:     #efece4;
+  /* ---------- ISO placeholder gradient (empty ISO hero) ----------
+     Subtle two-stop navy diagonal — lighter than the page, hinting at
+     "image goes here" without competing for attention. */
+  --iso-placeholder-1:       #1B2659;
+  --iso-placeholder-2:       #243170;
 
-  /* ---------- Status: warn (amber — pending verification, unsaved changes) ---------- */
-  --status-warn:           #c47a05;   /* solid amber pill / pending badge */
-  --status-warn-deep:      #b97f17;   /* dirty-flag text */
-  --status-warn-border:    #d69b3a;   /* dirty-card border */
-  --status-warn-tint:      #fbe9c7;   /* light amber hover bg */
+  /* ---------- Status: warn — now ORANGE (Pending verification, Unsaved changes) ----
+     Maps from amber to gradient-stop orange. */
+  --status-warn:             #FF6A1A;
+  --status-warn-deep:        #FF8C4D;
+  --status-warn-border:      rgba(255,106,26,0.50);
+  --status-warn-tint:        rgba(255,106,26,0.15);
 
-  /* ---------- Status: info banner (slightly different blue family from --status-info) ----
-     The portal uses a softer, cooler blue for informational banners than the
-     buying-tips info color. Distinct token so Phase 2 can tune separately. */
-  --banner-info-bg:        #eaf1fb;
-  --banner-info-border:    #cad9ee;
-  --banner-info-text:      #1f4583;
+  /* ---------- Banner: info (translucent blue) ---------- */
+  --banner-info-bg:          rgba(45,127,255,0.10);
+  --banner-info-border:      rgba(45,127,255,0.35);
+  --banner-info-text:        #6FA8FF;
 
-  /* ---------- Banner: revoked / serious warning (red-orange family) ----------
-     Used by .revoked-banner and related "ban hammer" UI in the admin portal.
-     Visually distinct from regular danger colors (which signal SOLD / error)
-     so the family gets its own tokens. */
-  --banner-revoked-bg:     #fff0ef;
-  --banner-revoked-border: #f1a99c;
-  --banner-revoked-text:   #5a1a10;
-  --banner-revoked-strong: #d18579;
-  --banner-revoked-soft:   #f9d8d3;
-  --banner-revoked-tint:   #fef0ee;
+  /* ---------- Banner: revoked / "ban hammer" (magenta family — alarming) ----------
+     Visually distinct from --status-danger so admin revocation reads as
+     a separate severity from "this listing is sold". */
+  --banner-revoked-bg:       rgba(233,30,99,0.10);
+  --banner-revoked-border:   rgba(233,30,99,0.35);
+  --banner-revoked-text:     #FF8AB0;
+  --banner-revoked-strong:   #E91E63;
+  --banner-revoked-soft:     rgba(233,30,99,0.20);
+  --banner-revoked-tint:     rgba(233,30,99,0.05);
 
-  /* ---------- Neutral grays (delisted / inactive / placeholder states) ---------- */
-  --neutral-bg:            #ececec;
-  --neutral-text:          #4a4a4a;
-  --neutral-border:        #d4d4d4;
-  --neutral-warm:          #c7c1b3;   /* warm gray for verification-off dots */
+  /* ---------- Neutral grays (delisted / inactive states) ---------- */
+  --neutral-bg:              rgba(255,255,255,0.06);
+  --neutral-text:            #A8B0C2;
+  --neutral-border:          rgba(255,255,255,0.12);
+  --neutral-warm:            #7C8499;
 
-  /* ---------- Hover-state offsets (slightly darker variants used on hover) ---------- */
-  --status-success-darker: #0f3a1d;   /* deeper than --status-success-deep */
-  --status-success-mid:    #2d6f43;   /* between success and success-deep */
-  --status-success-hover:  #174d28;   /* hover-deep green */
-  --status-success-hover-bg: #c0e3cb; /* hover bg for save buttons */
-  --status-success-wash-2: #eef6ed;   /* slight variant of --status-success-wash */
+  /* ---------- Hover-state offsets ----------
+     Slightly brighter variants — on dark surfaces, hovers feel right when
+     they get LIGHTER not darker (opposite of light mode). */
+  --status-success-darker:   #1A6AE5;
+  --status-success-mid:      #4A8FFF;
+  --status-success-hover:    #6FA8FF;
+  --status-success-hover-bg: rgba(45,127,255,0.25);
+  --status-success-wash-2:   rgba(45,127,255,0.10);
 
-  /* ---------- Chrome (toolbar / floating UI dark accents) ---------- */
-  --chrome-dark:           #1f1a17;   /* save-all-bar bg, deep warm black */
+  /* ---------- Chrome (floating UI dark accents) ----------
+     The save-all-bar etc. In dark mode it's already dark, so we go even
+     deeper than the page bg to maintain "chrome > content" hierarchy. */
+  --chrome-dark:             #050B22;
 
-  /* ---------- Manage-open & vermod surfaces (warm cream / border tints) ---------- */
-  --surface-cream:         #f3f1ea;   /* lighter than --surface-3 */
-  --surface-warm:          #f6f3ec;   /* warmer than --surface-2 */
-  --surface-cream-border:  #d8d2c4;   /* cream-band border */
+  /* ---------- Cream / warm surfaces — collapse to navy neutrals ---------- */
+  --surface-cream:           #1B2659;
+  --surface-warm:            #18234D;
+  --surface-cream-border:    #2E3A75;
 
-  /* ---------- Pure black (for video letterboxing where bg must be neutral) ---------- */
-  --letterbox:             #000000;
+  /* ---------- Pure black (video letterboxing — color-agnostic by intent) ---------- */
+  --letterbox:               #000000;
 
-  /* ---------- Legacy aliases — preserve existing var(--bg) etc. references ----------
-     The eight pages currently use --bg, --fg, --muted, --accent, --card-bg,
-     --card-line, --shadow, --green, --red. We keep these names working by
-     also defining the new tokens with the same shape — but we want a single
-     vocabulary going forward, so the legacy names alias the new tokens. */
+  /* ---------- Legacy aliases — preserve existing var(--bg) etc. references ---------- */
   --fg:        var(--text);
   --muted:     var(--text-muted);
   --card-bg:   var(--surface-1);
