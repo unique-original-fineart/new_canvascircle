@@ -492,9 +492,14 @@
       margin-bottom: -1px;
     }
     .catalog-tab:hover { color: var(--fg); }
+    /* Active tab gets a brand-gradient underline via border-image — paints
+       the 3px bottom border with the warm-to-cool gradient instead of solid
+       blue. Border-image-slice: 1 stretches the gradient across the full
+       width of the border. */
     .catalog-tab.is-active {
       color: var(--fg);
-      border-bottom-color: var(--accent);
+      border-bottom-color: transparent;
+      border-image: var(--brand-gradient) 1;
     }
     .catalog-tab .tab-hint { font-weight: 400; color: var(--muted); font-size: 13px; }
     @media (max-width: 540px) {
@@ -554,7 +559,7 @@
     </nav>
   </header>
 
-  <script type="module" src="/lib/nav-auth.js?v=4"></script>
+  <script type="module" src="/lib/nav-auth.js?v=5"></script>
 
   <main>
     <section class="hero">

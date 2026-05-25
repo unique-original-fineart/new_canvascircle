@@ -168,7 +168,8 @@
       margin-bottom: -1px;
     }
     .catalog-tab:hover { color: var(--fg); }
-    .catalog-tab.is-active { color: var(--fg); border-bottom-color: var(--accent); }
+    /* Brand-gradient underline on active tab — matches index.html catalog. */
+    .catalog-tab.is-active { color: var(--fg); border-bottom-color: transparent; border-image: var(--brand-gradient) 1; }
     .catalog-tab .count { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 4px; }
     @media (max-width: 540px) {
       .catalog-tab { padding: 10px 12px; font-size: 14px; }
@@ -347,7 +348,7 @@
     </nav>
   </header>
 
-  <script type="module" src="/lib/nav-auth.js?v=4"></script>
+  <script type="module" src="/lib/nav-auth.js?v=5"></script>
 
   <main>
     <div id="status">Loading seller&hellip;</div>

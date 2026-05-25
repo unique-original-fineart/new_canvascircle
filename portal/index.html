@@ -1354,10 +1354,13 @@
       border-bottom: 2px solid transparent;
     }
     .tab-btn:hover { color: var(--fg); }
+    /* Brand-gradient underline on the active dashboard tab — matches the
+       catalog tabs. */
     .tab-btn.is-active {
       color: var(--fg);
       font-weight: 600;
-      border-bottom-color: var(--accent);
+      border-bottom-color: transparent;
+      border-image: var(--brand-gradient) 1;
     }
     .tab-panel { display: none; }
     .tab-panel.is-active { display: block; }
@@ -2042,7 +2045,7 @@
     </nav>
   </header>
 
-  <script type="module" src="/lib/nav-auth.js?v=4"></script>
+  <script type="module" src="/lib/nav-auth.js?v=5"></script>
 
   <main>
     <div class="card">
