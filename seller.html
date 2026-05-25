@@ -614,7 +614,10 @@
           .eq("seller_id", profile.user_id)
           .eq("listing_type", "sale")
           .eq("moderation_status", "approved")
-          .in("status", ["available"])
+          // Include Pending Sale alongside Available — same logic as the
+          // public catalog (index.html). Card renders PENDING SALE badge
+          // to distinguish state.
+          .in("status", ["available", "pending"])
           .order("created_at", { ascending: false }),
         supabase.from("listings").select(`
           listing_id, listing_type, artist_name, artwork_title, artwork_category,

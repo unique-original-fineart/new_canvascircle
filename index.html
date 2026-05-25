@@ -888,10 +888,17 @@
         q = q.eq("status", "available");
       } else {
         // Sale listings — status filter from the dropdown.
-        const status = filters.statusF === "sold" ? "sold"
-                     : filters.statusF === "not_renewed" ? "not_renewed"
-                     : "available";
-        q = q.eq("status", status);
+        // The default "available" view ALSO includes status=pending (Pending
+        // Sale) — the PENDING SALE badge on the card distinguishes state.
+        // Reason: pending-sale isn't a final state; the deal might fall
+        // through, and backup buyers should be able to find the listing.
+        if (filters.statusF === "sold") {
+          q = q.eq("status", "sold");
+        } else if (filters.statusF === "not_renewed") {
+          q = q.eq("status", "not_renewed");
+        } else {
+          q = q.in("status", ["available", "pending"]);
+        }
       }
 
       if (filters.cat)    q = q.eq("artwork_category", filters.cat);
