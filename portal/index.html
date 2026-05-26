@@ -1699,6 +1699,22 @@
     .tab-panel { display: none; }
     .tab-panel.is-active { display: block; }
 
+    /* Dual-label pattern: on desktop show the full descriptive label, on
+       mobile swap to the shorter one so all 4 tabs fit without scroll.
+       Default (desktop): full visible, short hidden. */
+    .tab-label-short { display: none; }
+    .tab-label-full,
+    .tab-label        { display: inline; }
+
+    /* Right-edge fade mask — applied via .is-scrollable, which JS adds
+       when the tab strip's content actually overflows. Without the class
+       the mask is absent and tab labels render normally; with it, the
+       rightmost ~24px fades to signal "swipe to see more". */
+    .tab-strip.is-scrollable {
+      -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+              mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+    }
+
     /* On narrow viewports, tighten tab padding so more tabs fit before
        scrolling kicks in. The 5th tab (Admin) only appears for admins —
        most sellers have 4 tabs, which fit comfortably with this padding. */
@@ -1716,6 +1732,10 @@
         padding: 10px 10px 12px;
         font-size: 13px;
       }
+      /* Swap to short labels on mobile so the regular 4-tab case fits
+         without any horizontal scroll. */
+      .tab-label-full  { display: none; }
+      .tab-label-short { display: inline; }
     }
 
     /* ------ Admin tab ------ */
@@ -2689,13 +2709,27 @@
         </div>
 
 
-        <!-- Tabs -->
+        <!-- Tabs — dual-label pattern: full label shows on desktop, short
+             label shows on mobile so all 4 (or 5 for admin) tabs fit
+             without horizontal scroll. The fade-edge mask + .is-scrollable
+             class (toggled by JS) signals scrollability on the rare phones
+             where the admin's 5 tabs still don't fit. -->
         <div class="tab-strip" role="tablist">
-          <button type="button" class="tab-btn is-active" data-tab="your-listings" role="tab">Your listings</button>
-          <button type="button" class="tab-btn" data-tab="saved-listings" role="tab">Saved listings</button>
-          <button type="button" class="tab-btn" data-tab="inquiries" role="tab" id="inquiries-tab-btn">Inquiries <span id="inq-tab-badge" class="count" style="margin-left:4px;" hidden>0</span></button>
-          <button type="button" class="tab-btn" data-tab="profile" role="tab">Profile</button>
-          <button type="button" class="tab-btn" data-tab="admin" role="tab" id="admin-tab-btn" hidden>Admin <span id="admin-pending-badge" class="count" style="margin-left:4px;"></span></button>
+          <button type="button" class="tab-btn is-active" data-tab="your-listings" role="tab">
+            <span class="tab-label tab-label-full">Your listings</span><span class="tab-label tab-label-short">Listings</span>
+          </button>
+          <button type="button" class="tab-btn" data-tab="saved-listings" role="tab">
+            <span class="tab-label tab-label-full">Saved listings</span><span class="tab-label tab-label-short">Saved</span>
+          </button>
+          <button type="button" class="tab-btn" data-tab="inquiries" role="tab" id="inquiries-tab-btn">
+            <span class="tab-label">Inquiries</span> <span id="inq-tab-badge" class="count" style="margin-left:4px;" hidden>0</span>
+          </button>
+          <button type="button" class="tab-btn" data-tab="profile" role="tab">
+            <span class="tab-label">Profile</span>
+          </button>
+          <button type="button" class="tab-btn" data-tab="admin" role="tab" id="admin-tab-btn" hidden>
+            <span class="tab-label">Admin</span> <span id="admin-pending-badge" class="count" style="margin-left:4px;"></span>
+          </button>
         </div>
 
         <!-- Tab: Your listings -->
@@ -6591,6 +6625,33 @@
       }
     }
     $tabBtns.forEach(b => b.addEventListener("click", () => activateTab(b.dataset.tab)));
+
+    // Tab-strip overflow detection — adds .is-scrollable when content
+    // exceeds container width so the fade-edge mask kicks in. Without
+    // this signal, first-time mobile users couldn't tell whether the
+    // truncated rightmost tab was a bug or a "swipe me" affordance.
+    // Re-runs on resize, on admin-tab unveil, and after the inquiries-tab
+    // badge changes width (count: 0 → 99+ shifts pixel width).
+    const $tabStrip = document.querySelector(".tab-strip");
+    function updateTabStripScrollability() {
+      if (!$tabStrip) return;
+      const overflows = $tabStrip.scrollWidth > $tabStrip.clientWidth + 1;
+      $tabStrip.classList.toggle("is-scrollable", overflows);
+    }
+    if ($tabStrip) {
+      // Initial paint may happen before the admin button is unveiled or
+      // the inquiries badge is populated — re-check on next frame and
+      // after a slightly delayed beat so we catch both states.
+      requestAnimationFrame(updateTabStripScrollability);
+      setTimeout(updateTabStripScrollability, 300);
+      window.addEventListener("resize", updateTabStripScrollability);
+      // Also recompute whenever the inquiries badge text changes — a
+      // MutationObserver on the strip catches the admin-tab unveil and
+      // any future tab additions without us having to thread calls
+      // through every relevant handler.
+      const mo = new MutationObserver(updateTabStripScrollability);
+      mo.observe($tabStrip, { subtree: true, childList: true, attributes: true, characterData: true });
+    }
 
     // The "profile" link inside the saved-listings info note jumps to the
     // Profile tab so users can blank out their contact fields easily.
