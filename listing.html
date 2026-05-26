@@ -300,6 +300,82 @@
     .lightbox.open { display: flex; }
     .lightbox img  { max-width: 100%; max-height: 100%; object-fit: contain; }
 
+    /* Contact-seller modal — used by the Email Seller button.
+       Sits above the lightbox z-index because either can be the foreground.
+       Backdrop click + Escape close. */
+    .contact-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      display: none; align-items: center; justify-content: center; z-index: 1100;
+      padding: 16px;
+    }
+    .contact-overlay.open { display: flex; }
+    .contact-dialog {
+      background: var(--surface-1);
+      border: 1px solid var(--card-line);
+      border-radius: 12px;
+      width: 100%; max-width: 480px;
+      padding: 20px 22px 22px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+    }
+    .contact-dialog h3 {
+      margin: 0 0 4px; font-size: 18px; color: var(--fg);
+    }
+    .contact-dialog .ctx {
+      font-size: 13px; color: var(--muted); margin: 0 0 14px; line-height: 1.45;
+    }
+    .contact-dialog .ctx strong { color: var(--fg); }
+    .contact-dialog label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: var(--muted); margin-bottom: 4px; margin-top: 12px;
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .contact-dialog input[type="text"],
+    .contact-dialog textarea {
+      width: 100%; box-sizing: border-box;
+      padding: 9px 11px; font-size: 14px; line-height: 1.5;
+      font-family: inherit;
+      background: var(--surface-2); color: var(--fg);
+      border: 1px solid var(--card-line); border-radius: 8px;
+    }
+    .contact-dialog textarea { min-height: 140px; resize: vertical; }
+    .contact-dialog input[type="text"]:focus,
+    .contact-dialog textarea:focus {
+      outline: none; border-color: var(--accent);
+    }
+    .contact-dialog .reply-note {
+      margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.5;
+    }
+    .contact-dialog .actions {
+      display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;
+    }
+    .contact-dialog .actions button {
+      padding: 9px 14px; border-radius: 8px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      font-family: inherit;
+      border: 1px solid var(--card-line);
+      background: var(--surface-2); color: var(--fg);
+    }
+    .contact-dialog .actions button.primary {
+      border-color: var(--action-border);
+      background: var(--action-bg);
+      color: var(--action-fg);
+    }
+    .contact-dialog .actions button[disabled] { opacity: .55; cursor: wait; }
+    .contact-dialog .err {
+      margin-top: 10px; padding: 9px 11px; border-radius: 8px;
+      background: var(--surface-3); border: 1px solid var(--card-line);
+      color: var(--fg); font-size: 13px; line-height: 1.45;
+      white-space: pre-line;
+    }
+    .contact-dialog .ok {
+      margin-top: 10px; padding: 12px;
+      border-radius: 8px;
+      background: var(--accent-softer); border: 1px solid var(--accent-soft);
+      color: var(--accent-deeper); font-size: 14px; line-height: 1.5;
+    }
+
     footer {
       text-align: center;
       color: var(--muted);
@@ -336,6 +412,29 @@
 
   <div class="lightbox" id="lightbox" aria-hidden="true">
     <img id="lightbox-img" src="" alt="" />
+  </div>
+
+  <!-- Contact-seller modal. Populated and opened by the Email Seller button.
+       Replaces the previous mailto: launcher so the message actually flows
+       through our edge function (and the audit table), and so the seller
+       gets a real "you have an inquiry" signal in their inbox instead of
+       a maybe-was-clicked tracking guess. -->
+  <div class="contact-overlay" id="contact-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="contact-title">
+    <div class="contact-dialog" role="document">
+      <h3 id="contact-title">Email the seller</h3>
+      <p class="ctx" id="contact-ctx"></p>
+      <label for="contact-subject">Subject</label>
+      <input type="text" id="contact-subject" maxlength="200" autocomplete="off" />
+      <label for="contact-body">Message</label>
+      <textarea id="contact-body" maxlength="5000" placeholder="Hi — I'm interested in this piece. Could you tell me more about…"></textarea>
+      <div class="reply-note" id="contact-reply-note"></div>
+      <div class="err" id="contact-err" hidden></div>
+      <div class="ok"  id="contact-ok"  hidden></div>
+      <div class="actions">
+        <button type="button" id="contact-cancel">Cancel</button>
+        <button type="button" id="contact-send" class="primary">Send</button>
+      </div>
+    </div>
   </div>
 
   <footer>
@@ -850,7 +949,7 @@
           ${seller.location ? `<div class="loc">${escapeHtml(seller.location)}</div>` : ""}
           <div class="seller-actions">
             ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">${primaryCta}</a>` : ""}
-            ${seller.contact_email ? `<a id="email-seller-link" href="#" target="_blank" rel="noopener">${secondaryCta}</a>` : ""}
+            ${seller.contact_email ? `<a id="email-seller-link" href="#" role="button">${secondaryCta}</a>` : ""}
           </div>
           ${(fbUrl || seller.contact_email) ? `
             <div class="buying-tips-nudge">
@@ -958,30 +1057,25 @@
         });
       });
 
-      // Email mailto — built dynamically with listing context so the
-      // recipient's mail client opens with subject + body prefilled.
+      // Email Seller — opens the in-page contact modal. The actual send
+      // goes through the send-email edge function (mode=contact-seller),
+      // which records an audit row + applies a per-hour rate limit + sets
+      // Reply-To to the buyer's contact email so the seller's reply goes
+      // straight back to them. Replaces the previous mailto: launcher.
       const $emailLink = document.getElementById("email-seller-link");
       if ($emailLink && seller.contact_email) {
-        const subject = render._inquirySubject;
-        const subjectLine = isIso
-          ? `your "In Search Of" listing on CanvasCircle`
-          : `your listing on CanvasCircle`;
-        const subjectArtwork = (l.artwork_title || (isIso ? "the piece you're looking for" : "Untitled"))
-          + (l.artist_name ? " by " + l.artist_name : "");
-        const body =
-          `Hi ${seller.display_name || ""},\n\n` +
-          (isIso
-            ? `I saw your post on CanvasCircle and I think I may have something that fits what you're looking for:\n`
-            : `I'm interested in your listing on CanvasCircle:\n`) +
-          `${subjectArtwork}\n` +
-          `${window.location.href}\n\n` +
-          `[Your message here]\n\n` +
-          `Thanks!`;
-        const mailto =
-          "mailto:" + encodeURIComponent(seller.contact_email) +
-          "?subject=" + encodeURIComponent(subject) +
-          "&body=" + encodeURIComponent(body);
-        $emailLink.href = mailto;
+        $emailLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          openContactModal({
+            listingId:    l.listing_id,
+            sellerName:   seller.display_name || (isIso ? "the buyer" : "the seller"),
+            artworkTitle: l.artwork_title,
+            artistName:   l.artist_name,
+            isIso,
+            partyLabel,
+            inquirySubject: render._inquirySubject,
+          });
+        });
       }
 
       // Heart / save button
@@ -1099,7 +1193,157 @@
 
     $lightbox.addEventListener("click", () => $lightbox.classList.remove("open"));
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") $lightbox.classList.remove("open");
+      if (e.key === "Escape") {
+        $lightbox.classList.remove("open");
+        closeContactModal();
+      }
+    });
+
+    // -----------------------------------------------------------------
+    // Contact-seller modal: replaces the old mailto: launcher. Routes
+    // the buyer's message through the send-email edge function so the
+    // seller actually gets a real "you have an inquiry" email (not a
+    // tracking guess), and we get an audit row + rate limit on every
+    // send. The modal is auth-gated — if the user isn't signed in, we
+    // route them through the same auth prompt the heart button uses
+    // (signing in returns them right here to finish sending).
+    // -----------------------------------------------------------------
+    const $contactOverlay = document.getElementById("contact-overlay");
+    const $contactCtx     = document.getElementById("contact-ctx");
+    const $contactSubj    = document.getElementById("contact-subject");
+    const $contactBody    = document.getElementById("contact-body");
+    const $contactReply   = document.getElementById("contact-reply-note");
+    const $contactErr     = document.getElementById("contact-err");
+    const $contactOk      = document.getElementById("contact-ok");
+    const $contactSend    = document.getElementById("contact-send");
+    const $contactCancel  = document.getElementById("contact-cancel");
+
+    let __contactCtx = null;
+
+    async function openContactModal(ctx) {
+      // Require signed-in. The Email Seller button is hidden for anon
+      // viewers (counterpartyBlock branch on signedIn), but this is a
+      // defense-in-depth guard if anything ever exposes the button.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        showAuthPrompt({ message: "Sign in to email the seller. Same account also lets you save listings." });
+        return;
+      }
+
+      __contactCtx = ctx;
+
+      // Load buyer's contact_email so the Reply-To note is accurate.
+      let buyerEmail = user.email || "";
+      try {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("contact_email")
+          .eq("user_id", user.id)
+          .single();
+        if (prof?.contact_email) buyerEmail = prof.contact_email;
+      } catch {}
+
+      const artworkLabel = ctx.artworkTitle
+        ? (ctx.artistName ? `<strong>${escapeHtml(ctx.artworkTitle)}</strong> by ${escapeHtml(ctx.artistName)}` : `<strong>${escapeHtml(ctx.artworkTitle)}</strong>`)
+        : `<strong>${ctx.isIso ? "this In Search Of listing" : "this listing"}</strong>`;
+      $contactCtx.innerHTML = `Sending to ${escapeHtml(ctx.sellerName)} about ${artworkLabel}.`;
+
+      // Prefill subject. Buyer can rewrite it; we just don't want to
+      // make them start from a blank field.
+      $contactSubj.value = ctx.inquirySubject || "";
+      $contactBody.value = "";
+      $contactBody.placeholder = ctx.isIso
+        ? `Hi ${ctx.sellerName} — I saw your "In Search Of" listing and may have something that fits. Could we connect?`
+        : `Hi ${ctx.sellerName} — I'm interested in this piece. Could you tell me more about…`;
+      $contactReply.textContent = `${ctx.partyLabel}'s reply will come to ${buyerEmail}.`;
+      $contactErr.hidden = true;
+      $contactErr.textContent = "";
+      $contactOk.hidden  = true;
+      $contactOk.textContent  = "";
+      $contactSend.disabled = false;
+      $contactSend.textContent = "Send";
+      $contactCancel.textContent = "Cancel";
+
+      $contactOverlay.classList.add("open");
+      $contactOverlay.setAttribute("aria-hidden", "false");
+      // Focus the body after a tick — focusing during the same frame
+      // can fight with iOS's keyboard logic.
+      setTimeout(() => $contactBody.focus(), 50);
+    }
+
+    function closeContactModal() {
+      if (!$contactOverlay.classList.contains("open")) return;
+      $contactOverlay.classList.remove("open");
+      $contactOverlay.setAttribute("aria-hidden", "true");
+      __contactCtx = null;
+    }
+
+    // Backdrop click closes (but clicks inside the dialog don't bubble).
+    $contactOverlay.addEventListener("click", (e) => {
+      if (e.target === $contactOverlay) closeContactModal();
+    });
+    $contactCancel.addEventListener("click", closeContactModal);
+
+    $contactSend.addEventListener("click", async () => {
+      if (!__contactCtx) return;
+      const subject = ($contactSubj.value || "").trim();
+      const text    = ($contactBody.value || "").trim();
+      if (!subject) {
+        $contactErr.textContent = "Please add a subject line.";
+        $contactErr.hidden = false;
+        $contactSubj.focus();
+        return;
+      }
+      if (!text) {
+        $contactErr.textContent = "Please write a message.";
+        $contactErr.hidden = false;
+        $contactBody.focus();
+        return;
+      }
+      $contactErr.hidden = true;
+      $contactErr.textContent = "";
+      $contactSend.disabled = true;
+      $contactSend.textContent = "Sending…";
+
+      try {
+        const { data, error } = await supabase.functions.invoke("send-email", {
+          body: {
+            mode:       "contact-seller",
+            listing_id: __contactCtx.listingId,
+            subject,
+            text,
+          },
+        });
+        if (error) {
+          // supabase-js shapes FunctionsHttpError differently from a
+          // network error. Try to extract the server-side message body
+          // so the user sees the actual rate-limit / validation reason.
+          let serverMsg = "";
+          if (error.context && typeof error.context.json === "function") {
+            try {
+              const payload = await error.context.json();
+              serverMsg = payload?.error || "";
+            } catch {}
+          }
+          throw new Error(serverMsg || error.message || "Could not send the message.");
+        }
+        if (data?.error) throw new Error(data.error);
+
+        // Success state — replace the form with a friendly ack and
+        // collapse the send button into a Close. Auto-dismiss after
+        // a beat so the user isn't stuck.
+        $contactOk.textContent = "Message sent. The " + __contactCtx.partyLabel.toLowerCase() + " will reply to your email directly.";
+        $contactOk.hidden = false;
+        $contactSend.textContent = "Sent ✓";
+        $contactCancel.textContent = "Close";
+        setTimeout(() => closeContactModal(), 2200);
+      } catch (err) {
+        console.error("[contact-seller] send failed:", err);
+        $contactErr.textContent = err.message || String(err);
+        $contactErr.hidden = false;
+        $contactSend.disabled = false;
+        $contactSend.textContent = "Send";
+      }
     });
 
     // ---------------------------------------------------------------------
