@@ -1661,7 +1661,16 @@
       gap: 4px;
       border-bottom: 1px solid var(--card-line);
       margin: 6px 0 14px;
+      /* Allow horizontal scroll when the 5-tab strip (admin view) doesn't
+         fit on narrow viewports. Without this, the Admin tab was getting
+         pushed off-screen on mobile with no way to reach it. The hidden
+         scrollbar keeps the visual clean — users swipe to reveal. */
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;       /* Firefox */
     }
+    .tab-strip::-webkit-scrollbar { display: none; }  /* Chrome/Safari */
     .tab-btn {
       background: none;
       border: none;
@@ -1673,6 +1682,10 @@
       color: var(--muted);
       cursor: pointer;
       border-bottom: 2px solid transparent;
+      /* Keep label + count badge on a single line. Without nowrap, the
+         "Inquiries 3" badge wraps below the word on narrow screens. */
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .tab-btn:hover { color: var(--fg); }
     /* Brand-gradient underline on the active dashboard tab — matches the
@@ -1685,6 +1698,25 @@
     }
     .tab-panel { display: none; }
     .tab-panel.is-active { display: block; }
+
+    /* On narrow viewports, tighten tab padding so more tabs fit before
+       scrolling kicks in. The 5th tab (Admin) only appears for admins —
+       most sellers have 4 tabs, which fit comfortably with this padding. */
+    @media (max-width: 640px) {
+      .tab-strip {
+        gap: 2px;
+        /* Bleed the scroll edges to the screen edges so users get a clear
+           visual cue that content extends beyond what's visible. */
+        margin-left: -8px;
+        margin-right: -8px;
+        padding-left: 8px;
+        padding-right: 8px;
+      }
+      .tab-btn {
+        padding: 10px 10px 12px;
+        font-size: 13px;
+      }
+    }
 
     /* ------ Admin tab ------ */
     .admin-section {
@@ -2661,7 +2693,7 @@
         <div class="tab-strip" role="tablist">
           <button type="button" class="tab-btn is-active" data-tab="your-listings" role="tab">Your listings</button>
           <button type="button" class="tab-btn" data-tab="saved-listings" role="tab">Saved listings</button>
-          <button type="button" class="tab-btn" data-tab="inquiries" role="tab" id="inquiries-tab-btn" hidden>Inquiries <span id="inq-tab-badge" class="count" style="margin-left:4px;" hidden>0</span></button>
+          <button type="button" class="tab-btn" data-tab="inquiries" role="tab" id="inquiries-tab-btn">Inquiries <span id="inq-tab-badge" class="count" style="margin-left:4px;" hidden>0</span></button>
           <button type="button" class="tab-btn" data-tab="profile" role="tab">Profile</button>
           <button type="button" class="tab-btn" data-tab="admin" role="tab" id="admin-tab-btn" hidden>Admin <span id="admin-pending-badge" class="count" style="margin-left:4px;"></span></button>
         </div>
@@ -2977,7 +3009,8 @@
           </p>
           <div id="inq-loading" class="empty-state" hidden>Loading your inquiries…</div>
           <div id="inq-empty"   class="empty-state" hidden>
-            No inquiries yet. When a buyer messages you through a listing, it'll appear here.
+            <strong>No inquiries yet.</strong><br>
+            When a buyer messages you through the "Email Seller" button on one of your listings, it'll show up here — and you'll get an email at the same time so you can reply right from your inbox.
           </div>
           <div id="inq-list" class="inq-list"></div>
           <div id="inq-footer" class="inq-footer-note" hidden>
@@ -4011,9 +4044,10 @@
       } catch (e) {
         console.warn("[inquiries] load failed:", e);
         if ($loading) $loading.hidden = true;
-        // Hide the tab entirely on hard load failure — the seller's email
-        // inbox is the source of truth.
-        $tabBtn.hidden = true;
+        // Keep the tab visible even on load failure — hiding it would
+        // remove the feature entirely after one transient query error.
+        // The empty-state copy renders by default; user can retry by
+        // clicking the tab again.
         return;
       }
 
@@ -4075,10 +4109,12 @@
       const $tabBadge = document.getElementById("inq-tab-badge");
       if (!$list || !$tabBtn) return;
 
-      // Tab visibility: only show the tab once there's something to read.
-      // No "you have no inquiries" tab — the engagement signal is the whole
-      // point; an empty tab is just clutter.
-      $tabBtn.hidden = (inquiriesData.length === 0);
+      // Tab visibility: always visible to signed-in sellers. An empty tab
+      // is better than a hidden one because (a) new users learn the feature
+      // exists before any messages arrive, (b) sellers don't wonder where
+      // the tab went after they dismiss the last inquiry. The empty-state
+      // copy inside the panel does the explaining.
+      $tabBtn.hidden = false;
 
       const unread = countUnreadInquiries();
 
