@@ -1286,80 +1286,57 @@
     .incoming-refs-banner button { white-space: nowrap; }
 
     /* -----------------------------------------------------------------
-       Inquiries panel — top-level container that shows incoming buyer
-       messages (sent via the in-listing Email Seller form). Lives above
-       the tab strip so the signal isn't buried in the "Your listings"
-       tab. Hidden entirely when the seller has zero inquiries, so it
-       doesn't add clutter for accounts that haven't been messaged yet.
+       Inquiries tab — buyer-to-seller messages received via the in-listing
+       Email Seller form. Each row is a compact card with optional
+       click-to-expand body, Reply via email, Open listing, and Dismiss.
+       Dismissing soft-deletes the row (recipient_hidden_at) and removes it
+       from the list immediately.
     ----------------------------------------------------------------- */
-    .inquiries-panel {
-      margin: 4px 0 16px;
-      padding: 14px 16px;
-      background: var(--surface-1);
-      border: 1px solid var(--card-line);
-      border-radius: 10px;
-    }
-    .inquiries-panel[hidden] { display: none; }
-    .inquiries-panel .inq-head {
-      display: flex; align-items: center; gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-    }
-    .inquiries-panel .inq-title {
-      font-size: 15px; font-weight: 700; color: var(--fg);
-      display: inline-flex; align-items: center; gap: 8px;
-    }
-    .inquiries-panel .inq-unread-badge {
-      display: inline-flex; align-items: center; justify-content: center;
-      min-width: 22px; height: 20px; padding: 0 7px;
-      border-radius: 999px;
-      background: var(--brand-gradient);
-      color: var(--text-inverse);
-      font-size: 12px; font-weight: 700;
-      line-height: 1;
-    }
-    .inquiries-panel .inq-sub {
-      color: var(--muted); font-size: 12px; margin-left: auto;
-    }
-    .inquiries-panel .inq-list {
+    .inq-list {
       display: flex; flex-direction: column; gap: 8px;
     }
-    .inquiries-panel .inq-row {
+    .inq-row {
       padding: 10px 12px;
       background: var(--surface-2);
       border: 1px solid var(--card-line);
       border-radius: 8px;
+      transition: opacity .2s ease, transform .2s ease;
     }
-    .inquiries-panel .inq-row.is-unread {
+    .inq-row.is-unread {
       border-color: var(--accent-soft);
       background: var(--accent-softer);
     }
-    .inquiries-panel .inq-meta-row {
+    .inq-row.is-removing {
+      opacity: 0;
+      transform: translateY(-6px);
+      pointer-events: none;
+    }
+    .inq-meta-row {
       display: flex; align-items: baseline; gap: 8px;
       flex-wrap: wrap;
       font-size: 13px; color: var(--muted);
     }
-    .inquiries-panel .inq-meta-row .inq-sender {
+    .inq-meta-row .inq-sender {
       color: var(--fg); font-weight: 600;
     }
-    .inquiries-panel .inq-meta-row a {
+    .inq-meta-row a {
       color: var(--accent); text-decoration: none;
     }
-    .inquiries-panel .inq-meta-row a:hover { text-decoration: underline; }
-    .inquiries-panel .inq-meta-row .inq-when {
+    .inq-meta-row a:hover { text-decoration: underline; }
+    .inq-meta-row .inq-when {
       margin-left: auto;
     }
-    .inquiries-panel .inq-subject {
+    .inq-subject {
       margin-top: 4px;
       color: var(--fg); font-size: 14px; font-weight: 600;
     }
-    .inquiries-panel .inq-body-toggle {
+    .inq-body-toggle {
       margin-top: 6px;
       background: none; border: none; padding: 0;
       color: var(--accent); font-size: 12px; font-weight: 600;
       cursor: pointer; font-family: inherit;
     }
-    .inquiries-panel .inq-body {
+    .inq-body {
       margin-top: 8px;
       padding: 9px 11px;
       background: var(--surface-3);
@@ -1369,11 +1346,12 @@
       color: var(--fg);
       white-space: pre-line;
     }
-    .inquiries-panel .inq-actions {
+    .inq-actions {
       margin-top: 8px;
       display: flex; gap: 8px; flex-wrap: wrap;
+      align-items: center;
     }
-    .inquiries-panel .inq-actions a {
+    .inq-actions a {
       display: inline-block;
       padding: 5px 10px;
       font-size: 12px; font-weight: 600;
@@ -1382,15 +1360,42 @@
       border: 1px solid var(--card-line);
       background: var(--surface-1); color: var(--fg);
     }
-    .inquiries-panel .inq-actions a.primary {
+    .inq-actions a.primary {
       border-color: var(--action-border);
       background: var(--action-bg);
       color: var(--action-fg);
     }
-    .inquiries-panel .inq-actions a:hover { filter: brightness(1.08); }
-    .inquiries-panel .inq-empty {
-      padding: 12px; text-align: center;
-      color: var(--muted); font-size: 13px; line-height: 1.5;
+    .inq-actions a:hover { filter: brightness(1.08); }
+    .inq-dismiss-btn {
+      margin-left: auto;
+      padding: 5px 10px;
+      font-size: 12px; font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid var(--card-line);
+      background: transparent; color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .inq-dismiss-btn:hover {
+      color: var(--fg);
+      border-color: var(--fg);
+    }
+    .inq-dismiss-btn[disabled] { opacity: .55; cursor: wait; }
+    .inq-footer-note {
+      margin-top: 12px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .inq-footer-note[hidden] { display: none; }
+
+    /* Inquiries tab button — small unread-count badge styled like the
+       admin-pending-badge (which uses .count). When count > 0 we flip the
+       gradient on so it pops; at 0 we hide it entirely. */
+    .tab-btn #inq-tab-badge.is-unread {
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
     }
 
     /* Unread chip on the My Account nav link — small dot+number to the
@@ -2444,7 +2449,7 @@
     </nav>
   </header>
 
-  <script type="module" src="/lib/nav-auth.js?v=9"></script>
+  <script type="module" src="/lib/nav-auth.js?v=10"></script>
 
   <main>
     <div class="card">
@@ -2651,27 +2656,12 @@
           <button type="button" class="btn-primary" id="irb-review-btn">Review →</button>
         </div>
 
-        <!-- Inquiries panel — buyer-to-seller messages received via the
-             in-listing Email Seller contact form. Lives above the tab strip
-             so the engagement signal is always visible, regardless of which
-             tab the seller has open. The whole panel is hidden until there's
-             at least one inquiry to show (no empty-state clutter for accounts
-             that haven't been messaged). loadInquiriesPanel() populates it. -->
-        <div id="inquiries-panel" class="inquiries-panel" hidden>
-          <div class="inq-head">
-            <div class="inq-title">
-              Inquiries
-              <span id="inq-unread-badge" class="inq-unread-badge" hidden>0</span>
-            </div>
-            <div class="inq-sub" id="inq-sub">Buyer messages sent to you via "Email Seller".</div>
-          </div>
-          <div id="inq-list" class="inq-list"></div>
-        </div>
 
         <!-- Tabs -->
         <div class="tab-strip" role="tablist">
           <button type="button" class="tab-btn is-active" data-tab="your-listings" role="tab">Your listings</button>
           <button type="button" class="tab-btn" data-tab="saved-listings" role="tab">Saved listings</button>
+          <button type="button" class="tab-btn" data-tab="inquiries" role="tab" id="inquiries-tab-btn" hidden>Inquiries <span id="inq-tab-badge" class="count" style="margin-left:4px;" hidden>0</span></button>
           <button type="button" class="tab-btn" data-tab="profile" role="tab">Profile</button>
           <button type="button" class="tab-btn" data-tab="admin" role="tab" id="admin-tab-btn" hidden>Admin <span id="admin-pending-badge" class="count" style="margin-left:4px;"></span></button>
         </div>
@@ -2970,6 +2960,29 @@
             You haven't saved any listings yet. Click the heart on any listing in the catalog to save it here.
           </div>
           <div id="saved-grid" class="saved-grid" hidden></div>
+        </div>
+
+        <!-- Tab: Inquiries — buyer-to-seller messages received via the
+             in-listing Email Seller contact form. Hidden tab button is
+             unveiled the moment loadInquiriesPanel() finds at least one
+             non-dismissed row. Mark-as-seen fires on the tab click (not on
+             dashboard load) so the unread badge clears exactly when the
+             seller actually reads the messages. -->
+        <div class="tab-panel" data-tab-panel="inquiries">
+          <div class="dash-head">
+            <h2>Inquiries <span class="count" id="inq-count"></span></h2>
+          </div>
+          <p class="help" style="margin: -4px 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5;">
+            Messages buyers sent you through the "Email Seller" button on your listings. Each one also lives in your email inbox — this is just a quick recap. Dismiss messages you've handled to keep the list tidy.
+          </p>
+          <div id="inq-loading" class="empty-state" hidden>Loading your inquiries…</div>
+          <div id="inq-empty"   class="empty-state" hidden>
+            No inquiries yet. When a buyer messages you through a listing, it'll appear here.
+          </div>
+          <div id="inq-list" class="inq-list"></div>
+          <div id="inq-footer" class="inq-footer-note" hidden>
+            Showing your 25 most recent inquiries. Older messages stay searchable in your email inbox.
+          </div>
         </div>
 
         <!-- Tab: Admin (only visible when profile.is_admin = true) -->
@@ -3869,10 +3882,11 @@
       // Fire-and-forget the incoming-references count so the top-of-dashboard
       // banner surfaces pending requests the moment a user signs in.
       refreshIncomingRefsBanner(session.user.id);
-      // Fire-and-forget the inquiries-panel load. Hidden if no rows. The
-      // load also schedules the "mark seen" RPC after a short delay so the
-      // unread badge fades naturally instead of vanishing instantly.
-      loadInquiriesPanel(session.user.id);
+      // Fire-and-forget the inquiries-panel load on sign-in so the tab
+      // button + unread badge populate. We deliberately do NOT mark-seen
+      // here — that fires only when the user actually clicks the
+      // Inquiries tab, which is the honest "I read them" signal.
+      loadInquiriesPanel(session.user.id, { markSeen: false });
       // Re-mount the welcome banner — handles freshness-watchdog re-entry
       // (e.g., after the user comes back to the PWA after a long pause).
       mountWelcomeBanner();
@@ -3921,14 +3935,23 @@
     }
 
     // ----------------------------------------------------------------------
-    // Inquiries panel — buyer-to-seller contact-form messages received by
-    // this user. Loads the 10 newest rows from contact_messages where
-    // recipient_id = me, joined with the sender's display_name + handle and
-    // the listing's artist/title. Shows the panel only if there's at least
-    // one row to display. Unread count = rows newer than profiles
-    // .last_inquiry_seen_at; we set that high-water mark when the user
-    // actually lands on the dashboard (after a short read-confirmation delay
-    // so the badge isn't gone before they notice it).
+    // Inquiries tab — buyer-to-seller contact-form messages received by
+    // this user. Lives in its own tab so the dashboard root stays scannable
+    // for sellers with lots of incoming messages.
+    //
+    // Two distinct call sites for loadInquiriesPanel():
+    //   1. On dashboard sign-in (fire-and-forget): populates the unread
+    //      count so the tab + nav badges paint, but does NOT mark-as-seen.
+    //      We pass { markSeen: false } so the badge stays until the user
+    //      actually opens the tab.
+    //   2. On click of the Inquiries tab: re-fetches (in case rows were
+    //      dismissed elsewhere) and fires mark_inquiries_seen() once the
+    //      render lands, clearing the unread badge. We pass { markSeen: true }.
+    //
+    // Rows are filtered server-side to recipient_hidden_at IS NULL — once a
+    // seller dismisses an inquiry it stops appearing for them (admin still
+    // sees everything via the admin_all RLS policy). Limit = 25; the tab
+    // shows a footer note pointing to email for anything older.
     //
     // Note on joins: contact_messages.sender_id has an FK to auth.users
     // (not to profiles), so PostgREST can't auto-embed `profiles!sender_id`
@@ -3937,15 +3960,22 @@
     // the saves modal uses. Listings embed works because contact_messages
     // does have a direct FK to listings.listing_id.
     // ----------------------------------------------------------------------
-    let inquiriesData = [];           // most recent 10 rows (most-recent first)
+    let inquiriesData = [];           // most recent non-hidden rows (newest first)
     let inquiriesLastSeenAt = null;   // ISO string of profiles.last_inquiry_seen_at
-    let inquiriesMarkSeenScheduled = false;
+    const INQUIRIES_PAGE_SIZE = 25;
 
-    async function loadInquiriesPanel(userId) {
-      const $panel = document.getElementById("inquiries-panel");
-      const $list  = document.getElementById("inq-list");
-      const $sub   = document.getElementById("inq-sub");
-      if (!$panel || !$list) return;
+    async function loadInquiriesPanel(userId, opts = {}) {
+      const markSeen = !!opts.markSeen;
+      const $loading = document.getElementById("inq-loading");
+      const $empty   = document.getElementById("inq-empty");
+      const $list    = document.getElementById("inq-list");
+      const $footer  = document.getElementById("inq-footer");
+      const $tabBtn  = document.getElementById("inquiries-tab-btn");
+      if (!$list || !$tabBtn) return;
+
+      if ($loading) $loading.hidden = false;
+      if ($empty)   $empty.hidden   = true;
+      if ($footer)  $footer.hidden  = true;
 
       try {
         // Pull last_inquiry_seen_at first — needed for the unread comparison.
@@ -3970,18 +4000,20 @@
               listing:listings ( listing_id, artwork_title, artist_name, listing_type )
             `)
             .eq("recipient_id", userId)
+            .is("recipient_hidden_at", null)
             .order("sent_at", { ascending: false })
-            .limit(10),
+            .limit(INQUIRIES_PAGE_SIZE),
           10000,
           "inquiries query"
         );
         if (error) throw error;
         rows = data || [];
       } catch (e) {
-        // Non-fatal — if the panel can't load, just hide it. The seller's
-        // email inbox is the source of truth either way.
         console.warn("[inquiries] load failed:", e);
-        $panel.hidden = true;
+        if ($loading) $loading.hidden = true;
+        // Hide the tab entirely on hard load failure — the seller's email
+        // inbox is the source of truth.
+        $tabBtn.hidden = true;
         return;
       }
 
@@ -4008,15 +4040,17 @@
       }
 
       inquiriesData = rows;
+      if ($loading) $loading.hidden = true;
       renderInquiriesPanel();
 
-      // Schedule the "mark as seen" RPC. We wait ~2.5s before marking so the
-      // unread badge stays visible long enough for the user to actually
-      // notice it. If they navigate away first, the next dashboard load
-      // re-runs this and will mark them then.
-      if (!inquiriesMarkSeenScheduled && countUnreadInquiries() > 0) {
-        inquiriesMarkSeenScheduled = true;
-        setTimeout(markInquiriesSeen, 2500);
+      // Mark-as-seen on tab open. We do it AFTER the render so the unread
+      // count + highlighting is visible in this frame; the next render call
+      // (manually triggered) will clear it.
+      if (markSeen && countUnreadInquiries() > 0) {
+        // Tiny delay so the highlighted rows are perceptible before they
+        // fade. Without this the user clicks the tab and sees no unread
+        // visual feedback at all — the chip disappears in the same paint.
+        setTimeout(markInquiriesSeen, 1200);
       }
     }
 
@@ -4033,34 +4067,49 @@
     }
 
     function renderInquiriesPanel() {
-      const $panel = document.getElementById("inquiries-panel");
-      const $list  = document.getElementById("inq-list");
-      const $sub   = document.getElementById("inq-sub");
-      const $badge = document.getElementById("inq-unread-badge");
-      if (!$panel || !$list) return;
+      const $list   = document.getElementById("inq-list");
+      const $empty  = document.getElementById("inq-empty");
+      const $footer = document.getElementById("inq-footer");
+      const $count  = document.getElementById("inq-count");
+      const $tabBtn = document.getElementById("inquiries-tab-btn");
+      const $tabBadge = document.getElementById("inq-tab-badge");
+      if (!$list || !$tabBtn) return;
 
-      if (!inquiriesData.length) {
-        $panel.hidden = true;
-        updateAccountNavBadge(0);
-        return;
-      }
-      $panel.hidden = false;
+      // Tab visibility: only show the tab once there's something to read.
+      // No "you have no inquiries" tab — the engagement signal is the whole
+      // point; an empty tab is just clutter.
+      $tabBtn.hidden = (inquiriesData.length === 0);
 
       const unread = countUnreadInquiries();
-      if ($badge) {
+
+      // Tab-button badge: small unread chip. Hidden when 0.
+      if ($tabBadge) {
         if (unread > 0) {
-          $badge.hidden = false;
-          $badge.textContent = String(unread);
+          $tabBadge.hidden = false;
+          $tabBadge.textContent = String(unread);
+          $tabBadge.classList.add("is-unread");
         } else {
-          $badge.hidden = true;
+          $tabBadge.hidden = true;
+          $tabBadge.classList.remove("is-unread");
         }
       }
-      if ($sub) {
-        $sub.textContent = unread > 0
-          ? `${unread} new since you last checked.`
-          : `Buyer messages sent to you via "Email Seller".`;
-      }
+
+      // Counter in the tab heading ("Inquiries 12").
+      if ($count) $count.textContent = inquiriesData.length ? `(${inquiriesData.length})` : "";
+
+      // My Account nav badge — same unread count, follows the seller around
+      // the site via localStorage cache (see lib/nav-auth.js).
       updateAccountNavBadge(unread);
+
+      // Empty-state vs list.
+      if (!inquiriesData.length) {
+        if ($empty)  $empty.hidden = false;
+        if ($footer) $footer.hidden = true;
+        $list.innerHTML = "";
+        return;
+      }
+      if ($empty)  $empty.hidden = true;
+      if ($footer) $footer.hidden = (inquiriesData.length < INQUIRIES_PAGE_SIZE);
 
       const cutoffMs = inquiriesLastSeenAt ? new Date(inquiriesLastSeenAt).getTime() : 0;
 
@@ -4102,23 +4151,62 @@
             <div class="inq-actions">
               ${replyMailto ? `<a class="primary" href="${replyMailto}">Reply via email</a>` : ""}
               ${listingHref ? `<a href="${listingHref}" target="_blank" rel="noopener">Open listing ↗</a>` : ""}
+              <button type="button" class="inq-dismiss-btn" data-inq-dismiss="${r.id}" title="Hide this inquiry from your list. Admin still sees it in the audit log.">Dismiss</button>
             </div>
           </div>
         `;
       }).join("");
 
-      // Wire up the per-row Show/Hide message toggle. Event delegation on
-      // the list so we don't have to rebind after each render.
-      $list.onclick = (e) => {
-        const t = e.target.closest("[data-inq-toggle]");
-        if (!t) return;
-        const id = t.getAttribute("data-inq-toggle");
-        const $body = $list.querySelector(`[data-inq-body="${CSS.escape(id)}"]`);
-        if (!$body) return;
-        const willShow = $body.hidden;
-        $body.hidden = !willShow;
-        t.textContent = willShow ? "Hide message ▴" : "Show message ▾";
+      // Event delegation: handle Show/Hide body toggle + Dismiss in one place.
+      $list.onclick = async (e) => {
+        const toggle = e.target.closest("[data-inq-toggle]");
+        if (toggle) {
+          const id = toggle.getAttribute("data-inq-toggle");
+          const $body = $list.querySelector(`[data-inq-body="${CSS.escape(id)}"]`);
+          if (!$body) return;
+          const willShow = $body.hidden;
+          $body.hidden = !willShow;
+          toggle.textContent = willShow ? "Hide message ▴" : "Show message ▾";
+          return;
+        }
+        const dismiss = e.target.closest("[data-inq-dismiss]");
+        if (dismiss) {
+          await dismissInquiry(dismiss);
+          return;
+        }
       };
+    }
+
+    // Dismiss an inquiry: server-side soft-delete via hide_inquiry RPC, then
+    // collapse the row out of the DOM. Pulls the row from inquiriesData so a
+    // future render call doesn't bring it back. The footer/empty state +
+    // counter update naturally because renderInquiriesPanel reads the array.
+    async function dismissInquiry(btn) {
+      const idStr = btn.getAttribute("data-inq-dismiss");
+      const id = Number(idStr);
+      if (!Number.isFinite(id)) return;
+      const $row = btn.closest(".inq-row");
+      btn.disabled = true;
+      btn.textContent = "…";
+
+      try {
+        const { error } = await supabase.rpc("hide_inquiry", { message_id: id });
+        if (error) throw error;
+
+        // Optimistic-ish removal: animate out, then drop from the in-memory
+        // array. Falling back to a full re-render lets the counter + footer
+        // + empty-state messaging recompute correctly.
+        if ($row) $row.classList.add("is-removing");
+        setTimeout(() => {
+          inquiriesData = inquiriesData.filter((r) => Number(r.id) !== id);
+          renderInquiriesPanel();
+        }, 220);
+      } catch (e) {
+        console.error("[inquiries] dismiss failed:", e);
+        btn.disabled = false;
+        btn.textContent = "Dismiss";
+        alert("Could not dismiss that inquiry: " + (e.message || e));
+      }
     }
 
     // Friendly relative-then-absolute formatter for inquiry timestamps.
@@ -6459,6 +6547,12 @@
       if (name === "saved-listings") loadSavedListings(true);
       if (name === "profile")        loadProfileForm();
       if (name === "admin")          loadAdminTab();
+      if (name === "inquiries") {
+        // Re-fetch so dismissed-in-another-tab rows fall out. Mark-as-seen
+        // fires from inside loadInquiriesPanel — opening the tab IS the
+        // "I read them" signal, replacing the old 2.5s timer.
+        if (currentUserId) loadInquiriesPanel(currentUserId, { markSeen: true });
+      }
     }
     $tabBtns.forEach(b => b.addEventListener("click", () => activateTab(b.dataset.tab)));
 
