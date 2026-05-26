@@ -113,12 +113,12 @@
     <section class="hero">
       <h1>Privacy Policy</h1>
       <p>What CanvasCircle collects, why, and your rights.</p>
-      <p class="effective">Effective date: May 26, 2026 &middot; Version 1.6</p>
+      <p class="effective">Effective date: May 26, 2026 &middot; Version 1.7</p>
     </section>
 
     <section class="section">
       <h2>Summary</h2>
-      <p>CanvasCircle is a free art listing platform. We collect the minimum information needed to run the Service: a single email address (used both to sign you in and as the public contact email on your listings), a password, a display name, a unique @handle, a Facebook profile URL (required to post listings), an optional location, the listings you create, the listings you save, and basic technical data needed to keep the site secure. When you message another user through the "Email Seller" button on a listing, we store and deliver that first message; replies after that go directly between the two parties' email accounts and never pass through CanvasCircle (see Section 5). Sellers may also choose to submit a short Ownership Verification video for a listing — these videos are stored privately, used only for admin review, and then automatically deleted within about 24 hours (see Section 5). We don't sell your data. We don't run ads. We don't track you across other sites.</p>
+      <p>CanvasCircle is a free art listing platform. We collect the minimum information needed to run the Service: a single email address (used both to sign you in and as the public contact email on your listings), a password, a display name, a unique @handle, a Facebook profile URL (required to post listings), an optional location, the listings you create, the listings you save, and basic technical data needed to keep the site secure. When you message another user through the "Email Seller" button on a listing, we store and deliver that first message; replies after that go directly between the two parties' email accounts and never pass through CanvasCircle (see Section 5). Sellers may also choose to submit a short Ownership Verification video for a listing — these videos are stored privately, used only for admin review, and then automatically deleted within about 24 hours (see Section 5). Sellers see basic analytics on their own listings — daily counts of views, saves, and inquiries, plus a record of price changes — to help them understand engagement; analytics never reveal who individual viewers are. We don't sell your data. We don't run ads. We don't track you across other sites.</p>
     </section>
 
     <section class="section">
@@ -143,6 +143,8 @@
       <h3>Information we collect automatically</h3>
       <ul>
         <li><strong>Usage data:</strong> which listings you view and save, search and filter activity, device and browser type, IP address, approximate location derived from IP, and timestamps.</li>
+        <li><strong>Per-listing view events</strong> (used to power the listing's public view counter and the seller's analytics chart). Each view records the listing, a timestamp, and — if you were signed in at the time — your account identifier. We use the identifier internally to filter the seller's own visits out of their analytics and to detect view manipulation; <strong>we never expose individual viewer identities to sellers</strong>. The chart shows daily totals only.</li>
+        <li><strong>Listing price-change history:</strong> when a seller edits the asking price on one of their listings, the platform records a row containing the old price, the new price, the listing identifier, and a timestamp. This history powers the price-drop markers on the seller's own analytics chart and helps the admin investigate disputes about what a listing was priced at on a given date.</li>
         <li><strong>Technical logs:</strong> errors, security events, request metadata. We use these to keep the site running and secure.</li>
         <li><strong>Cookies and local storage:</strong> we use a small number of cookies and browser storage entries to keep you signed in, remember filter preferences on the catalog, and measure basic aggregate usage. We do not use third-party advertising or cross-site tracking cookies.</li>
       </ul>
@@ -193,6 +195,16 @@
         <li><strong>Buyer-to-seller inquiry messages.</strong> When you send a message to a seller through the "Email Seller" button on a listing, the recipient (that seller) sees the full message — sender display name, @handle, message body, and the date — in their "Inquiries" tab on their portal dashboard and as a delivered email in their inbox. You, as the sender, can see your own sent inquiries via the stored record (no UI surfaces this today, but you may request a copy under Section 8). The CanvasCircle admin can see all inquiry messages indefinitely as part of the platform's spam-prevention and abuse-investigation audit log. <strong>No other user</strong> — not other sellers, not anonymous viewers, not other buyers — can see your inquiries. If the seller chooses to "Dismiss" an inquiry from their own tab, it disappears from their view but remains in the admin audit log. Replies sent by the seller after the initial inquiry go directly from their email account to yours (via the Reply-To header) and <strong>never pass through or get stored by CanvasCircle</strong>.</li>
       </ul>
 
+      <h3>Seller analytics on your own listings</h3>
+      <p>When you're signed in as a seller and you tap the "📊 Stats" button on one of your listings, you see a chart showing daily counts of three engagement signals over a 7-, 30-, or 90-day window, plus vertical markers for any price changes you made in that window. Specifically:</p>
+      <ul>
+        <li><strong>Views per day:</strong> aggregated counts only. You see "3 people viewed this on Tuesday" — you do <strong>not</strong> see who they were, what other listings they looked at, where they were, or anything else about them. Your own visits to your own listing are filtered out of the chart so you're seeing real outside traffic, not your own refreshes.</li>
+        <li><strong>Saves per day:</strong> aggregated counts of how many users hearted the listing on each day. The identities of users who saved your listing are visible in a separate "Saved by" view (already covered above under "Other places your info shows up") — the chart itself only shows daily totals.</li>
+        <li><strong>Inquiries per day:</strong> aggregated counts of how many "Email Seller" messages you received on each day. The full content and senders of those messages are visible in your Inquiries tab (covered above) — the chart only shows daily totals.</li>
+        <li><strong>Price-change markers:</strong> the chart draws a vertical dashed line at any date when you edited the price of the listing, labeled with the old → new price. This is your own data about your own listing.</li>
+      </ul>
+      <p>Sellers cannot see analytics for listings they don't own. The admin can see analytics for any listing as part of platform moderation and abuse investigation. <strong>No analytics are shown to buyers or anonymous viewers</strong> beyond the all-time view counter and save counter that appear on the public listing page.</p>
+
       <h3>Visible only to you (and the admin)</h3>
       <ul>
         <li>Pending and rejected reference requests</li>
@@ -200,13 +212,14 @@
         <li>Your pending display-name change request (if any)</li>
         <li>Pending and rejected Ownership Verification submissions, including any rejection note the admin left for you</li>
         <li>Your sign-in email, until you choose to post a listing or make a save (at which point it becomes your public contact email under the rules above)</li>
+        <li>The seller analytics described in the previous subsection — only the listing's owner (and the admin) can see them.</li>
       </ul>
 
       <h3>Never shown publicly</h3>
       <ul>
         <li>Your password (stored only as a salted hash; even we can't read it)</li>
         <li>Your IP address, device, and other technical metadata</li>
-        <li>The raw list of every listing you've viewed (we log these for the seller's per-listing view counter, but we don't expose the viewer's identity)</li>
+        <li>The raw list of every listing you've viewed (we log these for the seller's per-listing view counter, but we don't expose the viewer's identity to the seller or to anyone else)</li>
       </ul>
 
       <p>Bottom line: don't put anything in your display name, @handle, About text, or contact fields that you wouldn't want visible under the rules above. If you're not sure, leave it blank.</p>
@@ -222,6 +235,7 @@
       <p>We keep your account information and listings for as long as your account is active. If you delete a listing, we remove it from public view; backup copies may persist for a short time before being purged. If you close your account, we delete or anonymize your personal information within a reasonable time, except where retention is needed to resolve disputes, prevent fraud, or comply with legal obligations.</p>
       <p><strong>Ownership Verification videos</strong> follow a stricter, automated schedule. The raw video bytes are automatically deleted from storage within approximately 24 hours after the admin completes their review (approval or rejection). We retain — indefinitely — only the non-reversible audit record described in Section 2: the decision, SHA-256 fingerprint of the original file, timestamps, reviewing admin, video size, duration, and any rejection note. The fingerprint cannot be used to reconstruct or view the original video. We retain it to detect a video being reused across multiple submissions, which is a strong fraud signal.</p>
       <p><strong>Buyer-to-seller inquiry messages</strong> are retained indefinitely as part of the platform's spam-prevention and abuse-investigation audit log. The retention is not subject to the seller's "Dismiss" action: when a seller dismisses an inquiry from their portal Inquiries tab, the row is hidden from their view only — the underlying record (including the full message body, sender, recipient, listing referenced, and timestamps) remains available to the CanvasCircle admin. If you close your account, your inquiry messages are anonymized or deleted along with the rest of your personal information per the general rule above, except where retention is needed to resolve an active dispute, complete an open spam or harassment investigation, or comply with legal obligations. Only the first inquiry message sent through the in-listing form is stored by us; all subsequent replies between buyer and seller travel directly between the parties' email accounts and are not in our possession.</p>
+      <p><strong>Per-listing view events and listing price-change history</strong> are retained for the lifetime of the listing so the seller's analytics chart can show historical trends. When a listing is deleted, both records are deleted with it via cascade. If you close your account, view events that record you as the (signed-in) viewer are anonymized — the viewer identifier is dropped — but the aggregate event timestamp remains so other sellers' analytics aren't retroactively distorted. Price-change history rows are deleted with the underlying listing.</p>
     </section>
 
     <section class="section">
