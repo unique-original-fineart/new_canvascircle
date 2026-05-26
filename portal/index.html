@@ -552,6 +552,72 @@
       background: rgba(168, 40, 31, .55);
       color: var(--text-inverse); font-weight: 800; font-size: 24px; letter-spacing: 4px;
     }
+    /* Ownership-verified corner badge on preview cards — mirrors the
+       index.html catalog pattern. Replaces the larger body-pill version
+       to save space on the compact dashboard cards. Tappable to surface
+       a one-line tooltip-style toast (see triggerVerifiedToast). */
+    .preview-card .pc-verified-corner {
+      position: absolute;
+      top: 8px; left: 8px;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700;
+      line-height: 1;
+      box-shadow: 0 2px 6px rgba(0,0,0,.35);
+      border: 2px solid var(--surface-1);
+      z-index: 2;
+      cursor: pointer;
+      -webkit-tap-highlight-color: rgba(45,127,255,.25);
+    }
+    .preview-card .pc-verified-corner:focus-visible {
+      outline: 3px solid rgba(45,127,255,.55);
+      outline-offset: 2px;
+    }
+    /* "Add Ownership Verified badge →" link on unverified sale cards.
+       Single-line text button, no heavy chrome — discoverability fix
+       without bloating the card. Hover state matches other accent links. */
+    .preview-card .pc-verify-cta {
+      align-self: flex-start;
+      background: none; border: none; padding: 0;
+      font: 600 12px inherit;
+      color: var(--accent);
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      transition: filter .12s ease;
+    }
+    .preview-card .pc-verify-cta:hover,
+    .preview-card .pc-verify-cta:focus-visible {
+      filter: brightness(1.15);
+      outline: none;
+    }
+    /* Singleton toast surfaced when a verified-corner is tapped. Same
+       pattern + styling as the public catalog's verified-toast so the
+       portal feels consistent. Updated to use --brand-gradient for the
+       background so the toast itself echoes the badge. */
+    .verified-toast {
+      position: fixed;
+      left: 50%; bottom: 24px;
+      transform: translateX(-50%);
+      max-width: 340px;
+      width: calc(100% - 32px);
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      padding: 12px 16px;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.45);
+      font-size: 13px;
+      line-height: 1.45;
+      z-index: 9999;
+      text-align: center;
+    }
+    .verified-toast[hidden] { display: none; }
+    .verified-toast .vt-title {
+      display: block; font-weight: 700; margin-bottom: 4px;
+    }
     .preview-card .pc-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; position: relative; }
     .preview-card .pc-artist {
       font-weight: 600; font-size: 14px; line-height: 1.25;
@@ -3665,7 +3731,10 @@
     // happen to be in the DOM at the same time.
     function renderPreviewVerificationBadge(l) {
       const status = l.verification_status || "none";
-      if (status === "none") return "";
+      const isIso = l.listing_type === "iso";
+
+      // ISO listings don't have ownership to verify (they're buyer requests).
+      if (isIso) return "";
 
       const popId = `pc-vp-pop-${escapeHtml(l.listing_id)}`;
       const verifs = (l.listing_verifications || []).slice().sort(
@@ -3676,15 +3745,23 @@
         .filter(v => v.status === "approved" && v.revoked_at)
         .sort((a, b) => (b.revoked_at || "").localeCompare(a.revoked_at || ""))[0];
 
-      if (status === "verified") {
+      // Unverified (status=none) sale listings get a small one-line CTA on
+      // the card so the seller can launch the verify modal directly without
+      // detouring through Edit. Discoverability fix that doesn't bloat the
+      // card (single text-button, no chrome).
+      if (status === "none") {
         return `
           <div class="pc-verification">
-            <span class="vp-badge verified" aria-label="Ownership Verified">
-              ✓ Ownership Verified
-            </span>
+            <button type="button" class="pc-verify-cta" data-action="verify-start">
+              Add Ownership Verified badge →
+            </button>
           </div>
         `;
       }
+
+      // Verified listings: the corner check on the image is the indicator —
+      // body badge would duplicate. Render nothing here for the verified state.
+      if (status === "verified") return "";
       if (status === "pending") {
         return `
           <div class="pc-verification">
@@ -3762,12 +3839,23 @@
             ? `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--iso-placeholder-1),var(--iso-placeholder-2));color:var(--muted);font-size:12px;gap:4px;"><span style="font-size:26px;opacity:.55;">🔍</span><span>In Search Of</span></div>`
             : "");
 
+      // Verified sale listings get a small brand-gradient corner check on
+       // the image (mirrors the public catalog's verified-corner pattern).
+       // Replaces the larger body-pill badge to free up vertical space on
+       // the compact preview card. Clickable to surface a tooltip-style
+       // toast explaining what verified means.
+       const showVerifiedCorner = !isIso && (l.verification_status === "verified");
+       const verifiedCorner = showVerifiedCorner
+         ? `<div class="pc-verified-corner" title="Ownership Verified — you submitted proof of possession" role="button" tabindex="0" aria-label="Ownership Verified">✓</div>`
+         : "";
+
       const card = document.createElement("div");
       card.className = "preview-card" + (showSoldOverlay ? " is-sold" : "") + (isIso ? " is-iso" : "");
       card.dataset.listingId = l.listing_id;
       card.innerHTML = `
         <div class="pc-img${showSoldOverlay ? " is-sold" : ""}">
           ${imgInner}
+          ${verifiedCorner}
         </div>
         <div class="pc-body">
           <div class="pc-artist">${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))}</div>
@@ -3830,8 +3918,62 @@
         });
       }
       card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => toggleSaversList(card, l));
+      // "Add Ownership Verified badge →" CTA on unverified sale cards.
+      // Opens the verify modal pre-bound to this listing — no detour
+      // through Edit. Only rendered when status=none + sale type.
+      card.querySelector(".pc-verify-cta[data-action=verify-start]")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openVerificationModal(l, card);
+      });
+      // Corner gradient check on verified cards — clickable to surface a
+      // toast explaining what the badge means. Mirrors the catalog UX.
+      const $pcCorner = card.querySelector(".pc-verified-corner");
+      if ($pcCorner) {
+        const showCornerToast = (e) => {
+          e?.stopPropagation();
+          showPortalVerifiedToast();
+        };
+        $pcCorner.addEventListener("click", showCornerToast);
+        $pcCorner.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            showCornerToast(e);
+          }
+        });
+      }
       return card;
     }
+
+    // Singleton toast — same pattern the public catalog uses for its
+    // verified-corner taps. Auto-dismisses after a few seconds or on
+    // any outside tap. Lazily appended on first use so we don't add
+    // DOM until needed.
+    let __portalVerifiedToastTimer = null;
+    function showPortalVerifiedToast() {
+      let toast = document.getElementById("portal-verified-toast");
+      if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "portal-verified-toast";
+        toast.className = "verified-toast";
+        toast.setAttribute("role", "status");
+        toast.innerHTML =
+          `<span class="vt-title">✓ Ownership Verified</span>` +
+          `You submitted a short video proving you physically possess this artwork, and the admin reviewed and approved it. ` +
+          `Buyers see this badge on the public listing.`;
+        document.body.appendChild(toast);
+      }
+      toast.hidden = false;
+      clearTimeout(__portalVerifiedToastTimer);
+      __portalVerifiedToastTimer = setTimeout(() => { toast.hidden = true; }, 4500);
+    }
+    // Tap anywhere outside the corner or toast dismisses it instantly.
+    document.addEventListener("click", (e) => {
+      const toast = document.getElementById("portal-verified-toast");
+      if (toast && !toast.hidden && !e.target.closest(".pc-verified-corner") && !e.target.closest(".verified-toast")) {
+        toast.hidden = true;
+        clearTimeout(__portalVerifiedToastTimer);
+      }
+    }, true);
 
     async function renewListingDirect(listing) {
       try {
