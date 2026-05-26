@@ -948,12 +948,13 @@
     .preview-card .vp-badge {
       font-size: 11px;
       padding: 4px 10px;
-      /* Keep the label on a single line. Without nowrap, narrow mobile
-         cards force text like "Verification Pending" to wrap mid-word
-         and the pill stretches to 3 ugly lines. The badge still respects
-         max-width:100% so the worst case is one extra wrap at the space,
-         not per-character wrap. */
-      white-space: nowrap;
+      /* Let "Verification Pending ▾" wrap at the single space between
+         "Verification" and "Pending" if the pill can't fit on one line.
+         Worst case is 2 lines (Guy's stated max); nowrap was too rigid
+         and caused horizontal overflow with the chevron clipping
+         outside the orange fill. */
+      line-height: 1.2;
+      text-align: center;
     }
     .preview-card .vp-popover {
       font-size: 12px;
