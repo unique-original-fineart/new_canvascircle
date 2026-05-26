@@ -1285,6 +1285,130 @@
     .incoming-refs-banner .small { font-size: 13px; color: var(--status-success-mid); margin-top: 2px; }
     .incoming-refs-banner button { white-space: nowrap; }
 
+    /* -----------------------------------------------------------------
+       Inquiries panel — top-level container that shows incoming buyer
+       messages (sent via the in-listing Email Seller form). Lives above
+       the tab strip so the signal isn't buried in the "Your listings"
+       tab. Hidden entirely when the seller has zero inquiries, so it
+       doesn't add clutter for accounts that haven't been messaged yet.
+    ----------------------------------------------------------------- */
+    .inquiries-panel {
+      margin: 4px 0 16px;
+      padding: 14px 16px;
+      background: var(--surface-1);
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+    }
+    .inquiries-panel[hidden] { display: none; }
+    .inquiries-panel .inq-head {
+      display: flex; align-items: center; gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .inquiries-panel .inq-title {
+      font-size: 15px; font-weight: 700; color: var(--fg);
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .inquiries-panel .inq-unread-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 22px; height: 20px; padding: 0 7px;
+      border-radius: 999px;
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      font-size: 12px; font-weight: 700;
+      line-height: 1;
+    }
+    .inquiries-panel .inq-sub {
+      color: var(--muted); font-size: 12px; margin-left: auto;
+    }
+    .inquiries-panel .inq-list {
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .inquiries-panel .inq-row {
+      padding: 10px 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+    }
+    .inquiries-panel .inq-row.is-unread {
+      border-color: var(--accent-soft);
+      background: var(--accent-softer);
+    }
+    .inquiries-panel .inq-meta-row {
+      display: flex; align-items: baseline; gap: 8px;
+      flex-wrap: wrap;
+      font-size: 13px; color: var(--muted);
+    }
+    .inquiries-panel .inq-meta-row .inq-sender {
+      color: var(--fg); font-weight: 600;
+    }
+    .inquiries-panel .inq-meta-row a {
+      color: var(--accent); text-decoration: none;
+    }
+    .inquiries-panel .inq-meta-row a:hover { text-decoration: underline; }
+    .inquiries-panel .inq-meta-row .inq-when {
+      margin-left: auto;
+    }
+    .inquiries-panel .inq-subject {
+      margin-top: 4px;
+      color: var(--fg); font-size: 14px; font-weight: 600;
+    }
+    .inquiries-panel .inq-body-toggle {
+      margin-top: 6px;
+      background: none; border: none; padding: 0;
+      color: var(--accent); font-size: 12px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .inquiries-panel .inq-body {
+      margin-top: 8px;
+      padding: 9px 11px;
+      background: var(--surface-3);
+      border: 1px solid var(--card-line);
+      border-radius: 6px;
+      font-size: 13px; line-height: 1.5;
+      color: var(--fg);
+      white-space: pre-line;
+    }
+    .inquiries-panel .inq-actions {
+      margin-top: 8px;
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .inquiries-panel .inq-actions a {
+      display: inline-block;
+      padding: 5px 10px;
+      font-size: 12px; font-weight: 600;
+      border-radius: 6px;
+      text-decoration: none;
+      border: 1px solid var(--card-line);
+      background: var(--surface-1); color: var(--fg);
+    }
+    .inquiries-panel .inq-actions a.primary {
+      border-color: var(--action-border);
+      background: var(--action-bg);
+      color: var(--action-fg);
+    }
+    .inquiries-panel .inq-actions a:hover { filter: brightness(1.08); }
+    .inquiries-panel .inq-empty {
+      padding: 12px; text-align: center;
+      color: var(--muted); font-size: 13px; line-height: 1.5;
+    }
+
+    /* Unread chip on the My Account nav link — small dot+number to the
+       right of the link text. Reuses the brand gradient so it reads as
+       a signal, not decoration. Tied to .cc-auth-link badge state set
+       by JS based on the inquiries unread count. */
+    .cc-auth-link .cc-auth-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-left: 6px;
+      min-width: 18px; height: 18px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      font-size: 11px; font-weight: 700;
+      line-height: 1;
+    }
+
     /* Top-of-dashboard quick-action buttons row. */
     .dashboard-quick-actions {
       display: flex;
@@ -2320,7 +2444,7 @@
     </nav>
   </header>
 
-  <script type="module" src="/lib/nav-auth.js?v=8"></script>
+  <script type="module" src="/lib/nav-auth.js?v=9"></script>
 
   <main>
     <div class="card">
@@ -2525,6 +2649,23 @@
             <div class="small" id="irb-detail-text">Someone has asked you to vouch for them. Review their profile before accepting.</div>
           </div>
           <button type="button" class="btn-primary" id="irb-review-btn">Review →</button>
+        </div>
+
+        <!-- Inquiries panel — buyer-to-seller messages received via the
+             in-listing Email Seller contact form. Lives above the tab strip
+             so the engagement signal is always visible, regardless of which
+             tab the seller has open. The whole panel is hidden until there's
+             at least one inquiry to show (no empty-state clutter for accounts
+             that haven't been messaged). loadInquiriesPanel() populates it. -->
+        <div id="inquiries-panel" class="inquiries-panel" hidden>
+          <div class="inq-head">
+            <div class="inq-title">
+              Inquiries
+              <span id="inq-unread-badge" class="inq-unread-badge" hidden>0</span>
+            </div>
+            <div class="inq-sub" id="inq-sub">Buyer messages sent to you via "Email Seller".</div>
+          </div>
+          <div id="inq-list" class="inq-list"></div>
         </div>
 
         <!-- Tabs -->
@@ -3728,6 +3869,10 @@
       // Fire-and-forget the incoming-references count so the top-of-dashboard
       // banner surfaces pending requests the moment a user signs in.
       refreshIncomingRefsBanner(session.user.id);
+      // Fire-and-forget the inquiries-panel load. Hidden if no rows. The
+      // load also schedules the "mark seen" RPC after a short delay so the
+      // unread badge fades naturally instead of vanishing instantly.
+      loadInquiriesPanel(session.user.id);
       // Re-mount the welcome banner — handles freshness-watchdog re-entry
       // (e.g., after the user comes back to the PWA after a long pause).
       mountWelcomeBanner();
@@ -3773,6 +3918,275 @@
         console.warn("[refreshIncomingRefsBanner] failed (non-fatal):", e);
         $banner.hidden = true;
       }
+    }
+
+    // ----------------------------------------------------------------------
+    // Inquiries panel — buyer-to-seller contact-form messages received by
+    // this user. Loads the 10 newest rows from contact_messages where
+    // recipient_id = me, joined with the sender's display_name + handle and
+    // the listing's artist/title. Shows the panel only if there's at least
+    // one row to display. Unread count = rows newer than profiles
+    // .last_inquiry_seen_at; we set that high-water mark when the user
+    // actually lands on the dashboard (after a short read-confirmation delay
+    // so the badge isn't gone before they notice it).
+    //
+    // Note on joins: contact_messages.sender_id has an FK to auth.users
+    // (not to profiles), so PostgREST can't auto-embed `profiles!sender_id`
+    // — the FK chain isn't there. Instead we do two queries: pull messages
+    // first, then batch-fetch the sender profiles by user_id. Same pattern
+    // the saves modal uses. Listings embed works because contact_messages
+    // does have a direct FK to listings.listing_id.
+    // ----------------------------------------------------------------------
+    let inquiriesData = [];           // most recent 10 rows (most-recent first)
+    let inquiriesLastSeenAt = null;   // ISO string of profiles.last_inquiry_seen_at
+    let inquiriesMarkSeenScheduled = false;
+
+    async function loadInquiriesPanel(userId) {
+      const $panel = document.getElementById("inquiries-panel");
+      const $list  = document.getElementById("inq-list");
+      const $sub   = document.getElementById("inq-sub");
+      if (!$panel || !$list) return;
+
+      try {
+        // Pull last_inquiry_seen_at first — needed for the unread comparison.
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("last_inquiry_seen_at")
+          .eq("user_id", userId)
+          .single();
+        inquiriesLastSeenAt = prof?.last_inquiry_seen_at || null;
+      } catch (e) {
+        console.warn("[inquiries] last_inquiry_seen_at fetch failed:", e);
+        inquiriesLastSeenAt = null;
+      }
+
+      let rows = [];
+      try {
+        const { data, error } = await withTimeout(
+          supabase
+            .from("contact_messages")
+            .select(`
+              id, sender_id, listing_id, subject, body, reply_to, sent_at,
+              listing:listings ( listing_id, artwork_title, artist_name, listing_type )
+            `)
+            .eq("recipient_id", userId)
+            .order("sent_at", { ascending: false })
+            .limit(10),
+          10000,
+          "inquiries query"
+        );
+        if (error) throw error;
+        rows = data || [];
+      } catch (e) {
+        // Non-fatal — if the panel can't load, just hide it. The seller's
+        // email inbox is the source of truth either way.
+        console.warn("[inquiries] load failed:", e);
+        $panel.hidden = true;
+        return;
+      }
+
+      // Batch-fetch sender profiles. One query for all unique sender_ids.
+      if (rows.length) {
+        const senderIds = [...new Set(rows.map(r => r.sender_id).filter(Boolean))];
+        if (senderIds.length) {
+          try {
+            const { data: senders, error: senderErr } = await supabase
+              .from("profiles")
+              .select("user_id, display_name, handle, is_trusted")
+              .in("user_id", senderIds);
+            if (!senderErr && Array.isArray(senders)) {
+              const byId = new Map(senders.map(s => [s.user_id, s]));
+              for (const r of rows) {
+                r.sender = byId.get(r.sender_id) || null;
+              }
+            }
+          } catch (e) {
+            // Non-fatal — rows will render with "(unknown sender)" labels.
+            console.warn("[inquiries] sender profiles fetch failed:", e);
+          }
+        }
+      }
+
+      inquiriesData = rows;
+      renderInquiriesPanel();
+
+      // Schedule the "mark as seen" RPC. We wait ~2.5s before marking so the
+      // unread badge stays visible long enough for the user to actually
+      // notice it. If they navigate away first, the next dashboard load
+      // re-runs this and will mark them then.
+      if (!inquiriesMarkSeenScheduled && countUnreadInquiries() > 0) {
+        inquiriesMarkSeenScheduled = true;
+        setTimeout(markInquiriesSeen, 2500);
+      }
+    }
+
+    function countUnreadInquiries() {
+      if (!Array.isArray(inquiriesData) || !inquiriesData.length) return 0;
+      // No last_seen → every loaded row is unread (bootstrap case).
+      if (!inquiriesLastSeenAt) return inquiriesData.length;
+      const cutoff = new Date(inquiriesLastSeenAt).getTime();
+      let n = 0;
+      for (const r of inquiriesData) {
+        if (new Date(r.sent_at).getTime() > cutoff) n++;
+      }
+      return n;
+    }
+
+    function renderInquiriesPanel() {
+      const $panel = document.getElementById("inquiries-panel");
+      const $list  = document.getElementById("inq-list");
+      const $sub   = document.getElementById("inq-sub");
+      const $badge = document.getElementById("inq-unread-badge");
+      if (!$panel || !$list) return;
+
+      if (!inquiriesData.length) {
+        $panel.hidden = true;
+        updateAccountNavBadge(0);
+        return;
+      }
+      $panel.hidden = false;
+
+      const unread = countUnreadInquiries();
+      if ($badge) {
+        if (unread > 0) {
+          $badge.hidden = false;
+          $badge.textContent = String(unread);
+        } else {
+          $badge.hidden = true;
+        }
+      }
+      if ($sub) {
+        $sub.textContent = unread > 0
+          ? `${unread} new since you last checked.`
+          : `Buyer messages sent to you via "Email Seller".`;
+      }
+      updateAccountNavBadge(unread);
+
+      const cutoffMs = inquiriesLastSeenAt ? new Date(inquiriesLastSeenAt).getTime() : 0;
+
+      $list.innerHTML = inquiriesData.map((r) => {
+        const isUnread   = inquiriesLastSeenAt ? (new Date(r.sent_at).getTime() > cutoffMs) : true;
+        const senderName = r.sender?.display_name || "(unknown sender)";
+        const senderHandle = r.sender?.handle ? `@${r.sender.handle}` : "";
+        const senderLink = r.sender?.handle
+          ? `<a href="/seller?handle=${encodeURIComponent(r.sender.handle)}" target="_blank" rel="noopener" title="View ${escapeHtml(senderName)}'s public page">${escapeHtml(senderName)}${senderHandle ? ` <span style="font-weight:400; color:var(--muted);">${escapeHtml(senderHandle)}</span>` : ""}</a>`
+          : `<span class="inq-sender">${escapeHtml(senderName)}</span>`;
+        const listingLabel = r.listing?.artwork_title
+          ? (r.listing.artist_name ? `${r.listing.artwork_title} by ${r.listing.artist_name}` : r.listing.artwork_title)
+          : (r.listing?.listing_type === "iso" ? "your In Search Of listing" : "your listing");
+        const listingHref = r.listing?.listing_id
+          ? `/listing.html?id=${encodeURIComponent(r.listing.listing_id)}`
+          : null;
+        const listingChip = listingHref
+          ? `<a href="${listingHref}" target="_blank" rel="noopener">${escapeHtml(listingLabel)}</a>`
+          : `<span>${escapeHtml(listingLabel)}</span>`;
+        const whenStr = formatInquiryDate(r.sent_at);
+        const replyTo = r.reply_to || "";
+        // Build a mailto: with the original subject prefixed "Re: " — this is
+        // the Reply button on the row. Mailto handles the rest from the
+        // seller's default mail client.
+        const replyMailto = replyTo
+          ? `mailto:${encodeURIComponent(replyTo)}?subject=${encodeURIComponent("Re: " + (r.subject || ""))}&body=${encodeURIComponent("\n\n---\nOn " + whenStr + ", " + senderName + " wrote:\n" + (r.body || "").split("\n").map(l => "> " + l).join("\n"))}`
+          : null;
+
+        return `
+          <div class="inq-row${isUnread ? " is-unread" : ""}" data-inq-id="${r.id}">
+            <div class="inq-meta-row">
+              <span>From ${senderLink}</span>
+              <span>about ${listingChip}</span>
+              <span class="inq-when">${escapeHtml(whenStr)}</span>
+            </div>
+            <div class="inq-subject">${escapeHtml(r.subject || "(no subject)")}</div>
+            <button type="button" class="inq-body-toggle" data-inq-toggle="${r.id}">Show message ▾</button>
+            <div class="inq-body" data-inq-body="${r.id}" hidden>${escapeHtml(r.body || "")}</div>
+            <div class="inq-actions">
+              ${replyMailto ? `<a class="primary" href="${replyMailto}">Reply via email</a>` : ""}
+              ${listingHref ? `<a href="${listingHref}" target="_blank" rel="noopener">Open listing ↗</a>` : ""}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // Wire up the per-row Show/Hide message toggle. Event delegation on
+      // the list so we don't have to rebind after each render.
+      $list.onclick = (e) => {
+        const t = e.target.closest("[data-inq-toggle]");
+        if (!t) return;
+        const id = t.getAttribute("data-inq-toggle");
+        const $body = $list.querySelector(`[data-inq-body="${CSS.escape(id)}"]`);
+        if (!$body) return;
+        const willShow = $body.hidden;
+        $body.hidden = !willShow;
+        t.textContent = willShow ? "Hide message ▴" : "Show message ▾";
+      };
+    }
+
+    // Friendly relative-then-absolute formatter for inquiry timestamps.
+    // <1h  → "23m ago"
+    // <24h → "5h ago"
+    // <7d  → "Tue 4:32 PM"
+    // ≥7d  → "Mar 12"
+    function formatInquiryDate(iso) {
+      try {
+        const d = new Date(iso);
+        const now = Date.now();
+        const diffMs = now - d.getTime();
+        const mins = Math.floor(diffMs / 60000);
+        if (mins < 1) return "just now";
+        if (mins < 60) return `${mins}m ago`;
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        if (days < 7) {
+          return d.toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+        }
+        return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      } catch { return ""; }
+    }
+
+    async function markInquiriesSeen() {
+      try {
+        const { data, error } = await supabase.rpc("mark_inquiries_seen");
+        if (error) throw error;
+        inquiriesLastSeenAt = data || new Date().toISOString();
+        // Re-render so the badges/highlights drop. Rows themselves stay
+        // visible — we only flip the unread styling and clear the count.
+        renderInquiriesPanel();
+      } catch (e) {
+        console.warn("[inquiries] mark_inquiries_seen failed (non-fatal):", e);
+      }
+    }
+
+    // Decorate the My Account nav link with the unread inquiries count.
+    // Same .cc-auth-link selector that nav-auth.js uses, so it works on
+    // both the portal and (via the shared library) on every other page.
+    // We only add the badge when count > 0 and the link is showing the
+    // signed-in state.
+    function updateAccountNavBadge(count) {
+      const links = document.querySelectorAll(".cc-auth-link");
+      links.forEach((link) => {
+        // Strip any existing badge so the count stays accurate after
+        // re-renders. Easier than tracking a single ref and replacing.
+        const existing = link.querySelector(".cc-auth-badge");
+        if (existing) existing.remove();
+        if (count > 0 && link.classList.contains("is-signed-in")) {
+          const badge = document.createElement("span");
+          badge.className = "cc-auth-badge";
+          badge.textContent = String(count);
+          badge.setAttribute("aria-label", `${count} new ${count === 1 ? "inquiry" : "inquiries"}`);
+          link.appendChild(badge);
+        }
+      });
+      // Stash on window so other-page nav-auth runs can pick it up via the
+      // localStorage hook below (in case the user navigates away from the
+      // portal — the badge follows them).
+      try {
+        if (count > 0) {
+          localStorage.setItem("cc_unread_inquiries", JSON.stringify({ n: count, ts: Date.now() }));
+        } else {
+          localStorage.removeItem("cc_unread_inquiries");
+        }
+      } catch {}
     }
 
     function renderAccountStatusBanner(profile) {
