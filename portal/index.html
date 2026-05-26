@@ -823,6 +823,91 @@
     }
     .card-metrics .metric.is-clickable:hover { text-decoration: underline; }
     .card-metrics .metric .icon { font-size: 14px; line-height: 1; }
+    /* =================================================================
+       Saves modal — full-size list of who saved a listing.
+
+       Opens via the "♥ N saves" link on a seller's preview card. Replaces
+       the cramped inline popover which didn't scale beyond a handful of
+       saves. Each row gets full-tap-target sized contact buttons and
+       surfaces Established Member status so high-trust leads stand out.
+       ================================================================= */
+    .saves-modal-summary {
+      display: flex; align-items: baseline; gap: 8px;
+      padding: 0 0 12px;
+      border-bottom: 1px solid var(--card-line);
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .saves-modal-summary .smc-count {
+      font-size: 22px; font-weight: 700; color: var(--fg);
+    }
+    .saves-modal-summary .smc-lbl {
+      font-size: 14px; color: var(--muted);
+    }
+    .saves-modal-summary .smc-listing {
+      font-size: 13px; color: var(--muted); width: 100%;
+      margin-top: 2px;
+    }
+    .saves-modal-summary .smc-listing strong {
+      color: var(--fg); font-weight: 600;
+    }
+    .saver-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .saver-row:last-child { border-bottom: none; }
+    .saver-row .saver-head {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .saver-row .saver-name {
+      font-weight: 600; font-size: 15px; color: var(--fg);
+    }
+    .saver-row .saver-handle {
+      font-size: 13px; color: var(--accent);
+      text-decoration: none; font-weight: 500;
+    }
+    .saver-row .saver-handle:hover { text-decoration: underline; }
+    .saver-row .saver-established {
+      display: inline-flex; align-items: center;
+      padding: 2px 9px; border-radius: 999px;
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      font-size: 11px; font-weight: 600;
+      letter-spacing: .2px;
+    }
+    .saver-row .saver-date {
+      font-size: 12px; color: var(--muted);
+      margin-left: auto;
+    }
+    .saver-row .saver-actions {
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .saver-row .saver-action {
+      flex: 1; min-width: 130px;
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 9px 14px; border-radius: 8px;
+      background: var(--action-bg);
+      color: var(--action-fg);
+      border: 1px solid var(--action-border);
+      font-size: 13px; font-weight: 600;
+      text-decoration: none;
+      transition: filter .15s ease;
+    }
+    .saver-row .saver-action:hover { filter: brightness(1.10); }
+    .saver-row .saver-action.disabled {
+      opacity: .55; pointer-events: none;
+      background: var(--surface-2); border-color: var(--card-line);
+      color: var(--muted);
+    }
+    #saves-modal-body .saves-empty,
+    #saves-modal-body .saves-loading,
+    #saves-modal-body .saves-error {
+      padding: 24px 0; text-align: center; color: var(--muted); font-size: 14px;
+    }
+
     .savers-list {
       background: var(--surface-2);
       border: 1px solid var(--card-line);
@@ -2960,6 +3045,24 @@
     </div>
   </div>
 
+  <!-- ============ SAVES MODAL ============
+       Surfaced when the seller taps the "♥ N saves" link on a preview
+       card. Shows who saved the listing with their @handle, Established
+       Member status, save date, and one-tap Message on Facebook / Email
+       buttons. Replaces the previous cramped inline popover that was
+       unworkable past a handful of saves. -->
+  <div class="edit-modal-overlay" id="saves-modal-overlay" role="dialog" aria-modal="true" hidden>
+    <div class="edit-modal" style="max-width: 560px;">
+      <div class="edit-modal-header">
+        <h2 id="saves-modal-title">Saved by</h2>
+        <button type="button" class="em-close" id="saves-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="edit-modal-body" id="saves-modal-body">
+        <!-- Savers list injected here when the modal opens -->
+      </div>
+    </div>
+  </div>
+
   <!-- ============ EMAIL MODAL (Contact Admin + Email Seller) ============ -->
   <div class="edit-modal-overlay" id="email-modal-overlay" role="dialog" aria-modal="true" hidden>
     <div class="edit-modal" style="max-width: 560px;">
@@ -3924,7 +4027,7 @@
           }
         });
       }
-      card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => toggleSaversList(card, l));
+      card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => openSavesModal(l));
       // "Add Ownership Verified badge →" CTA on unverified sale cards.
       // Opens the verify modal pre-bound to this listing — no detour
       // through Edit. Only rendered when status=none + sale type.
@@ -4622,7 +4725,7 @@
       card.querySelector("[data-action=save]").addEventListener("click", () => saveCard(card));
       card.querySelector("[data-action=reset]").addEventListener("click", () => resetCard(card, listing));
       card.querySelector("[data-action=remove]")?.addEventListener("click", () => removeCard(card, listing));
-      card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => toggleSaversList(card, listing));
+      card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => openSavesModal(listing));
       card.querySelector("[data-action=renew]")?.addEventListener("click", () => renewCard(card, listing));
       card.querySelector("[data-action=verify-start]")?.addEventListener("click", () => openVerificationModal(listing, card));
 
@@ -4792,6 +4895,131 @@
     // Implementation note: saved_listings.user_id and profiles.user_id both
     // reference auth.users(id) but there's no direct FK between them, so we
     // can't use PostgREST's nested-select. We do two queries and merge.
+    // ========================================================================
+    // Saves modal — full-size "who saved this listing" view.
+    //
+    // Opened from the "♥ N saves" link on a preview card. Fetches the
+    // saved_listings rows for the listing, joins to profiles for display
+    // name + @handle + contact methods + is_trusted, and renders each
+    // saver as a card-style row with full-tap-target Email + Message on
+    // Facebook buttons. Established Members get a gradient pill so
+    // high-trust leads pop visually.
+    // ========================================================================
+    const $savesModal      = document.getElementById("saves-modal-overlay");
+    const $savesModalBody  = document.getElementById("saves-modal-body");
+    const $savesModalTitle = document.getElementById("saves-modal-title");
+    const $savesModalClose = document.getElementById("saves-modal-close");
+
+    function closeSavesModal() {
+      if (!$savesModal) return;
+      $savesModal.hidden = true;
+      $savesModal.classList.remove("is-open");
+      $savesModalBody.innerHTML = "";
+    }
+    $savesModalClose?.addEventListener("click", closeSavesModal);
+    $savesModal?.addEventListener("click", (e) => {
+      if (e.target === $savesModal) closeSavesModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && $savesModal && !$savesModal.hidden) closeSavesModal();
+    });
+
+    async function openSavesModal(listing) {
+      if (!$savesModal) return;
+      const label = `${listing.artist_name || "Unknown"} — ${listing.artwork_title || "Untitled"}`;
+      $savesModalTitle.textContent = "Saved by";
+      $savesModalBody.innerHTML = `<div class="saves-loading">Loading saves…</div>`;
+      $savesModal.hidden = false;
+      $savesModal.classList.add("is-open");
+
+      // 1) saved_listings rows for this listing.
+      const { data: saves, error: savesErr } = await supabase
+        .from("saved_listings")
+        .select("user_id, created_at")
+        .eq("listing_id", listing.listing_id)
+        .order("created_at", { ascending: false });
+
+      if (savesErr) {
+        $savesModalBody.innerHTML = `<div class="saves-error">Couldn't load: ${escapeHtml(savesErr.message || String(savesErr))}</div>`;
+        return;
+      }
+
+      const rows = saves || [];
+      const summaryHtml = `
+        <div class="saves-modal-summary">
+          <span class="smc-count">${rows.length}</span>
+          <span class="smc-lbl">${rows.length === 1 ? "collector saved" : "collectors saved"} this listing</span>
+          <span class="smc-listing"><strong>${escapeHtml(listing.artist_name || "Unknown")}</strong> — ${escapeHtml(listing.artwork_title || "Untitled")}</span>
+        </div>
+      `;
+
+      if (rows.length === 0) {
+        $savesModalBody.innerHTML = summaryHtml +
+          `<div class="saves-empty">No saves yet — when collectors save this listing they'll show up here with contact options.</div>`;
+        return;
+      }
+
+      // 2) profiles for those user_ids (one batch). We include is_trusted
+      // and handle on top of the contact fields so we can surface
+      // Established Member status + link out to the saver's public page.
+      const userIds = [...new Set(rows.map(r => r.user_id))];
+      const { data: profs, error: profErr } = await supabase
+        .from("profiles")
+        .select("user_id, display_name, handle, contact_email, facebook_profile_url, is_trusted")
+        .in("user_id", userIds);
+
+      if (profErr) {
+        $savesModalBody.innerHTML = summaryHtml +
+          `<div class="saves-error">Couldn't load profiles: ${escapeHtml(profErr.message || String(profErr))}</div>`;
+        return;
+      }
+      const profByUser = Object.fromEntries((profs || []).map(p => [p.user_id, p]));
+
+      const subj = encodeURIComponent(`CanvasCircle — ${listing.artist_name || "your saved listing"}`);
+      const items = rows.map(r => {
+        const p      = profByUser[r.user_id] || {};
+        const name   = p.display_name || "Someone";
+        const handle = p.handle || "";
+        const email  = p.contact_email || "";
+        const fb     = p.facebook_profile_url || "";
+        const isTrusted = !!p.is_trusted;
+        const date   = r.created_at
+          ? new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+          : "";
+
+        const handleHtml = handle
+          ? `<a class="saver-handle" href="/seller?handle=${encodeURIComponent(handle)}" target="_blank" rel="noopener" title="View ${escapeHtml(name)}'s public page">@${escapeHtml(handle)}</a>`
+          : "";
+        const establishedHtml = isTrusted
+          ? `<span class="saver-established" title="Established Member — reviewed by the admin">Established Member</span>`
+          : "";
+
+        const fbBtnHtml = fb
+          ? `<a class="saver-action" href="${escapeHtml(fb)}" target="_blank" rel="noopener">Message on Facebook</a>`
+          : `<span class="saver-action disabled" title="This collector hasn't shared a Facebook URL.">No Facebook</span>`;
+        const emailBtnHtml = email
+          ? `<a class="saver-action" href="mailto:${escapeHtml(email)}?subject=${subj}">Email</a>`
+          : `<span class="saver-action disabled" title="This collector hasn't shared a contact email.">No email</span>`;
+
+        return `
+          <div class="saver-row">
+            <div class="saver-head">
+              <span class="saver-name">${escapeHtml(name)}</span>
+              ${handleHtml}
+              ${establishedHtml}
+              <span class="saver-date">${escapeHtml(date)}</span>
+            </div>
+            <div class="saver-actions">
+              ${fbBtnHtml}
+              ${emailBtnHtml}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      $savesModalBody.innerHTML = summaryHtml + items;
+    }
+
     async function toggleSaversList(card, listing) {
       const $list = card.querySelector("[data-savers-list]");
       if (!$list) return;
