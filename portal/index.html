@@ -688,6 +688,86 @@
       cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
     }
     .preview-card .pc-metric-btn:hover { filter: brightness(.85); }
+    /* 📊 Stats button — opens the engagement-over-time chart modal.
+       Compact pill so it doesn't dominate the metrics row, but visible
+       enough to be discoverable. */
+    .preview-card .pc-stats-btn {
+      font: inherit; font-size: 11px; font-weight: 600;
+      color: var(--fg);
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      padding: 2px 8px;
+      border-radius: 999px;
+      cursor: pointer;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+    .preview-card .pc-stats-btn:hover {
+      background: var(--surface-3);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ------ Stats modal ------ */
+    .stats-controls {
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 12px 16px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--card-line);
+    }
+    .stats-range-row {
+      display: inline-flex;
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      border-radius: 999px;
+      padding: 2px;
+    }
+    .stats-range-btn {
+      background: none; border: none;
+      padding: 5px 12px;
+      font-size: 12px; font-weight: 600; color: var(--muted);
+      font-family: inherit;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .stats-range-btn:hover { color: var(--fg); }
+    .stats-range-btn.is-active {
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+    }
+    .stats-series-row {
+      display: inline-flex; flex-wrap: wrap;
+      gap: 12px;
+      margin-left: auto;
+    }
+    .stats-series-toggle {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 500; color: var(--fg);
+      cursor: pointer;
+      user-select: none;
+    }
+    .stats-series-toggle input { margin: 0; }
+    .stats-swatch {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      vertical-align: middle;
+    }
+    .stats-series-views .stats-swatch { background: var(--stats-views, #FF6A1A); }
+    .stats-series-saves .stats-swatch { background: var(--stats-saves, #E91E63); }
+    .stats-series-inq   .stats-swatch { background: var(--stats-inq,   #2D7FFF); }
+    .stats-chart-wrap {
+      position: relative;
+      min-height: 280px;
+    }
+    #stats-canvas { width: 100%; max-height: 360px; }
+
+    @media (max-width: 640px) {
+      .stats-controls { gap: 10px; }
+      .stats-series-row { margin-left: 0; width: 100%; justify-content: space-between; }
+    }
+
     /* "+N this week" engagement delta chip — small accent-blue indicator
        so sellers can see momentum at a glance without us pinging them
        per-save. Surfaces only when N > 0 (zero state stays clean). */
@@ -3401,6 +3481,52 @@
     </div>
   </div>
 
+  <!-- ============ STATS MODAL (per-listing engagement chart) ============ -->
+  <!-- Opens from the 📊 Stats button on each preview card. Lazy-loads
+       Chart.js the first time it's opened so the dashboard isn't paying
+       the chart-library cost just to render listing cards. -->
+  <div class="edit-modal-overlay" id="stats-modal-overlay" role="dialog" aria-modal="true" hidden>
+    <div class="edit-modal" style="max-width: 780px;">
+      <div class="edit-modal-header">
+        <h2 id="stats-modal-title">Listing stats</h2>
+        <button type="button" class="em-close" id="stats-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <div class="stats-controls">
+          <div class="stats-range-row" role="tablist" aria-label="Time range">
+            <button type="button" class="stats-range-btn" data-range="7"  role="tab">7 days</button>
+            <button type="button" class="stats-range-btn is-active" data-range="30" role="tab">30 days</button>
+            <button type="button" class="stats-range-btn" data-range="90" role="tab">90 days</button>
+          </div>
+          <div class="stats-series-row">
+            <label class="stats-series-toggle stats-series-views">
+              <input type="checkbox" id="stats-toggle-views" checked />
+              <span class="stats-swatch"></span> Views
+            </label>
+            <label class="stats-series-toggle stats-series-saves">
+              <input type="checkbox" id="stats-toggle-saves" checked />
+              <span class="stats-swatch"></span> Saves
+            </label>
+            <label class="stats-series-toggle stats-series-inq">
+              <input type="checkbox" id="stats-toggle-inq" checked />
+              <span class="stats-swatch"></span> Inquiries
+            </label>
+          </div>
+        </div>
+        <div class="stats-chart-wrap">
+          <div id="stats-loading" class="empty-state" style="padding: 32px 12px;">Loading stats…</div>
+          <canvas id="stats-canvas" hidden></canvas>
+          <div id="stats-empty" class="empty-state" hidden style="padding: 24px 12px;">
+            No data yet for this listing in the selected range. Try a wider window.
+          </div>
+        </div>
+        <p class="help stats-foot" style="margin: 10px 0 0; font-size: 12px; color: var(--muted); line-height: 1.5;">
+          Views are filtered to exclude your own visits. Vertical dashed lines mark price changes.
+        </p>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ EMAIL MODAL (Contact Admin + Email Seller) ============ -->
   <div class="edit-modal-overlay" id="email-modal-overlay" role="dialog" aria-modal="true" hidden>
     <div class="edit-modal" style="max-width: 560px;">
@@ -4684,6 +4810,7 @@
               : `<span>♥ 0 saves</span>`}
             ${savesWeek > 0 ? `<span class="pc-metric-delta" title="${savesWeek} new save${savesWeek === 1 ? "" : "s"} in the last 7 days">+${savesWeek} this week</span>` : ""}
             <span>👁 ${viewCnt} ${viewCnt === 1 ? "view" : "views"}</span>
+            <button type="button" class="pc-stats-btn" data-action="open-stats" title="See views, saves, and inquiries over time">📊 Stats</button>
           </div>
           <div class="savers-list pc-savers-list" data-savers-list hidden></div>
         </div>
@@ -4695,6 +4822,7 @@
       `;
       card.querySelector("[data-action=open-edit]").addEventListener("click", () => openEditModal(l));
       card.querySelector("[data-action=renew-now]")?.addEventListener("click", () => renewListingDirect(l));
+      card.querySelector("[data-action=open-stats]")?.addEventListener("click", () => openStatsModal(l));
 
       // Verification badge popover toggle on the preview card. Same pattern
       // as inside the edit modal — pending / revoked / rejected pills are
@@ -6600,6 +6728,403 @@
         e.returnValue = "";
       }
     });
+
+    // ========================================================================
+    // Stats modal — per-listing engagement chart (Views / Saves / Inquiries).
+    // ========================================================================
+    // Opens from the 📊 Stats button on each preview card. Lazy-loads
+    // Chart.js the first time the modal opens so dashboard listings render
+    // without paying the chart-library cost.
+    //
+    // Data sources, all already in place:
+    //   - listing_views.viewed_at + viewer_user_id   (migration 004)
+    //   - saved_listings.created_at                  (existing)
+    //   - contact_messages.sent_at                   (migration 028)
+    //   - listing_price_changes.changed_at           (migration 031)
+    //
+    // We filter listing_views to exclude the seller's own visits so the
+    // chart shows real outside traffic. The other tables can't have
+    // seller-as-source data by construction (a seller doesn't save or
+    // message their own listing).
+    //
+    // All four queries are fired in parallel with Promise.all, then bucketed
+    // by day in JS. Days with zero events are explicitly zeroed-out so the
+    // line doesn't jump across gaps. Vertical dashed lines come from a
+    // custom Chart.js plugin that draws on the canvas after the datasets.
+    // ========================================================================
+    const $statsModal       = document.getElementById("stats-modal-overlay");
+    const $statsModalTitle  = document.getElementById("stats-modal-title");
+    const $statsModalClose  = document.getElementById("stats-modal-close");
+    const $statsLoading     = document.getElementById("stats-loading");
+    const $statsCanvas      = document.getElementById("stats-canvas");
+    const $statsEmpty       = document.getElementById("stats-empty");
+    const $statsRangeBtns   = document.querySelectorAll(".stats-range-btn");
+    const $statsToggleViews = document.getElementById("stats-toggle-views");
+    const $statsToggleSaves = document.getElementById("stats-toggle-saves");
+    const $statsToggleInq   = document.getElementById("stats-toggle-inq");
+
+    // Brand-palette colors for the three series. Matches the swatches in
+    // the toggle-row labels so the chart legend is implicit (the toggles
+    // ARE the legend). Tuned to read clearly against the dark surface.
+    const STATS_COLORS = {
+      views: "#FF6A1A",
+      saves: "#E91E63",
+      inq:   "#2D7FFF",
+    };
+
+    let __statsChartJsPromise = null;     // cached Chart.js import promise
+    let __statsChart           = null;    // current Chart instance (destroyed on close)
+    let __statsCurrentListing  = null;    // listing we're charting
+    let __statsRangeDays       = 30;      // active time range
+
+    // Lazy-load Chart.js the first time the modal opens. Subsequent opens
+    // resolve instantly via the cached promise. The CDN URL is in our
+    // CROSS_ORIGIN_CACHE_HOSTS allowlist on the SW so it persists across
+    // sessions after the first fetch.
+    function loadChartJs() {
+      if (__statsChartJsPromise) return __statsChartJsPromise;
+      __statsChartJsPromise = new Promise((resolve, reject) => {
+        if (window.Chart) return resolve(window.Chart);
+        const s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js";
+        s.async = true;
+        s.onload  = () => resolve(window.Chart);
+        s.onerror = (e) => reject(new Error("Chart.js failed to load"));
+        document.head.appendChild(s);
+      });
+      return __statsChartJsPromise;
+    }
+
+    function closeStatsModal() {
+      if (!$statsModal) return;
+      $statsModal.hidden = true;
+      $statsModal.classList.remove("is-open");
+      if (__statsChart) {
+        try { __statsChart.destroy(); } catch {}
+        __statsChart = null;
+      }
+      __statsCurrentListing = null;
+    }
+    $statsModalClose?.addEventListener("click", closeStatsModal);
+    $statsModal?.addEventListener("click", (e) => {
+      if (e.target === $statsModal) closeStatsModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && $statsModal && !$statsModal.hidden) closeStatsModal();
+    });
+
+    // Range toggle: switching range re-runs the queries and re-renders.
+    $statsRangeBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const days = Number(btn.dataset.range);
+        if (!Number.isFinite(days)) return;
+        __statsRangeDays = days;
+        $statsRangeBtns.forEach(b => b.classList.toggle("is-active", b === btn));
+        if (__statsCurrentListing) refreshStatsChart();
+      });
+    });
+
+    // Series toggles: flip dataset.hidden in place. No re-query needed.
+    function attachSeriesToggle(input, datasetKey) {
+      input?.addEventListener("change", () => {
+        if (!__statsChart) return;
+        const ds = __statsChart.data.datasets.find(d => d._statsKey === datasetKey);
+        if (ds) {
+          ds.hidden = !input.checked;
+          __statsChart.update();
+        }
+      });
+    }
+    attachSeriesToggle($statsToggleViews, "views");
+    attachSeriesToggle($statsToggleSaves, "saves");
+    attachSeriesToggle($statsToggleInq,   "inq");
+
+    async function openStatsModal(listing) {
+      if (!$statsModal || !listing) return;
+      __statsCurrentListing = listing;
+      const label = listing.artwork_title
+        ? (listing.artist_name ? `${listing.artist_name} — ${listing.artwork_title}` : listing.artwork_title)
+        : (listing.listing_type === "iso" ? "(ISO listing)" : "Untitled listing");
+      if ($statsModalTitle) $statsModalTitle.textContent = label;
+
+      // Reset toggle checkboxes to checked on open so users always get all
+      // three series initially. (Their previous toggle state lives only as
+      // long as the modal is open.)
+      if ($statsToggleViews) $statsToggleViews.checked = true;
+      if ($statsToggleSaves) $statsToggleSaves.checked = true;
+      if ($statsToggleInq)   $statsToggleInq.checked   = true;
+
+      $statsModal.hidden = false;
+      $statsModal.classList.add("is-open");
+
+      await refreshStatsChart();
+    }
+
+    async function refreshStatsChart() {
+      if (!__statsCurrentListing) return;
+      const listing = __statsCurrentListing;
+      $statsLoading.hidden = false;
+      $statsCanvas.hidden  = true;
+      $statsEmpty.hidden   = true;
+
+      const days = __statsRangeDays;
+      const sinceIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+      // Fire all four queries in parallel. Errors on any one are downgraded
+      // to empty arrays — the chart still renders with what we got.
+      let viewsRows = [], savesRows = [], inqRows = [], priceRows = [];
+      try {
+        const [viewsRes, savesRes, inqRes, priceRes] = await Promise.all([
+          supabase
+            .from("listing_views")
+            .select("viewed_at, viewer_user_id")
+            .eq("listing_id", listing.listing_id)
+            .gte("viewed_at", sinceIso),
+          supabase
+            .from("saved_listings")
+            .select("created_at")
+            .eq("listing_id", listing.listing_id)
+            .gte("created_at", sinceIso),
+          supabase
+            .from("contact_messages")
+            .select("sent_at")
+            .eq("listing_id", listing.listing_id)
+            .gte("sent_at", sinceIso),
+          supabase
+            .from("listing_price_changes")
+            .select("old_price_usd, new_price_usd, changed_at")
+            .eq("listing_id", listing.listing_id)
+            .gte("changed_at", sinceIso)
+            .order("changed_at", { ascending: true }),
+        ]);
+        if (!viewsRes.error) viewsRows = viewsRes.data || [];
+        if (!savesRes.error) savesRows = savesRes.data || [];
+        if (!inqRes.error)   inqRows   = inqRes.data   || [];
+        if (!priceRes.error) priceRows = priceRes.data || [];
+      } catch (e) {
+        console.error("[stats] query batch failed:", e);
+      }
+
+      // Filter out the seller's own visits to themselves. Listings can be
+      // refreshed many times by their own seller in the portal; without
+      // this filter the chart conflates real traffic with self-checks.
+      const sellerId = listing.seller_id;
+      const externalViews = viewsRows.filter(v => v.viewer_user_id !== sellerId);
+
+      // Bucket by day. Use the local-timezone calendar day so spikes line
+      // up with the seller's perception of "today" rather than UTC.
+      const dayKey = (d) => {
+        const dt = new Date(d);
+        return dt.getFullYear() + "-" +
+          String(dt.getMonth() + 1).padStart(2, "0") + "-" +
+          String(dt.getDate()).padStart(2, "0");
+      };
+      const labels = [];
+      const labelKeys = [];
+      const today = new Date();
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        labelKeys.push(dayKey(d));
+        labels.push(d.toLocaleDateString(undefined, { month: "short", day: "numeric" }));
+      }
+      const bucket = (rows, tsField) => {
+        const counts = new Map(labelKeys.map(k => [k, 0]));
+        for (const r of rows) {
+          const k = dayKey(r[tsField]);
+          if (counts.has(k)) counts.set(k, counts.get(k) + 1);
+        }
+        return labelKeys.map(k => counts.get(k));
+      };
+
+      const viewsData = bucket(externalViews, "viewed_at");
+      const savesData = bucket(savesRows,     "created_at");
+      const inqData   = bucket(inqRows,       "sent_at");
+
+      const totalEvents = viewsData.reduce((a,b)=>a+b,0) + savesData.reduce((a,b)=>a+b,0) + inqData.reduce((a,b)=>a+b,0);
+      const noData = totalEvents === 0 && priceRows.length === 0;
+
+      // Load Chart.js + render.
+      try {
+        const Chart = await loadChartJs();
+        await renderStatsChart(Chart, { labels, labelKeys, viewsData, savesData, inqData, priceRows, noData });
+      } catch (err) {
+        console.error("[stats] chart render failed:", err);
+        $statsLoading.hidden = true;
+        $statsEmpty.hidden   = false;
+        $statsEmpty.textContent = "Could not load chart library. Try reloading the page.";
+      }
+    }
+
+    async function renderStatsChart(Chart, { labels, labelKeys, viewsData, savesData, inqData, priceRows, noData }) {
+      $statsLoading.hidden = true;
+      if (noData) {
+        $statsEmpty.hidden = false;
+        $statsCanvas.hidden = true;
+        if (__statsChart) { try { __statsChart.destroy(); } catch {} __statsChart = null; }
+        return;
+      }
+      $statsEmpty.hidden = true;
+      $statsCanvas.hidden = false;
+
+      // Map each price-change row to the labelKey of its day so we can
+      // draw the dashed line at the matching x-axis tick. If a price
+      // change falls outside the rendered range (shouldn't, since we
+      // already filtered by sinceIso) we drop it.
+      const dayKeyOf = (d) => {
+        const dt = new Date(d);
+        return dt.getFullYear() + "-" +
+          String(dt.getMonth() + 1).padStart(2, "0") + "-" +
+          String(dt.getDate()).padStart(2, "0");
+      };
+      const priceMarkers = (priceRows || [])
+        .map(r => {
+          const k = dayKeyOf(r.changed_at);
+          const idx = labelKeys.indexOf(k);
+          if (idx < 0) return null;
+          return {
+            idx,
+            old: r.old_price_usd != null ? Number(r.old_price_usd) : null,
+            neu: Number(r.new_price_usd),
+          };
+        })
+        .filter(Boolean);
+
+      // Custom plugin that draws each price-change as a vertical dashed
+      // line at the matching x-tick, with a small label box at the top.
+      // Runs in afterDatasetsDraw so the lines sit above the data series
+      // (Chart.js doesn't have built-in vertical annotations without the
+      // annotation plugin, which would be another ~30KB).
+      const priceLinePlugin = {
+        id: "ccPriceLines",
+        afterDatasetsDraw(chart) {
+          if (!priceMarkers.length) return;
+          const { ctx, chartArea, scales } = chart;
+          if (!chartArea || !scales.x) return;
+          ctx.save();
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 3]);
+          ctx.strokeStyle = "rgba(255,255,255,0.55)";
+          ctx.font = "600 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+
+          for (const m of priceMarkers) {
+            const x = scales.x.getPixelForValue(m.idx);
+            if (x < chartArea.left || x > chartArea.right) continue;
+            // Dashed vertical line.
+            ctx.beginPath();
+            ctx.moveTo(x, chartArea.top);
+            ctx.lineTo(x, chartArea.bottom);
+            ctx.stroke();
+
+            // Label box ("$1,200 → $900"). Old can be null for very old rows.
+            const fmt = (n) => "$" + Number(n).toLocaleString();
+            const label = (m.old != null)
+              ? `${fmt(m.old)} → ${fmt(m.neu)}`
+              : `Price: ${fmt(m.neu)}`;
+            const padX = 6, padY = 3;
+            const textW = ctx.measureText(label).width;
+            const boxW = textW + padX * 2;
+            const boxH = 16 + padY * 2 - 8;
+            const boxX = Math.min(Math.max(x - boxW / 2, chartArea.left), chartArea.right - boxW);
+            const boxY = chartArea.top + 2;
+            ctx.setLineDash([]);
+            ctx.fillStyle = "rgba(20, 28, 64, 0.92)";
+            ctx.strokeStyle = "rgba(255,255,255,0.35)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH + 4, 4);
+            else                ctx.rect(boxX, boxY, boxW, boxH + 4);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillText(label, boxX + boxW / 2, boxY + padY - 1);
+            ctx.setLineDash([4, 3]);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = "rgba(255,255,255,0.55)";
+          }
+          ctx.restore();
+        },
+      };
+
+      const datasets = [
+        {
+          _statsKey: "views",
+          label: "Views",
+          data: viewsData,
+          borderColor: STATS_COLORS.views,
+          backgroundColor: STATS_COLORS.views + "33",
+          tension: 0.3,
+          fill: false,
+          pointRadius: 2,
+          pointHoverRadius: 5,
+          hidden: !($statsToggleViews?.checked ?? true),
+        },
+        {
+          _statsKey: "saves",
+          label: "Saves",
+          data: savesData,
+          borderColor: STATS_COLORS.saves,
+          backgroundColor: STATS_COLORS.saves + "33",
+          tension: 0.3,
+          fill: false,
+          pointRadius: 2,
+          pointHoverRadius: 5,
+          hidden: !($statsToggleSaves?.checked ?? true),
+        },
+        {
+          _statsKey: "inq",
+          label: "Inquiries",
+          data: inqData,
+          borderColor: STATS_COLORS.inq,
+          backgroundColor: STATS_COLORS.inq + "33",
+          tension: 0.3,
+          fill: false,
+          pointRadius: 2,
+          pointHoverRadius: 5,
+          hidden: !($statsToggleInq?.checked ?? true),
+        },
+      ];
+
+      if (__statsChart) {
+        try { __statsChart.destroy(); } catch {}
+        __statsChart = null;
+      }
+
+      __statsChart = new Chart($statsCanvas.getContext("2d"), {
+        type: "line",
+        data: { labels, datasets },
+        plugins: [priceLinePlugin],
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { display: false },  // our toggle row is the legend
+            tooltip: {
+              backgroundColor: "rgba(20, 28, 64, 0.95)",
+              borderColor: "rgba(255,255,255,0.15)",
+              borderWidth: 1,
+              padding: 10,
+              titleFont: { size: 12, weight: "600" },
+              bodyFont:  { size: 12 },
+            },
+          },
+          scales: {
+            x: {
+              ticks: { color: "rgba(255,255,255,0.65)", maxTicksLimit: 8 },
+              grid: { color: "rgba(255,255,255,0.06)" },
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { color: "rgba(255,255,255,0.65)", precision: 0 },
+              grid: { color: "rgba(255,255,255,0.06)" },
+            },
+          },
+        },
+      });
+    }
 
     // -----------------------------------------------------------------------
     // Tabs (Your listings / Saved listings)

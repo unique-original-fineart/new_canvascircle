@@ -14,7 +14,7 @@
 // versions. The previous cache (cc-v3-logo) is deleted on activate — the very
 // next HTML request goes to network, but that's the price of shipping a visual
 // re-skin widely.
-const CACHE_VERSION = 'cc-v32-tab-discovery';
+const CACHE_VERSION = 'cc-v33-stats-modal';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. Their URLs
@@ -63,6 +63,12 @@ const SHELL_ASSETS = [
 // cold-start hangs on iOS PWA.
 const SUPABASE_LIB_URL = 'https://esm.sh/@supabase/supabase-js@2?bundle';
 
+// Chart.js — used by the per-listing Stats modal in the seller portal.
+// We pre-cache so the chart paints instantly the first time a seller
+// taps the "📊 Stats" button on any device. Without pre-caching, the
+// first open on a slow connection would block on the ~80KB UMD bundle.
+const CHARTJS_LIB_URL = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then((cache) =>
@@ -79,6 +85,13 @@ self.addEventListener('install', (event) => {
         // it on demand once the network is available.
         fetch(SUPABASE_LIB_URL, { mode: 'cors' })
           .then((res) => (res && res.ok ? cache.put(SUPABASE_LIB_URL, res) : null))
+          .catch(() => null),
+        // Same treatment for Chart.js — used by the per-listing Stats
+        // modal. Without pre-cache, the first Stats-button tap on a
+        // weak connection would block on the ~80KB script. With this,
+        // it's there before the user ever clicks.
+        fetch(CHARTJS_LIB_URL, { mode: 'cors' })
+          .then((res) => (res && res.ok ? cache.put(CHARTJS_LIB_URL, res) : null))
           .catch(() => null),
       ])
     )
