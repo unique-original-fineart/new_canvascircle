@@ -678,7 +678,7 @@
     }
     .preview-card .pc-metrics {
       font-size: 11px; color: var(--muted);
-      display: flex; gap: 10px; flex-wrap: nowrap;
+      display: flex; gap: 8px 10px; flex-wrap: wrap;
       align-items: center;
     }
     .preview-card .pc-metrics > * { white-space: nowrap; }
@@ -690,13 +690,15 @@
     .preview-card .pc-metric-btn:hover { filter: brightness(.85); }
     /* 📊 Stats button — opens the engagement-over-time chart modal.
        Compact pill so it doesn't dominate the metrics row, but visible
-       enough to be discoverable. */
+       enough to be discoverable. On wide cards it floats to the right;
+       on narrow cards (mobile 2-up grid) it wraps to its own row at
+       full width so it never gets cut off the edge. */
     .preview-card .pc-stats-btn {
       font: inherit; font-size: 11px; font-weight: 600;
       color: var(--fg);
       background: var(--surface-2);
       border: 1px solid var(--card-line);
-      padding: 2px 8px;
+      padding: 3px 10px;
       border-radius: 999px;
       cursor: pointer;
       margin-left: auto;
@@ -706,6 +708,19 @@
       background: var(--surface-3);
       border-color: var(--accent);
       color: var(--accent);
+    }
+    /* Mobile: force the Stats button onto its own row spanning full card
+       width. The flex-basis:100% + margin-left:0 override pushes it down
+       and aligns it with the other content. Tap target also grows so it's
+       comfortable on touch. */
+    @media (max-width: 640px) {
+      .preview-card .pc-stats-btn {
+        flex-basis: 100%;
+        margin-left: 0;
+        margin-top: 2px;
+        text-align: center;
+        padding: 5px 10px;
+      }
     }
 
     /* ------ Stats modal ------ */
