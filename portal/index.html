@@ -1274,11 +1274,31 @@
     /* Top-of-dashboard quick-action buttons row. */
     .dashboard-quick-actions {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       flex-wrap: wrap;
       margin: 4px 0 12px;
     }
     .dashboard-quick-actions button { flex: 1 1 auto; min-width: 140px; }
+    /* Power-feature CTA — Build Facebook Sales Post. Magenta single-hue
+       gradient so it visually pops from the solid-blue "+ New post"
+       sibling and reads as the high-value tool it actually is. The
+       gradient family matches the Limited Edition badge so it stays
+       within the brand palette. */
+    .dashboard-quick-actions .btn-sales-post {
+      background: linear-gradient(135deg, #E91E63 0%, #F472A1 100%);
+      color: var(--text-inverse);
+      border: 1px solid #E91E63;
+      font-weight: 600;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      transition: filter .15s ease;
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 6px;
+    }
+    .dashboard-quick-actions .btn-sales-post:hover { filter: brightness(1.10); }
 
     /* Public listings page — minimal footprint: just two buttons + a
        collapsed explainer. No background, no border, no padding. */
@@ -2374,7 +2394,7 @@
              Sale/ISO toggle. Sales Post Builder generates Facebook posts. -->
         <div class="dashboard-quick-actions">
           <button type="button" class="btn-primary" id="quick-new-post-btn" data-go="new-listing">+ New post</button>
-          <button type="button" class="btn-secondary" id="quick-sales-post-btn" data-go="sales-post">Build Facebook Post</button>
+          <button type="button" class="btn-sales-post" id="quick-sales-post-btn" data-go="sales-post">📣 Build Facebook Sales Post</button>
         </div>
         <!-- Cap indicator for non-Established Members. Hidden for Established
              users (no cap). Shows the current count vs. the 10-sale-listing
@@ -2389,7 +2409,7 @@
         <div id="public-page-row" class="public-page-panel" hidden>
           <input type="hidden" id="public-page-url" />
           <div class="ppp-actions">
-            <button type="button" id="copy-public-page-btn" class="btn-secondary">Copy Public Listings Page Link</button>
+            <button type="button" id="copy-public-page-btn" class="btn-secondary">🔗 Copy share link</button>
             <a id="preview-public-page-btn" class="btn-secondary" target="_blank" rel="noopener">Preview ↗</a>
             <span id="copy-public-page-status" class="small ppp-status"></span>
           </div>
