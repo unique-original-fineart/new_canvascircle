@@ -1592,14 +1592,21 @@
       color: var(--muted);
     }
     .admin-collapsible > details[open] > summary .ac-chev { transform: rotate(180deg); }
-    .admin-collapsible > details > .help,
-    .admin-collapsible > details > .verlist-filter-input,
-    .admin-collapsible > details > .empty-state,
-    .admin-collapsible > details > .mod-list {
+    /* All direct children of the open details (except the summary)
+       get the standard 18px side gutter so they match other
+       admin-section content. Avoids per-element margin rules each
+       time a new collapsible panel adds different inner elements. */
+    .admin-collapsible > details > *:not(summary) {
       margin-left: 18px;
       margin-right: 18px;
     }
     .admin-collapsible > details > :last-child { margin-bottom: 16px; }
+    @media (max-width: 540px) {
+      .admin-collapsible > details > *:not(summary) {
+        margin-left: 14px;
+        margin-right: 14px;
+      }
+    }
 
     /* Filter input shared by collapsible admin panels — same look as
        the seller filter input in the Sellers section. */
@@ -2881,30 +2888,46 @@
             <div id="expiring-list"   class="all-listings-list" hidden></div>
           </section>
 
-          <section class="admin-section">
-            <h3>Sellers <span class="count" id="sellers-count"></span></h3>
-            <p class="help">Toggle "Trusted" so a seller's new listings auto-publish without admin review. Suspend or ban accounts that violate community rules.</p>
-            <input type="search" id="sellers-filter" placeholder="Filter by display name, email, or location…" autocomplete="off" />
-            <div id="sellers-loading" class="empty-state" hidden>Loading…</div>
-            <div id="sellers-list" class="sellers-list-scroll" hidden></div>
+          <!-- Sellers — collapsed by default. Admin only opens this to
+               flip Trusted / Suspend / Ban, not on every visit. -->
+          <section class="admin-section admin-collapsible">
+            <details>
+              <summary>
+                <span class="ac-title">Sellers</span>
+                <span class="count" id="sellers-count"></span>
+                <span class="ac-chev" aria-hidden="true">▾</span>
+              </summary>
+              <p class="help">Toggle "Trusted" so a seller's new listings auto-publish without admin review. Suspend or ban accounts that violate community rules.</p>
+              <input type="search" id="sellers-filter" placeholder="Filter by display name, email, or location…" autocomplete="off" />
+              <div id="sellers-loading" class="empty-state" hidden>Loading…</div>
+              <div id="sellers-list" class="sellers-list-scroll" hidden></div>
+            </details>
           </section>
 
-          <section class="admin-section">
-            <h3>Send broadcast email</h3>
-            <p class="help">Send an announcement to your whole user base, just sellers (people with at least one listing), or just buyers. Powered by Resend — see <code>docs/resend-setup.md</code> for setup.</p>
-            <form id="broadcast-form" autocomplete="off" onsubmit="return false;" style="display: grid; gap: 10px;">
-              <select id="bc-audience" style="padding:8px 11px; border-radius:8px; border:1px solid var(--card-line); font-size:13px;">
-                <option value="sellers">All sellers (with ≥1 listing)</option>
-                <option value="buyers">All buyers (no listings)</option>
-                <option value="all">All users</option>
-              </select>
-              <input type="text" id="bc-subject" placeholder="Subject" style="padding:9px 12px; border-radius:8px; border:1px solid var(--card-line); font-size:14px;" />
-              <textarea id="bc-body" rows="6" placeholder="Message body. We'll prepend 'Hi {first name},' and append a CanvasCircle footer." style="padding:10px 12px; border-radius:8px; border:1px solid var(--card-line); font-size:14px; font-family:inherit; resize:vertical;"></textarea>
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <button type="button" class="btn-primary" id="bc-send-btn">Send broadcast</button>
-                <span id="bc-status" class="sp-text-status"></span>
-              </div>
-            </form>
+          <!-- Send broadcast email — collapsed by default. Proactive
+               admin tool, not a queue. Same pattern as Verified Listings
+               and Sellers so the admin tab stays scannable. -->
+          <section class="admin-section admin-collapsible">
+            <details>
+              <summary>
+                <span class="ac-title">Send broadcast email</span>
+                <span class="ac-chev" aria-hidden="true">▾</span>
+              </summary>
+              <p class="help">Send an announcement to your whole user base, just sellers (people with at least one listing), or just buyers. Powered by Resend — see <code>docs/resend-setup.md</code> for setup.</p>
+              <form id="broadcast-form" autocomplete="off" onsubmit="return false;" style="display: grid; gap: 10px;">
+                <select id="bc-audience" style="padding:8px 11px; border-radius:8px; border:1px solid var(--card-line); font-size:13px;">
+                  <option value="sellers">All sellers (with ≥1 listing)</option>
+                  <option value="buyers">All buyers (no listings)</option>
+                  <option value="all">All users</option>
+                </select>
+                <input type="text" id="bc-subject" placeholder="Subject" style="padding:9px 12px; border-radius:8px; border:1px solid var(--card-line); font-size:14px;" />
+                <textarea id="bc-body" rows="6" placeholder="Message body. We'll prepend 'Hi {first name},' and append a CanvasCircle footer." style="padding:10px 12px; border-radius:8px; border:1px solid var(--card-line); font-size:14px; font-family:inherit; resize:vertical;"></textarea>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <button type="button" class="btn-primary" id="bc-send-btn">Send broadcast</button>
+                  <span id="bc-status" class="sp-text-status"></span>
+                </div>
+              </form>
+            </details>
           </section>
 
           <!-- "All listings" admin panel was removed 2026-05-26. Endless
