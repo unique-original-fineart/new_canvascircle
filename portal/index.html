@@ -4390,7 +4390,11 @@
           throw insertErr;
         }
 
-        // Local state: re-render this card with status='pending'.
+        // Local state: mutate the in-memory listing so every surface that
+        // re-renders from allListings (preview grid, edit modal body)
+        // picks up the new pending state immediately. The listing
+        // reference traces back to allListings because rows used by
+        // renderPreviewCard are an Array#slice (not a deep clone).
         listing.verification_status = "pending";
         listing.verified_at = null;
         listing.listing_verifications = [
@@ -4398,14 +4402,30 @@
           { id: newId, status: "pending", review_notes: null,
             submitted_at: new Date().toISOString(), reviewed_at: null },
         ];
-        if (currentVerifyCard) {
-          const newCard = renderEditCard(listing);
-          currentVerifyCard.replaceWith(newCard);
+
+        // Refresh the preview grid right away so the seller sees the
+        // "⏳ Pending Review" pill replace the "Add Ownership Verified
+        // badge →" CTA the moment the upload commits — before they even
+        // click Done in the modal. Previously this only ran inside
+        // closeVerificationModal, and submitVerification additionally
+        // tried to swap the seed card with renderEditCard(listing) which
+        // was wrong when verify was launched from a preview card (it
+        // replaced the preview card with an edit card in the dashboard).
+        if (typeof applyFilters === "function") applyFilters();
+
+        // If verify was launched from INSIDE the edit modal (the older
+        // path), also re-render the modal body so its verification
+        // section flips to Pending Review without requiring the seller
+        // to close + reopen Edit.
+        if ($editModal && !$editModal.hidden && $editModalBody) {
+          $editModalBody.innerHTML = "";
+          $editModalBody.appendChild(renderEditCard(listing));
         }
 
         // Signals closeVerificationModal to wrap up the whole workflow
-        // (close edit modal + refresh preview grid + show success banner)
-        // when the seller clicks Done.
+        // (close edit modal + show success banner) when the seller
+        // clicks Done. applyFilters already ran above so closeVerification
+        // doesn't need to do another round of refresh.
         currentVerifySucceeded = true;
         vmShowStage("success");
       } catch (err) {
