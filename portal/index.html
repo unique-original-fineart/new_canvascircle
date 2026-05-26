@@ -5080,6 +5080,14 @@
         dirtyIds.delete(id);
         refreshSaveAllBar();
         applyFilters();
+        // The Remove button lives INSIDE the edit modal — once the listing
+        // is gone we must close that modal too, otherwise the seller sees
+        // a stuck "Removing…" button covering the now-updated preview grid
+        // behind it. Without this, the only way out was to manually tap
+        // the X / backdrop.
+        if (typeof closeEditModal === "function" && $editModal && !$editModal.hidden) {
+          closeEditModal();
+        }
         showDashBanner(`Removed "${label}".`, "success");
       } catch (err) {
         console.error("[removeCard] failed:", err);

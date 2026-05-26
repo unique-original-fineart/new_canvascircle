@@ -14,7 +14,7 @@
 // versions. The previous cache (cc-v3-logo) is deleted on activate — the very
 // next HTML request goes to network, but that's the price of shipping a visual
 // re-skin widely.
-const CACHE_VERSION = 'cc-v19-verify-pill-wrap';
+const CACHE_VERSION = 'cc-v20-remove-closes-modal';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. Their URLs
