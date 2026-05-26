@@ -688,6 +688,20 @@
       cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
     }
     .preview-card .pc-metric-btn:hover { filter: brightness(.85); }
+    /* "+N this week" engagement delta chip — small accent-blue indicator
+       so sellers can see momentum at a glance without us pinging them
+       per-save. Surfaces only when N > 0 (zero state stays clean). */
+    .preview-card .pc-metric-delta {
+      display: inline-flex; align-items: center;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: var(--accent-tint);
+      border: 1px solid var(--accent-soft);
+      color: var(--accent-deep);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
     .preview-card .pc-savers-list {
       position: absolute;
       left: 8px; right: 8px; bottom: 8px;
@@ -4031,6 +4045,7 @@
       const showSoldOverlay = isSold && !isIso;
       const saveCnt = Number(l.save_count || 0);
       const viewCnt = Number(l.view_count || 0);
+      const savesWeek = Number(l.saves_this_week || 0);
 
       // Price / budget label
       let priceLabel;
@@ -4095,6 +4110,7 @@
             ${saveCnt > 0
               ? `<button type="button" class="pc-metric-btn" data-action="show-savers">♥ ${saveCnt} ${saveCnt === 1 ? "save" : "saves"}</button>`
               : `<span>♥ 0 saves</span>`}
+            ${savesWeek > 0 ? `<span class="pc-metric-delta" title="${savesWeek} new save${savesWeek === 1 ? "" : "s"} in the last 7 days">+${savesWeek} this week</span>` : ""}
             <span>👁 ${viewCnt} ${viewCnt === 1 ? "view" : "views"}</span>
           </div>
           <div class="savers-list pc-savers-list" data-savers-list hidden></div>
@@ -4667,6 +4683,7 @@
 
       const saveCnt = Number(l.save_count || 0);
       const viewCnt = Number(l.view_count || 0);
+      const savesWeek = Number(l.saves_this_week || 0);
 
       const thumbInner = imgUrl
         ? `<img src="${imgUrl}" alt="" loading="lazy" />`
@@ -4694,6 +4711,7 @@
           <button type="button" class="metric ${saveCnt > 0 ? "is-clickable" : ""}" data-action="show-savers" ${saveCnt === 0 ? "disabled" : ""}>
             <span class="icon">♥</span> ${saveCnt} ${saveCnt === 1 ? "save" : "saves"}
           </button>
+          ${savesWeek > 0 ? `<span class="metric pc-metric-delta" title="${savesWeek} new save${savesWeek === 1 ? "" : "s"} in the last 7 days">+${savesWeek} this week</span>` : ""}
           <span class="metric"><span class="icon">👁</span> ${viewCnt} ${viewCnt === 1 ? "view" : "views"}</span>
         </div>
         <div class="savers-list" data-savers-list hidden></div>
@@ -5964,6 +5982,36 @@
         $listingsCount.textContent = "";
         return;
       }
+
+      // ---- Weekly engagement delta ----
+      // For each listing, count saved_listings rows whose created_at falls
+      // within the last 7 days. Gives the seller a "+N this week" signal
+      // on top of the all-time save_count without piping per-save events.
+      // One batched query keyed on listing_id; failure here is non-fatal
+      // — we just skip the delta chip and the card still renders.
+      try {
+        const ids = allListings.map(l => l.listing_id);
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: recentSaves, error: rsErr } = await supabase
+          .from("saved_listings")
+          .select("listing_id, created_at")
+          .in("listing_id", ids)
+          .gte("created_at", sevenDaysAgo);
+        if (!rsErr && Array.isArray(recentSaves)) {
+          const byId = new Map();
+          for (const r of recentSaves) {
+            byId.set(r.listing_id, (byId.get(r.listing_id) || 0) + 1);
+          }
+          for (const l of allListings) {
+            l.saves_this_week = byId.get(l.listing_id) || 0;
+          }
+        } else if (rsErr) {
+          console.warn("[engagement-delta] saved_listings query failed:", rsErr);
+        }
+      } catch (e) {
+        console.warn("[engagement-delta] non-fatal failure:", e);
+      }
+
       applyFilters();
       refreshNotRenewedBanner();
       refreshRevokedBanner();
