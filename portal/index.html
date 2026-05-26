@@ -1571,10 +1571,14 @@
       padding: 14px 18px;
       display: flex; align-items: baseline;
       gap: 8px;
+      flex-wrap: wrap;  /* graceful wrap on narrow phones so the chevron never spills out */
       font-family: Georgia, "Times New Roman", serif;
       font-size: 18px; font-weight: 600;
       color: var(--fg);
       user-select: none;
+    }
+    @media (max-width: 540px) {
+      .admin-collapsible > details > summary { font-size: 16px; padding: 12px 14px; }
     }
     .admin-collapsible > details > summary::-webkit-details-marker { display: none; }
     .admin-collapsible > details > summary .ac-title { flex: 0 0 auto; }
@@ -2844,7 +2848,7 @@
           <section class="admin-section admin-collapsible">
             <details>
               <summary>
-                <span class="ac-title">Verified listings — revoke badge</span>
+                <span class="ac-title">Verified listings</span>
                 <span class="count" id="verlist-count"></span>
                 <span class="ac-chev" aria-hidden="true">▾</span>
               </summary>
