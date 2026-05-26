@@ -1560,6 +1560,78 @@
     .admin-section h3 .count { color: var(--muted); font-weight: 400; font-size: 14px; }
     .admin-section .help { color: var(--muted); font-size: 13px; margin: -4px 0 12px; }
 
+    /* Collapsible admin sections. Used for rarely-touched panels (e.g.
+       Verified listings — revoke badge) so they don't bloat the admin
+       view when closed. Click the summary row to toggle. */
+    .admin-collapsible { padding: 0; }
+    .admin-collapsible > details { padding: 0; }
+    .admin-collapsible > details > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 14px 18px;
+      display: flex; align-items: baseline;
+      gap: 8px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 18px; font-weight: 600;
+      color: var(--fg);
+      user-select: none;
+    }
+    .admin-collapsible > details > summary::-webkit-details-marker { display: none; }
+    .admin-collapsible > details > summary .ac-title { flex: 0 0 auto; }
+    .admin-collapsible > details > summary .count {
+      color: var(--muted); font-weight: 400; font-size: 14px;
+    }
+    .admin-collapsible > details > summary .ac-chev {
+      margin-left: auto;
+      font-size: 14px;
+      transition: transform .2s ease;
+      color: var(--muted);
+    }
+    .admin-collapsible > details[open] > summary .ac-chev { transform: rotate(180deg); }
+    .admin-collapsible > details > .help,
+    .admin-collapsible > details > .verlist-filter-input,
+    .admin-collapsible > details > .empty-state,
+    .admin-collapsible > details > .mod-list {
+      margin-left: 18px;
+      margin-right: 18px;
+    }
+    .admin-collapsible > details > :last-child { margin-bottom: 16px; }
+
+    /* Filter input shared by collapsible admin panels — same look as
+       the seller filter input in the Sellers section. */
+    .verlist-filter-input {
+      width: calc(100% - 36px);
+      padding: 8px 11px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      background: var(--surface-2);
+      color: var(--fg);
+      font-size: 13px; font-family: inherit;
+      margin-bottom: 10px;
+    }
+    .verlist-filter-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(45,127,255,.15);
+    }
+
+    /* Scrollable variant of .mod-list — caps height so the panel stays
+       compact even when 100+ items load. Used inside collapsible admin
+       sections that can grow unboundedly. */
+    .mod-list--scroll {
+      max-height: 480px;
+      overflow-y: auto;
+      padding-right: 4px;  /* room for the scrollbar */
+    }
+    .mod-list--scroll::-webkit-scrollbar { width: 8px; }
+    .mod-list--scroll::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: 4px;
+    }
+    .mod-list--scroll::-webkit-scrollbar-track { background: transparent; }
+    /* Hidden by filter — keeps the row in DOM but out of view. */
+    .vm-hidden-by-filter { display: none !important; }
+
     .mod-list { display: flex; flex-direction: column; gap: 10px; }
 
     /* Ownership-verification moderation row layout. */
@@ -2765,17 +2837,29 @@
             <div id="vermod-list" class="mod-list" hidden></div>
           </section>
 
-          <section class="admin-section">
-            <h3>Verified listings — revoke badge <span class="count" id="verlist-count"></span></h3>
-            <p class="help">All listings that currently display the "Ownership Verified" badge (gradient ✓), newest first. Use <strong>Revoke</strong> for buyer complaints, rule violations, or any time the badge no longer reflects reality. Note: the DB already auto-revokes when a seller changes artist / title / category / primary image — those don't need admin action. A revoke reason is required and is stored permanently in the audit trail.</p>
-            <div id="verlist-loading" class="empty-state" hidden>Loading…</div>
-            <div id="verlist-empty"   class="empty-state" hidden>No listings currently have the verified badge.</div>
-            <div id="verlist-list"    class="mod-list" hidden></div>
+          <!-- Verified listings panel — collapsed by default since revocation
+               is rare. Has its own filter input and a max-height scrollable
+               list so it stays compact even as the verified-listings count
+               grows into the hundreds or thousands. -->
+          <section class="admin-section admin-collapsible">
+            <details>
+              <summary>
+                <span class="ac-title">Verified listings — revoke badge</span>
+                <span class="count" id="verlist-count"></span>
+                <span class="ac-chev" aria-hidden="true">▾</span>
+              </summary>
+              <p class="help">All listings that currently display the "Ownership Verified" badge (gradient ✓), newest first. Use <strong>Revoke</strong> for buyer complaints, rule violations, or any time the badge no longer reflects reality. Note: the DB already auto-revokes when a seller changes artist / title / category / primary image — those don't need admin action. A revoke reason is required and is stored permanently in the audit trail.</p>
+              <input type="search" id="verlist-filter" class="verlist-filter-input" placeholder="Filter by artist, title, or seller…" autocomplete="off" />
+              <div id="verlist-loading" class="empty-state" hidden>Loading…</div>
+              <div id="verlist-empty"   class="empty-state" hidden>No listings currently have the verified badge.</div>
+              <div id="verlist-no-match" class="empty-state" hidden>No verified listings match that filter.</div>
+              <div id="verlist-list"    class="mod-list mod-list--scroll" hidden></div>
+            </details>
           </section>
 
           <section class="admin-section">
             <h3>Reported listings <span class="count" id="reports-count"></span></h3>
-            <p class="help">Listings users have flagged as violating the community rules. Open the listing to review, then either reject it (via the All listings panel) or dismiss the report if it's a false alarm.</p>
+            <p class="help">Listings users have flagged as violating the community rules. Open the listing to review, then take action on the seller directly (Sellers section below) or dismiss the report if it's a false alarm.</p>
             <div id="reports-loading" class="empty-state" hidden>Loading…</div>
             <div id="reports-empty" class="empty-state" hidden>No open reports.</div>
             <div id="reports-list" class="reports-list" hidden></div>
@@ -2819,38 +2903,10 @@
             </form>
           </section>
 
-          <section class="admin-section">
-            <h3>All listings <span class="count" id="all-listings-count"></span></h3>
-            <p class="help">Every listing in the catalog. Filter, change moderation or status, or remove a problem listing. For deeper field edits use the Your listings tab or SQL editor.</p>
-
-            <form class="admin-toolbar" id="all-toolbar" onsubmit="return false;">
-              <input type="search" id="all-q" placeholder="Search title, artist, medium…" />
-              <select id="all-seller" title="Seller">
-                <option value="">All sellers</option>
-              </select>
-              <select id="all-status" title="Status">
-                <option value="">All statuses</option>
-                <option value="available">Available</option>
-                <option value="pending">Pending Sale</option>
-                <option value="sold">Sold</option>
-                <option value="delisted">Delisted</option>
-                <option value="not_renewed">Not renewed</option>
-                <option value="rejected">Rejected</option>
-                <option value="pending_review">Pending review</option>
-              </select>
-              <select id="all-mod" title="Moderation">
-                <option value="">All moderation</option>
-                <option value="approved">Approved</option>
-                <option value="pending">Pending Review</option>
-                <option value="rejected">Rejected</option>
-              </select>
-              <button type="button" class="btn-secondary" id="all-clear">Clear</button>
-            </form>
-
-            <div id="all-listings-loading" class="empty-state" hidden>Loading…</div>
-            <div id="all-listings-empty"   class="empty-state" hidden>No listings match.</div>
-            <div id="all-listings-list" class="all-listings-list" hidden></div>
-          </section>
+          <!-- "All listings" admin panel was removed 2026-05-26. Endless
+               scroll at scale, rarely used. Problem listings reach the
+               admin via the user-report flow instead (see Reported
+               listings section above). -->
         </div>
 
         <div class="quicklinks" style="margin-top: 18px;">
@@ -6095,7 +6151,7 @@
       $adminBanner.hidden = true;
       try {
         await withTimeout(
-          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadVerificationModQueue(), loadVerifiedListings(), loadReports(), loadSellers(), loadAllListings(), loadExpiring()]),
+          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadVerificationModQueue(), loadVerifiedListings(), loadReports(), loadSellers(), loadExpiring()]),
           15000,
           "admin tab load"
         );
@@ -6121,6 +6177,39 @@
     const $verlistCount   = document.getElementById("verlist-count");
     const $verlistLoading = document.getElementById("verlist-loading");
     const $verlistEmpty   = document.getElementById("verlist-empty");
+    const $verlistFilter  = document.getElementById("verlist-filter");
+    const $verlistNoMatch = document.getElementById("verlist-no-match");
+
+    // Client-side filter for the (collapsed by default) Verified listings
+    // panel. We searched against the rendered row's textContent which
+    // already concatenates artist + title + seller name + handle into a
+    // single searchable blob. Cheap and broad.
+    function applyVerlistFilter() {
+      if (!$verlistFilter || !$verlistList) return;
+      const q = ($verlistFilter.value || "").trim().toLowerCase();
+      const rows = Array.from($verlistList.querySelectorAll(".vermod-row"));
+      if (!rows.length) return;
+      let visibleCount = 0;
+      for (const row of rows) {
+        const hay = (row.textContent || "").toLowerCase();
+        const matches = !q || hay.includes(q);
+        row.classList.toggle("vm-hidden-by-filter", !matches);
+        if (matches) visibleCount++;
+      }
+      // Surface a "no matches" state if the filter eliminates every row.
+      if ($verlistNoMatch) $verlistNoMatch.hidden = (visibleCount > 0) || !q;
+      // Refresh the count label to read "(filtered/total)" when a filter
+      // is active. Empty filter → just "(total)".
+      if ($verlistCount) {
+        const total = rows.length;
+        $verlistCount.textContent = q
+          ? `(${visibleCount}/${total})`
+          : `(${total})`;
+      }
+    }
+    if ($verlistFilter) {
+      $verlistFilter.addEventListener("input", applyVerlistFilter);
+    }
 
     async function loadVerificationModQueue() {
       $vermodLoading.hidden = false;
@@ -6327,6 +6416,9 @@
       for (const r of rows) frag.appendChild(renderVerifiedListingRow(r));
       $verlistList.appendChild(frag);
       $verlistList.hidden = false;
+      // Re-apply the search filter if one is active. After a revoke + reload
+      // we want any existing query to still narrow the new rows down.
+      applyVerlistFilter();
     }
 
     function renderVerifiedListingRow(l) {
@@ -7172,226 +7264,10 @@
       }
     }
 
-    // -----------------------------------------------------------------------
-    // Admin "All listings" section
-    // -----------------------------------------------------------------------
-    const $allListingsLoading = document.getElementById("all-listings-loading");
-    const $allListingsEmpty   = document.getElementById("all-listings-empty");
-    const $allListingsList    = document.getElementById("all-listings-list");
-    const $allListingsCount   = document.getElementById("all-listings-count");
-    const $allQ      = document.getElementById("all-q");
-    const $allSeller = document.getElementById("all-seller");
-    const $allStatus = document.getElementById("all-status");
-    const $allMod    = document.getElementById("all-mod");
-    const $allClear  = document.getElementById("all-clear");
+    // Admin "All listings" panel removed 2026-05-26 — endless scroll at
+    // scale, rarely used. Problem listings flow through user reports instead
+    // (see Reported listings section in the admin tab).
 
-    let allAdminListings = [];
-
-    async function loadAllListings() {
-      $allListingsLoading.hidden = false;
-      $allListingsEmpty.hidden   = true;
-      $allListingsList.hidden    = true;
-      $allListingsList.innerHTML = "";
-
-      const { data, error } = await supabase
-        .from("listings")
-        .select(`
-          listing_id, listing_type, artist_name, artwork_title, artwork_category,
-          asking_price_usd, budget_min_usd, budget_max_usd,
-          status, moderation_status, created_at,
-          listing_images ( storage_path, position ),
-          profiles!listings_seller_id_fkey ( display_name, handle, account_status )
-        `)
-        .order("created_at", { ascending: false });
-      $allListingsLoading.hidden = true;
-      if (error) {
-        setAdminBanner("Could not load listings: " + (error.message || error), "error");
-        return;
-      }
-      allAdminListings = data || [];
-
-      // Populate the seller filter from the unique sellers in this dataset.
-      const names = new Set();
-      for (const l of allAdminListings) {
-        const n = l.profiles?.display_name?.trim();
-        if (n) names.add(n);
-      }
-      const sortedNames = [...names].sort((a, b) => a.localeCompare(b));
-      $allSeller.innerHTML = `<option value="">All sellers</option>` +
-        sortedNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join("");
-
-      applyAllListingsFilter();
-    }
-
-    function applyAllListingsFilter() {
-      const q   = $allQ.value.trim().toLowerCase();
-      const sel = $allSeller.value;
-      const stf = $allStatus.value;
-      const mod = $allMod.value;
-      let rows = allAdminListings.slice();
-      if (sel) rows = rows.filter(l => (l.profiles?.display_name || "") === sel);
-      if (stf) rows = rows.filter(l => l.status === stf);
-      if (mod) rows = rows.filter(l => l.moderation_status === mod);
-      if (q) {
-        rows = rows.filter(l => {
-          const hay = `${l.artist_name || ""} ${l.artwork_title || ""}`.toLowerCase();
-          return hay.includes(q);
-        });
-      }
-      $allListingsCount.textContent = rows.length === allAdminListings.length
-        ? `(${rows.length})`
-        : `(${rows.length} of ${allAdminListings.length})`;
-      $allListingsList.innerHTML = "";
-      if (rows.length === 0) {
-        $allListingsEmpty.hidden = false;
-        $allListingsList.hidden = true;
-        return;
-      }
-      $allListingsEmpty.hidden = true;
-      const frag = document.createDocumentFragment();
-      for (const l of rows) frag.appendChild(renderAllListingRow(l));
-      $allListingsList.appendChild(frag);
-      $allListingsList.hidden = false;
-    }
-
-    function renderAllListingRow(l) {
-      const isIso = l.listing_type === "iso";
-      const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
-      // Small admin-row thumb.
-      const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 300 }) : "";
-      const seller = l.profiles?.display_name || "Unknown seller";
-      const sellerHandle = l.profiles?.handle || "";
-      const sellerStatus = l.profiles?.account_status || "active";
-      const days = Math.max(0, Math.floor((Date.now() - new Date(l.created_at).getTime()) / 86400000));
-
-      // Price / budget label
-      let priceLabel;
-      if (isIso) {
-        const min = l.budget_min_usd != null ? Number(l.budget_min_usd) : null;
-        const max = l.budget_max_usd != null ? Number(l.budget_max_usd) : null;
-        if (min != null && max != null)        priceLabel = `$${min.toLocaleString()}–$${max.toLocaleString()} budget`;
-        else if (min != null)                  priceLabel = `From $${min.toLocaleString()}`;
-        else if (max != null)                  priceLabel = `Up to $${max.toLocaleString()}`;
-        else                                   priceLabel = `Open budget`;
-      } else {
-        priceLabel = `$${Number(l.asking_price_usd || 0).toLocaleString()}`;
-      }
-
-      // Image cell — ISO can lack an image.
-      const thumbInner = imgUrl
-        ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />`
-        : (isIso ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--surface-3);color:var(--muted);font-size:18px;">🔍</div>` : "");
-
-      const row = document.createElement("div");
-      row.className = "all-listing-row" + (isIso ? " is-iso" : "");
-      row.dataset.listingId = l.listing_id;
-      row.innerHTML = `
-        <div class="al-thumb">${thumbInner}</div>
-        <div class="al-meta">
-          <strong>${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))} – ${escapeHtml(l.artwork_title || (isIso ? "(no specific title)" : ""))}</strong>
-          <div class="sub">
-            ${escapeHtml(seller)}${sellerHandle ? ` <a href="/seller?handle=${encodeURIComponent(sellerHandle)}" target="_blank" rel="noopener" style="color:var(--accent);" title="Open public seller page">@${escapeHtml(sellerHandle)}</a>` : ""}${sellerStatus !== "active" ? ` · <span style="color:var(--status-danger-deep);">${escapeHtml(sellerStatus)}</span>` : ""}
-            · ${escapeHtml(priceLabel)}
-            · ${days === 0 ? "today" : days + "d ago"}
-          </div>
-          <div class="pills">
-            ${isIso ? `<span class="pill" style="background:var(--accent-tint);color:var(--accent-deep);border:1px solid var(--accent-soft);">ISO</span>` : ""}
-            <span class="pill status-${l.status}">${escapeHtml(statusLabel(l.status))}</span>
-            ${l.moderation_status && l.moderation_status !== "approved"
-              ? `<span class="pill">${l.moderation_status === "pending" ? "Pending Review" : escapeHtml(l.moderation_status)}</span>` : ""}
-          </div>
-        </div>
-        <div class="al-controls">
-          <a class="view-link" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View ↗</a>
-          <select data-action="set-mod" title="Moderation">
-            <option value="approved" ${l.moderation_status === "approved" ? "selected" : ""}>Approved</option>
-            <option value="pending"  ${l.moderation_status === "pending"  ? "selected" : ""}>Pending Review</option>
-            <option value="rejected" ${l.moderation_status === "rejected" ? "selected" : ""}>Rejected</option>
-          </select>
-        </div>
-      `;
-      row.querySelector("[data-action=set-mod]").addEventListener("change", async (e) => {
-        const newMod = e.target.value;
-        const patch = { moderation_status: newMod };
-        // If rejecting, prompt for a reason the seller will see on their
-        // listing. Cancel → revert the dropdown and don't save.
-        if (newMod === "rejected") {
-          const reason = prompt(
-            "Reject this listing — what's the reason? (The seller will see this on their listings dashboard so they know what to fix.)",
-            l.moderation_reason || ""
-          );
-          if (reason === null) {
-            e.target.value = l.moderation_status || "approved";
-            return;
-          }
-          patch.moderation_reason = reason.trim() || null;
-          patch.moderation_reason_at = new Date().toISOString();
-        } else {
-          // Approving or moving to pending review → clear any stale reason.
-          patch.moderation_reason = null;
-          patch.moderation_reason_at = null;
-        }
-        await updateAdminListing(row, l, patch);
-      });
-      return row;
-    }
-
-    async function updateAdminListing(row, listing, payload) {
-      try {
-        const { error } = await supabase
-          .from("listings")
-          .update(payload)
-          .eq("listing_id", listing.listing_id);
-        if (error) throw error;
-        Object.assign(listing, payload);
-        const idx = allAdminListings.findIndex(x => x.listing_id === listing.listing_id);
-        if (idx >= 0) Object.assign(allAdminListings[idx], payload);
-        // Update the visible pill on the row without a full re-render.
-        const pills = row.querySelector(".pills");
-        if (pills) {
-          pills.innerHTML = `
-            <span class="pill status-${listing.status}">${escapeHtml(statusLabel(listing.status))}</span>
-            ${listing.moderation_status && listing.moderation_status !== "approved"
-              ? `<span class="pill">${listing.moderation_status === "pending" ? "Pending Review" : escapeHtml(listing.moderation_status)}</span>` : ""}
-          `;
-        }
-        setAdminBanner(`Updated: ${listing.artist_name} – ${listing.artwork_title}.`, "success");
-        if (payload.moderation_status) refreshModerationBadge();
-      } catch (err) {
-        console.error("[updateAdminListing] failed:", err);
-        setAdminBanner("Could not update: " + (err.message || err), "error");
-      }
-    }
-
-    async function removeAdminListing(row, listing) {
-      const label = `${listing.artist_name || "Unknown"} – ${listing.artwork_title || "Untitled"}`;
-      if (!confirm(`Remove "${label}"?\n\nDeletes the listing + image permanently. Cannot be undone.`)) return;
-      try {
-        const paths = (listing.listing_images || [])
-          .map(i => i.storage_path)
-          .filter(p => p && !/^https?:\/\//i.test(p));
-        if (paths.length) {
-          try { await supabase.storage.from("listing-images").remove(paths); }
-          catch (e) { console.warn("[removeAdminListing] storage cleanup failed:", e); }
-        }
-        const { error } = await supabase.from("listings").delete().eq("listing_id", listing.listing_id);
-        if (error) throw error;
-        allAdminListings = allAdminListings.filter(x => x.listing_id !== listing.listing_id);
-        row.remove();
-        setAdminBanner(`Removed "${label}".`, "success");
-        applyAllListingsFilter(); // refresh count
-        refreshModerationBadge();
-      } catch (err) {
-        console.error("[removeAdminListing] failed:", err);
-        setAdminBanner("Could not remove: " + (err.message || err), "error");
-      }
-    }
-
-    [$allQ, $allSeller, $allStatus, $allMod].forEach(el => el.addEventListener("input", applyAllListingsFilter));
-    $allClear.addEventListener("click", () => {
-      $allQ.value = ""; $allSeller.value = ""; $allStatus.value = ""; $allMod.value = "";
-      applyAllListingsFilter();
-    });
 
     // -----------------------------------------------------------------------
     // Generic retry helper — wraps a thenable factory in timeout-with-retry
