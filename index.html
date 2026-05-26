@@ -566,6 +566,11 @@
       <p class="tagline"><strong>CanvasCircle</strong> — A modern art listing platform built for collectors.</p>
     </section>
 
+    <!-- Install-as-app banner. Hidden by JS on desktop, on already-installed
+         PWAs, or if previously dismissed. Tappable "How?" button opens a
+         modal with iPhone + Android instructions. -->
+    <div id="install-banner-slot"></div>
+
     <div class="catalog-tabs" role="tablist">
       <button type="button" class="catalog-tab is-active" data-listing-type="sale" role="tab" aria-selected="true">For Sale</button>
       <button type="button" class="catalog-tab" data-listing-type="iso" role="tab" aria-selected="false">In Search Of <span class="tab-hint">— buyer requests</span></button>
@@ -640,6 +645,12 @@
     import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
     import { showAuthPrompt } from "/lib/auth-prompt.js";
     import { mountWelcomeBanner } from "/lib/welcome-banner.js";
+    import { mountInstallBanner } from "/lib/install-prompt.js";
+
+    // Mount the install-as-app banner under the hero. The module itself
+    // decides whether to actually render (mobile + not installed + not
+    // previously dismissed) — we just point it at the container.
+    mountInstallBanner({ container: document.getElementById("install-banner-slot") });
 
     // Fire-and-forget — the banner only renders for signed-in users with an
     // active return-trail, and self-injects at the top of body. Safe no-op

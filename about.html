@@ -200,6 +200,25 @@
       <p>By combining structured listings with a centralized catalog, it transforms fragmented, feed-based selling into a more organized, efficient, and professional experience for the collector community.</p>
     </section>
 
+    <section class="section" id="use-as-app">
+      <h2>Use CanvasCircle as an App on Your Phone</h2>
+      <p>CanvasCircle is a Progressive Web App — meaning you can pin it to your phone's home screen and it'll behave like a real installed app. Full screen, no browser bars, faster reloads, and you stay signed in across visits. It's the same site as the website, just with a smoother daily-use experience.</p>
+      <p>The install takes about ten seconds and works on both iPhone and Android:</p>
+      <ul>
+        <li><strong>iPhone:</strong> Open the site in Safari, tap the Share button, choose <em>Add to Home Screen</em>.</li>
+        <li><strong>Android:</strong> Open the site in Chrome, tap the ⋮ menu, choose <em>Install app</em>.</li>
+      </ul>
+      <p style="margin-top: 14px;">
+        <button type="button" id="use-as-app-btn" class="primary" style="background: var(--brand-gradient); color: var(--text-inverse); border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; font-family: inherit;">Show me how →</button>
+      </p>
+      <p style="margin-top: 10px; font-size: 13px; color: var(--muted);">Already installed? You're seeing this from your browser — open CanvasCircle from your home screen icon instead.</p>
+    </section>
+
+    <script type="module">
+      import { openInstallModal } from "/lib/install-prompt.js";
+      document.getElementById("use-as-app-btn")?.addEventListener("click", openInstallModal);
+    </script>
+
     <div class="footer-link">
       <a href="/">&larr; Return to the catalog</a>
     </div>
