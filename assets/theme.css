@@ -295,6 +295,23 @@ body {
 }
 
 /* =================================================================
+   Make the HTML `hidden` attribute actually win
+
+   The UA stylesheet sets `[hidden] { display: none }` with normal
+   priority, which any author rule setting `display` will override.
+   That caused the Established Member pill to render even when the
+   element had `hidden` set, because both the inline-style version
+   (seller.html) and the CSS-class version (portal/index.html) set
+   `display: inline-flex` which beat the UA rule.
+
+   The standard fix recommended by the HTML spec is to re-declare
+   `[hidden]` with !important in author CSS. This makes any element
+   with `hidden` set ALWAYS render as display: none regardless of
+   conflicting display rules.
+   ================================================================= */
+[hidden] { display: none !important; }
+
+/* =================================================================
    Header → content seam — 1px brand-gradient line
 
    Each page's inline <style> sets `border-bottom: 1px solid
