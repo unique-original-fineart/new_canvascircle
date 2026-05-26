@@ -946,8 +946,14 @@
        the pill text and tighten paddings to keep "✗ Not Approved ▾" on a
        single line. */
     .preview-card .vp-badge {
-      font-size: 12px;
+      font-size: 11px;
       padding: 4px 10px;
+      /* Keep the label on a single line. Without nowrap, narrow mobile
+         cards force text like "Verification Pending" to wrap mid-word
+         and the pill stretches to 3 ugly lines. The badge still respects
+         max-width:100% so the worst case is one extra wrap at the space,
+         not per-character wrap. */
+      white-space: nowrap;
     }
     .preview-card .vp-popover {
       font-size: 12px;
@@ -3766,7 +3772,7 @@
         return `
           <div class="pc-verification">
             <span class="vp-badge pending is-clickable" data-vp-toggle role="button" tabindex="0" aria-expanded="false" aria-controls="${popId}">
-              ⏳ Verification Pending <span class="vp-chev" aria-hidden="true">▾</span>
+              Verification Pending <span class="vp-chev" aria-hidden="true">▾</span>
             </span>
             <div class="vp-popover" id="${popId}" hidden>
               Your verification video is awaiting admin review. We'll review within 24-48 hours; the listing stays live in the meantime.
@@ -4059,7 +4065,7 @@
       } else if (status === "pending") {
         body = `
           <span class="vp-badge pending is-clickable" data-vp-toggle role="button" tabindex="0" aria-expanded="false" aria-controls="vp-pop-${escapeHtml(l.listing_id)}">
-            ⏳ Verification Pending <span class="vp-chev" aria-hidden="true">▾</span>
+            Verification Pending <span class="vp-chev" aria-hidden="true">▾</span>
           </span>
           <div class="vp-popover" id="vp-pop-${escapeHtml(l.listing_id)}" hidden>
             Your verification video was submitted and is awaiting admin review. We'll review within 24-48 hours; the listing stays live in the meantime.
