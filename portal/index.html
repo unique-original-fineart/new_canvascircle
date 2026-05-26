@@ -2843,10 +2843,16 @@
               <option value="iso">In Search Of</option>
             </select>
             <select id="dash-status">
+              <!-- "Active" = everything except sold/closed. The default,
+                   chosen so the dashboard stays focused on listings that
+                   still need the seller's attention. Sold sale listings
+                   and closed/found ISO posts both use status='sold' and
+                   are both excluded by this option. -->
+              <option value="active" selected>Active (hide sold)</option>
               <option value="">All statuses</option>
               <option value="available">Available</option>
               <option value="pending">Pending Sale</option>
-              <option value="sold">Sold</option>
+              <option value="sold">Sold / Closed</option>
               <option value="not_renewed">Not renewed (expired)</option>
               <option value="pending_review">Pending review</option>
             </select>
@@ -6531,7 +6537,15 @@
 
       let rows = allListings.slice();
       if (tpf) rows = rows.filter(l => (l.listing_type || "sale") === tpf);
-      if (stf) rows = rows.filter(l => l.status === stf);
+      // Status filter has three modes:
+      //   "active" → everything EXCEPT sold/closed (default — keeps the
+      //              dashboard focused on listings still needing attention)
+      //   ""       → all statuses (explicit "show me everything" escape hatch)
+      //   <value>  → exact match on that single status
+      // Note: ISO listings use status='sold' to mean "closed/found", so the
+      // "active" filter naturally hides those too — same intent, same field.
+      if (stf === "active")      rows = rows.filter(l => l.status !== "sold");
+      else if (stf)              rows = rows.filter(l => l.status === stf);
       if (q) {
         rows = rows.filter(l => {
           const hay = `${l.artwork_title || ""} ${l.artist_name || ""} ${l.medium || ""} ${l.description || ""} ${l.status || ""}`.toLowerCase();
@@ -6626,7 +6640,10 @@
     [$dashQ, $dashType, $dashStatus, $dashSort].forEach(el => el.addEventListener("input", applyFilters));
     [$dashType, $dashStatus, $dashSort].forEach(el => el.addEventListener("change", applyFilters));
     $dashClear.addEventListener("click", () => {
-      $dashQ.value = ""; if ($dashType) $dashType.value = ""; $dashStatus.value = ""; $dashSort.value = "newest";
+      // Reset to the dashboard's default state — including the "active"
+      // status filter, so Clear means "back to the focused default view"
+      // rather than "show everything including sold."
+      $dashQ.value = ""; if ($dashType) $dashType.value = ""; $dashStatus.value = "active"; $dashSort.value = "newest";
       applyFilters();
     });
 
