@@ -14,7 +14,7 @@
 // versions. The previous cache (cc-v3-logo) is deleted on activate — the very
 // next HTML request goes to network, but that's the price of shipping a visual
 // re-skin widely.
-const CACHE_VERSION = 'cc-v22-dashboard-ctas';
+const CACHE_VERSION = 'cc-v23-copy-your-page-link';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. Their URLs
