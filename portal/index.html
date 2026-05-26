@@ -2589,7 +2589,7 @@
 
           <section class="admin-section">
             <h3>Verified listings — revoke badge <span class="count" id="verlist-count"></span></h3>
-            <p class="help">All listings that currently display the green "Ownership Verified" badge, newest first. Use <strong>Revoke</strong> for buyer complaints, rule violations, or any time the badge no longer reflects reality. Note: the DB already auto-revokes when a seller changes artist / title / category / primary image — those don't need admin action. A revoke reason is required and is stored permanently in the audit trail.</p>
+            <p class="help">All listings that currently display the "Ownership Verified" badge (gradient ✓), newest first. Use <strong>Revoke</strong> for buyer complaints, rule violations, or any time the badge no longer reflects reality. Note: the DB already auto-revokes when a seller changes artist / title / category / primary image — those don't need admin action. A revoke reason is required and is stored permanently in the audit trail.</p>
             <div id="verlist-loading" class="empty-state" hidden>Loading…</div>
             <div id="verlist-empty"   class="empty-state" hidden>No listings currently have the verified badge.</div>
             <div id="verlist-list"    class="mod-list" hidden></div>
@@ -2796,6 +2796,14 @@
           </div>
 
           <div id="banner-new-listing" class="banner" hidden></div>
+
+          <!-- Sale-only verification preview hint. Sets the seller's
+               expectation that the verification step comes right after
+               submit (rather than buried in Edit later). applyNlType()
+               toggles `hidden` based on the For Sale / ISO tab. -->
+          <div id="nl-verify-hint" style="padding: 10px 14px; background: rgba(45,127,255,0.10); border: 1px solid rgba(45,127,255,0.30); border-radius: 8px; margin-top: 4px; font-size: 13px; color: var(--text-soft); line-height: 1.5;">
+            💡 <strong>After submitting</strong>, you'll have the option to add the <strong>Ownership Verified</strong> badge by uploading a short video. Verified listings get more buyer engagement.
+          </div>
 
           <div class="nl-actions">
             <button type="button" class="btn-secondary" data-go="account">Cancel</button>
@@ -5043,12 +5051,48 @@
       if (_dashBannerTimeout) { clearTimeout(_dashBannerTimeout); _dashBannerTimeout = null; }
       $dashBanner.textContent = text;
       $dashBanner.className = "banner" + (kind ? " " + kind : "");
+      // Optional inline action button — appended after the text. Useful for
+      // surfacing a follow-up action right inside the banner (e.g. "Verify
+      // ownership now →" after a new listing is created). Style matches an
+      // inline link so it feels like part of the sentence.
+      if (opts.action && opts.action.label && typeof opts.action.onClick === "function") {
+        $dashBanner.appendChild(document.createTextNode(" "));
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = opts.action.label;
+        btn.style.cssText = "background:none; border:none; color:inherit; text-decoration:underline; font:inherit; cursor:pointer; padding:0; font-weight:600;";
+        btn.addEventListener("click", () => {
+          try { opts.action.onClick(); } catch (e) { console.error("[banner action]", e); }
+        });
+        $dashBanner.appendChild(btn);
+      }
       $dashBanner.hidden = false;
       $dashBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      // Auto-dismiss success banners after 6s. Errors stick until next action.
-      if (kind === "success" && opts.autoHide !== false) {
+      // Banners with an action button stay visible until the user clicks it
+      // or dismisses the banner manually. Plain success banners still
+      // auto-hide after 6s.
+      const shouldAutoHide = kind === "success" && opts.autoHide !== false && !opts.action;
+      if (shouldAutoHide) {
         _dashBannerTimeout = setTimeout(() => clearDashBanner(), 6000);
       }
+    }
+
+    // Helper invoked from the post-create banner's "Verify ownership now"
+    // button. Finds the freshly-created listing in the in-memory dashboard
+    // array + its rendered card, then opens the verify modal pre-bound to
+    // both. If either lookup fails we just bail — the seller can still
+    // verify via the listing card's Edit flow later.
+    function triggerVerifyForListingId(listingId) {
+      const listing = (typeof allListings !== "undefined")
+        ? allListings.find(l => l.listing_id === listingId)
+        : null;
+      const card = document.querySelector(`[data-listing-id="${listingId}"]`);
+      if (!listing || !card) {
+        console.warn("[verify-after-create] could not find listing or card for", listingId);
+        return;
+      }
+      clearDashBanner();
+      openVerificationModal(listing, card);
     }
     function clearDashBanner() {
       if (_dashBannerTimeout) { clearTimeout(_dashBannerTimeout); _dashBannerTimeout = null; }
@@ -5760,7 +5804,7 @@
     }
 
     async function approveVerification(verification, row) {
-      const yes = confirm(`Approve ownership verification for "${verification.listings?.artwork_title || "this listing"}"?\n\nThis will display the green "Ownership Verified" badge on the listing.`);
+      const yes = confirm(`Approve ownership verification for "${verification.listings?.artwork_title || "this listing"}"?\n\nThis will display the "Ownership Verified" badge (gradient ✓) on the listing.`);
       if (!yes) return;
       const $buttons = row.querySelectorAll("button");
       $buttons.forEach(b => b.disabled = true);
@@ -8601,6 +8645,10 @@
       // Sale-only / ISO-only labels
       document.querySelectorAll("[data-nl-label-sale]").forEach(el => el.hidden = isIso);
       document.querySelectorAll("[data-nl-label-iso]").forEach(el  => el.hidden = !isIso);
+      // Ownership-verification hint is sale-only — ISO listings are buyer
+      // requests and have no ownership to verify.
+      const $nlVerifyHint = document.getElementById("nl-verify-hint");
+      if ($nlVerifyHint) $nlVerifyHint.hidden = isIso;
     }
     document.querySelectorAll(".nl-type-tab").forEach(t => {
       t.addEventListener("click", () => applyNlType(t.dataset.nlType));
@@ -9248,13 +9296,26 @@
         applyNlType("sale");
         showView("account");
         await loadDashboardListings(currentUserId);
+        // For sale listings, surface a "Verify ownership now →" CTA right
+        // in the success banner. This is the highest-leverage moment to
+        // prompt verification — the seller is still in the listing flow,
+        // probably has the artwork nearby. Buries far less than the
+        // previous path (Edit listing → scroll → click verify). ISO
+        // listings skip the CTA since verification doesn't apply to
+        // buyer requests.
         showDashBanner(
           isTrusted
             ? (isIso ? "Request posted and live on the catalog." : "Listing created and live on the catalog.")
             : (isIso
                 ? "Request submitted. The admin will review it before it appears in the public catalog."
                 : "Listing submitted. The admin will review it before it appears in the public catalog."),
-          "success"
+          "success",
+          isIso ? {} : {
+            action: {
+              label: "Verify ownership now →",
+              onClick: () => triggerVerifyForListingId(newId)
+            }
+          }
         );
       } catch (err) {
         console.error("[new-listing] failed:", err);
