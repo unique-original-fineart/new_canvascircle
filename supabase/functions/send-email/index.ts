@@ -362,10 +362,17 @@ serve(async (req) => {
         };
         // Fire and forget — we don't await this. The 1-2s typical latency
         // shouldn't add tail latency to the user's "Send" click.
+        //
+        // Auth note: we send the service-role key via the `apikey` header,
+        // not `Authorization: Bearer ...`. Supabase's new key format
+        // (sb_secret_...) isn't a JWT, and the gateway rejects it with
+        // UNAUTHORIZED_INVALID_JWT_FORMAT when sent as a Bearer token.
+        // The apikey header accepts both legacy JWT-format keys and the
+        // new opaque sb_secret_ format without parsing.
         fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${SERVICE_KEY}`,
+            "apikey":        SERVICE_KEY,
             "Content-Type":  "application/json",
           },
           body: JSON.stringify(pushPayload),
