@@ -134,7 +134,7 @@
     <section class="hero">
       <h1>Terms of Use</h1>
       <p>The rules for using CanvasCircle.</p>
-      <p class="effective">Effective date: May 26, 2026 &middot; Version 1.8</p>
+      <p class="effective">Effective date: May 26, 2026 &middot; Version 1.9</p>
     </section>
 
     <div class="toc">
@@ -381,6 +381,19 @@
         <li>We may change the methodology, time windows, included data sources, default filters, or visual presentation of analytics at any time without notice.</li>
       </ul>
       <p>You agree that no business or pricing decision you make should rely solely on CanvasCircle's analytics, and that CanvasCircle is not liable for any loss, missed sale, mispricing, or other harm arising from any inaccuracy, unavailability, or change in the analytics feature.</p>
+
+      <h3>Push notifications</h3>
+      <p>If you opt in to push notifications on a device, CanvasCircle will attempt to deliver notifications for events you've enabled (currently: buyer-to-seller inquiries on your listings). These notifications are delivered through third-party push services (Apple's APNs for iPhone/iPad/Mac, Google's FCM for Android and Chrome, Mozilla autopush for Firefox), and their delivery is subject to factors outside our control. You acknowledge that:</p>
+      <ul>
+        <li>Notifications may be delayed, throttled, batched, deduplicated, or dropped entirely by the operating system, the push service, or your network — including (without limitation) due to your device's Focus / Do Not Disturb mode, low-power mode, screen lock state, app-suspension policies, full notification queues, or temporary outages of the push service.</li>
+        <li>Notifications may arrive seconds or minutes after the triggering event, or not at all. CanvasCircle does not guarantee any delivery latency.</li>
+        <li>Notifications may stop arriving entirely if you uninstall the CanvasCircle PWA, clear site data, revoke notification permission in your browser, or if the push service expires your device subscription. We attempt to detect expired subscriptions and prune them automatically, but you may need to re-enable notifications by tapping Enable in your portal.</li>
+        <li>The body and title of each notification are encrypted in transit; the push services see only routing metadata (timing, recipient endpoint). The decrypted notification content is displayed by your device's operating system, subject to its own privacy and lock-screen settings.</li>
+        <li>You should not rely solely on push notifications for time-sensitive decisions. Each inquiry that triggers a push also sends an email to your contact address and appears in the Inquiries tab on your portal — those redundant channels are the source of truth.</li>
+        <li>We may add or remove notification event types, adjust delivery frequency, rate-limit pushes to prevent abuse, change which third-party push services we use, or discontinue the feature entirely at our discretion.</li>
+      </ul>
+      <p>CanvasCircle is not liable for any loss, missed sale, missed opportunity, or other harm arising from a notification that was delayed, suppressed, undelivered, or not enabled.</p>
+
       <p>YOU USE THE SERVICE AT YOUR SOLE RISK.</p>
     </section>
 

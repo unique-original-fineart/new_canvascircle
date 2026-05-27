@@ -113,7 +113,7 @@
     <section class="hero">
       <h1>Privacy Policy</h1>
       <p>What CanvasCircle collects, why, and your rights.</p>
-      <p class="effective">Effective date: May 26, 2026 &middot; Version 1.8</p>
+      <p class="effective">Effective date: May 26, 2026 &middot; Version 1.9</p>
     </section>
 
     <section class="section">
@@ -172,7 +172,11 @@
         <li><strong>Supabase</strong> — database, authentication, file storage, and serverless functions. Stores your account, profile, listings, images, and saved-listing records. <a href="https://supabase.com/privacy" target="_blank" rel="noopener">supabase.com/privacy</a>.</li>
         <li><strong>Cloudflare</strong> — hosting, content delivery, and basic security/DDoS protection for the website. Sees IP addresses and request metadata. <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">cloudflare.com/privacypolicy</a>.</li>
         <li><strong>Resend</strong> — sends transactional and broadcast emails (welcome, password reset, admin replies, announcements). Sees recipient email and message contents. <a href="https://resend.com/legal/privacy-policy" target="_blank" rel="noopener">resend.com/legal/privacy-policy</a>.</li>
+        <li><strong>Apple Push Notification service (APNs)</strong> — delivers push notifications to iPhones, iPads, and Macs that have installed the CanvasCircle PWA and opted in to notifications. APNs sees the encrypted push payload (the body and title are encrypted with keys only your browser can decrypt) along with delivery metadata: when a push is sent, the recipient's anonymous push endpoint, and basic delivery telemetry. APNs is operated by Apple and is the only path through which iOS can receive notifications from web apps. <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">apple.com/legal/privacy</a>.</li>
+        <li><strong>Firebase Cloud Messaging (FCM)</strong> — same role as APNs, but for Android devices and Chrome browsers. Sees the same shape of metadata. FCM is operated by Google. <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">firebase.google.com/support/privacy</a>.</li>
+        <li><strong>Mozilla autopush</strong> — push delivery for Firefox browsers. Same role as APNs/FCM, operated by Mozilla. <a href="https://www.mozilla.org/privacy/firefox/" target="_blank" rel="noopener">mozilla.org/privacy/firefox</a>.</li>
       </ul>
+      <p><strong>About push notification delivery:</strong> when you opt in to notifications, your browser registers with the push service for your platform (Apple, Google, or Mozilla) and gives us back an opaque endpoint URL. We send pushes by POSTing an encrypted payload to that URL. The push service routes the notification to your device. Neither we nor the push service can read the encrypted payload contents in transit — only your browser (which holds the decryption keys) can read them on receipt. The push services do see the timing of each push and the destination endpoint, which is enough to infer that "this user got a notification at this time" but not what the notification said.</p>
       <p>We do not sell your personal information to anyone, and we do not share it with advertisers.</p>
     </section>
 

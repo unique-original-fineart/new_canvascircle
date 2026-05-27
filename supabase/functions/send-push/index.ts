@@ -71,6 +71,20 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST")    return json(405, { error: "POST only" });
 
+  // Internal auth check. send-push is deployed with --no-verify-jwt because
+  // Supabase's new sb_secret_ key format isn't a JWT and the gateway-level
+  // JWT verification can't accept it. With JWT verification disabled, any
+  // client could POST to /functions/v1/send-push and trigger pushes to
+  // arbitrary users — clearly not acceptable. So we do our own service-key
+  // check here: the caller MUST present the SUPABASE_SERVICE_ROLE_KEY in
+  // the apikey header. That key only exists in Supabase secrets (used by
+  // other edge functions); no client can obtain it. If verify-jwt is ever
+  // re-enabled in the future this check becomes redundant but harmless.
+  const callerKey = req.headers.get("apikey") || req.headers.get("Apikey");
+  if (!callerKey || callerKey !== SERVICE_KEY) {
+    return json(401, { error: "Unauthorized" });
+  }
+
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     return json(500, { error: "VAPID keys are not configured on the server" });
   }

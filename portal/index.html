@@ -4268,6 +4268,21 @@
     async function renderPushOptBanner() {
       const $banner = document.getElementById("push-opt-banner");
       if (!$banner) return;
+
+      // Mobile-only feature. Push notifications technically work on desktop
+      // browsers too, but the value is much lower there (you're already at
+      // your computer) and the "use CanvasCircle as an app" pitch is mobile-
+      // first. Showing an Enable prompt on desktop creates clutter without a
+      // clear payoff. Matches the install-prompt module's mobile-only logic.
+      // Subscriptions remain per-device — a desktop user could still
+      // subscribe via direct browser permission prompts if Guy ever wants
+      // to surface that path later, but we don't push it in the UI.
+      const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+      if (!isMobile) {
+        $banner.hidden = true;
+        return;
+      }
+
       const status = await getPushStatus();
 
       // Reset class state.
