@@ -227,18 +227,12 @@ serve(async (req) => {
           continue;
         }
 
-        // Look up the recipient's contact_email for the email send.
-        const { data: recipientProfile } = await supabase
-          .from("profiles")
-          .select("contact_email, display_name")
-          .eq("user_id", userId)
-          .single();
-        const recipientEmail = recipientProfile?.contact_email;
-        const recipientName  = recipientProfile?.display_name || "there";
-
-        const listingUrl = `https://canvascircle.art/listing.html?id=${listing.listing_id}`;
-
         // --- Push notification (best-effort, non-blocking) ---
+        // Push only — no email path. Per-event email for follow alerts
+        // crosses into annoying-territory fast (different ergonomic from
+        // "weekly digest"). Push notifications are the right register for
+        // this kind of alert: lockscreen for installed-PWA users, silent
+        // for everyone else. Non-followers receive nothing either way.
         try {
           await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
             method: "POST",
@@ -254,23 +248,6 @@ serve(async (req) => {
         } catch (e) {
           console.warn("[saved-search-fanout] push dispatch failed for", userId, e);
         }
-
-        // --- Email notification (also best-effort) ---
-        // We use the send-email function's direct path — there's no dedicated
-        // "saved-search" mode, so we POST through the function with a small
-        // ad-hoc body. The Resend send happens inside send-email's
-        // contact-admin handler's wrapHtml. Simplest is to use the
-        // direct-to-seller mode... no, that's admin-only. Better: skip
-        // email for v1 and just rely on push. Email is a v2 polish if
-        // sellers find their followers aren't responding.
-        //
-        // Actually — see send-email/index.ts. There's no mode that quite fits
-        // "send arbitrary notification email to a user." We could add one,
-        // but for v1 push alone is enough; we'll add email in a follow-up
-        // if engagement metrics show value. The audit row is already
-        // written so we won't double-send when we wire email up later.
-        // (Email is also redundant for users with push enabled.)
-        void recipientEmail; void recipientName; void listingUrl;
 
         sent++;
       } catch (e) {
