@@ -962,16 +962,19 @@
           </div>` : "";
 
       // Preferred contact method — soft signal the seller set on their
-      // profile. We only render a label if they chose phone or email
-      // explicitly; 'either' renders nothing (default, no opinion). The
-      // phone case gets a specific hint pointing at the inquiry-form
-      // phone field so buyers know they can include their number.
-      const prefContact = seller.preferred_contact;
+      // profile. Renders a hint for all three states so first-time buyers
+      // always see a contact tip (the "either" case used to be blank,
+      // which read as a bug). Each hint explicitly names the "Email Seller"
+      // button so buyers know exactly where to go — "inquiry form" was
+      // too abstract for users seeing the page for the first time.
+      // Note: defaults to 'either' for sellers who haven't set anything,
+      // so the hint always appears.
+      const prefContact = seller.preferred_contact || "either";
       const prefContactRow = (prefContact === "phone")
-        ? `<div class="pref-contact-hint pref-phone">📞 Prefers phone — include your number in the inquiry form for a call or text.</div>`
+        ? `<div class="pref-contact-hint pref-phone">📞 <strong>Prefers phone.</strong> Tap <strong>Email Seller</strong> below and include your phone number — they'll call or text you back.</div>`
         : (prefContact === "email")
-          ? `<div class="pref-contact-hint pref-email">✉️ Prefers email — they'll reply to the address you sent from.</div>`
-          : "";
+          ? `<div class="pref-contact-hint pref-email">✉️ <strong>Prefers email.</strong> Tap <strong>Email Seller</strong> below — they'll reply to your email address.</div>`
+          : `<div class="pref-contact-hint pref-either">✉️ or 📞 <strong>Open to either.</strong> Tap <strong>Email Seller</strong> below; include your phone number if you'd prefer a call or text.</div>`;
 
       const counterpartyBlock = signedIn ? `
         <div class="seller-block">
