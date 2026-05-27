@@ -14,7 +14,7 @@
 // versions. The previous cache (cc-v3-logo) is deleted on activate — the very
 // next HTML request goes to network, but that's the price of shipping a visual
 // re-skin widely.
-const CACHE_VERSION = 'cc-v37-tab-label-fix';
+const CACHE_VERSION = 'cc-v38-push-notifications';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. Their URLs
@@ -196,4 +196,98 @@ self.addEventListener('fetch', (event) => {
       });
     })
   );
+});
+
+// =============================================================================
+// Web Push handlers — receive notifications + handle click-throughs.
+// =============================================================================
+// The 'push' event fires whenever our send-push edge function POSTs to the
+// browser's push endpoint (Apple's APNs gateway on iOS, FCM on Android, etc.).
+// Payload is JSON-encoded by the server with shape { title, body, url, tag }.
+//
+// IMPORTANT: showNotification() MUST be called inside the push event handler
+// every time, even for empty payloads — Chrome/Edge enforce "userVisibleOnly"
+// and will revoke our push permission if we ever receive a push without
+// showing a notification. So the fallback path always shows something.
+//
+// notificationclick: focuses an existing PWA window if one is open at (or
+// near) the target URL; otherwise opens a new one. We use matchAll to scan
+// open clients because the PWA might already be running in the background.
+
+self.addEventListener('push', (event) => {
+  let payload = {};
+  if (event.data) {
+    try {
+      payload = event.data.json();
+    } catch {
+      // If the server sends a non-JSON payload (shouldn't happen, but
+      // defensive), wrap the raw text in a minimal notification.
+      payload = { title: 'CanvasCircle', body: event.data.text() };
+    }
+  }
+  const title = payload.title || 'CanvasCircle';
+  const options = {
+    body:  payload.body  || '',
+    icon:  payload.icon  || '/assets/icons/icon-192.png',
+    // The badge image is the small monochrome icon shown in the status bar
+    // on Android. iOS ignores it. Same icon as the main one is fine — the
+    // browser will desaturate it as needed.
+    badge: payload.badge || '/assets/icons/icon-192.png',
+    // tag lets the OS collapse duplicate notifications. We use
+    // "inquiry-{id}" so a single inquiry can't fire twice if the server
+    // retries; the OS replaces rather than stacks.
+    tag:   payload.tag   || undefined,
+    // Data is opaque to the OS and only readable by our notificationclick
+    // handler. We pass the target URL so click-through works.
+    data:  { url: payload.url || '/' },
+    // requireInteraction keeps the notification visible until the user
+    // taps it (vs. auto-dismissing after a few seconds). Only effective on
+    // Android — iOS notifications follow the OS rules regardless.
+    requireInteraction: false,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+  // Resolve against our origin so a relative target (e.g. "/portal/")
+  // becomes an absolute URL the browser can match against open client
+  // window URLs.
+  const absoluteTarget = new URL(targetUrl, self.location.origin).href;
+
+  event.waitUntil((async () => {
+    const allClients = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true,
+    });
+    // Prefer focusing an existing window already on the target path.
+    for (const client of allClients) {
+      try {
+        const clientUrl = new URL(client.url);
+        const targetUrlObj = new URL(absoluteTarget);
+        // Match on pathname so "/portal/" matches "/portal/" regardless of
+        // hash or query string state.
+        if (clientUrl.pathname === targetUrlObj.pathname && 'focus' in client) {
+          await client.focus();
+          // Tell the focused page to refresh its data — sending a postMessage
+          // is cheap and the page can listen if it cares.
+          try { client.postMessage({ type: 'cc-notification-clicked', url: absoluteTarget }); } catch {}
+          return;
+        }
+      } catch {}
+    }
+    // Otherwise focus any open window and navigate it.
+    if (allClients.length > 0 && 'navigate' in allClients[0]) {
+      try {
+        await allClients[0].navigate(absoluteTarget);
+        await allClients[0].focus();
+        return;
+      } catch {}
+    }
+    // Fallback: open a fresh window.
+    if (self.clients.openWindow) {
+      await self.clients.openWindow(absoluteTarget);
+    }
+  })());
 });

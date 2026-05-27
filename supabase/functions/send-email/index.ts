@@ -345,6 +345,35 @@ serve(async (req) => {
         return json(502, { error: "Email service is having trouble. Please try again in a minute." });
       }
 
+      // Fan out a Web Push notification to the recipient (if they've opted
+      // in via the Inquiries tab banner). Non-blocking + best-effort —
+      // a push failure must NOT cause the inquiry to look failed to the
+      // sender. The seller still has the email + the portal-side inbox
+      // signal either way. We use the function URL directly via fetch
+      // (rather than invoke()) so this works from inside an edge function
+      // without bouncing through supabase-js.
+      try {
+        const pushPayload = {
+          user_id: seller.user_id,
+          title:   `New inquiry from ${buyerName}`,
+          body:    `About ${listingLabel}`,
+          url:     "/portal/",
+          tag:     `inquiry-${Date.now()}`,
+        };
+        // Fire and forget — we don't await this. The 1-2s typical latency
+        // shouldn't add tail latency to the user's "Send" click.
+        fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${SERVICE_KEY}`,
+            "Content-Type":  "application/json",
+          },
+          body: JSON.stringify(pushPayload),
+        }).catch((e) => console.error("[contact-seller] push dispatch failed:", e));
+      } catch (e) {
+        console.error("[contact-seller] push dispatch crashed:", e);
+      }
+
       return json(200, { sent: 1 });
     }
 
