@@ -4330,12 +4330,24 @@
             el.textContent = "Enabling…";
             try {
               await subscribePush();
+              renderPushOptBanner();
             } catch (e) {
-              alert(e.message || "Could not enable notifications.");
-            } finally {
+              // Show the error inline inside the banner. iOS PWAs sometimes
+              // swallow alert() entirely, leaving the user with a forever-
+              // spinning button and no clue what failed. Inline keeps the
+              // message visible until they dismiss it.
+              console.error("[push] enable failed:", e);
               el.disabled = false;
               el.textContent = original;
-              renderPushOptBanner();
+              $banner.innerHTML = `
+                <div class="pob-icon">⚠️</div>
+                <div class="pob-text">
+                  <strong>Couldn't enable notifications.</strong> ${escapeHtml(e?.message || "Unknown error.")}
+                  <div style="margin-top:6px;"><button type="button" class="pob-link" data-pob-action="retry">Try again</button></div>
+                </div>
+              `;
+              // Rebind retry → calls renderPushOptBanner which restarts the flow.
+              $banner.querySelector("[data-pob-action=retry]")?.addEventListener("click", renderPushOptBanner);
             }
           } else if (action === "disable") {
             try {
