@@ -2956,6 +2956,17 @@
           <button type="button" class="btn-primary" id="irb-review-btn">Review →</button>
         </div>
 
+        <!-- Push-notification opt-in banner. Promoted from inside the
+             Inquiries tab to dashboard-level (2026-05-27) once push
+             notifications grew to cover three event types: inquiries,
+             follow alerts on artists/sellers, and price drops on saved
+             listings. Now visible regardless of which tab is active so
+             buyers (who never visit the seller-facing Inquiries tab) can
+             still discover and enable. JS in renderPushOptBanner()
+             toggles the state machine; mobile-only (push has limited
+             value on desktop and the install-prompt is mobile-only too). -->
+        <div id="push-opt-banner" class="push-opt-banner" hidden></div>
+
 
         <!-- Tabs — dual-label pattern: full label shows on desktop, short
              label shows on mobile so all 4 (or 5 for admin) tabs fit
@@ -3343,15 +3354,6 @@
           <p class="help" style="margin: -4px 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5;">
             Messages buyers sent you through the "Email Seller" button on your listings. Each one also lives in your email inbox — this is just a quick recap. Dismiss messages you've handled to keep the list tidy.
           </p>
-
-          <!-- Push-notification opt-in banner. JS in loadInquiriesPanel() flips
-               this between four states based on getPushStatus():
-                 - default:  "Enable notifications" CTA
-                 - granted-subscribed: "✓ Notifications on" + Disable
-                 - denied:   "Blocked in browser settings" with help link
-                 - unsupported (incl. iOS Safari tab): "Install the app first"
-               Hidden entirely until status resolves to avoid flash. -->
-          <div id="push-opt-banner" class="push-opt-banner" hidden></div>
 
           <div id="inq-loading" class="empty-state" hidden>Loading your inquiries…</div>
           <div id="inq-empty"   class="empty-state" hidden>
@@ -4313,6 +4315,12 @@
       // here — that fires only when the user actually clicks the
       // Inquiries tab, which is the honest "I read them" signal.
       loadInquiriesPanel(session.user.id, { markSeen: false });
+      // Render the push-opt banner at dashboard level (was originally
+      // mounted inside loadInquiriesPanel back when push only covered
+      // inquiries; promoted 2026-05-27 once push grew to cover follow
+      // alerts + price drops too). Fire-and-forget — it self-hides if
+      // permission already granted or push isn't supported.
+      renderPushOptBanner();
       // Re-mount the welcome banner — handles freshness-watchdog re-entry
       // (e.g., after the user comes back to the PWA after a long pause).
       mountWelcomeBanner();
@@ -4391,11 +4399,21 @@
     const INQUIRIES_PAGE_SIZE = 25;
 
     // ----------------------------------------------------------------------
-    // Push-notification opt-in banner — renders into #push-opt-banner inside
-    // the Inquiries tab. Re-renders on every loadInquiriesPanel() call so it
-    // reflects the current permission/subscription state (catches: user
-    // granted permission in a previous session, user revoked in browser
-    // settings, user reinstalled iOS PWA, etc.).
+    // Push-notification opt-in banner — renders into #push-opt-banner, which
+    // sits at the top of the dashboard (above the tab strip). Originally
+    // lived inside the Inquiries tab back when push only covered buyer
+    // inquiries; promoted to dashboard-level on 2026-05-27 once push grew
+    // to cover three event types:
+    //   1. Buyer inquiries (seller-side)
+    //   2. Follow alerts for new listings from artists/sellers they follow
+    //   3. Price drops on listings they've saved
+    // Dashboard placement means buyers who never visit the seller-facing
+    // Inquiries tab can still discover the feature.
+    //
+    // Re-renders on every dashboard load so it reflects the current
+    // permission/subscription state (catches: user granted permission in a
+    // previous session, user revoked in browser settings, user reinstalled
+    // iOS PWA, etc.).
     //
     // Four states:
     //   - default:    Enable button + brief pitch.
@@ -4438,7 +4456,7 @@
           <div class="pob-icon">🔔</div>
           <div class="pob-text">
             ${isIOS
-              ? `<strong>Get a buzz when buyers message you.</strong> On iPhone, this only works if you install CanvasCircle as an app first. <button type="button" class="pob-link" data-pob-action="show-install">How to install →</button>`
+              ? `<strong>Get a buzz for inquiries, follow updates, and price drops.</strong> On iPhone, push notifications only work if you install CanvasCircle as an app first. <button type="button" class="pob-link" data-pob-action="show-install">How to install →</button>`
               : `<strong>Notifications aren't supported in this browser.</strong> Open CanvasCircle in Chrome, Edge, Firefox, or Safari to enable them.`
             }
           </div>
@@ -4456,7 +4474,7 @@
         $banner.innerHTML = `
           <div class="pob-icon">✓</div>
           <div class="pob-text">
-            <strong>Notifications on.</strong> You'll get a push the moment a buyer messages you.
+            <strong>Notifications on.</strong> You'll get a push for new buyer inquiries, follow updates, and price drops on listings you've saved.
           </div>
           <button type="button" class="pob-link" data-pob-action="disable">Disable</button>
         `;
@@ -4467,7 +4485,7 @@
         $banner.innerHTML = `
           <div class="pob-icon">🔔</div>
           <div class="pob-text">
-            <strong>Get notified the moment a buyer messages you.</strong> Push notifications land on your lockscreen — same as any app.
+            <strong>Turn on push notifications.</strong> Get a buzz for new buyer inquiries, follow updates from artists &amp; sellers you follow, and price drops on listings you've saved — straight to your lockscreen.
           </div>
           <button type="button" class="pob-cta" data-pob-action="enable">Enable</button>
         `;
@@ -4535,10 +4553,6 @@
       if ($loading) $loading.hidden = false;
       if ($empty)   $empty.hidden   = true;
       if ($footer)  $footer.hidden  = true;
-
-      // Render the push-notification opt-in banner. Independent of the
-      // inquiries query — runs in parallel.
-      renderPushOptBanner();
 
       try {
         // Pull last_inquiry_seen_at first — needed for the unread comparison.
