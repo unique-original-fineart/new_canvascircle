@@ -743,7 +743,11 @@
         } else if (prefContact === "email") {
           parts.push(`<div class="pref-contact-hint">✉️ <strong>Prefers email.</strong> They'll reply to the email address you used to contact them.</div>`);
         } else if (prefContact === "facebook" && fbUrl) {
-          parts.push(`<div class="pref-contact-hint">📱 <strong>Prefers Facebook Messenger.</strong> Tap <strong>Message on Facebook</strong> below to start a conversation there.</div>`);
+          // Lead with the seller's preference but immediately offer the
+          // Email Seller path on listings as an equally valid alternative,
+          // so buyers without Facebook don't assume the seller is
+          // unreachable and bounce.
+          parts.push(`<div class="pref-contact-hint">📱 <strong>Prefers Facebook Messenger</strong> — tap <strong>Message on Facebook</strong> below to reach them there. Don't have Facebook? Use the <strong>Email Seller</strong> form on any of their listings instead.</div>`);
         } else {
           // Default ('either') OR 'facebook' without an FB URL set — fall
           // back to the open-to-either hint so the buyer always has a path.

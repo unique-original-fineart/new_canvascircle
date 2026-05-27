@@ -977,9 +977,13 @@
         // Only meaningful when the seller actually has an FB URL set.
         // If they prefer Facebook but didn't add a URL, fall back to the
         // "either" hint so the buyer isn't told to tap a button that
-        // doesn't exist.
+        // doesn't exist. When FB URL IS set, lead with the seller's
+        // preference but immediately offer Email Seller as an equally
+        // valid path — buyers without Facebook should know they can
+        // still reach this seller, not bounce because they assume the
+        // seller is FB-only.
         prefContactRow = fbUrl
-          ? `<div class="pref-contact-hint pref-facebook">📱 <strong>Prefers Facebook Messenger.</strong> Tap <strong>Message on Facebook</strong> below to start a conversation there.</div>`
+          ? `<div class="pref-contact-hint pref-facebook">📱 <strong>Prefers Facebook Messenger</strong> — tap <strong>Message on Facebook</strong> below to reach them there. Don't have Facebook? Use <strong>Email Seller</strong> instead — they'll still get your message.</div>`
           : `<div class="pref-contact-hint pref-either">✉️ or 📞 <strong>Open to either.</strong> Tap <strong>Email Seller</strong> below; include your phone number if you'd prefer a call or text.</div>`;
       } else {
         prefContactRow = `<div class="pref-contact-hint pref-either">✉️ or 📞 <strong>Open to either.</strong> Tap <strong>Email Seller</strong> below; include your phone number if you'd prefer a call or text.</div>`;
