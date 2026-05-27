@@ -731,7 +731,7 @@
         const fbUrl = fbProfileUrl(profile.facebook_profile_url);
         const parts = [];
 
-        // Preferred-contact-method hint — renders for all three states so
+        // Preferred-contact-method hint — renders for all four states so
         // first-time buyers always see a tip. Wording is specific to the
         // seller-page context (no single Email Seller button here —
         // contact happens via the buttons below or via a specific
@@ -742,7 +742,11 @@
           parts.push(`<div class="pref-contact-hint">📞 <strong>Prefers phone.</strong> When you reach out via one of their listings, include your phone number in the <strong>Email Seller</strong> form for a call or text back.</div>`);
         } else if (prefContact === "email") {
           parts.push(`<div class="pref-contact-hint">✉️ <strong>Prefers email.</strong> They'll reply to the email address you used to contact them.</div>`);
+        } else if (prefContact === "facebook" && fbUrl) {
+          parts.push(`<div class="pref-contact-hint">📱 <strong>Prefers Facebook Messenger.</strong> Tap <strong>Message on Facebook</strong> below to start a conversation there.</div>`);
         } else {
+          // Default ('either') OR 'facebook' without an FB URL set — fall
+          // back to the open-to-either hint so the buyer always has a path.
           parts.push(`<div class="pref-contact-hint">✉️ or 📞 <strong>Open to either.</strong> When reaching out via one of their listings, you can include your phone number in the <strong>Email Seller</strong> form if you'd prefer a call or text.</div>`);
         }
 

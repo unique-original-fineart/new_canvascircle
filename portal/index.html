@@ -1738,6 +1738,22 @@
       margin-top: 4px;
       font-size: 12px;
     }
+    /* Inline warning chip — shown when the seller picks a preference that
+       reduces their reachable audience (currently only Facebook Messenger,
+       since not all buyers have FB accounts). Uses the warning-tint tokens
+       so it reads as a "trade-off, not an error." */
+    .profile-disclosure .field-warning {
+      margin-top: 8px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: var(--status-warning-tint, var(--accent-softer));
+      border: 1px solid var(--status-warning-soft, var(--accent-soft));
+      color: var(--status-warning-deep, var(--accent-deeper));
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .profile-disclosure .field-warning[hidden] { display: none; }
+    .profile-disclosure .field-warning strong { color: inherit; }
     .profile-disclosure .field-explainer > summary {
       list-style: none;
       cursor: pointer;
@@ -3069,14 +3085,23 @@
 
             <!-- Preferred contact method — soft signal shown on listings so
                  buyers know whether to include their phone number with their
-                 inquiry. Does NOT expose any phone number. Default 'either'. -->
+                 inquiry. Does NOT expose any phone number. Default 'either'.
+                 'facebook' is also an option but comes with an audience-
+                 limitation warning (buyers without FB can't use it). -->
             <div class="field">
               <label for="prof-preferred-contact">Preferred contact method</label>
               <select id="prof-preferred-contact" disabled>
                 <option value="either">Either email or phone</option>
                 <option value="email">Email only</option>
                 <option value="phone">Prefer phone (text or call)</option>
+                <option value="facebook">Prefer Facebook Messenger</option>
               </select>
+              <!-- Warning visible only when 'facebook' is selected.
+                   Toggled live below by a change listener so the seller sees
+                   the trade-off the moment they pick it (even before saving). -->
+              <div id="prof-preferred-contact-fb-warning" class="field-warning" hidden>
+                <strong>Heads up:</strong> not every buyer has a Facebook account, and Facebook Messenger can't be used by buyers who don't. Choosing this means some interested buyers may not be able to reach you. The <strong>Email Seller</strong> path stays available on your listings either way — this just sets which method you'd <em>prefer</em>.
+              </div>
               <div class="field-actions">
                 <button type="button" id="prof-preferred-contact-edit-btn"   class="linklike">Edit</button>
                 <button type="button" id="prof-preferred-contact-save-btn"   class="btn-primary"   hidden>Save</button>
@@ -3085,7 +3110,7 @@
               </div>
               <details class="field-explainer">
                 <summary>What is this for?</summary>
-                <p>A small label shown on your listings to signed-in viewers. If you pick "Prefer phone," buyers will see a hint to include their phone number with their inquiry so you can call or text them. No phone number is ever stored on your profile — only the buyer's number is included with each inquiry, and only when they choose to share it.</p>
+                <p>A small label shown on your listings to signed-in viewers. If you pick "Prefer phone," buyers will see a hint to include their phone number with their inquiry so you can call or text them. No phone number is ever stored on your profile — only the buyer's number is included with each inquiry, and only when they choose to share it. If you pick "Prefer Facebook Messenger," buyers will be directed to tap the Message on Facebook button — but note that buyers without an FB account can't use that path.</p>
               </details>
             </div>
 
@@ -9184,10 +9209,10 @@
       column: "location",
     });
 
-    // Wire Preferred contact method — dropdown of email / phone / either,
-    // soft signal shown on listings. transform: pass-through but enforce
-    // the enum (DB has a check constraint, but we'd rather show a friendly
-    // error than a 23xxx error).
+    // Wire Preferred contact method — dropdown of email / phone / facebook
+    // / either, soft signal shown on listings. transform: pass-through but
+    // enforce the enum (DB has a check constraint, but we'd rather show a
+    // friendly error than a 23xxx error).
     wirePerFieldEdit({
       inputId: "prof-preferred-contact",
       editBtnId: "prof-preferred-contact-edit-btn",
@@ -9196,8 +9221,34 @@
       statusId: "prof-preferred-contact-status",
       snapshotKey: "preferred_contact",
       column: "preferred_contact",
-      transform: (v) => (["email", "phone", "either"].includes(v) ? v : "either"),
+      transform: (v) => (["email", "phone", "facebook", "either"].includes(v) ? v : "either"),
     });
+
+    // Show/hide the audience-limitation warning whenever the dropdown's
+    // value is 'facebook'. Runs on every change (live, before save) AND
+    // once initially so the warning is visible if the seller already
+    // saved facebook in a previous session. Cancel-edit also re-evaluates
+    // by virtue of the change event firing from .value = ... assignment
+    // in wirePerFieldEdit's cancel handler.
+    (function wireFbWarning() {
+      const $sel  = document.getElementById("prof-preferred-contact");
+      const $warn = document.getElementById("prof-preferred-contact-fb-warning");
+      if (!$sel || !$warn) return;
+      const sync = () => { $warn.hidden = ($sel.value !== "facebook"); };
+      $sel.addEventListener("change", sync);
+      // Initial paint runs after fillProfileFromSnapshot sets the value
+      // — schedule one rAF later so we don't race the snapshot load.
+      requestAnimationFrame(sync);
+      // Also recompute whenever something else mutates the select (cancel
+      // button assigns .value directly, which doesn't fire 'change').
+      const mo = new MutationObserver(sync);
+      mo.observe($sel, { attributes: true, childList: false, subtree: false });
+      // Belt-and-suspenders: also sync after every Save click since the
+      // wirePerFieldEdit save path re-disables and we want the warning to
+      // reflect the just-saved state.
+      document.getElementById("prof-preferred-contact-save-btn")
+        ?.addEventListener("click", () => setTimeout(sync, 50));
+    })();
 
     function fillProfileFromSnapshot() {
       $profName.value   = profileSnapshot.display_name         || "";
@@ -9208,6 +9259,11 @@
       $profEmail.value  = profileSnapshot.contact_email        || "";
       const $profPrefContact = document.getElementById("prof-preferred-contact");
       if ($profPrefContact) $profPrefContact.value = profileSnapshot.preferred_contact || "either";
+      // Sync the FB-preference warning visibility with the just-loaded
+      // value. Without this, the warning would only refresh on user
+      // interaction, leaving stale state after a snapshot reload.
+      const $fbWarn = document.getElementById("prof-preferred-contact-fb-warning");
+      if ($fbWarn && $profPrefContact) $fbWarn.hidden = ($profPrefContact.value !== "facebook");
       updateAboutCount();
     }
 
