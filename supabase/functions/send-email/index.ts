@@ -408,6 +408,56 @@ serve(async (req) => {
     }
 
     // ------------------------------------------------------------------
+    // trigger-listing-fanout: browser-callable proxy that kicks off the
+    // saved-search-fanout edge function. The fanout itself requires the
+    // service-role key (it sends pushes + writes to the dedup log via
+    // service-role), so the browser can't call it directly. This mode
+    // validates the caller and then proxies with service-role credentials.
+    //
+    // Auth model: caller must be SIGNED IN AND either own the listing
+    // (sellers triggering for their own new listings) OR be an admin
+    // (post-approval moderation). Without that check, anyone could spam
+    // arbitrary listing IDs and trigger fanout notifications.
+    //
+    // Fire-and-forget on our side too: we return 200 as soon as the
+    // dispatch fetch is queued. The fanout itself may take a few seconds
+    // and we don't want to block the listing-creation flow.
+    if (mode === "trigger-listing-fanout") {
+      const { listing_id } = body;
+      if (!listing_id) return json(400, { error: "listing_id required" });
+
+      // Validate: caller owns this listing, OR caller is admin.
+      const { data: listingRow, error: listingErr } = await supabase
+        .from("listings")
+        .select("listing_id, seller_id, moderation_status")
+        .eq("listing_id", listing_id)
+        .single();
+      if (listingErr || !listingRow) {
+        return json(404, { error: "Listing not found" });
+      }
+      const callerOwnsListing = listingRow.seller_id === user.id;
+      const callerIsAdmin     = !!callerProfile?.is_admin;
+      if (!callerOwnsListing && !callerIsAdmin) {
+        return json(403, { error: "Not authorized for this listing" });
+      }
+      // Don't fan out for listings that aren't actually approved — would
+      // notify followers about pending/rejected listings that aren't
+      // publicly visible.
+      if (listingRow.moderation_status !== "approved") {
+        return json(200, { dispatched: false, reason: "not-approved" });
+      }
+
+      // Fire-and-forget proxy with service-role apikey.
+      fetch(`${SUPABASE_URL}/functions/v1/saved-search-fanout`, {
+        method: "POST",
+        headers: { "apikey": SERVICE_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ listing_id }),
+      }).catch((e) => console.error("[trigger-listing-fanout] dispatch failed:", e));
+
+      return json(200, { dispatched: true });
+    }
+
+    // ------------------------------------------------------------------
     if (mode === "welcome") {
       const name = callerProfile?.display_name || user.email?.split("@")[0] || "there";
       const subject = "Welcome to CanvasCircle";

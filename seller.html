@@ -134,6 +134,31 @@
     }
     .seller-header .contact-actions a.primary:hover,
     .seller-header .contact-actions a.secondary:hover { filter: brightness(1.10); }
+    /* Follow Seller button — same pill pattern as the listing.html
+       Follow Artist button. Brand-gradient fill when active. */
+    .follow-seller-btn {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 12px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid var(--card-line);
+      background: var(--surface-2);
+      color: var(--fg);
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: filter .15s ease;
+    }
+    .follow-seller-btn:hover { filter: brightness(1.08); }
+    .follow-seller-btn[disabled] { opacity: .55; cursor: wait; }
+    .follow-seller-btn.is-following {
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      border-color: transparent;
+    }
     /* Preferred-contact hint — small chip-style label shown before the
        contact buttons when the seller has explicitly set their preference.
        Brand-accent tint so it reads as "helpful tip" not "status badge". */
@@ -378,6 +403,12 @@
         <span class="item" id="seller-location-item" hidden></span>
         <span class="item" id="seller-counts-item"></span>
       </div>
+      <!-- Follow seller button. Toggles between "+ Follow" and "✓ Following".
+           Hidden when (a) the viewer isn't signed in (anon viewers get
+           the sign-in CTA in the contact block instead), or (b) the viewer
+           IS this seller (no self-follow). Wired up in seller.html script
+           after the profile loads. -->
+      <button type="button" id="follow-seller-btn" class="follow-seller-btn" aria-pressed="false" hidden>+ Follow this seller</button>
       <p id="seller-about" class="about-text" hidden style="margin: 14px 0 0; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--card-line); border-radius: 6px; color: var(--fg); font-size: 14px; line-height: 1.55; white-space: pre-line; text-align: left;"></p>
       <div id="seller-refs-section" hidden style="margin-top: 14px;">
         <div style="font-weight: 600; font-size: 13px; color: var(--muted); letter-spacing: .3px; text-transform: uppercase; margin-bottom: 6px;">References</div>
@@ -469,6 +500,10 @@
     let currentTab    = "sale";
     let userSavesSet  = null;
     let viewerSignedIn = false;
+    // Module-level cache of the viewer's user_id. Set in the same auth
+    // resolution path that sets viewerSignedIn. Used by the Follow seller
+    // button to scope upsert/delete operations to the viewer's row.
+    let viewerUserId  = null;
 
     function escapeHtml(s) {
       return String(s ?? "").replace(/[&<>"']/g, c => ({
@@ -555,6 +590,7 @@
       const authTimedOut = (authRaced === "__timeout__");
       const user = authTimedOut ? null : authRaced;
       viewerSignedIn = !!user;
+      viewerUserId   = user?.id || null;
 
       // If auth timed out but eventually does resolve with a real user,
       // re-render once so contact info + saves show up.
@@ -785,6 +821,72 @@
       }
 
       $sellerHeader.hidden = false;
+
+      // Follow seller button — visible only for signed-in viewers who are
+      // NOT this seller themselves (no self-follow). Initial state +
+      // toggle handler are deferred to the next tick so we don't block
+      // the header render.
+      const $followBtn = document.getElementById("follow-seller-btn");
+      if ($followBtn && viewerSignedIn && profile.user_id && profile.user_id !== viewerUserId) {
+        $followBtn.hidden = false;
+        const sellerId = profile.user_id;
+        // Sync initial state.
+        (async () => {
+          try {
+            const { data } = await supabase
+              .from("saved_searches")
+              .select("id")
+              .eq("user_id", viewerUserId)
+              .eq("kind", "seller")
+              .eq("value", sellerId)
+              .maybeSingle();
+            if (data) {
+              $followBtn.classList.add("is-following");
+              $followBtn.setAttribute("aria-pressed", "true");
+              $followBtn.textContent = "✓ Following this seller";
+            }
+          } catch (e) {
+            console.warn("[follow-seller] initial state query failed (non-fatal):", e);
+          }
+        })();
+        $followBtn.addEventListener("click", async () => {
+          $followBtn.disabled = true;
+          const wasFollowing = $followBtn.classList.contains("is-following");
+          // Optimistic flip.
+          $followBtn.classList.toggle("is-following", !wasFollowing);
+          $followBtn.setAttribute("aria-pressed", String(!wasFollowing));
+          $followBtn.textContent = !wasFollowing ? "✓ Following this seller" : "+ Follow this seller";
+          try {
+            if (wasFollowing) {
+              const { error } = await supabase
+                .from("saved_searches")
+                .delete()
+                .eq("user_id", viewerUserId)
+                .eq("kind", "seller")
+                .eq("value", sellerId);
+              if (error) throw error;
+            } else {
+              const { error } = await supabase
+                .from("saved_searches")
+                .upsert({
+                  user_id: viewerUserId,
+                  kind:    "seller",
+                  value:   sellerId,
+                }, { onConflict: "user_id,kind,value" });
+              if (error) throw error;
+            }
+          } catch (e) {
+            console.error("[follow-seller] toggle failed:", e);
+            // Roll back optimistic UI.
+            $followBtn.classList.toggle("is-following", wasFollowing);
+            $followBtn.setAttribute("aria-pressed", String(wasFollowing));
+            $followBtn.textContent = wasFollowing ? "✓ Following this seller" : "+ Follow this seller";
+            alert("Could not update your follow: " + (e.message || e));
+          } finally {
+            $followBtn.disabled = false;
+          }
+        });
+      }
     }
 
     function renderReferences(validRefs) {

@@ -116,7 +116,40 @@
     .gallery .thumbs img.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(184,134,11,.2); }
 
     .details h1 { font-size: 22px; margin: 0 0 4px; }
+    .details .artist-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
     .details .artist { font-size: 18px; font-weight: 600; }
+
+    /* Follow Artist button — small pill button that toggles between
+       "+ Follow artist" and "✓ Following [Unfollow]" states. Uses brand-
+       accent tokens. The button itself gets the gradient when in the
+       "Following" state to read as an active toggle. */
+    .follow-artist-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--card-line);
+      background: var(--surface-2);
+      color: var(--fg);
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: filter .15s ease;
+    }
+    .follow-artist-btn:hover { filter: brightness(1.08); }
+    .follow-artist-btn[disabled] { opacity: .55; cursor: wait; }
+    .follow-artist-btn.is-following {
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      border-color: transparent;
+    }
     .details .title  { font-size: 16px; color: var(--muted); margin-bottom: 12px; }
 
     .price-row {
@@ -867,6 +900,18 @@
       const titleLine  = l.artwork_title ? escapeHtml(l.artwork_title)
                        : (isIso ? `<span style="color:var(--muted);font-style:italic;">Title unspecified</span>` : "");
 
+      // Follow Artist button — only meaningful when (1) there's an actual
+      // artist name (skip ISO "Any artist" wildcards) and (2) the viewer is
+      // signed in (anon viewers see no Follow button; the auth-prompt
+      // route fires on click instead). Initial state ("Follow" vs
+      // "✓ Following") is resolved asynchronously after render — we render
+      // the default "Follow" button now and update it once the follow-
+      // status query returns.
+      const showFollowArtistBtn = signedIn && !!l.artist_name;
+      const followArtistBtn = showFollowArtistBtn
+        ? `<button type="button" class="follow-artist-btn" id="follow-artist-btn" data-artist-name="${escapeHtml(l.artist_name)}" aria-pressed="false">+ Follow artist</button>`
+        : "";
+
       // Verified badge — sits alongside the category/status pills. Anon
       // viewers never see seller-related info, so the badge is gated on
       // sign-in. Click → popover with the meaning copy. Verified-at date
@@ -1037,7 +1082,10 @@
               </div>` : ""}
           </div>
           <div class="details">
-            <div class="artist">${artistLine}</div>
+            <div class="artist-row">
+              <div class="artist">${artistLine}</div>
+              ${followArtistBtn}
+            </div>
             <div class="title">${titleLine}</div>
 
             ${!isIso && l.status === "not_renewed" ? `
@@ -1239,6 +1287,84 @@
       }
 
       setOgTags(l, heroUrl);
+
+      // Follow Artist button — initial state + toggle handler. Lazily
+      // resolved after first paint so we don't block render. Auth-gated:
+      // signed-out clicks trigger the auth-prompt instead of trying to
+      // upsert (which would silently fail RLS).
+      const $followBtn = document.getElementById("follow-artist-btn");
+      if ($followBtn && signedIn && l.artist_name) {
+        const artistName = l.artist_name;
+        // Sync initial state — query saved_searches for this user+artist.
+        // ilike with no wildcards = case-insensitive equality. If found,
+        // flip the button into the "Following" state.
+        (async () => {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { data } = await supabase
+              .from("saved_searches")
+              .select("id")
+              .eq("user_id", user.id)
+              .eq("kind", "artist")
+              .ilike("value", artistName)
+              .maybeSingle();
+            if (data) {
+              $followBtn.classList.add("is-following");
+              $followBtn.setAttribute("aria-pressed", "true");
+              $followBtn.textContent = "✓ Following";
+            }
+          } catch (e) {
+            console.warn("[follow-artist] initial state query failed (non-fatal):", e);
+          }
+        })();
+
+        $followBtn.addEventListener("click", async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            showAuthPrompt({ message: "Sign up to follow artists and get notified when new listings are added. Same account also lets you save listings and sell." });
+            return;
+          }
+          $followBtn.disabled = true;
+          const wasFollowing = $followBtn.classList.contains("is-following");
+          // Optimistic flip — restore on failure.
+          $followBtn.classList.toggle("is-following", !wasFollowing);
+          $followBtn.setAttribute("aria-pressed", String(!wasFollowing));
+          $followBtn.textContent = !wasFollowing ? "✓ Following" : "+ Follow artist";
+          try {
+            if (wasFollowing) {
+              // Unfollow: delete the row.
+              const { error } = await supabase
+                .from("saved_searches")
+                .delete()
+                .eq("user_id", user.id)
+                .eq("kind", "artist")
+                .ilike("value", artistName);
+              if (error) throw error;
+            } else {
+              // Follow: upsert (idempotent — repeat clicks are no-ops via
+              // the unique constraint on user+kind+value).
+              const { error } = await supabase
+                .from("saved_searches")
+                .upsert({
+                  user_id: user.id,
+                  kind: "artist",
+                  value: artistName,
+                }, { onConflict: "user_id,kind,value" });
+              if (error) throw error;
+            }
+          } catch (e) {
+            console.error("[follow-artist] toggle failed:", e);
+            // Roll back optimistic UI.
+            $followBtn.classList.toggle("is-following", wasFollowing);
+            $followBtn.setAttribute("aria-pressed", String(wasFollowing));
+            $followBtn.textContent = wasFollowing ? "✓ Following" : "+ Follow artist";
+            alert("Could not update your follow: " + (e.message || e));
+          } finally {
+            $followBtn.disabled = false;
+          }
+        });
+      }
     }
 
     $lightbox.addEventListener("click", () => $lightbox.classList.remove("open"));

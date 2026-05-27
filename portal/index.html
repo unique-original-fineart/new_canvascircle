@@ -2350,6 +2350,59 @@
     .all-listing-row .al-controls .btn-danger:hover { background: var(--status-danger-tint); }
 
     /* ------ Saved-listings grid ------ */
+    /* Following section — list of artists + sellers the user follows.
+       Each row is a small card showing the name (and handle for sellers),
+       a "Kind" badge so artist vs seller is obvious at a glance, and an
+       Unfollow button. */
+    .following-list {
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .following-list[hidden] { display: none; }
+    .following-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+    }
+    .following-row .fr-kind {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px; font-weight: 700;
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      letter-spacing: .3px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .following-row .fr-name {
+      flex: 1; min-width: 0;
+      font-size: 14px; color: var(--fg); font-weight: 600;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .following-row .fr-name a {
+      color: var(--accent); text-decoration: none; font-weight: 400; font-size: 13px;
+      margin-left: 4px;
+    }
+    .following-row .fr-name a:hover { text-decoration: underline; }
+    .following-row .fr-unfollow {
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-size: 12px; font-weight: 600;
+      border: 1px solid var(--card-line);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .following-row .fr-unfollow:hover {
+      color: var(--fg);
+      border-color: var(--fg);
+    }
+    .following-row .fr-unfollow[disabled] { opacity: .55; cursor: wait; }
+
     .saved-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3245,9 +3298,26 @@
           </div>
         </div>
 
-        <!-- Tab: Saved listings -->
+        <!-- Tab: Saved listings + follows -->
         <div class="tab-panel" data-tab-panel="saved-listings">
+          <!-- Following section — shows artists + sellers the user follows.
+               Populated by loadFollowingPanel() on tab activation.
+               Empty state explains the feature and points at listing /
+               seller pages where you can tap Follow. -->
           <div class="dash-head">
+            <h2>Following <span class="count" id="following-count"></span></h2>
+          </div>
+          <p class="help" style="margin: -4px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5;">
+            Get a push notification the moment a new listing matches an artist or seller you follow. Tap Follow on any listing's artist name or on a seller's page to add to this list.
+          </p>
+          <div id="following-loading" class="empty-state" hidden>Loading your follows…</div>
+          <div id="following-empty" class="empty-state" hidden>
+            <strong>Not following anyone yet.</strong><br>
+            On any listing detail page, tap <strong>+ Follow artist</strong> next to the artist name. On a seller's public page, tap <strong>+ Follow this seller</strong>. You'll get notified when they post something new.
+          </div>
+          <div id="following-list" class="following-list" hidden></div>
+
+          <div class="dash-head" style="margin-top: 28px;">
             <h2>Saved listings <span class="count" id="saved-listings-count"></span></h2>
           </div>
           <div class="saved-info-note">
@@ -7472,7 +7542,10 @@
       // persist between tab switches (root cause of the "data not loading
       // until you refresh" bug). Uses cache-bypass for saved listings.
       if (name === "your-listings") refreshAccountView();
-      if (name === "saved-listings") loadSavedListings(true);
+      if (name === "saved-listings") {
+        loadSavedListings(true);
+        if (currentUserId) loadFollowingPanel(currentUserId);
+      }
       if (name === "profile")        loadProfileForm();
       if (name === "admin")          loadAdminTab();
       if (name === "inquiries") {
@@ -8425,6 +8498,14 @@
           .update(payload)
           .eq("listing_id", id);
         if (error) throw error;
+        // On approve, fan out follow-notifications to anyone who follows
+        // this seller or this artist. Fire-and-forget — failure must not
+        // block the moderation UI. Skipped for reject paths.
+        if (decision === "approve") {
+          supabase.functions.invoke("send-email", {
+            body: { mode: "trigger-listing-fanout", listing_id: id },
+          }).catch((e) => console.warn("[moderate-approve] fanout dispatch failed (non-fatal):", e));
+        }
         // Remove the row from the queue UI; refresh badge count.
         item.remove();
         const remaining = $modList.querySelectorAll(".mod-item").length;
@@ -10344,6 +10425,143 @@
       return wrap;
     }
 
+    // ========================================================================
+    // Following panel — artists + sellers the user follows. Renders inside
+    // the Saved tab above the saved-listings grid. Each row has an
+    // Unfollow button that deletes the saved_searches row + re-renders.
+    // For seller follows we also resolve the seller's display_name/handle
+    // via a batched profile lookup (the saved_searches.value is the bare
+    // user_id; we want a friendly name).
+    // ========================================================================
+    let followingCache = null;
+
+    async function loadFollowingPanel(userId) {
+      const $list    = document.getElementById("following-list");
+      const $loading = document.getElementById("following-loading");
+      const $empty   = document.getElementById("following-empty");
+      const $count   = document.getElementById("following-count");
+      if (!$list) return;
+
+      $loading.hidden = false;
+      $empty.hidden   = true;
+      $list.hidden    = true;
+
+      try {
+        const { data, error } = await withTimeout(
+          supabase
+            .from("saved_searches")
+            .select("id, kind, value, created_at")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false }),
+          10000,
+          "saved_searches query"
+        );
+        if (error) throw error;
+
+        const rows = data || [];
+
+        // For seller follows, hydrate the display_name + handle from
+        // profiles in a single batched query.
+        const sellerIds = rows.filter(r => r.kind === "seller").map(r => r.value);
+        let sellerProfilesById = new Map();
+        if (sellerIds.length) {
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("user_id, display_name, handle")
+            .in("user_id", sellerIds);
+          if (Array.isArray(profs)) {
+            sellerProfilesById = new Map(profs.map(p => [p.user_id, p]));
+          }
+        }
+        // Attach friendly names so the render function can pull them
+        // without re-querying.
+        for (const r of rows) {
+          if (r.kind === "seller") {
+            const p = sellerProfilesById.get(r.value);
+            r._sellerName   = p?.display_name || "(unknown seller)";
+            r._sellerHandle = p?.handle || null;
+          }
+        }
+        followingCache = rows;
+        renderFollowingPanel();
+      } catch (e) {
+        console.warn("[following] load failed:", e);
+        $loading.hidden = true;
+        // Show the empty state on hard failure so the section isn't blank
+        // — the user can still tap Follow on listings/sellers to populate.
+        $empty.hidden = false;
+      }
+    }
+
+    function renderFollowingPanel() {
+      const $list    = document.getElementById("following-list");
+      const $loading = document.getElementById("following-loading");
+      const $empty   = document.getElementById("following-empty");
+      const $count   = document.getElementById("following-count");
+      if (!$list) return;
+
+      $loading.hidden = true;
+      const rows = followingCache || [];
+      if ($count) $count.textContent = rows.length ? `(${rows.length})` : "";
+
+      if (!rows.length) {
+        $empty.hidden = false;
+        $list.hidden  = true;
+        $list.innerHTML = "";
+        return;
+      }
+      $empty.hidden = true;
+      $list.hidden  = false;
+
+      $list.innerHTML = rows.map((r) => {
+        const isArtist = r.kind === "artist";
+        const kindLabel = isArtist ? "Artist" : "Seller";
+        let nameHtml;
+        if (isArtist) {
+          nameHtml = escapeHtml(r.value);
+        } else {
+          // Show seller display_name + linked @handle (if any) → public seller page.
+          const name   = r._sellerName || "(unknown seller)";
+          const handle = r._sellerHandle;
+          nameHtml = `${escapeHtml(name)}${handle ? ` <a href="/seller?handle=${encodeURIComponent(handle)}" target="_blank" rel="noopener">@${escapeHtml(handle)}</a>` : ""}`;
+        }
+        return `
+          <div class="following-row" data-following-id="${r.id}">
+            <span class="fr-kind">${kindLabel}</span>
+            <span class="fr-name">${nameHtml}</span>
+            <button type="button" class="fr-unfollow" data-following-id="${r.id}">Unfollow</button>
+          </div>
+        `;
+      }).join("");
+
+      // Event delegation for unfollow.
+      $list.onclick = async (e) => {
+        const btn = e.target.closest(".fr-unfollow");
+        if (!btn) return;
+        const id = Number(btn.getAttribute("data-following-id"));
+        if (!Number.isFinite(id)) return;
+        btn.disabled = true;
+        btn.textContent = "…";
+        try {
+          const { error } = await supabase
+            .from("saved_searches")
+            .delete()
+            .eq("id", id);
+          if (error) throw error;
+          // Remove from cache + re-render. (Could animate the row out
+          // like Inquiries dismiss does, but a quick re-render is fine
+          // for this density.)
+          followingCache = (followingCache || []).filter(r => r.id !== id);
+          renderFollowingPanel();
+        } catch (err) {
+          console.error("[following] unfollow failed:", err);
+          btn.disabled = false;
+          btn.textContent = "Unfollow";
+          alert("Could not unfollow: " + (err.message || err));
+        }
+      };
+    }
+
     let savedListingsCache = null;
     async function loadSavedListings(force = false) {
       if (!force && savedListingsCache) {
@@ -11177,6 +11395,18 @@
             .from("listing_images")
             .insert({ listing_id: newId, storage_path: path, position: 0 });
           if (imgRowErr) throw imgRowErr;
+        }
+
+        // If this listing went live immediately (Established Member with
+        // moderation_status='approved' from the insert), fan out a
+        // follow-notification to anyone following this seller or this
+        // artist. Fire-and-forget — failure must not block UI feedback.
+        // Non-Established sellers' listings will fan out later when admin
+        // flips moderation_status to 'approved' in the admin tab.
+        if (isTrusted) {
+          supabase.functions.invoke("send-email", {
+            body: { mode: "trigger-listing-fanout", listing_id: newId },
+          }).catch((e) => console.warn("[new-listing] fanout dispatch failed (non-fatal):", e));
         }
 
         // Success — show banner on the dashboard and reload listings.
