@@ -458,6 +458,54 @@ serve(async (req) => {
     }
 
     // ------------------------------------------------------------------
+    // trigger-price-drop-fanout: browser-callable proxy that kicks off
+    // the price-drop-fanout edge function. Same auth model as
+    // trigger-listing-fanout — caller must own the listing OR be admin,
+    // since the fanout itself runs with service-role privileges.
+    //
+    // Body: { listing_id, old_price, new_price }
+    //
+    // We don't re-validate the price-drop threshold here — the fanout
+    // function does that authoritatively. We just check ownership +
+    // approved status before forwarding.
+    if (mode === "trigger-price-drop-fanout") {
+      const { listing_id, old_price, new_price } = body;
+      if (!listing_id || !Number.isFinite(Number(old_price)) || !Number.isFinite(Number(new_price))) {
+        return json(400, { error: "listing_id + numeric old_price + new_price required" });
+      }
+
+      const { data: listingRow, error: listingErr } = await supabase
+        .from("listings")
+        .select("listing_id, seller_id, moderation_status")
+        .eq("listing_id", listing_id)
+        .single();
+      if (listingErr || !listingRow) {
+        return json(404, { error: "Listing not found" });
+      }
+      const callerOwnsListing = listingRow.seller_id === user.id;
+      const callerIsAdmin     = !!callerProfile?.is_admin;
+      if (!callerOwnsListing && !callerIsAdmin) {
+        return json(403, { error: "Not authorized for this listing" });
+      }
+      if (listingRow.moderation_status !== "approved") {
+        return json(200, { dispatched: false, reason: "not-approved" });
+      }
+
+      // Fire-and-forget proxy with service-role apikey.
+      fetch(`${SUPABASE_URL}/functions/v1/price-drop-fanout`, {
+        method: "POST",
+        headers: { "apikey": SERVICE_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listing_id,
+          old_price: Number(old_price),
+          new_price: Number(new_price),
+        }),
+      }).catch((e) => console.error("[trigger-price-drop-fanout] dispatch failed:", e));
+
+      return json(200, { dispatched: true });
+    }
+
+    // ------------------------------------------------------------------
     if (mode === "welcome") {
       const name = callerProfile?.display_name || user.email?.split("@")[0] || "there";
       const subject = "Welcome to CanvasCircle";

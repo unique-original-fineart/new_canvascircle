@@ -6789,6 +6789,28 @@
         // Capture the pre-save verification status so we can detect a flip
         // to 'revoked' after the trigger fires server-side.
         const prevStatus = idx >= 0 ? allListings[idx].verification_status : null;
+        // Detect a price drop and fire the saver-notification fanout
+        // (fire-and-forget). The fanout function itself enforces the
+        // significance threshold (≥5% AND ≥$25) + the 30-day dedup
+        // window per saver per listing, so this branch just compares
+        // for-sale prices and lets the server decide whether anyone
+        // gets a push. ISO listings use budget_min/max rather than
+        // asking_price_usd; their price changes don't trigger fanout
+        // because "I'd pay up to X" isn't the same as a price drop.
+        if (!isIso) {
+          const oldAsking = Number(bootstrap?.asking_price_usd ?? NaN);
+          const newAsking = Number(payload.asking_price_usd ?? NaN);
+          if (Number.isFinite(oldAsking) && Number.isFinite(newAsking) && newAsking < oldAsking) {
+            supabase.functions.invoke("send-email", {
+              body: {
+                mode: "trigger-price-drop-fanout",
+                listing_id: id,
+                old_price: oldAsking,
+                new_price: newAsking,
+              },
+            }).catch((e) => console.warn("[saveCard] price-drop fanout dispatch failed (non-fatal):", e));
+          }
+        }
         if (idx >= 0) Object.assign(allListings[idx], payload);
         markDirty(card, false);
         card.classList.remove("has-error");
