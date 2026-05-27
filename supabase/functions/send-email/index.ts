@@ -243,6 +243,17 @@ serve(async (req) => {
         return json(400, { error: "Subject and message cannot be empty." });
       }
 
+      // Optional phone — buyer can include their phone number with the inquiry.
+      // Sanitize to ≤30 chars trimmed; coerce empties to null so the audit
+      // row stores a clean null rather than an empty string. We deliberately
+      // do NOT validate against a phone-number regex — international formats
+      // vary too much and a buyer typing "555-1234 (after 6pm)" should still
+      // pass through. The seller is the one reading it.
+      const phoneRaw = body.sender_phone;
+      const senderPhone = (typeof phoneRaw === "string" && phoneRaw.trim())
+        ? phoneRaw.trim().slice(0, 30)
+        : null;
+
       // Buyer must have a contact email on file — that's where the seller's
       // reply goes via Reply-To. Without it, the form gives the seller no
       // way to respond.
@@ -312,6 +323,7 @@ serve(async (req) => {
           subject:      trimmedSubject,
           body:         trimmedText,
           reply_to:     buyerMail,
+          sender_phone: senderPhone,
         });
       if (insertErr) {
         console.error("[contact-seller] insert failed:", insertErr);
@@ -327,13 +339,24 @@ serve(async (req) => {
         : (isIso ? "your In Search Of listing" : "your listing");
       const sellerFirst = (seller.display_name || "").split(/\s+/)[0] || "there";
       const fullSubject = `[CanvasCircle] ${trimmedSubject}`;
+      // If the buyer chose to share a phone number, surface it prominently
+      // with guidance: the buyer doesn't have the seller's number, so if the
+      // seller calls/texts they need to identify themselves up-front.
+      const phoneBlock = senderPhone
+        ? `\n\n📞 Phone (optional, shared by ${buyerName}): ${senderPhone}\n` +
+          `If you'd like to call or text instead of replying by email, ${buyerName} explicitly opted in by including this number. ` +
+          `Lead with: "Hi, this is ${sellerFirst} from CanvasCircle, responding to your inquiry about ${listingLabel}." ` +
+          `(They won't have your number saved, so an unknown-number text/call will look like spam otherwise.)\n`
+        : "";
+
       const fullBody =
         `Hi ${sellerFirst},\n\n` +
         `${buyerName} sent you a message about ${listingLabel} via CanvasCircle:\n\n` +
         `------------------------------\n` +
         `${trimmedText}\n` +
-        `------------------------------\n\n` +
-        `Reply to this email and your response will go directly to ${buyerName} at ${buyerMail}.\n\n` +
+        `------------------------------\n` +
+        phoneBlock +
+        `\nReply to this email and your response will go directly to ${buyerName} at ${buyerMail}.\n\n` +
         `View the listing: https://canvascircle.art/listing.html?id=${listing.listing_id}`;
 
       try {

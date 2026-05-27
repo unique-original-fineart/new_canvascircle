@@ -1441,6 +1441,28 @@
       color: var(--fg);
       white-space: pre-line;
     }
+    /* Phone block — surfaces the buyer's optional phone number on inquiries
+       where they shared it. Brand-accent tint to draw the eye without
+       being loud, plus a small lead-with-your-name reminder so sellers
+       know to introduce themselves (the buyer doesn't have their number). */
+    .inq-phone-block {
+      margin-top: 10px;
+      padding: 9px 11px;
+      background: var(--accent-softer);
+      border: 1px solid var(--accent-soft);
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .inq-phone-line { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+    .inq-phone-num { font-weight: 700; color: var(--fg); }
+    .inq-phone-hint { font-size: 12px; color: var(--muted); }
+    .inq-phone-tip {
+      margin-top: 6px;
+      font-size: 12px; color: var(--muted); line-height: 1.45;
+    }
+    .inq-phone-tip em { color: var(--fg); font-style: normal; }
+
     .inq-actions {
       margin-top: 8px;
       display: flex; gap: 8px; flex-wrap: wrap;
@@ -3045,6 +3067,28 @@
               </details>
             </div>
 
+            <!-- Preferred contact method — soft signal shown on listings so
+                 buyers know whether to include their phone number with their
+                 inquiry. Does NOT expose any phone number. Default 'either'. -->
+            <div class="field">
+              <label for="prof-preferred-contact">Preferred contact method</label>
+              <select id="prof-preferred-contact" disabled>
+                <option value="either">Either email or phone</option>
+                <option value="email">Email only</option>
+                <option value="phone">Prefer phone (text or call)</option>
+              </select>
+              <div class="field-actions">
+                <button type="button" id="prof-preferred-contact-edit-btn"   class="linklike">Edit</button>
+                <button type="button" id="prof-preferred-contact-save-btn"   class="btn-primary"   hidden>Save</button>
+                <button type="button" id="prof-preferred-contact-cancel-btn" class="btn-secondary" hidden>Cancel</button>
+                <span id="prof-preferred-contact-status" class="small field-status"></span>
+              </div>
+              <details class="field-explainer">
+                <summary>What is this for?</summary>
+                <p>A small label shown on your listings to signed-in viewers. If you pick "Prefer phone," buyers will see a hint to include their phone number with their inquiry so you can call or text them. No phone number is ever stored on your profile — only the buyer's number is included with each inquiry, and only when they choose to share it.</p>
+              </details>
+            </div>
+
             <!-- About — existing edit/submit flow, with collapsed explainer. -->
             <div class="field">
               <label for="prof-about">About you (optional) <span id="prof-about-lock-tag" class="locked-tag">🔒 Locked</span></label>
@@ -4420,7 +4464,7 @@
           supabase
             .from("contact_messages")
             .select(`
-              id, sender_id, listing_id, subject, body, reply_to, sent_at,
+              id, sender_id, listing_id, subject, body, reply_to, sender_phone, sent_at,
               listing:listings ( listing_id, artwork_title, artist_name, listing_type )
             `)
             .eq("recipient_id", userId)
@@ -4565,6 +4609,25 @@
           ? `mailto:${encodeURIComponent(replyTo)}?subject=${encodeURIComponent("Re: " + (r.subject || ""))}&body=${encodeURIComponent("\n\n---\nOn " + whenStr + ", " + senderName + " wrote:\n" + (r.body || "").split("\n").map(l => "> " + l).join("\n"))}`
           : null;
 
+        // Optional phone — buyer may have included it in the inquiry form.
+        // If present, render dedicated Call / Text buttons (tel: + sms:)
+        // and a small guidance block reminding the seller to identify
+        // themselves since the buyer won't recognize the number.
+        const senderPhone = (r.sender_phone || "").trim();
+        // Strip non-digit-or-plus characters for the tel:/sms: href — keeps
+        // the link valid even if the buyer typed "(555) 123-4567 ext 12".
+        const phoneHref = senderPhone.replace(/[^\d+]/g, "");
+        const phoneBlock = senderPhone ? `
+            <div class="inq-phone-block">
+              <div class="inq-phone-line">
+                <span class="inq-phone-num">📞 ${escapeHtml(senderPhone)}</span>
+                <span class="inq-phone-hint">— shared by ${escapeHtml(senderName)} for callback</span>
+              </div>
+              <div class="inq-phone-tip">
+                If you call or text, lead with: <em>"Hi, this is [your name] from CanvasCircle, responding to your inquiry about ${escapeHtml(listingLabel)}."</em> They won't have your number saved.
+              </div>
+            </div>` : "";
+
         return `
           <div class="inq-row${isUnread ? " is-unread" : ""}" data-inq-id="${r.id}">
             <div class="inq-meta-row">
@@ -4575,8 +4638,11 @@
             <div class="inq-subject">${escapeHtml(r.subject || "(no subject)")}</div>
             <button type="button" class="inq-body-toggle" data-inq-toggle="${r.id}">Show message ▾</button>
             <div class="inq-body" data-inq-body="${r.id}" hidden>${escapeHtml(r.body || "")}</div>
+            ${phoneBlock}
             <div class="inq-actions">
-              ${replyMailto ? `<a class="primary" href="${replyMailto}">Reply via email</a>` : ""}
+              ${senderPhone && phoneHref ? `<a class="primary" href="tel:${phoneHref}">Call</a>` : ""}
+              ${senderPhone && phoneHref ? `<a href="sms:${phoneHref}">Text</a>` : ""}
+              ${replyMailto ? `<a${senderPhone ? "" : " class=\"primary\""} href="${replyMailto}">Reply via email</a>` : ""}
               ${listingHref ? `<a href="${listingHref}" target="_blank" rel="noopener">Open listing ↗</a>` : ""}
               <button type="button" class="inq-dismiss-btn" data-inq-dismiss="${r.id}" title="Hide this inquiry from your list. Admin still sees it in the audit log.">Dismiss</button>
             </div>
@@ -9000,7 +9066,7 @@
     const $profStatus   = document.getElementById("profile-status");
 
     // Snapshot of last-saved values so per-field Cancel can revert.
-    let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", about_text: "", contact_email: "" };
+    let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", about_text: "", contact_email: "", preferred_contact: "either" };
 
     // -----------------------------------------------------------------------
     // setProfileEditMode — kept as a thin compatibility shim for the
@@ -9118,6 +9184,21 @@
       column: "location",
     });
 
+    // Wire Preferred contact method — dropdown of email / phone / either,
+    // soft signal shown on listings. transform: pass-through but enforce
+    // the enum (DB has a check constraint, but we'd rather show a friendly
+    // error than a 23xxx error).
+    wirePerFieldEdit({
+      inputId: "prof-preferred-contact",
+      editBtnId: "prof-preferred-contact-edit-btn",
+      saveBtnId: "prof-preferred-contact-save-btn",
+      cancelBtnId: "prof-preferred-contact-cancel-btn",
+      statusId: "prof-preferred-contact-status",
+      snapshotKey: "preferred_contact",
+      column: "preferred_contact",
+      transform: (v) => (["email", "phone", "either"].includes(v) ? v : "either"),
+    });
+
     function fillProfileFromSnapshot() {
       $profName.value   = profileSnapshot.display_name         || "";
       $profHandle.value = profileSnapshot.handle               || "";
@@ -9125,6 +9206,8 @@
       $profLoc.value    = profileSnapshot.location             || "";
       $profAbout.value  = profileSnapshot.about_text           || "";
       $profEmail.value  = profileSnapshot.contact_email        || "";
+      const $profPrefContact = document.getElementById("prof-preferred-contact");
+      if ($profPrefContact) $profPrefContact.value = profileSnapshot.preferred_contact || "either";
       updateAboutCount();
     }
 
@@ -9159,6 +9242,7 @@
         location:             profile.location             || "",
         about_text:           profile.about_text           || "",
         contact_email:        profile.contact_email        || "",
+        preferred_contact:    profile.preferred_contact    || "either",
       };
       fillProfileFromSnapshot();
       $profStatus.textContent = "";

@@ -134,6 +134,19 @@
     }
     .seller-header .contact-actions a.primary:hover,
     .seller-header .contact-actions a.secondary:hover { filter: brightness(1.10); }
+    /* Preferred-contact hint — small chip-style label shown before the
+       contact buttons when the seller has explicitly set their preference.
+       Brand-accent tint so it reads as "helpful tip" not "status badge". */
+    .seller-header .contact-actions .pref-contact-hint {
+      flex-basis: 100%;
+      padding: 7px 11px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.45;
+      background: var(--accent-softer);
+      border: 1px solid var(--accent-soft);
+      color: var(--accent-deeper);
+    }
     .seller-header .signed-out-contact {
       padding: 14px;
       background: var(--accent-softer);
@@ -566,7 +579,7 @@
       // viewers, so the only difference for them is they never even see the
       // data come back over the wire.
       const profileCols = viewerSignedIn
-        ? "user_id, display_name, handle, location, facebook_profile_url, contact_email, account_status, created_at, is_trusted, about_text"
+        ? "user_id, display_name, handle, location, facebook_profile_url, contact_email, account_status, created_at, is_trusted, about_text, preferred_contact"
         : "user_id, display_name, handle, account_status, created_at, is_trusted, about_text";
       let profileRows, profileErr;
       try {
@@ -717,6 +730,19 @@
       if (viewerSignedIn) {
         const fbUrl = fbProfileUrl(profile.facebook_profile_url);
         const parts = [];
+
+        // Preferred-contact-method hint — only renders if the seller picked
+        // phone or email explicitly. 'either' (default) renders nothing.
+        // Phone case nudges buyers to include their number when they reach
+        // out via a listing's inquiry form. No number is stored on this
+        // profile — the hint is purely a soft signal.
+        const prefContact = profile.preferred_contact;
+        if (prefContact === "phone") {
+          parts.push(`<div class="pref-contact-hint">📞 Prefers phone — when reaching out via one of their listings, include your number for a call or text.</div>`);
+        } else if (prefContact === "email") {
+          parts.push(`<div class="pref-contact-hint">✉️ Prefers email — they'll reply to the address you sent from.</div>`);
+        }
+
         if (fbUrl) {
           parts.push(`<a class="primary" href="${escapeHtml(fbUrl)}" target="_blank" rel="noopener">Message on Facebook</a>`);
         }

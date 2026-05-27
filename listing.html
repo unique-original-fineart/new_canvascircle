@@ -249,6 +249,21 @@
     }
     .seller-actions a:hover { filter: brightness(1.10); }
 
+    /* Preferred-contact hint — small chip-style label under the seller's
+       location, visible only when the seller has set a preference (phone
+       or email). Brand-accent tint so it reads as a "helpful note" and
+       not a status badge. */
+    .pref-contact-hint {
+      margin: 8px 0 0;
+      padding: 7px 11px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.45;
+      background: var(--accent-softer);
+      border: 1px solid var(--accent-soft);
+      color: var(--accent-deeper);
+    }
+
     .buying-tips-nudge {
       margin-top: 12px;
       padding: 10px 12px;
@@ -427,6 +442,12 @@
       <input type="text" id="contact-subject" maxlength="200" autocomplete="off" />
       <label for="contact-body">Message</label>
       <textarea id="contact-body" maxlength="5000" placeholder="Hi — I'm interested in this piece. Could you tell me more about…"></textarea>
+      <label for="contact-phone" style="margin-top: 12px;">Phone <span style="color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0;">(optional)</span></label>
+      <input type="tel" id="contact-phone" maxlength="30" autocomplete="tel"
+             placeholder="e.g. (555) 123-4567" />
+      <div class="reply-note" id="contact-phone-help" style="margin-top: 4px;">
+        Include this if you'd like the seller to call or text instead of replying by email. They may reach out from an unknown number.
+      </div>
       <div class="reply-note" id="contact-reply-note"></div>
       <div class="err" id="contact-err" hidden></div>
       <div class="ok"  id="contact-ok"  hidden></div>
@@ -652,7 +673,7 @@
         }).catch(() => {});
       }
       const profileCols = signedIn
-        ? "display_name, handle, location, facebook_profile_url, contact_email, account_status, is_trusted, about_text"
+        ? "display_name, handle, location, facebook_profile_url, contact_email, account_status, is_trusted, about_text, preferred_contact"
         : "display_name, handle, account_status";
 
       let listingResp, savesResp;
@@ -940,6 +961,18 @@
             <div id="about-text-panel" hidden style="margin-top:6px; padding:10px 12px; background:var(--surface-2); border:1px solid var(--card-line); border-radius:6px; font-size:13px; line-height:1.5; white-space:pre-line; color:var(--fg); text-align:left;">${escapeHtml(seller.about_text)}</div>
           </div>` : "";
 
+      // Preferred contact method — soft signal the seller set on their
+      // profile. We only render a label if they chose phone or email
+      // explicitly; 'either' renders nothing (default, no opinion). The
+      // phone case gets a specific hint pointing at the inquiry-form
+      // phone field so buyers know they can include their number.
+      const prefContact = seller.preferred_contact;
+      const prefContactRow = (prefContact === "phone")
+        ? `<div class="pref-contact-hint pref-phone">📞 Prefers phone — include your number in the inquiry form for a call or text.</div>`
+        : (prefContact === "email")
+          ? `<div class="pref-contact-hint pref-email">✉️ Prefers email — they'll reply to the address you sent from.</div>`
+          : "";
+
       const counterpartyBlock = signedIn ? `
         <div class="seller-block">
           <div class="seller-label">${partyLabel}</div>
@@ -947,6 +980,7 @@
           ${establishedRow}
           ${aboutRow}
           ${seller.location ? `<div class="loc">${escapeHtml(seller.location)}</div>` : ""}
+          ${prefContactRow}
           <div class="seller-actions">
             ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">${primaryCta}</a>` : ""}
             ${seller.contact_email ? `<a id="email-seller-link" href="#" role="button">${secondaryCta}</a>` : ""}
@@ -1212,6 +1246,7 @@
     const $contactCtx     = document.getElementById("contact-ctx");
     const $contactSubj    = document.getElementById("contact-subject");
     const $contactBody    = document.getElementById("contact-body");
+    const $contactPhone   = document.getElementById("contact-phone");
     const $contactReply   = document.getElementById("contact-reply-note");
     const $contactErr     = document.getElementById("contact-err");
     const $contactOk      = document.getElementById("contact-ok");
@@ -1252,6 +1287,7 @@
       // make them start from a blank field.
       $contactSubj.value = ctx.inquirySubject || "";
       $contactBody.value = "";
+      if ($contactPhone) $contactPhone.value = "";
       $contactBody.placeholder = ctx.isIso
         ? `Hi ${ctx.sellerName} — I saw your "In Search Of" listing and may have something that fits. Could we connect?`
         : `Hi ${ctx.sellerName} — I'm interested in this piece. Could you tell me more about…`;
@@ -1305,6 +1341,12 @@
       $contactSend.disabled = true;
       $contactSend.textContent = "Sending…";
 
+      // Optional phone — buyer's choice to include. Sanitize to a max-30 char
+      // trimmed string; null if empty so the server side can store null
+      // instead of an empty string (cleaner audit + makes "is phone present"
+      // checks simple).
+      const phone = ($contactPhone?.value || "").trim().slice(0, 30) || null;
+
       try {
         const { data, error } = await supabase.functions.invoke("send-email", {
           body: {
@@ -1312,6 +1354,7 @@
             listing_id: __contactCtx.listingId,
             subject,
             text,
+            sender_phone: phone,
           },
         });
         if (error) {
