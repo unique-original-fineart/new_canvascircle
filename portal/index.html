@@ -1796,10 +1796,14 @@
 
     /* Dual-label pattern: on desktop show the full descriptive label, on
        mobile swap to the shorter one so all 4 tabs fit without scroll.
-       Default (desktop): full visible, short hidden. */
+       Default (desktop): full visible, short hidden. The base `.tab-label`
+       class (used on labels with no full/short split, like "Inquiries") is
+       a plain inline span and needs no explicit display rule — including
+       it in the show/hide selector below would override the hide on
+       `.tab-label-short` due to source order, causing both variants to
+       render side-by-side. */
     .tab-label-short { display: none; }
-    .tab-label-full,
-    .tab-label        { display: inline; }
+    .tab-label-full  { display: inline; }
 
     /* Right-edge fade mask — applied via .is-scrollable, which JS adds
        when the tab strip's content actually overflows. Without the class
