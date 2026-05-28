@@ -4265,7 +4265,28 @@
     const $whoEmail   = document.getElementById("who-email");
     const $signoutBtn = document.getElementById("signout-btn");
 
+    // De-dup guard for refreshAccountView. On a persisted-session boot,
+    // both the init IIFE and the supabase-js SIGNED_IN handler can fire
+    // refreshAccountView in the same tick — without this guard every
+    // dashboard query ran twice in parallel (profile + listings + saves +
+    // refs + inquiries + push opt-in + moderation badge), doubling
+    // dashboard load time. The promise-based guard returns the same
+    // in-flight result to the second caller so the dashboard stays
+    // consistent and the user doesn't see flickering.
+    let _refreshAccountViewInflight = null;
     async function refreshAccountView() {
+      if (_refreshAccountViewInflight) return _refreshAccountViewInflight;
+      _refreshAccountViewInflight = (async () => {
+        try {
+          return await _refreshAccountViewImpl();
+        } finally {
+          _refreshAccountViewInflight = null;
+        }
+      })();
+      return _refreshAccountViewInflight;
+    }
+
+    async function _refreshAccountViewImpl() {
       let session, profile;
       try {
         const sessResp = await withTimeout(supabase.auth.getSession(), 5000, "session lookup");
@@ -4324,25 +4345,32 @@
       // Render account-status banner (suspended / banned).
       renderAccountStatusBanner(profile);
 
-      await loadDashboardListings(session.user.id);
-      // Fire-and-forget the saved-listings fetch so the badge count populates.
+      // Fire ALL dashboard-data calls in parallel — none of them depend on
+      // each other's results. Previously this was `await
+      // loadDashboardListings(...)` which serialized everything below it
+      // behind the listings query, so the inquiries badge, saves count,
+      // refs banner, and admin badge all waited unnecessarily on a single
+      // slow PostgREST round-trip. Switching to fire-and-forget here cut
+      // perceived dashboard load time meaningfully on mobile.
+      loadDashboardListings(session.user.id);
+      // Saved-listings fetch so the badge count populates.
       loadSavedListings(true);
-      // Fire-and-forget the incoming-references count so the top-of-dashboard
-      // banner surfaces pending requests the moment a user signs in.
+      // Incoming-references count so the top-of-dashboard banner surfaces
+      // pending requests the moment a user signs in.
       refreshIncomingRefsBanner(session.user.id);
-      // Fire-and-forget the inquiries-panel load on sign-in so the tab
-      // button + unread badge populate. We deliberately do NOT mark-seen
-      // here — that fires only when the user actually clicks the
-      // Inquiries tab, which is the honest "I read them" signal.
+      // Inquiries-panel load so the tab button + unread badge populate.
+      // We deliberately do NOT mark-seen here — that fires only when the
+      // user actually clicks the Inquiries tab, which is the honest "I
+      // read them" signal.
       loadInquiriesPanel(session.user.id, { markSeen: false });
-      // Render the push-opt banner at dashboard level (was originally
-      // mounted inside loadInquiriesPanel back when push only covered
-      // inquiries; promoted 2026-05-27 once push grew to cover follow
-      // alerts + price drops too). Fire-and-forget — it self-hides if
-      // permission already granted or push isn't supported.
+      // Push-opt banner at dashboard level (was originally mounted inside
+      // loadInquiriesPanel back when push only covered inquiries; promoted
+      // 2026-05-27 once push grew to cover follow alerts + price drops
+      // too). Self-hides if permission already granted or push isn't
+      // supported.
       renderPushOptBanner();
-      // Re-mount the welcome banner — handles freshness-watchdog re-entry
-      // (e.g., after the user comes back to the PWA after a long pause).
+      // Welcome banner — handles freshness-watchdog re-entry (e.g., after
+      // the user comes back to the PWA after a long pause).
       mountWelcomeBanner();
       // For admins, fetch the moderation count once so the badge shows.
       if (profile?.is_admin) refreshModerationBadge();
@@ -4574,18 +4602,14 @@
       if ($empty)   $empty.hidden   = true;
       if ($footer)  $footer.hidden  = true;
 
-      try {
-        // Pull last_inquiry_seen_at first — needed for the unread comparison.
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("last_inquiry_seen_at")
-          .eq("user_id", userId)
-          .single();
-        inquiriesLastSeenAt = prof?.last_inquiry_seen_at || null;
-      } catch (e) {
-        console.warn("[inquiries] last_inquiry_seen_at fetch failed:", e);
-        inquiriesLastSeenAt = null;
-      }
+      // last_inquiry_seen_at — needed for the unread comparison. Reads
+      // from the cached profile (loaded by refreshAccountView via
+      // currentProfile()) instead of re-fetching from Postgres. Saves one
+      // sequential round-trip on every dashboard load. Falls back to null
+      // (treats all messages as unread, conservative) if the cache isn't
+      // populated yet — that can only happen if loadInquiriesPanel is
+      // called outside the normal refreshAccountView path.
+      inquiriesLastSeenAt = currentProfileCached?.last_inquiry_seen_at || null;
 
       let rows = [];
       try {
@@ -7158,42 +7182,57 @@
         return;
       }
 
-      // ---- Weekly engagement delta ----
+      // Render listings IMMEDIATELY with whatever engagement data we have
+      // (zero on first paint). The "+N this week" delta query was
+      // previously awaited here, adding a full round-trip latency to first
+      // paint even though the chip is a non-essential decoration. Now it
+      // runs in the background and re-renders the list when it lands —
+      // most cards have saves_this_week=0 so the second render is visually
+      // identical for the typical case.
+      applyFilters();
+      refreshNotRenewedBanner();
+      refreshRevokedBanner();
+      maybeShowEstablishedWelcomeBanner(currentProfileCached);
+
+      // ---- Weekly engagement delta (background, non-blocking) ----
       // For each listing, count saved_listings rows whose created_at falls
       // within the last 7 days. Gives the seller a "+N this week" signal
       // on top of the all-time save_count without piping per-save events.
-      // One batched query keyed on listing_id; failure here is non-fatal
-      // — we just skip the delta chip and the card still renders.
-      try {
-        const ids = allListings.map(l => l.listing_id);
-        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        const { data: recentSaves, error: rsErr } = await supabase
-          .from("saved_listings")
-          .select("listing_id, created_at")
-          .in("listing_id", ids)
-          .gte("created_at", sevenDaysAgo);
-        if (!rsErr && Array.isArray(recentSaves)) {
+      // One batched query keyed on listing_id; failure here is non-fatal.
+      (async () => {
+        try {
+          const ids = allListings.map(l => l.listing_id);
+          if (!ids.length) return;
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          const { data: recentSaves, error: rsErr } = await supabase
+            .from("saved_listings")
+            .select("listing_id, created_at")
+            .in("listing_id", ids)
+            .gte("created_at", sevenDaysAgo);
+          if (rsErr) {
+            console.warn("[engagement-delta] saved_listings query failed:", rsErr);
+            return;
+          }
+          if (!Array.isArray(recentSaves)) return;
           const byId = new Map();
           for (const r of recentSaves) {
             byId.set(r.listing_id, (byId.get(r.listing_id) || 0) + 1);
           }
+          let anyChanged = false;
           for (const l of allListings) {
-            l.saves_this_week = byId.get(l.listing_id) || 0;
+            const next = byId.get(l.listing_id) || 0;
+            if (next !== (l.saves_this_week || 0)) {
+              l.saves_this_week = next;
+              anyChanged = true;
+            }
           }
-        } else if (rsErr) {
-          console.warn("[engagement-delta] saved_listings query failed:", rsErr);
+          // Only re-render if at least one listing actually has saves
+          // this week — skips a full DOM rewrite on the common no-delta path.
+          if (anyChanged) applyFilters();
+        } catch (e) {
+          console.warn("[engagement-delta] non-fatal failure:", e);
         }
-      } catch (e) {
-        console.warn("[engagement-delta] non-fatal failure:", e);
-      }
-
-      applyFilters();
-      refreshNotRenewedBanner();
-      refreshRevokedBanner();
-      // One-time welcome banner for users who just became Established.
-      // Reads from the cached profile loaded earlier in the dashboard
-      // boot sequence. Safe no-op if not yet trusted.
-      maybeShowEstablishedWelcomeBanner(currentProfileCached);
+      })();
     }
 
     // Warn before navigation if there are unsaved changes

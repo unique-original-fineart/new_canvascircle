@@ -19,7 +19,7 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
-const CACHE_VERSION = 'cc-v59-dedupe-supabase-instances';
+const CACHE_VERSION = 'cc-v60-portal-perf-sweep';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. Their URLs
@@ -49,6 +49,21 @@ const SHELL_ASSETS = [
   '/assets/logo.svg',
   '/assets/logo-dark-bg.svg',
   '/assets/logo-on-white.svg',
+  // /lib/* JS modules. These were previously lazy-cached on first request,
+  // which meant every SW bump forced users to pay N sequential round-trips
+  // for them on the next page load before any of their code could run.
+  // Pre-caching costs ~50KB at install time but eliminates that waterfall.
+  // URLs must match the exact import strings used by HTML / other modules
+  // — including the ?v=N cache-bust query string (see [[versioned-module-imports]]).
+  '/lib/supabase.js?v=2',
+  '/lib/config.js',
+  '/lib/saves.js',
+  '/lib/welcome-banner.js',
+  '/lib/push-notifications.js',
+  '/lib/return-trail.js',
+  '/lib/auth-prompt.js',
+  '/lib/install-prompt.js',
+  '/lib/nav-auth.js?v=12',
 ];
 
 const SUPABASE_LIB_URL = 'https://esm.sh/@supabase/supabase-js@2?bundle';
