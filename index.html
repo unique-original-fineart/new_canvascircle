@@ -1041,8 +1041,14 @@
       $stats.hidden = false;
       const statusName = statusLabelForFilters(currentFilters);
       const noun = currentFilters.tab === "iso" ? "request" : "listing";
+      // Show only the total count — the older "X of Y" framing exposed
+      // the lazy-load progress (loadedCount) which felt like a quirk:
+      // the number kept ticking up as the user scrolled, then settled
+      // at "Y of Y" only after every card was rendered. The total is
+      // known up front from the count() query in applyFilters(), so just
+      // surface that directly.
       $stats.textContent =
-        `Showing ${loadedCount} of ${totalCount} ${statusName} ${noun}${totalCount === 1 ? "" : "s"}`;
+        `Showing ${totalCount} ${statusName} ${noun}${totalCount === 1 ? "" : "s"}`;
     }
 
     function renderRows(rows) {
