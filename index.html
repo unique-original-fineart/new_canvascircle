@@ -1365,16 +1365,28 @@
     // "/?q=Anatoly+Metlan" from the portal's Following section so clicking
     // a followed artist jumps straight to a pre-filtered catalog.
     //
-    // URL params override the session-stored filter state because they
-    // represent the user's explicit intent for this visit. Supported params:
+    // URL params override the session-stored filter state for THIS VISIT
+    // only. Supported params:
     //   ?q=<text>      → pre-fills the search box (matches artist + title)
     //   ?cat=<name>    → pre-fills the category dropdown
     //   ?seller=<name> → pre-fills the seller dropdown (must match an existing option)
+    //   ?status=<v>    → pre-fills the status dropdown (active|available|pending|sold|not_renewed)
     //   ?tab=sale|iso  → switches catalog tab
     //
-    // We deliberately do NOT clean the URL after applying — that lets the
-    // user share or bookmark the filtered view, and it lets reload re-apply
-    // the same filter (predictable behavior).
+    // CRITICAL: we deliberately do NOT call saveFilterState() after applying.
+    // URL params represent ephemeral deep-link intent ("show me this view
+    // for this visit"), NOT durable user preferences. Persisting them
+    // would cause the deep-linked filter to stay "stuck" the next time
+    // the user navigates back to the catalog from somewhere else — which
+    // feels broken when they expected their pre-deep-link state restored.
+    // If the user TOUCHES a filter after the URL applies, the catalog's
+    // existing input/change handlers will save the new state to session
+    // at that point (tacit acceptance). Untouched URL-derived state dies
+    // with the page navigation.
+    //
+    // Also: we don't clean the URL after applying — that keeps the URL
+    // shareable/bookmarkable and lets reload re-apply the same filter
+    // (predictable per-visit behavior).
     function applyFiltersFromUrlParams() {
       let params;
       try { params = new URLSearchParams(window.location.search); }
@@ -1390,15 +1402,12 @@
       if (q       != null) $q.value = q;
       if (cat     != null) $cat.value = cat;
       if (seller  != null) $seller.value = seller; // applies after populateDropdowns repopulates options too
-      if (statusF != null && (statusF === "available" || statusF === "sold" || statusF === "not_renewed")) {
+      if (statusF != null && ["active", "available", "pending", "sold", "not_renewed"].includes(statusF)) {
         $statusF.value = statusF;
       }
       if (tabRaw === "iso" || tabRaw === "sale") currentTab = tabRaw;
 
-      // Persist the URL-derived filters into sessionStorage so subsequent
-      // navigations within the catalog don't suddenly reset them on the
-      // next load (predictable: URL params behave like manually-set filters).
-      saveFilterState();
+      // Intentionally NO saveFilterState() here — see CRITICAL note above.
     }
 
     // Tab switching — clears the seller dropdown (its options are tab-
