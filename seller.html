@@ -60,6 +60,9 @@
       border-bottom: 1px solid var(--card-line);
       background: var(--surface-1);
       display: flex; align-items: center; justify-content: space-between;
+      /* Sticky header — see index.html. */
+      position: sticky; top: 0; z-index: 50;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
     }
     header .brand { display: flex; align-items: center; gap: 10px; }
     header img    { height: 48px; width: 48px; border-radius: 12px; }
