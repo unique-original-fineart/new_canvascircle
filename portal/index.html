@@ -2608,7 +2608,13 @@
       display: none;
     }
     .following-row {
-      display: flex; align-items: center; gap: 10px;
+      /* align-items: flex-start so the Unfollow button (right column) and
+         the ARTIST badge (left column) anchor to the top of the row
+         instead of vertically centering against the taller fr-name
+         column. Without this the Unfollow ended up at roughly the same
+         vertical position as the category chip in fr-name's third row,
+         and the two pill-shaped controls visually crowded each other. */
+      display: flex; align-items: flex-start; gap: 10px;
       padding: 10px 12px;
       background: var(--surface-2);
       border: 1px solid var(--card-line);
