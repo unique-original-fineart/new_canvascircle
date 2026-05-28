@@ -3198,7 +3198,7 @@
              "+ New post" goes to the new-listing form which has its own
              Sale/ISO toggle. Sales Post Builder generates Facebook posts. -->
         <div class="dashboard-quick-actions">
-          <button type="button" class="btn-primary" id="quick-new-post-btn" data-go="new-listing">+ New post</button>
+          <button type="button" class="btn-primary" id="quick-new-post-btn" data-go="new-listing">+ New Post</button>
           <button type="button" class="btn-sales-post" id="quick-sales-post-btn" data-go="sales-post">📣 Build Facebook Sales Post</button>
         </div>
         <!-- Cap indicator for non-Established Members. Hidden for Established
@@ -3206,22 +3206,18 @@
              cap so the seller knows where they stand. -->
         <div id="listing-cap-indicator" hidden style="margin-top: 6px; font-size: 12px; color: var(--muted); padding: 0 4px;"></div>
 
-        <!-- Public seller / collector page — just two compact buttons + a
-             collapsed "What is this for?" explainer. No box / background;
-             space is at a premium on mobile so the panel takes only the
-             minimum room needed. Hidden #public-page-url is kept so the
-             Copy + Preview handlers can read/write the URL value. -->
+        <!-- Public seller / collector page — two compact buttons. The
+             "What is this for?" explainer was removed once the Copy /
+             Preview labels became self-explanatory. Hidden
+             #public-page-url is kept so the Copy + Preview handlers can
+             read/write the URL value. -->
         <div id="public-page-row" class="public-page-panel" hidden>
           <input type="hidden" id="public-page-url" />
           <div class="ppp-actions">
-            <button type="button" id="copy-public-page-btn" class="btn-secondary">🔗 Copy your page link</button>
+            <button type="button" id="copy-public-page-btn" class="btn-secondary">🔗 Copy Your Page Link</button>
             <a id="preview-public-page-btn" class="btn-secondary" target="_blank" rel="noopener">Preview ↗</a>
             <span id="copy-public-page-status" class="small ppp-status"></span>
           </div>
-          <details class="ppp-explainer">
-            <summary>What is this for?</summary>
-            <p>Share this link to send buyers and other collectors to a clean page showing all your active listings — both For Sale and In Search Of. Anyone can view the page; contact details are only shown to signed-in members.</p>
-          </details>
         </div>
 
         <!-- Incoming reference requests banner — shows on the dashboard the
@@ -3613,7 +3609,7 @@
             </div>
             <div class="dash-section-body" id="following-body">
               <p class="help" style="margin: 8px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5;">
-                Get a push notification the moment a new listing matches an artist or seller you follow. Tap Follow on any listing's artist name or on a seller's page to add to this list.
+                Follow artists and sellers to get a push notification the moment a matching listing is approved &mdash; no need to keep checking the catalog. Three ways to add a follow: type an artist's name in the box below (even if they have nothing listed yet), tap <strong>+ Follow artist</strong> on any listing, or tap <strong>+ Follow this seller</strong> on a seller's page. Narrow artist follows to <em>Unique/Original</em> or <em>Limited Edition</em> to keep alerts focused.
               </p>
               <!-- Kind-filter pills: filter the follow list by artist vs
                    seller. Hidden when the follow list is empty (nothing
@@ -3679,9 +3675,6 @@
 
           <div class="dash-head" style="margin-top: 28px;">
             <h2>Saved listings <span class="count" id="saved-listings-count"></span></h2>
-          </div>
-          <div class="saved-info-note">
-            Sellers can see who's saved their listing so they can follow up — adjust what you share in your <button type="button" class="linklike" id="saved-note-profile-link">profile</button>.
           </div>
           <div id="saved-loading" class="empty-state" hidden>Loading your saved listings&hellip;</div>
           <div id="saved-empty"   class="empty-state" hidden>
@@ -8122,10 +8115,6 @@
       const mo = new MutationObserver(updateTabStripScrollability);
       mo.observe($tabStrip, { subtree: true, childList: true, attributes: true, characterData: true });
     }
-
-    // The "profile" link inside the saved-listings info note jumps to the
-    // Profile tab so users can blank out their contact fields easily.
-    document.getElementById("saved-note-profile-link")?.addEventListener("click", () => activateTab("profile"));
 
     // Incoming-refs banner "Review →" button: jump to Profile tab and scroll
     // the references section into view so the pending requests are right
