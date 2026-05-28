@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Buying, Shipping, &amp; Selling Guidelines — CanvasCircle</title>
+  <title>Guidelines — CanvasCircle</title>
 
   <link rel="icon" type="image/x-icon" href="/assets/favicon.ico" />
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
@@ -16,8 +16,8 @@
        Loaded BEFORE the inline <style> block so vars are available. -->
   <link rel="stylesheet" href="/assets/theme.css?v=9" />
 
-  <meta property="og:title"       content="Buying, Shipping, &amp; Selling Guidelines — CanvasCircle" />
-  <meta property="og:description" content="Guidelines for safer transactions, smoother payments, better shipping outcomes, and clearer listings." />
+  <meta property="og:title"       content="Guidelines — CanvasCircle" />
+  <meta property="og:description" content="Buying, selling, shipping, ownership verification, references, and Established Member status — everything you need to use CanvasCircle confidently." />
   <meta property="og:type"        content="website" />
   <meta property="og:url"         content="https://canvascircle.art/guidelines.html" />
   <meta property="og:image"       content="https://canvascircle.art/assets/og-image.png" />
@@ -66,15 +66,25 @@
     }
     .hero p { margin: 0; color: var(--muted); }
 
-    .notice {
-      background: var(--accent-softer);
-      border: 1px solid var(--accent-soft);
-      border-radius: 12px;
-      padding: 14px 16px;
-      margin: 16px 0;
-      font-size: 14px;
+    /* Jump-link TOC — small pill row at the top of /guidelines so users
+       can scan the six sections + skip to the one they need. Off-white
+       text on the same neutral surface as the section cards below. */
+    .toc {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin: 16px 0 8px;
     }
-    .notice strong { display: block; margin-bottom: 4px; }
+    .toc a {
+      display: inline-flex; align-items: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      color: var(--fg);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .toc a:hover { border-color: var(--accent); color: var(--accent); }
 
     .section {
       background: var(--card-bg);
@@ -83,6 +93,9 @@
       padding: 22px 24px;
       box-shadow: var(--shadow);
       margin: 16px 0;
+      /* Anchor offset so jump-links don't hide the heading under the
+         sticky site header. */
+      scroll-margin-top: 84px;
     }
     .section h2 {
       margin: 0 0 12px;
@@ -90,9 +103,76 @@
       font-size: 24px;
       letter-spacing: -.02em;
       font-weight: 600;
+      display: flex; align-items: center; gap: 10px;
     }
+    /* Small brand-gradient circle icon next to a few section titles
+       (Verification ✓, References ★, Established badge) — keeps the
+       brand visual language without the heavy colored panel chrome
+       the old design used. */
+    .section h2 .h2-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .section p { margin: 0 0 10px; }
+    .section p:last-child { margin-bottom: 0; }
     .section ul { margin: 8px 0 0; padding-left: 22px; }
-    .section li { margin-bottom: 10px; }
+    .section li { margin-bottom: 8px; }
+    .section li:last-child { margin-bottom: 0; }
+    /* Short eyebrow / lede paragraph that opens most sections, slightly
+       softer than body text to set up the bullet list below. */
+    .section .lede {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    /* Collapsed "Full details" expander on the heavier sections so the
+       baseline view stays tight. Reuses the chevron pattern from other
+       pages' .help-explainer / .ppp-explainer. */
+    .section details {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--card-line);
+    }
+    .section details > summary {
+      list-style: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-style: italic;
+      font-size: 13px;
+      padding: 2px 0;
+      user-select: none;
+    }
+    .section details > summary::-webkit-details-marker { display: none; }
+    .section details > summary::before {
+      content: "▸";
+      display: inline-block;
+      width: 14px;
+      transition: transform .15s ease;
+    }
+    .section details[open] > summary::before { transform: rotate(90deg); }
+    .section details p,
+    .section details ul {
+      margin-top: 8px;
+      color: var(--fg);
+      font-size: 14px;
+    }
+    .section details a { color: var(--accent); }
+    /* Inline "fine print" italic line at the bottom of a section
+       (e.g. the falsified-video warning under Ownership Verification). */
+    .section .fine-print {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--card-line);
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+    }
 
     .footer-link { margin-top: 24px; text-align: center; }
 
@@ -125,143 +205,135 @@
 
   <main>
     <section class="hero">
-      <h1>Buying, Shipping, &amp; Selling Guidelines</h1>
+      <h1>Guidelines</h1>
     </section>
 
-    <section class="section">
+    <!-- Jump-link TOC. The page is split into six sections (rather
+         than the older three) so users can scan + skip to whichever
+         block applies to them. Smooth-scroll anchoring is built into
+         the browser; .section has scroll-margin-top so the sticky
+         header doesn't hide the heading after a jump. -->
+    <nav class="toc" aria-label="On-this-page navigation">
+      <a href="#buying">Buying</a>
+      <a href="#selling">Selling</a>
+      <a href="#shipping">Shipping</a>
+      <a href="#verification">Ownership Verification</a>
+      <a href="#references">Sales References</a>
+      <a href="#established">Established Members</a>
+    </nav>
+
+    <section class="section" id="buying">
       <h2>Buying Guidelines</h2>
       <ul>
-        <li><strong>Look for the Ownership Verified badge.</strong> When a listing has this gradient-colored ✓ badge, the seller has already submitted a short video to CanvasCircle proving they physically possess that specific piece, and an admin reviewed and approved it. The badge confirms <em>physical possession only</em>, not authenticity, condition, or provenance — but it eliminates the most common scam pattern (someone listing a piece they don't actually have).</li>
-        <li><strong>Even when the badge is present, ask the seller to send you their verification video directly</strong> (via email or Facebook Messenger). Review it yourself: confirm the handwritten card shows the seller's correct @handle, that the date is recent, that the artwork in the video matches the photos in the listing, and that the video looks authentic to you. The badge means an admin reviewed the same video — viewing it yourself is your own independent confirmation. Sellers are advised in the Selling Guidelines below to lead with that video, so you shouldn't have to push for it.</li>
-        <li><strong>Feel free to request an additional, longer, more detailed video with today's date</strong> — there is no length cap when sellers send videos to you directly through email or Messenger. Ask the seller to pan slowly around the piece, show the back of the canvas / signature / edition number / any condition issues, and hold up a card with today's date. A serious seller will be happy to do this.</li>
-        <li>If a seller refuses or stalls when you ask for the verification video, do not proceed with the transaction and please report that member to the CanvasCircle team.</li>
-        <li><strong>Check the seller's listed References on CanvasCircle first.</strong> If the seller has built up References, their seller page and listings show a "References" section with the display names and @handles of Established Members who have agreed to vouch for them. Each reference is a clickable @handle — open one of those vouching members' listings and reach out to them through their contact methods to ask how their transaction with the seller went. References are a two-party-consent system: anyone listed there has actively accepted being a reference for that seller, which makes this much stronger than a written testimonial the seller controls. If the seller has no on-platform references yet (or you want corroboration outside the platform), ask them directly whether they have past buyers off-platform you could contact.</li>
-        <li>Always use goods and services via PayPal or Venmo if it is a new seller with no listed References and no track record you can verify.</li>
+        <li><strong>Look for the Ownership Verified badge.</strong> A gradient-colored ✓ means a CanvasCircle admin reviewed a video of the seller physically holding that exact piece. Confirms <em>physical possession only</em>, not authenticity, condition, or provenance — but it eliminates the most common scam pattern.</li>
+        <li><strong>Ask the seller to send you their verification video directly</strong> (via email or Facebook Messenger) and review it yourself. Confirm the handwritten card shows the correct @handle, the date is recent, and the artwork matches the listing photos. Sellers are told to lead with this video.</li>
+        <li><strong>Request a longer, more detailed video with today's date</strong> if you need one — no length cap when sent directly. Ask the seller to show the back of the canvas, signature, edition number, and any condition issues.</li>
+        <li><strong>If a seller refuses or stalls when you ask for the video, walk away</strong> and report them to the CanvasCircle team.</li>
+        <li><strong>Check the seller's References.</strong> Each is a clickable @handle linking to an Established Member who actively agreed to vouch — message them and ask how their transaction with this seller went. References are two-party consent, much stronger than written testimonials the seller controls.</li>
+        <li><strong>Use PayPal or Venmo goods &amp; services</strong> with any new seller who doesn't yet have References or a track record you can verify.</li>
       </ul>
     </section>
 
     <section class="section" id="selling">
       <h2>Selling Guidelines</h2>
-      <div style="padding: 12px 14px; background: var(--accent-tint); border: 1px solid var(--accent-soft); border-radius: 6px; margin-bottom: 14px; color: var(--accent-deeper);">
-        <strong>Who can list:</strong> CanvasCircle is for collectors selling pieces from their own personal collections. The following are <strong>not permitted</strong> to list on this platform:
-        <ul style="margin: 8px 0 0; padding-left: 20px;">
-          <li><strong>Artists</strong> selling their own original work — please use a platform built for artists.</li>
-          <li><strong>Dealers, galleries, or gallery agents</strong> selling on behalf of artists or other clients.</li>
-          <li><strong>Consigners</strong> — anyone listing art owned by someone else. The seller of record must be the legal owner of the piece they're offering.</li>
-        </ul>
-        <p style="margin: 8px 0 0;">Listings that fall into any of these categories will be removed and the account may be suspended.</p>
-      </div>
+      <p class="lede">A short checklist for getting a listing ready to go live and ready for buyers to engage with. The deeper trust-and-status systems — Ownership Verification, Sales References, and Established Member status — each get their own section below.</p>
 
-      <div style="padding: 14px 16px; background: var(--status-success-wash); border: 1px solid var(--status-success-soft); border-radius: 6px; margin-bottom: 14px; color: var(--status-success-deep);">
-        <strong style="display: inline-flex; align-items: center; gap: 6px;">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--status-success-deep);color: var(--text-inverse);font-size:12px;font-weight:700;">✓</span>
-          Ownership Verified badge — required for your first sale listing, optional after.
-        </strong>
-        <p style="margin: 8px 0 0;"><strong>Your very first sale listing on CanvasCircle requires the Ownership Verified badge before the admin can approve it.</strong> This is how we make sure every collector posting on the platform actually has the piece they're claiming to sell — no eyeballing, no guesswork. Submit a short video (≤7 sec) showing the artwork in your hands with a handwritten card displaying your <strong>@handle</strong> + today's date. The admin reviews; approved listings get the Ownership Verified badge (a gradient-colored ✓) that signals to buyers you actually have the piece. No fee. <em>"In Search Of" requests are exempt</em> — they're buyer requests, not sale listings, so there's no piece to verify yet.</p>
-        <p style="margin: 8px 0 0;"><strong>Established Members bypass this gate.</strong> If the admin has already granted you Established Member status (or you reach it via the auto-promotion path — 4 verified listings + 3 accepted references), your new listings publish without per-listing review and you can verify on your own schedule.</p>
-        <p style="margin: 8px 0 0;"><strong>After your first listing is verified, the badge is optional.</strong> You can verify any subsequent listing later via My Account → Your listings → click <em>Edit</em> on the card → scroll to the <em>Verify ownership of this listing</em> button at the bottom. We strongly recommend doing it on every listing — sellers who verify see materially better engagement (see the details below for why).</p>
-        <p style="margin: 8px 0 0;"><strong>How (first listing flow):</strong> When you submit your first sale listing, the success banner shows a <em>📹 Record verification video →</em> button. The listing is saved as a draft and the admin can't approve it until you record the video. Once you've recorded + uploaded, the admin reviews within a day or two. After that you're set — future listings flow through normal review.</p>
-
-        <p style="margin: 10px 0 0;"><strong>Two things you must know:</strong></p>
-        <ul style="margin: 6px 0 0; padding-left: 20px;">
-          <li><strong>Save a copy of your video locally.</strong> CanvasCircle deletes the video bytes ~24 hours after review for privacy. Keep your original on your phone so you can send it to interested buyers later (recommended — see below).</li>
-          <li><strong>Editing artist, title, category, or primary image auto-revokes the badge.</strong> Your video shows the listing as it was when verified — change any of those four fields and the badge is automatically removed. Price, description, dimensions, condition, status, shipping edits are safe. Re-submit a fresh video after a content change to restore the badge.</li>
-        </ul>
-
-        <details style="margin-top: 10px;">
-          <summary style="cursor: pointer; font-weight: 600;">Why every listing should be verified, how to use the video with buyers, what we keep + delete — full details →</summary>
-
-          <p style="margin: 10px 0 0;"><strong>Why verify every listing you can:</strong></p>
-          <ul style="margin: 6px 0 0; padding-left: 20px;">
-            <li>Eliminates the #1 buyer hesitation — "does this seller actually have the piece?" — before they even message you.</li>
-            <li>Faster path to a sale. Buyers are told to ask for the video when they reach out; having one ready means every conversation starts with that question already answered.</li>
-            <li>Verified listings can be filtered on the catalog. Signed-in browsers can show only Ownership Verified listings — being verified gets you into that filtered view.</li>
-            <li>The badge sticks with the listing. Verify once, benefit until it sells.</li>
-            <li>Your seller page shows a running count of verified listings — a public trust signal that compounds over time.</li>
-          </ul>
-
-          <p style="margin: 10px 0 0;"><strong>When a buyer reaches out — lead with the video.</strong> Buyers are instructed in our Buying Guidelines to ask you for the verification video so they can review it themselves. Your first message back to any interested buyer should attach (or link to, via your cloud storage) the short verification video you submitted to CanvasCircle. After that, continue normally — negotiate price, send paperwork (COA, appraisal), share additional photos, and if the buyer wants a longer, more detailed video with today's date, record one and send it through email or Facebook Messenger (no length cap when you send directly). This order keeps the buyer's biggest question answered first and shortens the path to a deal.</p>
-
-          <p style="margin: 10px 0 0;"><strong>What we keep vs. delete:</strong> The video is stored privately — only the reviewing admin sees it via a short-lived signed URL. After review, the bytes are automatically deleted within ~24 hours. CanvasCircle retains only a cryptographic SHA-256 fingerprint of the file (to detect reused videos across listings, a strong fraud signal) plus the basic audit metadata (status, timestamps, reviewer, optional rejection note).</p>
-
-          <p style="margin: 10px 0 0;"><strong>Manual revocation by admin.</strong> CanvasCircle may also revoke a badge at any time for rule violations or buyer complaints (for example, if a buyer reports that you refused to send them the verification video when asked).</p>
-
-          <p style="margin: 10px 0 0;">Full policy details: <a href="/terms.html" style="color:var(--status-success-deep); text-decoration: underline;">Terms of Use § 5 Ownership Verification</a> and <a href="/privacy.html" style="color:var(--status-success-deep); text-decoration: underline;">Privacy Policy</a>.</p>
-        </details>
-
-        <p style="margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--status-success-soft); font-size: 13px;"><em>Important:</em> the badge confirms <strong>physical possession only</strong>, not authenticity, condition, or provenance. Submitting falsified, AI-generated, or reused videos will result in revocation, listing removal, and may result in your account being banned.</p>
-      </div>
-
-      <div style="padding: 14px 16px; background: var(--status-success-wash); border: 1px solid var(--status-success-soft); border-radius: 6px; margin-bottom: 14px; color: var(--status-success-deep);">
-        <strong style="display: inline-flex; align-items: center; gap: 6px;">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--status-success-deep);color: var(--text-inverse);font-size:12px;font-weight:700;">★</span>
-          Build your References — the most powerful trust signal on the platform.
-        </strong>
-        <p style="margin: 8px 0 0;">You can ask any <strong>Established Member</strong> to appear as a <strong>Reference</strong> on your seller profile — regardless of whether you're Established yet yourself. Accepted References show up by display name and @handle on every one of your listings and on your public seller page. Buyers are explicitly told in our Buying Guidelines to click through your References and reach out to those members to ask how their transactions with you went — references are the closest thing to a Yelp review the platform offers, and they matter even more for newer sellers without their own track record on CanvasCircle.</p>
-        <p style="margin: 8px 0 0;"><strong>How:</strong> My Account → Profile → Sales References → "Request a reference." Enter the @handle of an Established Member you've transacted with, send the request, wait for them to accept. You can also accept incoming reference requests from members who've bought from or sold to you (you must be an Established Member yourself to be requested).</p>
-
-        <details style="margin-top: 10px;">
-          <summary style="cursor: pointer; font-weight: 600;">Why pursue them, the rules, and how to use them well →</summary>
-          <p style="margin: 10px 0 0;"><strong>Why this matters more than you think:</strong></p>
-          <ul style="margin: 6px 0 0; padding-left: 20px;">
-            <li>The Ownership Verified badge answers "do you have the piece?" — References answer the bigger question: <em>"are you someone I can transact with safely?"</em></li>
-            <li>References are <strong>two-party consent</strong>. Anyone listed as your reference has actively agreed to be vouching for you — that's much stronger than a written testimonial you control.</li>
-            <li>References compound. As you transact with more members and request/accept references in both directions, the connected web of vouches grows — and benefits everyone in it.</li>
-            <li>For high-value pieces, References are often what gets a buyer past the wire-transfer hesitation.</li>
-          </ul>
-          <p style="margin: 10px 0 0;"><strong>Rules:</strong> You can have up to 5 active <em>outgoing</em> reference requests (pending + accepted combined). There's no cap on how many sellers you may agree to be a reference for. The <em>target</em> of any reference request must be an Established Member — only Established Members can be vouched for. You don't have to be Established yourself to send a request, but you do have to be Established for someone else to request you as their reference. Coordinated mutual references between related accounts, or vouching for users you have no genuine experience with, can result in suspension or banning of all involved accounts.</p>
-          <p style="margin: 10px 0 0;"><strong>Use them well:</strong> Only request references from members you've actually completed a transaction with. When a member accepts being your reference, treat that as a real commitment — they're putting their reputation alongside yours. If you ever find yourself in a dispute, your References may get pinged by the buyer, so transact honestly.</p>
-          <p style="margin: 10px 0 0;">Full policy: <a href="/terms.html" style="color:var(--status-success-deep); text-decoration: underline;">Terms of Use § 5</a> (Sales References subsection).</p>
-        </details>
-      </div>
-
-      <div id="established-member" style="padding: 14px 16px; background: var(--surface-1); border: 1px solid var(--card-line); border-radius: 6px; margin-bottom: 14px;">
-        <strong style="font-size: 16px;">Becoming an Established Member</strong>
-        <p style="margin: 8px 0 0;">There are <strong>two paths</strong> to Established Member status. Either one results in exactly the same badge and the same privileges.</p>
-
-        <p style="margin: 10px 0 0;"><strong>Path 1 — Automatic promotion when you meet both criteria:</strong></p>
-        <ul style="margin: 6px 0 0; padding-left: 20px;">
-          <li><strong>4 or more</strong> active sale listings with the Ownership Verified badge</li>
-          <li><strong>3 or more</strong> accepted Sales References from other Established Members</li>
-        </ul>
-        <p style="margin: 8px 0 0;">Once you hit both at the same time, your account is promoted automatically — no application, no waiting period. You'll see a welcome banner on your dashboard the next time you sign in.</p>
-
-        <p style="margin: 10px 0 0;"><strong>Path 2 — Direct admin promotion.</strong> CanvasCircle (the admin) can grant Established Member status directly to a user based on off-platform trust — for example, established collectors known personally to the admin who haven't yet built up the on-platform criteria. This path is especially common for the platform's initial seed cohort (early users who joined before there were enough Established Members in the network to vouch for them) and for collectors with strong reputations elsewhere in the art community. Direct admin promotion is at the admin's sole discretion and is the same status as an auto-promoted account — there is no second-class tier.</p>
-
-        <p style="margin: 10px 0 0;"><strong>What being Established unlocks (either path):</strong></p>
-        <ul style="margin: 6px 0 0; padding-left: 20px;">
-          <li>Your listing edits go live <strong>without per-change admin review</strong>. Non-Established sellers' content edits re-queue the listing for admin moderation; Established sellers' edits go straight to the public catalog.</li>
-          <li>The <strong>10-sale-listing cap is lifted.</strong> Non-Established Members can have at most 10 active sale listings at a time; Established Members have no limit. (ISO posts are uncapped for everyone.)</li>
-          <li>Other sellers can <strong>request you as a Sales Reference</strong>. (The reference request system requires the target to be Established — you can ask anyone to vouch for you, but they can only ask you to vouch for them if you're Established.)</li>
-          <li>Public <strong>Established Member badge</strong> visible on your seller page and listings to signed-in viewers.</li>
-          <li>Inclusion in the catalog's <strong>"Established Members" filter</strong> — signed-in browsers can show only listings from Established sellers.</li>
-        </ul>
-        <p style="margin: 10px 0 0;"><strong>Track your progress.</strong> Open your account at My Account → Profile. If you're not yet Established, you'll see a "Path to Established Member" block showing your current count for each criterion. Sellers on Path 2 won't see this block once they've been promoted — the badge is already theirs.</p>
-        <p style="margin: 10px 0 0; font-size: 13px; color: var(--muted);">CanvasCircle (the admin) also retains discretion to <em>revoke</em> Established status manually at any time for rule violations, deceptive conduct, or other behavior incompatible with the status — see our <a href="/terms.html">Terms of Use</a> for the full policy.</p>
-      </div>
+      <p><strong>Who can list:</strong> CanvasCircle is for collectors selling pieces from their own personal collections. <strong>Not permitted</strong> on this platform: artists selling their own work, dealers / galleries / agents, and consigners (anyone listing art owned by someone else). The seller of record must be the legal owner. Listings that fall outside this scope will be removed and the account may be suspended.</p>
 
       <ul>
-        <li>Provide ONE clear front view picture of the art preferably without any glare. DO NOT post any stock or copyright photos of the art.</li>
-        <li>Provide the artist name, artwork title, medium/type (oil painting, giclee on canvas etc.), artwork size, framed size, and a general short description of the art.</li>
-        <li>Provide a compelling asking price. Do your research BEFORE listing. Compare recent sales prices on eBay and other platforms. Keep in mind that rarely anyone will buy the art if the asking price is at or above current retail through a gallery.</li>
-        <li>Have pictures of the paperwork (COA, appraisal etc) ready to go to be sent to interested buyers.</li>
-        <li><strong>Submit an Ownership Verification video</strong> per the Ownership Verification section above. If you skip this step, be prepared to send each interested buyer a personalized video of the artwork in your possession on request — it's just much faster (for you and them) to do it once through the formal program.</li>
-        <li>Have PayPal and Venmo accounts ready to go for payment. New transactions between buyer and seller should generally go through PayPal or Venmo goods and services to ensure proper buyer and seller protections! Keep in mind these services have a minimal fee to use.</li>
+        <li><strong>One clear front-view photo</strong> of the artwork, ideally without glare. No stock or copyright images.</li>
+        <li><strong>Fill in the basics:</strong> artist name, artwork title, medium (oil, giclée on canvas, etc.), artwork size, framed size, and a short description.</li>
+        <li><strong>Price it to sell.</strong> Research recent sales on eBay and similar platforms first. Asking-at-or-above current gallery retail rarely moves.</li>
+        <li><strong>Have paperwork photos ready</strong> (COA, appraisal, edition documentation) to send to interested buyers on request.</li>
+        <li><strong>Verify your listing.</strong> Required on your first sale listing — see the Ownership Verification section below.</li>
+        <li><strong>Set up PayPal and Venmo.</strong> Use goods-and-services payments for proper buyer / seller protections. The small fee is worth it.</li>
       </ul>
     </section>
 
-    <section class="section">
+    <section class="section" id="shipping">
       <h2>Shipping Guidelines</h2>
       <ul>
-        <li>Always obtain shipping insurance for the total purchase price.</li>
-        <li>For transactions $10,000 and less, UPS through Pirate Ship's website provides by far the best shipping rates and can fully insure the package for the sale price.</li>
-        <li>For transactions above $10,000, you will need to seek alternative shipping options to fully insure. We recommend utilizing goshippo.com to find the best shipping rates that will fully cover the transaction cost.</li>
-        <li>For packaging the art, Park West art boxes are highly recommended since they provide proper spacing and styrofoam corners. You can also use TV boxes from U-Haul, Lowe's, or Home Depot, but make sure to use packaging materials that provide proper shock absorption protection to the art during shipping. Bubble wrap, packing peanuts, and styrofoam are all good options. Make sure the art itself cannot jostle around in the box.</li>
-        <li>When packaging, never place any packing materials directly on the canvas itself as you run the risk of damage to the art due to the added weight that can cause the canvas to sag onto its stretcher bars on the back.</li>
-        <li>Before shipping, take pictures and videos of the art in the packaging as proof of proper packaging. This will help if you need to file a shipping insurance claim if the art gets damaged during shipping. Insurance claims will not go through if you improperly package your art beforehand, so please take the necessary added precautions to ensure you have done this properly. The admin and moderators can provide advice if anyone needs help on packaging.</li>
-        <li>If the art arrives damaged due to shipping carrier mishandling, do not panic. The receiver or buyer of the art will need to take pictures of the packaging and where the damage on the art has occurred. Do not throw away any of the packaging or ship the damaged art anywhere during the insurance claim process. The insurance claim may ask for the buyer to get a third-party letter stating the art or frame cannot be repaired. Michael's, Hobby Lobby custom framing, or another art framer may be able to provide this.</li>
-        <li>For expensive pieces, we also recommend requiring a signature upon delivery. This helps prevent issues from inclement weather and reduces the risk of package theft.</li>
+        <li><strong>Always fully insure</strong> for the total purchase price.</li>
+        <li><strong>Under $10,000:</strong> UPS via <a href="https://pirateship.com" target="_blank" rel="noopener">pirateship.com</a> has the best rates and can fully insure the sale price.</li>
+        <li><strong>Over $10,000:</strong> use <a href="https://goshippo.com" target="_blank" rel="noopener">goshippo.com</a> to compare carriers that can fully insure higher amounts.</li>
+        <li><strong>Pack properly.</strong> Park West art boxes are ideal (proper spacing + styrofoam corners). U-Haul / Lowe's / Home Depot TV boxes work too. Use bubble wrap, peanuts, or styrofoam — never place packing material directly on the canvas (the weight can sag it onto the stretcher bars).</li>
+        <li><strong>Photograph + video the packaging</strong> before sealing the box. Insurance claims for shipping damage <em>require</em> this — improperly packaged claims get denied.</li>
+        <li><strong>If the piece arrives damaged:</strong> the buyer photographs the packaging and damage immediately, keeps everything (do not toss packaging or move the art), and may need a third-party non-repair letter (Michael's, Hobby Lobby, or another framer can provide).</li>
+        <li><strong>Require signature on delivery</strong> for expensive pieces. Reduces weather and theft risk.</li>
       </ul>
+    </section>
+
+    <section class="section" id="verification">
+      <h2><span class="h2-icon" aria-hidden="true">✓</span>Ownership Verification</h2>
+      <p class="lede">A short video of the seller holding the artwork with a handwritten card showing their @handle + today's date, reviewed by the admin. Approved listings get the Ownership Verified badge — a gradient ✓ that signals to buyers the seller actually has the piece.</p>
+
+      <ul>
+        <li><strong>Required on your first sale listing.</strong> Non-Established sellers can't be approved until the video is in. The first listing acts as the one-time vetting checkpoint. After that, additional listings can be verified at your own pace.</li>
+        <li><strong>"In Search Of" requests are exempt</strong> — they're buyer requests, not sale listings.</li>
+        <li><strong>Established Members bypass.</strong> Verify on your own schedule.</li>
+        <li><strong>Strongly recommended on every listing afterward.</strong> Verified listings show in the catalog's Verified filter, eliminate the #1 buyer hesitation up front, and compound a trust signal on your seller page over time.</li>
+        <li><strong>Save your video locally.</strong> CanvasCircle deletes the bytes ~24 hours after review for privacy. Keep your original so you can send it to interested buyers directly (this is also the recommended way to open a buyer conversation — lead with the video).</li>
+        <li><strong>Editing artist, title, category, or primary image auto-revokes the badge.</strong> The video shows the listing as it was when filmed; changing those four fields means it no longer matches. Price, description, dimensions, condition, status, and shipping edits are safe. Submit a fresh video to restore.</li>
+      </ul>
+
+      <details>
+        <summary>Why verify every listing, full retention + revocation policy, how to use the video with buyers</summary>
+        <p><strong>Why verify every listing:</strong> verified listings cut buyer hesitation before the first message, qualify for the catalog's Verified filter, and compound a public trust signal on your seller page (which shows a running count of your verified listings).</p>
+        <p><strong>Lead with the video when a buyer reaches out.</strong> Your first reply should attach (or cloud-link) the short verification video you submitted to CanvasCircle. After that, continue normally — negotiate price, send COA / appraisal, share extra photos. If the buyer wants a longer, more detailed video with today's date, record one and send it directly (no length cap when you send it yourself).</p>
+        <p><strong>Retention:</strong> the video is stored privately and only the reviewing admin sees it via a short-lived signed URL. After review, the bytes are deleted within ~24 hours. CanvasCircle retains only a SHA-256 fingerprint of the file (to detect reused videos across listings) plus audit metadata (status, timestamps, reviewer, optional rejection note).</p>
+        <p><strong>Manual revocation by admin.</strong> The badge can be revoked for rule violations or buyer complaints — for example, if a buyer reports that you refused to send them the verification video when asked.</p>
+        <p>Full policy: <a href="/terms.html">Terms of Use § 5 Ownership Verification</a> · <a href="/privacy.html">Privacy Policy</a>.</p>
+      </details>
+
+      <p class="fine-print">The badge confirms physical possession only — not authenticity, condition, or provenance. Submitting falsified, AI-generated, or reused videos will result in revocation, listing removal, and may result in your account being banned.</p>
+    </section>
+
+    <section class="section" id="references">
+      <h2><span class="h2-icon" aria-hidden="true">★</span>Sales References</h2>
+      <p class="lede">References are public vouches from Established Members who actively agreed to stand behind you. They appear by display name and @handle on every one of your listings and on your seller page. Two-party consent — much stronger than written testimonials.</p>
+
+      <ul>
+        <li><strong>Who can vouch:</strong> only Established Members. You don't need to be Established yourself to ask someone to vouch for you.</li>
+        <li><strong>Cap:</strong> up to 5 active outgoing reference requests (pending + accepted combined). No cap on how many sellers you may agree to vouch for.</li>
+        <li><strong>How to request:</strong> My Account → Profile → Sales References → "Request a reference." Enter the @handle, send, wait for them to accept.</li>
+        <li><strong>Only request from members you've actually transacted with.</strong> Coordinated mutual references between related accounts can result in suspension or banning of all involved accounts.</li>
+      </ul>
+
+      <details>
+        <summary>Why References matter more than you'd think + etiquette + full policy link</summary>
+        <p>The Ownership Verified badge answers "do you have the piece?" — References answer the bigger question: <em>"are you someone I can transact with safely?"</em> For high-value pieces, References are often what gets a buyer past the wire-transfer hesitation.</p>
+        <p>References compound. As you transact with more members and request / accept references in both directions, the web of vouches grows and benefits everyone in it.</p>
+        <p>When someone accepts being your reference, treat it as a real commitment — they've put their reputation alongside yours. If you ever end up in a dispute, your References may get pinged by the buyer, so transact honestly.</p>
+        <p>Full policy: <a href="/terms.html">Terms of Use § 5</a> (Sales References subsection).</p>
+      </details>
+    </section>
+
+    <section class="section" id="established">
+      <h2><span class="h2-icon" aria-hidden="true">✓</span>Established Members</h2>
+      <p class="lede">Established Member status is the platform's highest trust tier. Two paths in — same badge and same privileges either way.</p>
+
+      <p><strong>Path 1 — Auto-promotion</strong> when you meet <em>both</em> criteria at the same time:</p>
+      <ul>
+        <li>4 or more active sale listings with the Ownership Verified badge</li>
+        <li>3 or more accepted Sales References from other Established Members</li>
+      </ul>
+      <p>No application, no waiting period — your account is flipped automatically and you'll see a welcome banner on your dashboard.</p>
+
+      <p><strong>Path 2 — Direct admin promotion</strong>, at the admin's sole discretion. Common for the platform's initial seed cohort and for collectors with strong reputations elsewhere in the art community. Same status, same badge — there is no second-class tier.</p>
+
+      <p><strong>What it unlocks:</strong></p>
+      <ul>
+        <li>Listing edits go live <strong>without per-change admin review</strong></li>
+        <li>The <strong>10-sale-listing cap is lifted</strong> (non-Established Members are capped at 10 active sale listings; ISO posts are uncapped for everyone)</li>
+        <li>Other sellers can <strong>request you as a Sales Reference</strong></li>
+        <li>Public <strong>Established Member badge</strong> on your listings and seller page (signed-in viewers)</li>
+        <li>Inclusion in the catalog's <strong>Established Members filter</strong></li>
+        <li>Bypass the <strong>first-sale-listing video gate</strong></li>
+      </ul>
+
+      <p><strong>Track your progress</strong> at My Account → Profile. If you're not yet Established, a "Path to Established Member" block shows your counts.</p>
+
+      <p class="fine-print">The admin retains discretion to revoke Established status manually at any time for rule violations or deceptive conduct — see <a href="/terms.html">Terms of Use</a> for the full policy.</p>
     </section>
 
     <div class="footer-link">
