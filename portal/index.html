@@ -2350,6 +2350,46 @@
     .all-listing-row .al-controls .btn-danger:hover { background: var(--status-danger-tint); }
 
     /* ------ Saved-listings grid ------ */
+    /* Segmented "All / Artists / Sellers" toggle for the Following list.
+       Sits between the help text and the list itself. Hidden when the
+       follow list is empty (nothing to filter). Live counts on each
+       pill so users see the breakdown at a glance. */
+    .following-kind-toggle {
+      display: inline-flex;
+      margin: 4px 0 12px;
+      padding: 3px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      gap: 2px;
+    }
+    .following-kind-toggle[hidden] { display: none; }
+    .following-kind-toggle button {
+      border: none;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      transition: background .12s ease, color .12s ease;
+    }
+    .following-kind-toggle button:hover:not(.is-active) { color: var(--fg); }
+    .following-kind-toggle button.is-active {
+      background: var(--surface-1);
+      color: var(--fg);
+      box-shadow: 0 1px 2px rgba(0,0,0,.18);
+    }
+    .following-kind-toggle .pill-count {
+      font-weight: 400;
+      color: var(--muted);
+      margin-left: 4px;
+      font-size: 11px;
+    }
+    .following-kind-toggle button.is-active .pill-count { color: var(--fg); }
+
     /* Following section — list of artists + sellers the user follows.
        Each row is a small card showing the name (and handle for sellers),
        a "Kind" badge so artist vs seller is obvious at a glance, and an
@@ -3449,10 +3489,29 @@
               <p class="help" style="margin: 8px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5;">
                 Get a push notification the moment a new listing matches an artist or seller you follow. Tap Follow on any listing's artist name or on a seller's page to add to this list.
               </p>
+              <!-- Kind-filter pills: filter the follow list by artist vs
+                   seller. Hidden when the follow list is empty (nothing
+                   to filter). Active state + selection persists to
+                   localStorage (cc_following_kind_filter) so a power user
+                   who organizes follows by one kind stays in that view
+                   across reloads. Counts on each pill update on render. -->
+              <div class="following-kind-toggle" id="following-kind-toggle" role="tablist" aria-label="Filter follows by kind" hidden>
+                <button type="button" class="is-active" data-kind="all" role="tab" aria-selected="true">All <span class="pill-count" id="ft-count-all"></span></button>
+                <button type="button" data-kind="artist" role="tab" aria-selected="false">Artists <span class="pill-count" id="ft-count-artist"></span></button>
+                <button type="button" data-kind="seller" role="tab" aria-selected="false">Sellers <span class="pill-count" id="ft-count-seller"></span></button>
+              </div>
               <div id="following-loading" class="empty-state" hidden>Loading your follows…</div>
               <div id="following-empty" class="empty-state" hidden>
                 <strong>Not following anyone yet.</strong><br>
                 On any listing detail page, tap <strong>+ Follow artist</strong> next to the artist name. On a seller's public page, tap <strong>+ Follow this seller</strong>. You'll get notified when they post something new.
+              </div>
+              <!-- Empty state shown when the kind filter is active but
+                   matches zero rows (and the user DOES have follows of
+                   the other kind). Distinct from the "Not following
+                   anyone yet" empty state above so we don't tell a user
+                   with 50 seller follows that they have none. -->
+              <div id="following-kind-empty" class="empty-state" hidden>
+                <span id="following-kind-empty-text"></span>
               </div>
               <div id="following-list" class="following-list" hidden></div>
             </div>
@@ -10709,6 +10768,44 @@
     // in the static markup.
     initFollowingCollapseToggle();
 
+    // ------------------------------------------------------------------
+    // Following kind filter — segmented pill control: All / Artists /
+    // Sellers. State persists to localStorage so power users who mostly
+    // care about one kind stay in that view across reloads. Counts on
+    // each pill are recomputed by renderFollowingPanel from the cached
+    // rows on every render.
+    // ------------------------------------------------------------------
+    const FOLLOWING_KIND_KEY = "cc_following_kind_filter";
+    let followingKindFilter = "all"; // "all" | "artist" | "seller"
+    try {
+      const saved = localStorage.getItem(FOLLOWING_KIND_KEY);
+      if (saved === "artist" || saved === "seller" || saved === "all") {
+        followingKindFilter = saved;
+      }
+    } catch {}
+
+    function setFollowingKindFilter(kind) {
+      if (kind !== "all" && kind !== "artist" && kind !== "seller") kind = "all";
+      followingKindFilter = kind;
+      try { localStorage.setItem(FOLLOWING_KIND_KEY, kind); } catch {}
+      // Re-render to apply the filter (also updates pill active state +
+      // counts since renderFollowingPanel reads followingKindFilter).
+      renderFollowingPanel();
+    }
+
+    // Bind click + keyboard handlers to the pills once. The pills exist
+    // in the static markup so we can wire them up at module init time;
+    // renderFollowingPanel only updates their visual state + counts.
+    (function initFollowingKindToggle() {
+      const $toggle = document.getElementById("following-kind-toggle");
+      if (!$toggle) return;
+      $toggle.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-kind]");
+        if (!btn) return;
+        setFollowingKindFilter(btn.getAttribute("data-kind"));
+      });
+    })();
+
     async function loadFollowingPanel(userId) {
       const $list    = document.getElementById("following-list");
       const $loading = document.getElementById("following-loading");
@@ -10770,24 +10867,75 @@
     }
 
     function renderFollowingPanel() {
-      const $list    = document.getElementById("following-list");
-      const $loading = document.getElementById("following-loading");
-      const $empty   = document.getElementById("following-empty");
-      const $count   = document.getElementById("following-count");
+      const $list      = document.getElementById("following-list");
+      const $loading   = document.getElementById("following-loading");
+      const $empty     = document.getElementById("following-empty");
+      const $count     = document.getElementById("following-count");
+      const $toggle    = document.getElementById("following-kind-toggle");
+      const $kindEmpty = document.getElementById("following-kind-empty");
+      const $kindEmptyText = document.getElementById("following-kind-empty-text");
       if (!$list) return;
 
       $loading.hidden = true;
-      const rows = followingCache || [];
-      if ($count) $count.textContent = rows.length ? `(${rows.length})` : "";
+      const allRows = followingCache || [];
+      // Header count always shows the TOTAL number of follows across all
+      // kinds — the toggle pills below show the per-kind breakdown.
+      if ($count) $count.textContent = allRows.length ? `(${allRows.length})` : "";
 
-      if (!rows.length) {
+      // Empty list — show the "Not following anyone yet" state and hide
+      // the kind toggle since there's nothing to filter.
+      if (!allRows.length) {
         $empty.hidden = false;
-        $list.hidden  = true;
+        if ($kindEmpty) $kindEmpty.hidden = true;
+        if ($toggle)    $toggle.hidden    = true;
+        $list.hidden = true;
         $list.innerHTML = "";
         return;
       }
       $empty.hidden = true;
-      $list.hidden  = false;
+
+      // Compute per-kind counts and update the toggle pills. Always show
+      // the toggle when there's at least one follow (even if there's
+      // only one kind — the user still gets the visual "All N" pill which
+      // is a useful affordance).
+      const artistRows = allRows.filter(r => r.kind === "artist");
+      const sellerRows = allRows.filter(r => r.kind === "seller");
+      if ($toggle) {
+        $toggle.hidden = false;
+        const $cAll    = document.getElementById("ft-count-all");
+        const $cArtist = document.getElementById("ft-count-artist");
+        const $cSeller = document.getElementById("ft-count-seller");
+        if ($cAll)    $cAll.textContent    = allRows.length;
+        if ($cArtist) $cArtist.textContent = artistRows.length;
+        if ($cSeller) $cSeller.textContent = sellerRows.length;
+        $toggle.querySelectorAll("button[data-kind]").forEach(btn => {
+          const isActive = btn.getAttribute("data-kind") === followingKindFilter;
+          btn.classList.toggle("is-active", isActive);
+          btn.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+      }
+
+      // Apply the kind filter.
+      let rows;
+      if (followingKindFilter === "artist")      rows = artistRows;
+      else if (followingKindFilter === "seller") rows = sellerRows;
+      else                                       rows = allRows;
+
+      // Filter active but zero matches — show the kind-specific empty
+      // state pointing the user at how to add this kind of follow.
+      if (rows.length === 0) {
+        $list.hidden = true;
+        $list.innerHTML = "";
+        if ($kindEmpty && $kindEmptyText) {
+          $kindEmptyText.innerHTML = followingKindFilter === "artist"
+            ? `<strong>No artists in your follows yet.</strong><br>On any listing detail page, tap <strong>+ Follow artist</strong> next to the artist name.`
+            : `<strong>No sellers in your follows yet.</strong><br>On a seller's public page, tap <strong>+ Follow this seller</strong>.`;
+          $kindEmpty.hidden = false;
+        }
+        return;
+      }
+      if ($kindEmpty) $kindEmpty.hidden = true;
+      $list.hidden = false;
 
       $list.innerHTML = rows.map((r) => {
         const isArtist = r.kind === "artist";
