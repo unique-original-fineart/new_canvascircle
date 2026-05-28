@@ -2431,6 +2431,91 @@
     }
     .following-kind-toggle button.is-active .pill-count { color: var(--fg); }
 
+    /* Inline "Follow an artist by name" form — sits between the kind toggle
+       and the follow list, lets the user pre-follow an artist who doesn't
+       yet have a listing in the catalog. Grid layout collapses to two rows
+       on mobile (input full-width, then select + button side-by-side). */
+    .follow-artist-add {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      margin: 0 0 12px;
+      align-items: stretch;
+    }
+    .follow-artist-add[hidden] { display: none; }
+    .follow-artist-add input[type="text"] {
+      padding: 9px 12px;
+      border: 1px solid var(--card-line);
+      background: var(--surface-2);
+      color: var(--fg);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      min-width: 0;
+    }
+    .follow-artist-add input[type="text"]::placeholder { color: var(--muted); }
+    .follow-artist-add input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 35%, transparent);
+    }
+    .follow-artist-add select {
+      padding: 9px 28px 9px 10px;
+      border: 1px solid var(--card-line);
+      background-color: var(--surface-2);
+      color: var(--fg);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path fill='%23999' d='M6 8L0 0h12z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 10px;
+      cursor: pointer;
+    }
+    .follow-artist-add-btn {
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      border: none;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .follow-artist-add-btn:disabled { opacity: .6; cursor: wait; }
+    .follow-artist-add-btn:hover:not(:disabled) { filter: brightness(1.08); }
+    @media (max-width: 520px) {
+      .follow-artist-add { grid-template-columns: 1fr 1fr; }
+      .follow-artist-add input[type="text"] { grid-column: 1 / -1; }
+    }
+
+    /* Single-row status banner under the form — used for "already
+       following", "added", and error messages. Three subtle visual states
+       so the success vs. error is glanceable. */
+    .follow-artist-add-hint {
+      margin: 0 0 12px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--fg);
+    }
+    .follow-artist-add-hint[hidden] { display: none; }
+    .follow-artist-add-hint.is-success {
+      border-color: color-mix(in oklab, var(--accent) 60%, var(--card-line));
+    }
+    .follow-artist-add-hint.is-error {
+      border-color: color-mix(in oklab, #d44 70%, var(--card-line));
+      color: #d44;
+    }
+
     /* Following section — list of artists + sellers the user follows.
        Each row is a small card showing the name (and handle for sellers),
        a "Kind" badge so artist vs seller is obvious at a glance, and an
@@ -3541,10 +3626,44 @@
                 <button type="button" data-kind="artist" role="tab" aria-selected="false">Artists <span class="pill-count" id="ft-count-artist"></span></button>
                 <button type="button" data-kind="seller" role="tab" aria-selected="false">Sellers <span class="pill-count" id="ft-count-seller"></span></button>
               </div>
+
+              <!-- Inline "Follow an artist by name" form.
+                   You can only follow artists who already have a listing in
+                   the catalog via the listing-detail Follow button — but
+                   plenty of artists you'd want to follow simply don't have
+                   anything for sale yet. This form lets the user pre-follow
+                   any artist by name and pick a category narrowing up front
+                   (same options as the per-row chip below). On submit it
+                   inserts a saved_searches row exactly like the listing
+                   page's Follow button does, so the existing fanout +
+                   notifications path picks it up the moment a matching
+                   listing is approved.
+                   Duplicate guard: case-insensitive match against the
+                   already-loaded followingCache.
+                   Visibility: shown when the kind filter is "all" or
+                   "artist". Hidden when filter is "seller" — adding an
+                   artist follow while looking at the sellers list is
+                   contextually confusing. -->
+              <form class="follow-artist-add" id="follow-artist-add-form" autocomplete="off" hidden>
+                <input type="text" id="follow-artist-add-input"
+                       placeholder="Follow an artist by name&hellip;"
+                       maxlength="200" required
+                       aria-label="Artist name to follow" />
+                <select id="follow-artist-add-category"
+                        aria-label="Which categories to be notified about"
+                        title="Which categories should ping you?">
+                  <option value="">All categories</option>
+                  <option value="Unique/Original">Unique/Original only</option>
+                  <option value="Limited Edition">Limited Edition only</option>
+                </select>
+                <button type="submit" class="follow-artist-add-btn" id="follow-artist-add-btn">Follow</button>
+              </form>
+              <div id="follow-artist-add-hint" class="follow-artist-add-hint" hidden role="status" aria-live="polite"></div>
+
               <div id="following-loading" class="empty-state" hidden>Loading your follows…</div>
               <div id="following-empty" class="empty-state" hidden>
                 <strong>Not following anyone yet.</strong><br>
-                On any listing detail page, tap <strong>+ Follow artist</strong> next to the artist name. On a seller's public page, tap <strong>+ Follow this seller</strong>. You'll get notified when they post something new.
+                Type an artist's name in the box above to start following them — you'll get a push notification the moment they post a matching listing. You can also tap <strong>+ Follow artist</strong> on any listing or <strong>+ Follow this seller</strong> on a seller's page.
               </div>
               <!-- Empty state shown when the kind filter is active but
                    matches zero rows (and the user DOES have follows of
@@ -10946,6 +11065,126 @@
       });
     })();
 
+    // ------------------------------------------------------------------
+    // Inline "Follow an artist by name" form — lets the user pre-follow
+    // any artist (whether or not that artist currently has a listing in
+    // the catalog). Writes a saved_searches row with kind='artist' +
+    // optional category_filter, identical to what listing.html's Follow
+    // button writes — so the existing saved-search-fanout edge function
+    // picks it up automatically when a matching listing is approved.
+    // Duplicate guard is a client-side case-insensitive check against
+    // followingCache; the DB itself has no uniqueness constraint on
+    // (user_id, kind, value) but the fanout's ilike(value, name) match
+    // means an exact-case-insensitive duplicate would only double-notify.
+    // ------------------------------------------------------------------
+    function setFollowArtistAddHint(text, kind) {
+      const $hint = document.getElementById("follow-artist-add-hint");
+      if (!$hint) return;
+      if (!text) {
+        $hint.hidden = true;
+        $hint.textContent = "";
+        $hint.classList.remove("is-success", "is-error");
+        return;
+      }
+      $hint.textContent = text;
+      $hint.classList.toggle("is-success", kind === "success");
+      $hint.classList.toggle("is-error",   kind === "error");
+      $hint.hidden = false;
+    }
+
+    (function initFollowArtistAddForm() {
+      const $form  = document.getElementById("follow-artist-add-form");
+      const $input = document.getElementById("follow-artist-add-input");
+      const $cat   = document.getElementById("follow-artist-add-category");
+      const $btn   = document.getElementById("follow-artist-add-btn");
+      if (!$form || !$input || !$cat || !$btn) return;
+
+      // Typing in the input clears any stale success/error hint so the
+      // user doesn't see a "already following X" message persist while
+      // they edit their entry.
+      $input.addEventListener("input", () => {
+        const $hint = document.getElementById("follow-artist-add-hint");
+        if ($hint && !$hint.hidden) setFollowArtistAddHint("", "");
+      });
+
+      $form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!currentUserId) {
+          setFollowArtistAddHint("You need to be signed in to follow artists.", "error");
+          return;
+        }
+        const raw = ($input.value || "").trim();
+        if (!raw) {
+          setFollowArtistAddHint("Type an artist's name first.", "error");
+          $input.focus();
+          return;
+        }
+        if (raw.length > 200) {
+          setFollowArtistAddHint("Artist name is too long (max 200 characters).", "error");
+          return;
+        }
+
+        // Case-insensitive duplicate check against the in-memory cache.
+        // Matches the fanout's ilike(value, name) so this guard reflects
+        // what would actually fire a notification.
+        const lower = raw.toLowerCase();
+        const existing = (followingCache || []).find(
+          r => r.kind === "artist" && String(r.value || "").trim().toLowerCase() === lower
+        );
+        if (existing) {
+          setFollowArtistAddHint(`You're already following "${raw}". Adjust the category narrowing on the row below if you'd like.`, "error");
+          return;
+        }
+
+        const categoryFilter = $cat.value || null;
+
+        $btn.disabled = true;
+        $btn.textContent = "Adding…";
+        setFollowArtistAddHint("", "");
+
+        try {
+          const { data, error } = await supabase
+            .from("saved_searches")
+            .insert({
+              user_id:         currentUserId,
+              kind:            "artist",
+              value:           raw,
+              category_filter: categoryFilter,
+            })
+            .select("id, kind, value, category_filter, created_at")
+            .single();
+          if (error) throw error;
+
+          // Optimistically push into cache so the new row renders
+          // immediately; loadFollowingPanel() below will reconcile.
+          if (data) {
+            followingCache = [data, ...(followingCache || [])];
+            renderFollowingPanel();
+          }
+
+          $input.value = "";
+          $cat.value = "";
+          const catLabel = categoryFilter
+            ? ` (${categoryFilter} only)`
+            : "";
+          setFollowArtistAddHint(`Following "${raw}"${catLabel}. You'll get a push notification the moment a matching listing is approved.`, "success");
+
+          // Re-sync from server to confirm + pick up any seller-name
+          // hydration the optimistic insert didn't have. Don't block
+          // the success message on this.
+          loadFollowingPanel(currentUserId).catch((err) => {
+            console.warn("[follow-artist-add] post-insert refresh failed:", err);
+          });
+        } catch (err) {
+          console.error("[follow-artist-add] insert failed:", err);
+          setFollowArtistAddHint("Couldn't add that follow: " + (err.message || err), "error");
+        } finally {
+          $btn.disabled = false;
+          $btn.textContent = "Follow";
+        }
+      });
+    })();
+
     async function loadFollowingPanel(userId) {
       const $list    = document.getElementById("following-list");
       const $loading = document.getElementById("following-loading");
@@ -10956,6 +11195,14 @@
       $loading.hidden = false;
       $empty.hidden   = true;
       $list.hidden    = true;
+
+      // Surface the inline "Follow an artist by name" form as soon as
+      // the Following section loads (not only after the read finishes)
+      // — adding a follow is an independent write that shouldn't be
+      // gated on whether we've finished listing existing rows. Visibility
+      // still respects the kind filter ("seller" hides the form).
+      const $addFormEarly = document.getElementById("follow-artist-add-form");
+      if ($addFormEarly && followingKindFilter !== "seller") $addFormEarly.hidden = false;
 
       try {
         const { data, error } = await withTimeout(
@@ -11003,6 +11250,11 @@
         // Show the empty state on hard failure so the section isn't blank
         // — the user can still tap Follow on listings/sellers to populate.
         $empty.hidden = false;
+        // Surface the inline "Follow an artist by name" form even when
+        // the read failed — adding a follow is an independent write and
+        // shouldn't be hidden just because we couldn't list existing ones.
+        const $addForm = document.getElementById("follow-artist-add-form");
+        if ($addForm && followingKindFilter !== "seller") $addForm.hidden = false;
       }
     }
 
@@ -11014,6 +11266,7 @@
       const $toggle    = document.getElementById("following-kind-toggle");
       const $kindEmpty = document.getElementById("following-kind-empty");
       const $kindEmptyText = document.getElementById("following-kind-empty-text");
+      const $addForm   = document.getElementById("follow-artist-add-form");
       if (!$list) return;
 
       $loading.hidden = true;
@@ -11021,6 +11274,16 @@
       // Header count always shows the TOTAL number of follows across all
       // kinds — the toggle pills below show the per-kind breakdown.
       if ($count) $count.textContent = allRows.length ? `(${allRows.length})` : "";
+
+      // Inline "Follow an artist by name" form visibility — shown when the
+      // kind filter is "all" or "artist" (since it adds an artist follow);
+      // hidden under "seller" filter to avoid the contextual mismatch of
+      // adding an artist follow while looking at the sellers-only list.
+      // Visible regardless of whether the user has any follows yet — its
+      // most important moment is the very first follow.
+      if ($addForm) {
+        $addForm.hidden = (followingKindFilter === "seller");
+      }
 
       // Empty list — show the "Not following anyone yet" state and hide
       // the kind toggle since there's nothing to filter.
