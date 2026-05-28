@@ -85,10 +85,11 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
     // 1) Load the listing. Service-role bypasses RLS so we get the canonical
-    //    row regardless of visibility policies.
+    //    row regardless of visibility policies. artwork_category is needed
+    //    for the artist-follow category-filter narrowing (see migration 037).
     const { data: listing, error: listingErr } = await supabase
       .from("listings")
-      .select("listing_id, seller_id, artist_name, artwork_title, listing_type, status, moderation_status, asking_price_usd, budget_min_usd, budget_max_usd")
+      .select("listing_id, seller_id, artist_name, artwork_title, artwork_category, listing_type, status, moderation_status, asking_price_usd, budget_min_usd, budget_max_usd")
       .eq("listing_id", listingId)
       .single();
     if (listingErr || !listing) {
@@ -120,11 +121,30 @@ serve(async (req) => {
 
     let artistFollowers: any[] = [];
     if (artistName) {
-      const { data: rows, error: artistErr } = await supabase
+      // Artist follow rows may carry an optional category_filter
+      // (migration 037). NULL = follow all categories (default; existing
+      // rows before the migration). A non-NULL value narrows the follow
+      // to that single category.
+      //
+      // The match condition is: category_filter IS NULL OR
+      //                         category_filter = listing.artwork_category.
+      // PostgREST's .or() with .is.null is the cleanest expression here.
+      // If the listing has no artwork_category (rare but possible for
+      // ISO requests that opted out), we only match the NULL-filter rows.
+      const listingCat = listing.artwork_category;
+      let query = supabase
         .from("saved_searches")
-        .select("id, user_id, value")
+        .select("id, user_id, value, category_filter")
         .eq("kind", "artist")
         .ilike("value", artistName);   // ilike with no wildcards = case-insensitive equality
+      if (listingCat) {
+        // Both NULL-filter rows and exact-match rows are accepted.
+        query = query.or(`category_filter.is.null,category_filter.eq.${listingCat}`);
+      } else {
+        // Listing has no category — only NULL-filter rows are eligible.
+        query = query.is("category_filter", null);
+      }
+      const { data: rows, error: artistErr } = await query;
       if (artistErr) {
         console.error("[saved-search-fanout] artist query failed:", artistErr);
       } else {

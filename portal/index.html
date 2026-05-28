@@ -2461,6 +2461,44 @@
     .following-row .fr-name a.fr-handle:focus-visible {
       text-decoration: underline;
     }
+    /* Category-filter chip — small native <select> that lets the user
+       narrow an artist follow to a single artwork_category (or "All").
+       Sits on its own line below the "View listings →" link inside the
+       artist follow row's fr-name column. Defaults to look like a muted
+       pill; when narrowed (not "All"), shifts to accent color so the
+       active state is glanceable across a long follow list.
+       Native <select> for free a11y + iOS-native picker UX. */
+    .following-row .fr-category-chip {
+      display: inline-flex; align-items: center;
+      margin-top: 4px;
+      padding: 3px 22px 3px 10px;
+      border-radius: 999px;
+      font-size: 11px; font-weight: 600;
+      font-family: inherit;
+      background: var(--surface-1);
+      border: 1px solid var(--card-line);
+      color: var(--muted);
+      cursor: pointer;
+      appearance: none; -webkit-appearance: none;
+      /* Custom chevron — matches the rest of the portal selects. */
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M2 2l4 4 4-4' fill='none' stroke='%239AA3BA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+      background-size: 8px;
+    }
+    .following-row .fr-category-chip:hover {
+      color: var(--fg);
+      border-color: var(--fg);
+    }
+    .following-row .fr-category-chip.is-narrowed {
+      color: var(--accent);
+      border-color: var(--accent-soft);
+      background-color: var(--accent-softer);
+    }
+    .following-row .fr-category-chip[disabled] {
+      opacity: .55; cursor: wait;
+    }
+
     .following-row .fr-unfollow {
       padding: 5px 11px;
       border-radius: 999px;
@@ -10686,7 +10724,9 @@
         const { data, error } = await withTimeout(
           supabase
             .from("saved_searches")
-            .select("id, kind, value, created_at")
+            // category_filter (migration 037) narrows artist follows to a
+            // single artwork_category. NULL = match all categories (default).
+            .select("id, kind, value, category_filter, created_at")
             .eq("user_id", userId)
             .order("created_at", { ascending: false }),
           10000,
@@ -10756,22 +10796,44 @@
         if (isArtist) {
           // Artist follows: display name on line 1, "View listings →" link
           // on line 2 that jumps to the catalog pre-filtered to this artist
-          // via ?q=<artist>. Symmetric with seller rows below (which show
-          // display_name + @handle link to /seller). The catalog reads ?q=
-          // and uses its existing ilike search, which matches artist_name
-          // (and artwork_title — close enough; titles rarely collide with
-          // artist names). The fr-handle class is re-used for the link
-          // styling so the visual rhythm of the two row types matches.
+          // via ?q=<artist> (and ?cat=<category> if the user has narrowed
+          // this follow to a specific artwork_category — see migration 037).
+          // Symmetric with seller rows below (which show display_name +
+          // @handle link to /seller). The catalog reads ?q= and ?cat= and
+          // uses its existing filter code path.
+          //
+          // Line 3 (artist only): category-filter chip — a native <select>
+          // that lets the user narrow notifications + the View-listings
+          // link to one of (All / Unique/Original / Limited Edition).
+          // Defaults to "All" (category_filter = NULL) so existing follows
+          // behave unchanged. The chip carries an .is-narrowed class when
+          // the filter is set to a specific category for at-a-glance
+          // recognition across a long follow list.
           const artistName = r.value;
+          const catFilter  = r.category_filter || "";
+          const catParam   = catFilter ? `&cat=${encodeURIComponent(catFilter)}` : "";
+          const linkHref   = `/?q=${encodeURIComponent(artistName)}${catParam}`;
+          const linkSuffix = catFilter ? ` (${escapeHtml(catFilter)})` : "";
+          const chipClass  = catFilter ? "fr-category-chip is-narrowed" : "fr-category-chip";
           nameHtml =
             `<span class="fr-display-name">${escapeHtml(artistName)}</span>` +
-            `<a class="fr-handle fr-artist-catalog-link" href="/?q=${encodeURIComponent(artistName)}" title="See ${escapeHtml(artistName)}'s listings in the catalog">View listings →</a>`;
+            `<a class="fr-handle fr-artist-catalog-link" href="${linkHref}" title="See ${escapeHtml(artistName)}'s listings in the catalog">View listings${linkSuffix} →</a>` +
+            `<select class="${chipClass}" data-following-id="${r.id}" title="What kind of new listings should ping you?">` +
+              `<option value="" ${!catFilter ? "selected" : ""}>All categories</option>` +
+              `<option value="Unique/Original" ${catFilter === "Unique/Original" ? "selected" : ""}>Unique/Original only</option>` +
+              `<option value="Limited Edition" ${catFilter === "Limited Edition" ? "selected" : ""}>Limited Edition only</option>` +
+            `</select>`;
         } else {
           // Seller follows: display name on line 1, @handle as a tappable
           // link on line 2 (so the handle never gets clipped by the
           // ellipsis on narrow mobile widths). Class names match the CSS
           // selectors above — .fr-display-name truncates, .fr-handle is
           // its own padded tap target.
+          // No category-filter chip on seller follows — the seller's
+          // public page shows their full catalog regardless, so a
+          // category-narrowed seller follow would create a confusing
+          // mismatch between the notification stream and the page the
+          // user clicks through to. Artist-only narrowing for v1.
           const name   = r._sellerName || "(unknown seller)";
           const handle = r._sellerHandle;
           nameHtml = `<span class="fr-display-name">${escapeHtml(name)}</span>${handle ? `<a class="fr-handle" href="/seller?handle=${encodeURIComponent(handle)}" target="_blank" rel="noopener">@${escapeHtml(handle)}</a>` : ""}`;
@@ -10809,6 +10871,43 @@
           btn.disabled = false;
           btn.textContent = "Unfollow";
           alert("Could not unfollow: " + (err.message || err));
+        }
+      };
+
+      // Event delegation for the category-filter chip (artist rows only).
+      // Native <select> change events bubble, so a single delegated
+      // listener on $list handles every chip. The UI rebuilds itself
+      // after a successful update so the chip's .is-narrowed state and
+      // the "View listings →" link's &cat= param stay in sync.
+      $list.onchange = async (e) => {
+        const sel = e.target.closest(".fr-category-chip");
+        if (!sel) return;
+        const id = Number(sel.getAttribute("data-following-id"));
+        if (!Number.isFinite(id)) return;
+        // Empty-string option = "All categories" = NULL in the DB. Any
+        // other value goes in verbatim (the CHECK constraint enforces
+        // valid category names server-side).
+        const newFilter = sel.value || null;
+        // Stash the previous filter for rollback on error.
+        const row = (followingCache || []).find(r => r.id === id);
+        const previousFilter = row?.category_filter ?? null;
+        sel.disabled = true;
+        try {
+          const { error } = await supabase
+            .from("saved_searches")
+            .update({ category_filter: newFilter })
+            .eq("id", id);
+          if (error) throw error;
+          if (row) row.category_filter = newFilter;
+          // Re-render so the "View listings →" link picks up &cat= and the
+          // chip applies its .is-narrowed class (or removes it).
+          renderFollowingPanel();
+        } catch (err) {
+          console.error("[following] category-filter update failed:", err);
+          // Roll back the visible select to the prior value.
+          sel.value = previousFilter || "";
+          sel.disabled = false;
+          alert("Could not update the filter: " + (err.message || err));
         }
       };
     }
