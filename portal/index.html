@@ -638,6 +638,31 @@
       filter: brightness(1.15);
       outline: none;
     }
+    /* Required-state variant — used when the listing is gated by the
+       first-sale-listing video policy (see
+       [[listingRequiresFirstTimeVideoGate]]). Reads as a soft alert
+       rather than a passive link: the seller's listing genuinely
+       cannot publish until they record the video, so the styling
+       needs to telegraph that urgency without screaming. Filled pill
+       with brand-gradient accent — matches the verified-corner badge
+       palette so the visual language stays consistent ("this is the
+       thing that earns the badge"). */
+    .preview-card .pc-verify-cta.pc-verify-cta-required {
+      display: inline-flex; align-items: center;
+      align-self: flex-start;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      text-decoration: none;
+      font: 700 11px inherit;
+      letter-spacing: .2px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.18);
+    }
+    .preview-card .pc-verify-cta.pc-verify-cta-required:hover,
+    .preview-card .pc-verify-cta.pc-verify-cta-required:focus-visible {
+      filter: brightness(1.10);
+    }
     /* Singleton toast surfaced when a verified-corner is tapped. Same
        pattern + styling as the public catalog's verified-toast so the
        portal feels consistent. Updated to use --brand-gradient for the
@@ -2236,13 +2261,42 @@
       border: 1px solid var(--status-success-deep); background: var(--status-success-deep); color: var(--text-inverse);
       font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
     }
-    .mod-item .btn-approve:hover { filter: brightness(.92); }
+    .mod-item .btn-approve:hover:not(:disabled) { filter: brightness(.92); }
+    .mod-item .btn-approve:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+      filter: grayscale(.4);
+    }
     .mod-item .btn-reject {
       padding: 7px 14px; border-radius: 7px;
       border: 1px solid var(--status-danger-soft); background: var(--status-danger-tint); color: var(--status-danger-deep);
       font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
     }
     .mod-item .btn-reject:hover { background: var(--status-danger-tint); }
+    /* First-sale-listing video gate indicator. Two variants — blocked
+       (no video yet, admin can't approve) and ready (video submitted,
+       admin should review it before approving). Sits between the
+       description and the action row so the admin sees it right before
+       deciding. */
+    .mod-item .mod-gate-badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .mod-item .mod-gate-badge-blocked {
+      background: var(--status-warning-tint, var(--status-danger-tint));
+      border: 1px solid var(--status-warning-soft, var(--status-danger-soft));
+      color: var(--status-warning-deep, var(--status-danger-deep));
+    }
+    .mod-item .mod-gate-badge-ready {
+      background: var(--status-success-wash);
+      border: 1px solid var(--status-success-soft);
+      color: var(--green);
+    }
 
     .sellers-list-scroll {
       max-height: 480px;
@@ -5463,8 +5517,71 @@
       // alone is no longer sufficient. Reason: Facebook profile helps the
       // admin sift out scammers; the sign-in email isn't a useful trust signal
       // since it's just whatever the user typed at signup.
+      //
+      // NOTE: Slated to become optional in the upcoming Stage 2 of the
+      // first-sale-listing video gate rollout (see comment block on
+      // listingRequiresFirstTimeVideoGate below). Video verification will
+      // replace FB URL as the primary trust signal once that ships.
       const hasFb = !!String(profile.facebook_profile_url || "").trim();
       return hasFb;
+    }
+
+    // ------------------------------------------------------------------
+    // First-sale-listing video gate.
+    //
+    // Trust-signal policy (introduced 2026-05-28): a brand-new non-
+    // Established seller posting their first sale listing MUST submit an
+    // ownership-verification video before admin can approve the listing.
+    // This replaces the older approach where admins manually eyeballed
+    // listings + FB URLs and approved with no hard evidence the seller
+    // actually owns the piece.
+    //
+    // Gate triggers when ALL of the following hold:
+    //   - listing_type === 'sale'              (ISOs are exempt — they're
+    //                                            buyer requests, no piece
+    //                                            to verify; admin review
+    //                                            remains the only gate)
+    //   - seller is not an Established Member  (is_trusted = false; admin
+    //                                            promotion bypasses the
+    //                                            gate by design)
+    //   - seller has zero prior approved sale  (one cleared listing is the
+    //                                            sale listings                permanent vetting checkpoint)
+    //
+    // Implementation is purely client-side for Stage 1; admin can still
+    // override via direct DB update if needed. A future server-side
+    // trigger can enforce permanently.
+    //
+    // Inputs:
+    //   listing       — the listing row (must include listing_type)
+    //   allListings   — the seller's full set of listings from the
+    //                   dashboard query (includes moderation_status +
+    //                   listing_type so we can count prior approvals)
+    //   profile       — the seller's profile row, used for is_trusted
+    //
+    // Returns boolean: true → this listing is gated on video verification.
+    // ------------------------------------------------------------------
+    function listingRequiresFirstTimeVideoGate(listing, allListings, profile) {
+      if (!listing || !profile) return false;
+      if (listing.listing_type !== "sale") return false;
+      if (profile.is_trusted) return false;
+      const priorApproved = (allListings || []).some(l =>
+        l.listing_id !== listing.listing_id &&
+        l.listing_type === "sale" &&
+        l.moderation_status === "approved"
+      );
+      return !priorApproved;
+    }
+
+    // Lighter-weight variant for the new-listing submit flow where the
+    // listing hasn't been created yet — answers "will the listing about
+    // to be submitted be gated?" by examining the existing cache only.
+    function nextSaleListingWouldBeGated(allListings, profile) {
+      if (!profile) return false;
+      if (profile.is_trusted) return false;
+      const priorApproved = (allListings || []).some(l =>
+        l.listing_type === "sale" && l.moderation_status === "approved"
+      );
+      return !priorApproved;
     }
 
     // ----- Helpers -----
@@ -5557,7 +5674,25 @@
       // the card so the seller can launch the verify modal directly without
       // detouring through Edit. Discoverability fix that doesn't bloat the
       // card (single text-button, no chrome).
+      //
+      // Stage 1 of the first-sale-listing video gate (see
+      // [[listingRequiresFirstTimeVideoGate]]): when this listing falls
+      // under the gate (non-Established seller, first sale listing, no
+      // prior approved sale listing), upgrade the optional CTA to a
+      // required-styling treatment. The seller's listing literally cannot
+      // be approved by admin until they record the video, so the urgency
+      // matters.
       if (status === "none") {
+        const isGated = listingRequiresFirstTimeVideoGate(l, allListings, currentProfileCached);
+        if (isGated) {
+          return `
+            <div class="pc-verification">
+              <button type="button" class="pc-verify-cta pc-verify-cta-required" data-action="verify-start">
+                📹 Record verification video — required to publish
+              </button>
+            </div>
+          `;
+        }
         return `
           <div class="pc-verification">
             <button type="button" class="pc-verify-cta" data-action="verify-start">
@@ -9004,14 +9139,25 @@
       $modEmpty.hidden   = true;
       $modList.hidden    = true;
       $modList.innerHTML = "";
+      // Three pieces of data per row are needed for the first-sale-listing
+      // gate (see [[listingRequiresFirstTimeVideoGate]]):
+      //   1. seller.is_trusted (so Established Members bypass the gate)
+      //   2. seller's prior approved sale-listing count (zero = gate active)
+      //   3. this listing's listing_verifications presence (any submitted
+      //      video — pending or approved — clears the "needs video" half
+      //      of the gate so admin can proceed)
+      // We fetch (1) via the existing profiles join + an is_trusted column;
+      // (2) and (3) via two follow-up batched queries against the loaded
+      // seller_ids and listing_ids.
       const { data, error } = await supabase
         .from("listings")
         .select(`
           listing_id, listing_type, artist_name, artwork_title, artwork_category,
           asking_price_usd, budget_min_usd, budget_max_usd,
-          description, status, moderation_status, created_at,
+          description, status, moderation_status, created_at, seller_id,
           listing_images ( storage_path, position ),
-          profiles!listings_seller_id_fkey ( display_name, handle, contact_email )
+          listing_verifications ( id, status, submitted_at ),
+          profiles!listings_seller_id_fkey ( display_name, handle, contact_email, is_trusted )
         `)
         .eq("moderation_status", "pending")
         .order("created_at", { ascending: true });
@@ -9024,13 +9170,53 @@
       $modCount.textContent = rows.length ? `(${rows.length})` : "";
       $adminPendingBadge.textContent = rows.length ? `(${rows.length})` : "";
       if (rows.length === 0) { $modEmpty.hidden = false; return; }
+
+      // Batched query: for each unique seller_id in the queue, count how
+      // many of their existing listings are approved sale listings. If
+      // the count is zero AND seller is non-Established, this seller's
+      // listings in the queue are subject to the first-sale-listing gate.
+      const saleSellerIds = Array.from(new Set(
+        rows.filter(r => r.listing_type === "sale").map(r => r.seller_id)
+      ));
+      const priorApprovedBySeller = new Map();
+      if (saleSellerIds.length) {
+        // PostgREST returns one row per matching listing; we only need
+        // a presence check so any limit works — but to keep the request
+        // cheap with many sellers, ask for just the seller_id column.
+        const { data: approvedRows, error: priorErr } = await supabase
+          .from("listings")
+          .select("seller_id")
+          .in("seller_id", saleSellerIds)
+          .eq("listing_type", "sale")
+          .eq("moderation_status", "approved");
+        if (priorErr) {
+          console.warn("[mod-queue] prior-approval query failed (gate will be conservative):", priorErr);
+        } else {
+          for (const r of (approvedRows || [])) {
+            priorApprovedBySeller.set(r.seller_id, (priorApprovedBySeller.get(r.seller_id) || 0) + 1);
+          }
+        }
+      }
+
       const frag = document.createDocumentFragment();
-      for (const l of rows) frag.appendChild(renderModItem(l));
+      for (const l of rows) {
+        const isFirstSaleGate =
+          l.listing_type === "sale" &&
+          !l.profiles?.is_trusted &&
+          (priorApprovedBySeller.get(l.seller_id) || 0) === 0;
+        // The gate is satisfied (admin can approve) when ANY verification
+        // record exists for this listing — pending counts since admin
+        // reviews the video as part of the approve action anyway, and
+        // approved verification is obviously fine. The gate is failed
+        // (admin must hold off) when no record exists at all.
+        const hasVideo = (l.listing_verifications || []).length > 0;
+        frag.appendChild(renderModItem(l, { isFirstSaleGate, hasVideo }));
+      }
       $modList.appendChild(frag);
       $modList.hidden = false;
     }
 
-    function renderModItem(l) {
+    function renderModItem(l, ctx = {}) {
       const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
       // Moderation thumb — slightly bigger than the other admin rows because
@@ -9040,6 +9226,15 @@
       const sellerHandle = l.profiles?.handle || "";
       const email  = l.profiles?.contact_email || "";
       const days   = Math.max(0, Math.floor((Date.now() - new Date(l.created_at).getTime()) / 86400000));
+
+      // First-sale-listing gate context (see
+      // [[listingRequiresFirstTimeVideoGate]]). When the gate is active
+      // AND no verification video exists yet, admin cannot approve — the
+      // Approve button is disabled and a "first sale listing — video
+      // required" indicator surfaces above the actions row.
+      const isFirstSaleGate = !!ctx.isFirstSaleGate;
+      const hasVideo        = !!ctx.hasVideo;
+      const approveBlocked  = isFirstSaleGate && !hasVideo;
 
       // Price / budget label
       let priceLabel;
@@ -9057,6 +9252,27 @@
         ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />`
         : (isIso ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--surface-3);color:var(--muted);font-size:20px;">🔍</div>` : "");
 
+      // Gate indicator — small pill above the actions row. Two variants:
+      //   - approveBlocked (no video yet) → soft-warning treatment
+      //   - hasVideo (gate satisfied)     → confirmation treatment so
+      //                                      admin knows this is a first
+      //                                      listing but the video's in
+      //                                      hand and review can proceed.
+      let gateBadgeHtml = "";
+      if (isFirstSaleGate) {
+        if (approveBlocked) {
+          gateBadgeHtml =
+            `<div class="mod-gate-badge mod-gate-badge-blocked" title="The seller has zero prior approved sale listings and is not an Established Member. They must submit a verification video before this listing can be approved.">
+               ⚠ First sale listing — verification video required
+             </div>`;
+        } else {
+          gateBadgeHtml =
+            `<div class="mod-gate-badge mod-gate-badge-ready" title="First-time seller's verification video is in the queue — review it via the Verified Listings panel before approving.">
+               📹 First sale listing — video submitted, ready to review
+             </div>`;
+        }
+      }
+
       const item = document.createElement("div");
       item.className = "mod-item" + (isIso ? " is-iso" : "");
       item.dataset.listingId = l.listing_id;
@@ -9071,15 +9287,20 @@
             · ${days === 0 ? "submitted today" : `submitted ${days}d ago`}
           </div>
           ${l.description ? `<div class="mod-desc">${escapeHtml(l.description)}</div>` : ""}
+          ${gateBadgeHtml}
           <div class="mod-actions">
             <a href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener" class="view-link" style="color:var(--accent); font-size:13px; font-weight:600; text-decoration:none; align-self:center;">Preview ↗</a>
-            <button type="button" class="btn-approve" data-action="approve">Approve</button>
+            <button type="button" class="btn-approve" data-action="approve" ${approveBlocked ? "disabled" : ""} ${approveBlocked ? `title="Cannot approve until the seller submits a verification video."` : ""}>Approve</button>
             <button type="button" class="btn-reject"  data-action="reject">Reject</button>
           </div>
         </div>
       `;
-      item.querySelector("[data-action=approve]").addEventListener("click", () => moderateListing(item, l, "approve"));
-      item.querySelector("[data-action=reject]").addEventListener("click",  () => moderateListing(item, l, "reject"));
+      const approveBtn = item.querySelector("[data-action=approve]");
+      const rejectBtn  = item.querySelector("[data-action=reject]");
+      if (!approveBlocked) {
+        approveBtn.addEventListener("click", () => moderateListing(item, l, "approve"));
+      }
+      rejectBtn.addEventListener("click", () => moderateListing(item, l, "reject"));
       return item;
     }
 
@@ -11739,8 +11960,28 @@
       document.querySelectorAll("[data-nl-label-iso]").forEach(el  => el.hidden = !isIso);
       // Ownership-verification hint is sale-only — ISO listings are buyer
       // requests and have no ownership to verify.
+      // Copy is swapped based on whether this seller would be subject to
+      // the first-sale-listing video gate (see
+      // [[listingRequiresFirstTimeVideoGate]]). For gated submissions the
+      // copy reads as required-not-optional, with stronger visual chrome.
       const $nlVerifyHint = document.getElementById("nl-verify-hint");
-      if ($nlVerifyHint) $nlVerifyHint.hidden = isIso;
+      if ($nlVerifyHint) {
+        $nlVerifyHint.hidden = isIso;
+        if (!isIso) {
+          const gated = nextSaleListingWouldBeGated(allListings, currentProfileCached);
+          if (gated) {
+            $nlVerifyHint.innerHTML =
+              `📹 <strong>Verification video required.</strong> Your first sale listing has to include an ownership-verification video before the admin can approve it. After you submit, you'll be guided through recording the video. You only need to do this once — future sale listings won't require it.`;
+            $nlVerifyHint.style.background = "rgba(255,153,51,0.10)";
+            $nlVerifyHint.style.borderColor = "rgba(255,153,51,0.35)";
+          } else {
+            $nlVerifyHint.innerHTML =
+              `💡 <strong>After submitting</strong>, you'll have the option to add the <strong>Ownership Verified</strong> badge by uploading a short video. Verified listings get more buyer engagement.`;
+            $nlVerifyHint.style.background = "rgba(45,127,255,0.10)";
+            $nlVerifyHint.style.borderColor = "rgba(45,127,255,0.30)";
+          }
+        }
+      }
     }
     document.querySelectorAll(".nl-type-tab").forEach(t => {
       t.addEventListener("click", () => applyNlType(t.dataset.nlType));
@@ -12409,27 +12650,67 @@
         applyNlType("sale");
         showView("account");
         await loadDashboardListings(currentUserId);
-        // For sale listings, surface a "Verify ownership now →" CTA right
-        // in the success banner. This is the highest-leverage moment to
-        // prompt verification — the seller is still in the listing flow,
-        // probably has the artwork nearby. Buries far less than the
-        // previous path (Edit listing → scroll → click verify). ISO
-        // listings skip the CTA since verification doesn't apply to
-        // buyer requests.
-        showDashBanner(
-          isTrusted
-            ? (isIso ? "Request posted and live on the catalog." : "Listing created and live on the catalog.")
-            : (isIso
-                ? "Request submitted. The admin will review it before it appears in the public catalog."
-                : "Listing submitted. The admin will review it before it appears in the public catalog."),
-          "success",
-          isIso ? {} : {
-            action: {
-              label: "Verify ownership now →",
-              onClick: () => triggerVerifyForListingId(newId)
-            }
-          }
-        );
+        // Banner copy + CTA depend on the listing's trust path:
+        //
+        // (A) Established Member + sale or ISO:
+        //     Listing goes live immediately. Optional "Verify ownership"
+        //     CTA to add the badge.
+        // (B) Non-Established + ISO:
+        //     Admin review only, no video gate.
+        // (C) Non-Established + sale, prior approved sale listing exists:
+        //     Admin review; video is recommended but optional. Same
+        //     "Verify ownership now" prompt as before.
+        // (D) Non-Established + sale, ZERO prior approved sale listings:
+        //     The first-sale-listing video gate (see
+        //     [[listingRequiresFirstTimeVideoGate]]). Banner becomes
+        //     stronger + the video CTA is the only path forward — admin
+        //     cannot approve without it.
+        //
+        // After loadDashboardListings(), allListings reflects the new row.
+        // For the gate check we want to know whether the seller had any
+        // PRIOR approvals — so we use nextSaleListingWouldBeGated which
+        // ignores the newly-inserted (still-pending) listing entirely.
+        // The newly-inserted listing has moderation_status='pending', so
+        // it naturally doesn't count toward "prior approved" either way.
+        const isFirstSaleGate = !isTrusted && !isIso &&
+          nextSaleListingWouldBeGated(allListings, currentProfileCached);
+
+        let bannerMsg;
+        if (isTrusted) {
+          bannerMsg = isIso
+            ? "Request posted and live on the catalog."
+            : "Listing created and live on the catalog.";
+        } else if (isIso) {
+          bannerMsg = "Request submitted. The admin will review it before it appears in the public catalog.";
+        } else if (isFirstSaleGate) {
+          bannerMsg = "Listing saved as draft. Record a verification video next — your first sale listing can't be approved without it.";
+        } else {
+          bannerMsg = "Listing submitted. The admin will review it before it appears in the public catalog.";
+        }
+
+        const bannerOpts = (isIso || isTrusted)
+          ? (isTrusted && !isIso ? {
+              action: {
+                label: "Verify ownership now →",
+                onClick: () => triggerVerifyForListingId(newId)
+              }
+            } : {})
+          : {
+              // Both gated + ungated non-Established sale listings get the
+              // verify CTA. For the gated case it's required; for the
+              // ungated case it's a recommended next step.
+              action: {
+                label: isFirstSaleGate
+                  ? "📹 Record verification video →"
+                  : "Verify ownership now →",
+                onClick: () => triggerVerifyForListingId(newId)
+              },
+              // Don't auto-hide the gated banner — the user must take the
+              // action or they'll forget the listing is stuck in draft.
+              autoHide: !isFirstSaleGate,
+            };
+
+        showDashBanner(bannerMsg, isFirstSaleGate ? "info" : "success", bannerOpts);
       } catch (err) {
         console.error("[new-listing] failed:", err);
         setBanner("new-listing", (isIso ? "Could not post the request: " : "Could not create the listing: ") + (err.message || err), "error");
