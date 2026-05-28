@@ -1046,17 +1046,24 @@
         const p = r.reference;
         const li = document.createElement("li");
         li.style.cssText = "padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--card-line); border-radius: 6px;";
+        // Per-row "Established" trailing badge was removed (2026-05-28).
+        // Two reasons: (1) the green-circle-with-check glyph collided
+        // visually with the gradient-circle-with-check used by the
+        // Ownership Verified badge across the catalog, listing pages,
+        // and seller-page header; using a similar-looking but different
+        // glyph here for a different concept (Established Member)
+        // created a "what does this symbol mean?" friction. (2) The
+        // wording "Established" was redundant — only Established
+        // Members are eligible to be References (enforced by the
+        // request_reference RPC), so every name in this list is
+        // already-by-definition Established. No need to repeat it
+        // per row. The Sales References section heading + helper copy
+        // already establishes the context.
         li.innerHTML = `
           <a href="/seller?handle=${encodeURIComponent(p.handle)}" style="color: var(--fg); text-decoration: none; font-weight: 600;">
             ${escapeHtml(p.display_name || `@${p.handle}`)}
             <span style="font-weight: 400; color: var(--muted); font-size: 13px;">@${escapeHtml(p.handle)}</span>
-          </a>
-          <span style="display: inline-flex; align-items: center; gap: 4px; color: var(--green); font-size: 12px; font-weight: 600; margin-left: 6px; vertical-align: 1px;">
-            <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
-              <circle cx="8" cy="8" r="7" fill="#2a7a3e"/>
-              <path d="M5 8.5 L7 10.5 L11 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            </svg>Established
-          </span>`;
+          </a>`;
         frag.appendChild(li);
       }
       $list.appendChild(frag);
