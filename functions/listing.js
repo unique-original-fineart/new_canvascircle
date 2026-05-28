@@ -1,46 +1,21 @@
 // =============================================================================
-// Cloudflare Pages Function — per-listing OG meta-tag injection
+// Cloudflare Pages Function — per-listing OG meta-tag injection (/listing)
 // =============================================================================
-// Routes: GET /listing.html  (Pages auto-discovers by file path)
+// Routes: GET /listing  (extensionless URL — what the site actually uses)
 //
-// Why this exists:
-//   listing.html is a client-rendered page that fetches the listing data via
-//   Supabase JS after the page loads. That means social-media scrapers
-//   (iMessage, Slack, WhatsApp, Twitter, Facebook, Discord) — none of which
-//   execute JS — only see the static <head>, which has a generic og:image
-//   pointing at the CanvasCircle logo. Every shared listing link resolves to
-//   the same boring preview card, and the user has to tap through to see
-//   what was actually being shared. That kills the conversion rate of every
-//   share-to-iMessage and every paste-into-Slack.
+// This is a sibling of /functions/listing.html.js. Cloudflare Pages routes
+// functions by exact file path: /functions/listing.html.js handles
+// /listing.html, but the catalog and seller pages link to /listing?id=X
+// (no extension — Pages serves the .html content via its pretty-URL feature).
+// Without this second file, every shared link to /listing?id=X would bypass
+// the function entirely and scrapers would see only the generic OG card.
 //
-//   This Function runs on the edge BEFORE the HTML reaches the browser. It
-//   fetches the listing from Supabase (using the public anon key + RLS to
-//   stay safe), generates per-listing og:* + twitter:* meta tags, and
-//   streams them into the response via HTMLRewriter. By the time iMessage
-//   pings the URL to build a preview card, the meta tags are already there.
-//
-//   The browser still hydrates normally afterward — the existing client-side
-//   setOgTags() in listing.html still runs and is harmless (it just
-//   over-writes attributes we already set to the same values).
-//
-// Failure modes (all degrade gracefully back to the static HTML):
-//   - No `?id=` in URL: pass through unchanged
-//   - Supabase fetch fails or times out: pass through unchanged
-//   - Listing not found OR not approved: pass through unchanged (don't leak
-//     pending / rejected content to scrapers)
-//   - HTMLRewriter throws: pass through unchanged
-//
-// Why hard-coded SUPABASE creds instead of env vars:
-//   The anon key is a public JWT — it's already committed in lib/config.js
-//   and ships to every browser. RLS protects the data; the key just identifies
-//   the caller. Cloudflare Pages env vars add a moving part with no security
-//   benefit here.
-//
-// Cache strategy:
-//   Cache the rewritten response for 5 minutes at the edge. Listings update
-//   infrequently enough that a 5-min lag in the share preview is invisible to
-//   users; rebuilding the OG card on every share-link impression would be
-//   wasted Supabase egress.
+// The handler logic is identical to listing.html.js. Duplicating the file
+// (rather than importing a shared helper) is the most reliable pattern for
+// Pages Functions, since cross-route imports between /functions/*.js files
+// can be inconsistently bundled. If this file and listing.html.js ever
+// diverge, fix the canonical implementation in listing.html.js first and
+// mirror the change here.
 // =============================================================================
 
 const SUPABASE_URL      = "https://xwieomjsqwcswoadrvkv.supabase.co";
@@ -48,10 +23,8 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const STORAGE_BUCKET    = "listing-images";
 const SITE_ORIGIN       = "https://canvascircle.art";
 
-const SCRAPER_FETCH_TIMEOUT_MS = 2500;  // upper bound on Supabase round-trip
+const SCRAPER_FETCH_TIMEOUT_MS = 2500;
 
-// HTML-escape for attribute values. Keep tiny + dependency-free — this fn
-// runs in the V8 isolate on every request.
 function esc(s) {
   return String(s ?? "")
     .replace(/&/g, "&amp;")
@@ -67,9 +40,6 @@ function fmtPrice(n) {
   return "$" + num.toLocaleString();
 }
 
-// Resolve a Supabase Storage path to a public URL. Mirrors the logic of
-// lib/supabase.js#publicImageUrl but without the JS client (we can't import
-// node_modules into a Pages Function). Legacy http(s) URLs pass through.
 function publicImageUrl(storagePath) {
   if (!storagePath) return "";
   if (/^https?:\/\//i.test(storagePath)) return storagePath;
@@ -77,8 +47,6 @@ function publicImageUrl(storagePath) {
 }
 
 async function fetchListing(listingId) {
-  // Order images by position so the hero (position 0) shows up in [0].
-  // Selecting only the fields we actually need keeps the response small.
   const fields = [
     "listing_id",
     "artist_name",
@@ -92,9 +60,6 @@ async function fetchListing(listingId) {
   ].join(",");
   const url = `${SUPABASE_URL}/rest/v1/listings?listing_id=eq.${encodeURIComponent(listingId)}&select=${fields}&limit=1`;
 
-  // Manual timeout — the iMessage scraper has its own deadline and we'd
-  // rather serve a generic preview than a 504. If we run out of budget we
-  // bail and the static HTML's default og:image wins.
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), SCRAPER_FETCH_TIMEOUT_MS);
   try {
@@ -154,15 +119,7 @@ function buildMeta(listing, listingId, requestUrl) {
     title: ogTitle,
     description: ogDescription,
     image: ogImage,
-    // og:url should match the URL the page was actually requested at —
-    // some scrapers (notably Twitter) validate that og:url matches the
-    // fetched URL, and using the request URL also keeps the canonical
-    // URL consistent whether the user shared /listing?id=X or
-    // /listing.html?id=X. Falls back to a hardcoded path if requestUrl
-    // wasn't passed (defensive — shouldn't happen).
     url: requestUrl || `${SITE_ORIGIN}/listing?id=${encodeURIComponent(listingId)}`,
-    // Page <title> includes the suffix so non-OG-aware previewers (Slack
-    // sometimes uses <title>) still get a clean string.
     pageTitle: `${ogTitle} — CanvasCircle`,
   };
 }
@@ -172,13 +129,8 @@ export async function onRequestGet(context) {
   const url = new URL(request.url);
   const listingId = url.searchParams.get("id");
 
-  // The static HTML is what we start from regardless — env.ASSETS.fetch
-  // returns the underlying /listing.html as Cloudflare Pages would have
-  // served it without this Function.
   const assetResponse = await env.ASSETS.fetch(request);
 
-  // No id, or asset request failed → pass through unchanged. Don't try
-  // to be clever; the page can still render client-side for the user.
   if (!listingId || !assetResponse.ok) {
     return assetResponse;
   }
@@ -190,8 +142,6 @@ export async function onRequestGet(context) {
     return assetResponse;
   }
 
-  // Listing missing OR not approved — don't leak pending / rejected content
-  // to social scrapers. Pass through with the generic preview instead.
   if (!listing || listing.moderation_status !== "approved") {
     return assetResponse;
   }
@@ -203,18 +153,6 @@ export async function onRequestGet(context) {
     return assetResponse;
   }
 
-  // HTMLRewriter streams the response and rewrites tags as they pass.
-  // Cheap (no buffering) and well-supported on Pages Functions.
-  //
-  // What we do:
-  //   - Overwrite <title>
-  //   - Overwrite the static <meta property="og:image"> (generic fallback)
-  //   - Append og:title, og:description, og:url, twitter:title,
-  //     twitter:description, twitter:image to <head>
-  //
-  // We don't touch the JS-set og:* tags inside the page logic — those run
-  // post-hydration and will simply re-set the same values for the live
-  // browser. Harmless.
   try {
     const rewriter = new HTMLRewriter()
       .on("title", {
@@ -239,12 +177,9 @@ export async function onRequestGet(context) {
 
     const transformed = rewriter.transform(assetResponse);
 
-    // Re-wrap with our own caching headers so the edge caches per-listing
-    // OG cards for 5 minutes. Without this, the original static asset's
-    // headers (which assume the file never changes per URL) would be used.
     const headers = new Headers(transformed.headers);
     headers.set("Cache-Control", "public, max-age=300, s-maxage=300");
-    headers.set("X-CC-OG-Injected", "1");  // diagnostic — strip later if noisy
+    headers.set("X-CC-OG-Injected", "1");
 
     return new Response(transformed.body, {
       status: transformed.status,
@@ -252,8 +187,6 @@ export async function onRequestGet(context) {
       headers,
     });
   } catch {
-    // Belt-and-braces: if HTMLRewriter throws for any reason, fall back to
-    // the unmodified static asset so the page still loads.
     return assetResponse;
   }
 }
