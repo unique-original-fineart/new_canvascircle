@@ -460,13 +460,15 @@
        tappable. The whole card is the link target; this is just the
        affordance.
        --
-       Lives INSIDE the .pills span at the right end (margin-left:auto
-       pushes it past any preceding badges so the badge cluster stays
-       left-aligned and the CTA stays right-aligned). Previously this was
-       a standalone row below pills; consolidating them saves one full
-       row of card vertical real estate on mobile. */
+       Lives INSIDE the .pills span as a sibling of the category badge.
+       Originally I tried margin-left:auto to right-align it, but in a
+       wrapping flex container an auto-margin grabs available space and
+       forces the CTA to a new line rather than squishing next to the
+       badge. Removing the auto-margin lets the CTA sit immediately after
+       the badge with a 4px flex gap — both on the same line, just
+       left-clustered instead of edge-justified. Saves the vertical row
+       which is the actual goal. */
     .card .cta {
-      margin-left: auto;
       font-size: 11px;
       font-weight: 600;
       color: var(--accent);
