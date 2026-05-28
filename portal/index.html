@@ -3524,9 +3524,15 @@
               </details>
             </div>
 
-            <!-- Facebook profile URL — per-field inline edit/save/cancel. -->
+            <!-- Facebook profile URL — per-field inline edit/save/cancel.
+                 Now OPTIONAL (Stage 2 of the trust-policy shift, 2026-05-28).
+                 Video verification on the first sale listing replaced FB
+                 URL as the trust signal. Field stays in the profile because
+                 sellers who DO have a FB account benefit from the "Message
+                 on Facebook" button on their listings + the "Prefers FB
+                 Messenger" preferred-contact path. -->
             <div class="field">
-              <label for="prof-fb">Facebook profile URL <span style="color:var(--status-danger-deep);">*</span></label>
+              <label for="prof-fb">Facebook profile URL <span class="small" style="color:var(--muted); font-weight:400;">(optional)</span></label>
               <input type="text" id="prof-fb" placeholder="https://facebook.com/your.profile" disabled />
               <div class="field-actions">
                 <button type="button" id="prof-fb-edit-btn"   class="linklike">Edit</button>
@@ -3536,7 +3542,7 @@
               </div>
               <details class="field-explainer">
                 <summary>What is this for?</summary>
-                <p>Required to post listings (For Sale or In Search Of). Powers the "Message on Facebook" button on your listings and helps the admin verify accounts. Email-only profiles can still browse and save.</p>
+                <p>Optional. If you add your Facebook profile URL, your listings show a <strong>Message on Facebook</strong> button so buyers can reach you on Messenger. You can also set <em>Facebook Messenger</em> as your preferred contact method below. Leaving this blank is totally fine — buyers can still reach you via <strong>Email Seller</strong> on every listing.</p>
               </details>
             </div>
 
@@ -4356,8 +4362,13 @@
           return;
         }
         // Profile-completeness gate: trying to post a listing (sale or ISO)
-        // without a Facebook profile URL redirects them to the Profile tab in
-        // edit mode with an explanation.
+        // without the required core fields (display name + @handle)
+        // redirects them to the Profile tab in edit mode with an
+        // explanation. As of the 2026-05-28 trust-policy shift, Facebook
+        // URL is NOT a required field — the gate only enforces display
+        // name + handle now (and display name is locked at signup, so in
+        // practice only @handle can be missing here for pre-handle-
+        // migration legacy accounts).
         if (b.dataset.go === "new-listing"
             && !isProfileCompleteForSelling(currentProfileCached)) {
           e.preventDefault();
@@ -4366,11 +4377,8 @@
           // Force into edit mode so they can fill it in immediately.
           if (typeof setProfileEditMode === "function") setProfileEditMode(true);
           if ($profStatus) {
-            const missing = [];
-            if (!currentProfileCached?.handle) missing.push("set your @handle");
-            if (!currentProfileCached?.facebook_profile_url) missing.push("add your Facebook profile URL");
             $profStatus.textContent =
-              `Before posting a listing, please ${missing.join(" and ")}. The Facebook URL helps the admin verify accounts; the handle disambiguates you from other users with the same name.`;
+              `Before posting a listing, please set your @handle. The handle disambiguates you from other users with the same display name.`;
             $profStatus.className = "sp-text-status err";
           }
           return;
@@ -5513,17 +5521,17 @@
       // account when display names collide. Existing pre-migration accounts
       // have NULL handles and must set one before posting.
       if (!String(profile.handle || "").trim()) return false;
-      // Facebook URL is mandatory for posting (sale or ISO). Contact email
-      // alone is no longer sufficient. Reason: Facebook profile helps the
-      // admin sift out scammers; the sign-in email isn't a useful trust signal
-      // since it's just whatever the user typed at signup.
-      //
-      // NOTE: Slated to become optional in the upcoming Stage 2 of the
-      // first-sale-listing video gate rollout (see comment block on
-      // listingRequiresFirstTimeVideoGate below). Video verification will
-      // replace FB URL as the primary trust signal once that ships.
-      const hasFb = !!String(profile.facebook_profile_url || "").trim();
-      return hasFb;
+      // Facebook URL is no longer mandatory (Stage 2 of the trust-signal
+      // policy shift, 2026-05-28). Video verification on the first sale
+      // listing — see [[listingRequiresFirstTimeVideoGate]] — is now the
+      // primary trust signal for non-Established sellers, and it's a much
+      // stronger one than a FB profile URL was. FB URL stays as an optional
+      // field that powers the "Message on Facebook" CTA on listings + the
+      // "Prefers Facebook Messenger" preferred-contact path. Buyers without
+      // a Facebook account were locked out of joining when FB was required;
+      // dropping the requirement opens the platform to that population
+      // without weakening the trust model.
+      return true;
     }
 
     // ------------------------------------------------------------------
@@ -10098,7 +10106,9 @@
       });
     }
 
-    // Wire FB URL — required, and also denylist-checked.
+    // Wire FB URL — OPTIONAL (Stage 2, 2026-05-28). Empty is now valid.
+    // Still denylist-checked when a value IS provided, since the denylist
+    // bans known-bad URLs even from optional fields.
     wirePerFieldEdit({
       inputId: "prof-fb",
       editBtnId: "prof-fb-edit-btn",
@@ -10107,8 +10117,13 @@
       statusId: "prof-fb-status",
       snapshotKey: "facebook_profile_url",
       column: "facebook_profile_url",
-      validate: (val) => val ? null : "Facebook profile URL is required to post listings.",
+      // No required-validation — empty string is an acceptable save and
+      // simply clears the user's FB URL on file.
+      validate: () => null,
       beforeSave: async (val) => {
+        // Only run the denylist check when there's actually a URL to check.
+        // An empty save is a deliberate "remove my FB URL" action.
+        if (!val) return;
         const { data: banned } = await supabase.rpc("is_banned_credential", { p_email: null, p_facebook_url: val });
         if (banned === true) {
           throw new Error("That Facebook profile URL is on our denylist. Contact admin@canvascircle.art if you think this is a mistake.");
