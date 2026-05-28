@@ -533,10 +533,11 @@
             <option value="Limited Edition">Limited Edition</option>
           </select>
           <select id="sf-status" title="Status">
-            <option value="">All statuses</option>
+            <option value="active" selected>Active (hide sold)</option>
             <option value="available">Available</option>
             <option value="pending">Pending Sale</option>
             <option value="sold">Sold</option>
+            <option value="">Show all</option>
           </select>
           <select id="sf-sort" title="Sort">
             <option value="newest">Newest first</option>
@@ -624,7 +625,11 @@
     // No re-query needed — we hold every listing in memory at render time.
     // Filters reset on tab switch (each tab is its own context: "For Sale"
     // status doesn't mean anything in the ISO tab).
-    let filterState = { q: "", category: "", status: "", sort: "newest" };
+    //
+    // Default status = "active" (available + pending). Matches the portal
+    // Your Listings tab and the public catalog so a buyer arriving here
+    // doesn't see the seller's sold inventory unless they explicitly opt in.
+    let filterState = { q: "", category: "", status: "active", sort: "newest" };
     // Module-level cache of the viewer's user_id. Set in the same auth
     // resolution path that sets viewerSignedIn. Used by the Follow seller
     // button to scope upsert/delete operations to the viewer's row.
@@ -788,10 +793,14 @@
           .eq("seller_id", profile.user_id)
           .eq("listing_type", "sale")
           .eq("moderation_status", "approved")
-          // Include Pending Sale alongside Available — same logic as the
-          // public catalog (index.html). Card renders PENDING SALE badge
-          // to distinguish state.
-          .in("status", ["available", "pending"])
+          // Fetch all PUBLICLY-VISIBLE statuses (available, pending sale,
+          // sold, not renewed) so the in-page status filter dropdown can
+          // narrow to any of them client-side. Excludes 'delisted' (seller
+          // explicitly hid the listing) which is a soft-delete signal.
+          // The default filter is "active" (available + pending) so a
+          // first-time visit still hides sold by default — matches the
+          // pattern used in the portal Your Listings tab + catalog.
+          .in("status", ["available", "pending", "sold", "not_renewed"])
           .order("created_at", { ascending: false }),
         supabase.from("listings").select(`
           listing_id, listing_type, artist_name, artwork_title, artwork_category,
@@ -1153,8 +1162,15 @@
       }
       // Status filter applies to sale tab only — ISO listings use status
       // semantically differently (see [[iso-status-semantics]] memory).
+      // "active" is the default and means "still buyable" (available +
+      // pending). Other values are strict status equality. Empty string
+      // means "Show all" (no filter).
       if (st && currentTab === "sale") {
-        out = out.filter(r => r.status === st);
+        if (st === "active") {
+          out = out.filter(r => r.status === "available" || r.status === "pending");
+        } else {
+          out = out.filter(r => r.status === st);
+        }
       }
 
       // Sort. Default is the order rows arrived (newest-first from the
@@ -1214,7 +1230,11 @@
     function resetSellerFilters() {
       if ($sfQ)        $sfQ.value        = "";
       if ($sfCategory) $sfCategory.value = "";
-      if ($sfStatus)   $sfStatus.value   = "";
+      // Status resets to the "active" default (hides sold), matching the
+      // initial-page-load state. NOT empty string — empty would show
+      // everything including sold, which isn't what users expect from
+      // Clear / Reset.
+      if ($sfStatus)   $sfStatus.value   = "active";
       if ($sfSort)     $sfSort.value     = "newest";
       pullToolbarStateAndApply();
     }

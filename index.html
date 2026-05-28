@@ -588,7 +588,9 @@
           <option value="Limited Edition">Limited Edition</option>
         </select>
         <select id="f-status" title="Status">
-          <option value="available" selected>Available</option>
+          <option value="active" selected>Active (hide sold)</option>
+          <option value="available">Available</option>
+          <option value="pending">Pending Sale</option>
           <option value="sold">Sold</option>
           <option value="not_renewed">Not renewed</option>
         </select>
@@ -899,15 +901,29 @@
         q = q.eq("status", "available");
       } else {
         // Sale listings — status filter from the dropdown.
-        // The default "available" view ALSO includes status=pending (Pending
-        // Sale) — the PENDING SALE badge on the card distinguishes state.
-        // Reason: pending-sale isn't a final state; the deal might fall
-        // through, and backup buyers should be able to find the listing.
+        //
+        // Filter semantics:
+        //   "active"      → available + pending (the default — "still buyable")
+        //   "available"   → strict available only
+        //   "pending"     → strict pending sale only
+        //   "sold"        → strict sold only
+        //   "not_renewed" → strict not-renewed only
+        //
+        // Reason for "active" as default: pending-sale isn't a final state
+        // (the deal might fall through), so backup buyers should find these
+        // listings without opting in. Sold is hidden by default because
+        // unbought sold listings clutter the "what can I buy" view.
         if (filters.statusF === "sold") {
           q = q.eq("status", "sold");
         } else if (filters.statusF === "not_renewed") {
           q = q.eq("status", "not_renewed");
+        } else if (filters.statusF === "pending") {
+          q = q.eq("status", "pending");
+        } else if (filters.statusF === "available") {
+          q = q.eq("status", "available");
         } else {
+          // "active" (default) or any unknown value falls back to the
+          // catch-all "still buyable" view.
           q = q.in("status", ["available", "pending"]);
         }
       }
@@ -1393,7 +1409,11 @@
       if (newTab === currentTab) return;
       currentTab = newTab;
       $seller.value  = "";
-      $statusF.value = "available";
+      // Reset status to the default "active" (hides sold, includes pending).
+      // The old value "available" now has stricter semantics (available-only,
+      // no pending) and carrying that across a tab switch would surprise
+      // users who saw the broader default on initial load.
+      $statusF.value = "active";
       applyTabUiMode();
       saveFilterState();
       await populateDropdowns();
@@ -1472,7 +1492,10 @@
     $clear.addEventListener("click", () => {
       $q.value = "";
       $cat.value = "";
-      $statusF.value = "available";
+      // Reset to "active" (the new default — hides sold, includes pending),
+      // not the old "available" since that option now has stricter semantics
+      // (available-only, no pending). Matches the page-load default.
+      $statusF.value = "active";
       $seller.value = "";
       $trustMember.value = "";
       $trustVerify.value = "";
