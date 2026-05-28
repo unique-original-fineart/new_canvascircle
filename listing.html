@@ -909,7 +909,7 @@
         const p = r.reference;
         return `<a href="/seller?handle=${encodeURIComponent(p.handle)}" style="color: var(--accent); text-decoration: none; font-weight: 600;">@${escapeHtml(p.handle)}</a>`;
       }).join(", ");
-      wrap.innerHTML = `<strong style="color: var(--fg);">References:</strong> ${links} <span style="font-size: 12px;">— all are Established Members; reach out to ask about their experience.</span>`;
+      wrap.innerHTML = `<strong style="color: var(--fg);">References:</strong> ${links}`;
       $anchor.parentNode.insertBefore(wrap, $anchor);
     }
 
