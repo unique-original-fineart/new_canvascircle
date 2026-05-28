@@ -780,7 +780,6 @@
             <span class="pills">
               <span class="cat iso-wanted">WANTED</span>
               ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
-              <span class="cta">Request</span>
             </span>
           </div>`;
       } else {
@@ -805,7 +804,6 @@
               ${isNotRenewed ? `<span class="cat not-renewed">NOT RENEWED</span>` : ""}
               ${isPending ? `<span class="cat pending-sale">PENDING SALE</span>` : ""}
               ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
-              <span class="cta">Details</span>
             </span>
           </div>`;
       }
@@ -817,11 +815,15 @@
         ? `<div class="verified-corner" title="Ownership Verified — the seller submitted proof of possession">✓</div>`
         : "";
 
-      // Note: the "Show details →" / "See request →" CTA used to live on
-      // its own line below the pills, but it has been moved INTO the
-      // .pills span (above) so it shares a row with the category badge.
-      // Saves one full row of card height on mobile. See .card .cta CSS
-      // for the margin-left:auto trick that keeps it right-aligned.
+      // Note: the "Show details →" / "See request →" CTA was removed from
+      // the card body entirely (2026-05-28). The whole card is already
+      // wrapped in <a> so it's a link target; the heart button + image +
+      // hover state are sufficient interactivity affordances. Attempts to
+      // squeeze the CTA inline next to the category badge ran into the
+      // mobile-width constraint — "Unique/Original" alone is too wide to
+      // share a row with any meaningful CTA text. Mirrors the card-as-link
+      // pattern used by Etsy / eBay / Amazon. Saves one row of card
+      // vertical real estate per card.
       card.innerHTML = `
         <div class="img">${imgInner}${verifiedBadge}</div>
         <div class="body">
