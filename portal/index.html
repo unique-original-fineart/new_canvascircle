@@ -6041,16 +6041,18 @@
         if (file.size > 25 * 1024 * 1024)    throw new Error("Image is over 25MB.");
         $btn.disabled = true;
         setStatus("Compressing…");
-        // compressImage now outputs WebP at quality 0.75 — ~25-30% smaller
-        // than the old JPEG output. Storage path uses .webp extension and
-        // the Supabase upload gets contentType: "image/webp" so browsers
-        // serve the file with the right MIME on request.
-        const blob = await compressImage(file);
+        // compressImage returns { blob, mime, ext }. The extension and
+        // MIME reflect the ACTUAL encoded format — WebP on browsers
+        // that support it, JPEG fallback otherwise. See the function's
+        // doc comment for why we can't hardcode .webp here (silent
+        // PNG fallback bug on iOS PWA contexts that produced 3MB
+        // mislabeled blobs).
+        const { blob, mime, ext } = await compressImage(file);
         setStatus("Uploading…");
-        const newPath = `${id}/0-${Date.now()}.webp`;
+        const newPath = `${id}/0-${Date.now()}.${ext}`;
         const { error: uploadErr } = await supabase.storage
           .from("listing-images")
-          .upload(newPath, blob, { contentType: "image/webp", upsert: false });
+          .upload(newPath, blob, { contentType: mime, upsert: false });
         if (uploadErr) throw uploadErr;
 
         // Update existing listing_images row (or insert if none).
@@ -11445,13 +11447,16 @@
         // 2) Compress + upload the image — only if one was selected (ISO can skip).
         if (nlSelectedFile) {
           $nlSubmitBtn.textContent = "Compressing image…";
-          // compressImage now outputs WebP at quality 0.75 — see lib/supabase.js.
-          const blob = await compressImage(nlSelectedFile);
+          // compressImage returns { blob, mime, ext }. The extension and
+          // MIME reflect the ACTUAL encoded format (WebP / JPEG fallback);
+          // hardcoding ".webp" here was the source of mislabeled 3MB
+          // uploads on iOS PWA contexts. See lib/supabase.js.
+          const { blob, mime, ext } = await compressImage(nlSelectedFile);
           $nlSubmitBtn.textContent = "Uploading image…";
-          const path = `${newId}/0-${Date.now()}.webp`;
+          const path = `${newId}/0-${Date.now()}.${ext}`;
           const { error: uploadErr } = await supabase.storage
             .from("listing-images")
-            .upload(path, blob, { contentType: "image/webp", upsert: false });
+            .upload(path, blob, { contentType: mime, upsert: false });
           if (uploadErr) throw uploadErr;
           const { error: imgRowErr } = await supabase
             .from("listing_images")

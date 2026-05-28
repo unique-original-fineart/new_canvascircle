@@ -67,13 +67,24 @@ function fmtPrice(n) {
   return "$" + num.toLocaleString();
 }
 
-// Resolve a Supabase Storage path to a public URL. Mirrors the logic of
-// lib/supabase.js#publicImageUrl but without the JS client (we can't import
-// node_modules into a Pages Function). Legacy http(s) URLs pass through.
+// Resolve a Supabase Storage path to a public URL pointing at the on-the-fly
+// image-transform endpoint, not the raw object. Two reasons:
+//   1. Many of our legacy-imported images are 3-8MB (full camera-roll resolution
+//      because import_legacy.py didn't recompress on insert). Sending a 3MB
+//      file as og:image makes Slack render "(3 MB)" next to the preview and
+//      slows iMessage's preview build to a crawl. The transform endpoint
+//      resizes to 1200px on the long edge + quality 75 + WebP, dropping that
+//      to ~150-300KB at the edge with no source-file change. Result is cached
+//      at Supabase's CDN per URL so repeated scrapes hit the same byte stream.
+//   2. Portal-uploaded images are already WebP @ 1200px / 0.75, so the
+//      transform is near-idempotent on those (tiny quality re-encode, basically
+//      free). Using one path for all images keeps the function simple.
+// Legacy http(s) URLs (the old Google CDN imports) don't have transform
+// support, so we pass them through unchanged.
 function publicImageUrl(storagePath) {
   if (!storagePath) return "";
   if (/^https?:\/\//i.test(storagePath)) return storagePath;
-  return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${storagePath}`;
+  return `${SUPABASE_URL}/storage/v1/render/image/public/${STORAGE_BUCKET}/${storagePath}?width=1200&quality=75&resize=contain`;
 }
 
 async function fetchListing(listingId) {

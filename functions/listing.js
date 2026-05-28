@@ -40,10 +40,17 @@ function fmtPrice(n) {
   return "$" + num.toLocaleString();
 }
 
+// Uses the Supabase image-transform endpoint instead of the raw object so
+// the og:image served to Slack/iMessage/etc. is always a ~150-300KB
+// thumbnail (1200px on the long edge, quality 75) regardless of how big
+// the source upload is. Legacy imports (e.g. from import_legacy.py) are
+// often 3-8MB at full camera-roll resolution and would otherwise make
+// Slack render a multi-MB file size next to the preview. See the
+// matching comment block in /functions/listing.html.js.
 function publicImageUrl(storagePath) {
   if (!storagePath) return "";
   if (/^https?:\/\//i.test(storagePath)) return storagePath;
-  return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${storagePath}`;
+  return `${SUPABASE_URL}/storage/v1/render/image/public/${STORAGE_BUCKET}/${storagePath}?width=1200&quality=75&resize=contain`;
 }
 
 async function fetchListing(listingId) {
