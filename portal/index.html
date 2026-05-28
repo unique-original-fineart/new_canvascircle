@@ -6041,23 +6041,32 @@
         if (file.size > 25 * 1024 * 1024)    throw new Error("Image is over 25MB.");
         $btn.disabled = true;
         setStatus("Compressing…");
-        // compressImage returns { blob, mime, ext }. The extension
-        // reflects the ACTUAL encoded format (WebP / JPEG fallback);
-        // see lib/supabase.js for why we can't hardcode .webp here.
-        // We deliberately do NOT pass `contentType` to .upload() — that
-        // option sets the HTTP Content-Type request header, which on
-        // some Supabase deployments collides with the multipart upload
-        // protocol and returns "Invalid Content-Type header". The Blob
-        // already has its .type set correctly by canvas.toBlob(), and
-        // supabase-js uses that automatically for the stored object's
-        // content-type. `mime` is destructured here purely for future
-        // diagnostics; the upload only needs blob + path.
-        const { blob, ext } = await compressImage(file);
+        // compressImage returns { blob, mime, ext }. We then convert the
+        // Blob to an ArrayBuffer before upload to bypass supabase-js's
+        // multipart/form-data code path. The reason: when fileBody is a
+        // Blob, supabase-js wraps it in FormData, which makes fetch()
+        // generate a multipart Content-Type header with a WebKit-style
+        // boundary (e.g. "----WebKitFormBoundaryXxx"). Supabase Storage's
+        // server-side Content-Type validator rejects that boundary on iOS
+        // because the regex is strict about which characters are allowed.
+        // Symptom: "Invalid Content-Type header" error on upload, or in
+        // softer cases the upload "succeeds" but the stored object's
+        // content-type isn't set correctly and the browser refuses to
+        // render the file as an image when fetched back.
+        //
+        // With an ArrayBuffer body, supabase-js takes the raw-bytes path,
+        // sets headers['content-type'] = options.contentType directly,
+        // and the storage object gets a clean "image/webp" or "image/jpeg"
+        // content-type. Trade-off: we hold the file in memory as an
+        // ArrayBuffer briefly. For our 200-400KB compressed images that's
+        // negligible.
+        const { blob, mime, ext } = await compressImage(file);
+        const buffer = await blob.arrayBuffer();
         setStatus("Uploading…");
         const newPath = `${id}/0-${Date.now()}.${ext}`;
         const { error: uploadErr } = await supabase.storage
           .from("listing-images")
-          .upload(newPath, blob, { upsert: false });
+          .upload(newPath, buffer, { contentType: mime, upsert: false });
         if (uploadErr) throw uploadErr;
 
         // Update existing listing_images row (or insert if none).
@@ -11452,20 +11461,22 @@
         // 2) Compress + upload the image — only if one was selected (ISO can skip).
         if (nlSelectedFile) {
           $nlSubmitBtn.textContent = "Compressing image…";
-          // compressImage returns { blob, mime, ext }. We destructure
-          // `ext` for the storage path; we do NOT pass `contentType` to
-          // the upload because that option sets the HTTP Content-Type
-          // request header which collides with the multipart upload
-          // protocol on some Supabase deployments ("Invalid Content-Type
-          // header"). The Blob already carries the correct .type from
-          // canvas.toBlob() and supabase-js uses that for the stored
-          // object automatically. See lib/supabase.js.
-          const { blob, ext } = await compressImage(nlSelectedFile);
+          // Convert the compressed Blob to ArrayBuffer to bypass
+          // supabase-js's multipart upload path. The multipart path uses
+          // a WebKit-generated boundary that Supabase Storage's iOS-side
+          // Content-Type validator rejects, either with an explicit
+          // "Invalid Content-Type header" error or by silently storing
+          // the file with a wrong content-type so the browser refuses
+          // to render it. ArrayBuffer + explicit contentType uses the
+          // raw-bytes upload path which cleanly sets content-type. See
+          // the matching comment block on the replace-image flow above.
+          const { blob, mime, ext } = await compressImage(nlSelectedFile);
+          const buffer = await blob.arrayBuffer();
           $nlSubmitBtn.textContent = "Uploading image…";
           const path = `${newId}/0-${Date.now()}.${ext}`;
           const { error: uploadErr } = await supabase.storage
             .from("listing-images")
-            .upload(path, blob, { upsert: false });
+            .upload(path, buffer, { contentType: mime, upsert: false });
           if (uploadErr) throw uploadErr;
           const { error: imgRowErr } = await supabase
             .from("listing_images")
