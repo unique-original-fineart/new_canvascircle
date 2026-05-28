@@ -10813,11 +10813,19 @@
           const catFilter  = r.category_filter || "";
           const catParam   = catFilter ? `&cat=${encodeURIComponent(catFilter)}` : "";
           const linkHref   = `/?q=${encodeURIComponent(artistName)}${catParam}`;
-          const linkSuffix = catFilter ? ` (${escapeHtml(catFilter)})` : "";
           const chipClass  = catFilter ? "fr-category-chip is-narrowed" : "fr-category-chip";
+          // Link label intentionally stays "View listings →" regardless of
+          // the active category filter — appending "(Limited Edition)" /
+          // "(Unique/Original)" gets clipped on mobile and the category
+          // chip directly below already communicates the active filter
+          // (with its .is-narrowed accent color). Title attribute still
+          // includes the category for desktop hover discovery.
+          const linkTitle  = catFilter
+            ? `See ${escapeHtml(artistName)}'s ${escapeHtml(catFilter)} listings in the catalog`
+            : `See ${escapeHtml(artistName)}'s listings in the catalog`;
           nameHtml =
             `<span class="fr-display-name">${escapeHtml(artistName)}</span>` +
-            `<a class="fr-handle fr-artist-catalog-link" href="${linkHref}" title="See ${escapeHtml(artistName)}'s listings in the catalog">View listings${linkSuffix} →</a>` +
+            `<a class="fr-handle fr-artist-catalog-link" href="${linkHref}" title="${linkTitle}">View listings →</a>` +
             `<select class="${chipClass}" data-following-id="${r.id}" title="What kind of new listings should ping you?">` +
               `<option value="" ${!catFilter ? "selected" : ""}>All categories</option>` +
               `<option value="Unique/Original" ${catFilter === "Unique/Original" ? "selected" : ""}>Unique/Original only</option>` +
