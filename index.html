@@ -624,6 +624,12 @@
         <select id="f-seller" title="Seller">
           <option value="">All sellers</option>
         </select>
+        <select id="f-sort" title="Sort">
+          <option value="newest">Newest first</option>
+          <option value="price-asc">Price: low to high</option>
+          <option value="price-desc">Price: high to low</option>
+          <option value="shuffle">Shuffle (random)</option>
+        </select>
         <select id="f-trust-member" title="Member trust level" hidden>
           <option value="">All Member Trust Levels</option>
           <option value="established">Established Members</option>
@@ -638,12 +644,6 @@
           <input type="number" id="f-min" placeholder="Min $" min="0" step="50" />
           <input type="number" id="f-max" placeholder="Max $" min="0" step="50" />
         </div>
-        <select id="f-sort" title="Sort">
-          <option value="newest">Newest first</option>
-          <option value="price-asc">Price: low to high</option>
-          <option value="price-desc">Price: high to low</option>
-          <option value="shuffle">Shuffle (random)</option>
-        </select>
       </div>
     </form>
 
