@@ -650,7 +650,13 @@
     </div>
   </main>
 
-  <button type="button" id="back-to-top" aria-label="Back to top" hidden>↑</button>
+  <!-- Back-to-top — initial visibility is controlled by the CSS (#back-to-top
+       defaults to display:none; .visible flips it to flex when scrolled past
+       400px). NO `hidden` attribute here — Safari treats UA [hidden] styling
+       as effectively !important on some versions, which prevented the
+       .visible class override from ever showing the button. Matches the
+       pattern used on guidelines.html / privacy.html / about.html. -->
+  <button type="button" id="back-to-top" aria-label="Back to top">↑</button>
 
   <footer>
     &copy; CanvasCircle.
