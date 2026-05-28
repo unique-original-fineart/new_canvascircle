@@ -2353,11 +2353,66 @@
     /* Following section — list of artists + sellers the user follows.
        Each row is a small card showing the name (and handle for sellers),
        a "Kind" badge so artist vs seller is obvious at a glance, and an
-       Unfollow button. */
+       Unfollow button.
+       --
+       The list has a max-height so a long follow set doesn't push Saved
+       Listings down the page. Internal scroll kicks in past the cap; a
+       casual user with 1-5 follows sees no scrollbar at all. The whole
+       section is also collapsible via the clickable header (see
+       .dash-head-collapsible below). */
     .following-list {
       display: flex; flex-direction: column; gap: 8px;
+      max-height: 320px;
+      overflow-y: auto;
+      /* Match the inner row padding so a partial last row sits flush. */
+      padding-right: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--card-line) transparent;
+    }
+    .following-list::-webkit-scrollbar { width: 6px; }
+    .following-list::-webkit-scrollbar-track { background: transparent; }
+    .following-list::-webkit-scrollbar-thumb {
+      background: var(--card-line);
+      border-radius: 3px;
     }
     .following-list[hidden] { display: none; }
+
+    /* Collapsible dashboard section header — used by the Following block
+       so the user can hide it entirely when they don't need the list to
+       be visible. Click anywhere on the header row to toggle. Keyboard
+       accessible via the role=button + Enter/Space handler. State is
+       persisted to localStorage so the choice survives reloads. */
+    .dash-head-collapsible {
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .dash-head-collapsible:hover .dash-head-chevron { color: var(--fg); }
+    .dash-head-collapsible:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 4px;
+      border-radius: 4px;
+    }
+    .dash-head-chevron {
+      font-size: 14px;
+      color: var(--muted);
+      transition: transform .15s ease;
+      flex: 0 0 auto;
+      line-height: 1;
+    }
+    /* When collapsed, rotate chevron and hide the section body. The body
+       wrapper (.dash-section-body) holds the help text + loading/empty
+       states + the list itself, so a single class toggle drops everything
+       below the header at once. */
+    .dash-section.is-collapsed .dash-head-chevron {
+      transform: rotate(-90deg);
+    }
+    .dash-section.is-collapsed .dash-section-body {
+      display: none;
+    }
     .following-row {
       display: flex; align-items: center; gap: 10px;
       padding: 10px 12px;
@@ -3334,19 +3389,36 @@
           <!-- Following section — shows artists + sellers the user follows.
                Populated by loadFollowingPanel() on tab activation.
                Empty state explains the feature and points at listing /
-               seller pages where you can tap Follow. -->
-          <div class="dash-head">
-            <h2>Following <span class="count" id="following-count"></span></h2>
+               seller pages where you can tap Follow.
+               --
+               Wrapped in .dash-section + .dash-section-body so the
+               whole block can collapse via a single CSS class toggle
+               (.is-collapsed on the section). The header is a clickable
+               role=button row with a chevron — click or Enter/Space
+               toggles. Collapsed state persists to localStorage. The
+               list itself also has max-height + internal scroll so a
+               long follow set doesn't push Saved Listings off-screen
+               even when expanded. -->
+          <div class="dash-section" id="following-section">
+            <div class="dash-head dash-head-collapsible" id="following-head"
+                 role="button" tabindex="0"
+                 aria-expanded="true" aria-controls="following-body"
+                 aria-label="Toggle Following section">
+              <h2 style="margin: 0;">Following <span class="count" id="following-count"></span></h2>
+              <span class="dash-head-chevron" aria-hidden="true">▾</span>
+            </div>
+            <div class="dash-section-body" id="following-body">
+              <p class="help" style="margin: 8px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5;">
+                Get a push notification the moment a new listing matches an artist or seller you follow. Tap Follow on any listing's artist name or on a seller's page to add to this list.
+              </p>
+              <div id="following-loading" class="empty-state" hidden>Loading your follows…</div>
+              <div id="following-empty" class="empty-state" hidden>
+                <strong>Not following anyone yet.</strong><br>
+                On any listing detail page, tap <strong>+ Follow artist</strong> next to the artist name. On a seller's public page, tap <strong>+ Follow this seller</strong>. You'll get notified when they post something new.
+              </div>
+              <div id="following-list" class="following-list" hidden></div>
+            </div>
           </div>
-          <p class="help" style="margin: -4px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5;">
-            Get a push notification the moment a new listing matches an artist or seller you follow. Tap Follow on any listing's artist name or on a seller's page to add to this list.
-          </p>
-          <div id="following-loading" class="empty-state" hidden>Loading your follows…</div>
-          <div id="following-empty" class="empty-state" hidden>
-            <strong>Not following anyone yet.</strong><br>
-            On any listing detail page, tap <strong>+ Follow artist</strong> next to the artist name. On a seller's public page, tap <strong>+ Follow this seller</strong>. You'll get notified when they post something new.
-          </div>
-          <div id="following-list" class="following-list" hidden></div>
 
           <div class="dash-head" style="margin-top: 28px;">
             <h2>Saved listings <span class="count" id="saved-listings-count"></span></h2>
@@ -10545,6 +10617,59 @@
     // user_id; we want a friendly name).
     // ========================================================================
     let followingCache = null;
+
+    // ------------------------------------------------------------------
+    // Following section collapse — click the header to show/hide the list.
+    // State persists in localStorage so the user's choice survives reloads.
+    // The list itself ALSO has max-height + internal scroll (see CSS) so
+    // an expanded long follow list doesn't push Saved Listings down. The
+    // two mechanisms compose: collapse hides the section entirely,
+    // expand-with-scroll keeps it bounded.
+    // ------------------------------------------------------------------
+    const FOLLOWING_COLLAPSED_KEY = "cc_following_collapsed";
+
+    function setFollowingCollapsed(collapsed) {
+      const $section = document.getElementById("following-section");
+      const $head    = document.getElementById("following-head");
+      if (!$section || !$head) return;
+      $section.classList.toggle("is-collapsed", !!collapsed);
+      $head.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      try { localStorage.setItem(FOLLOWING_COLLAPSED_KEY, collapsed ? "1" : "0"); } catch {}
+    }
+
+    function initFollowingCollapseToggle() {
+      const $section = document.getElementById("following-section");
+      const $head    = document.getElementById("following-head");
+      if (!$section || !$head) return;
+      // Avoid double-binding if this function fires more than once (it
+      // shouldn't, but defensive — the dashboard's freshness watchdog
+      // re-runs some setup on long-pause re-entry).
+      if ($head.dataset.collapseBound === "1") return;
+      $head.dataset.collapseBound = "1";
+
+      // Restore saved state on first init. Default = expanded.
+      let saved = null;
+      try { saved = localStorage.getItem(FOLLOWING_COLLAPSED_KEY); } catch {}
+      if (saved === "1") setFollowingCollapsed(true);
+
+      $head.addEventListener("click", () => {
+        const isCollapsedNow = $section.classList.contains("is-collapsed");
+        setFollowingCollapsed(!isCollapsedNow);
+      });
+      // Keyboard accessibility — role=button + tabindex=0 means the user
+      // can focus the header with Tab; Enter or Space should toggle.
+      $head.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          const isCollapsedNow = $section.classList.contains("is-collapsed");
+          setFollowingCollapsed(!isCollapsedNow);
+        }
+      });
+    }
+    // Wire up the toggle once on module init. Safe to call before
+    // loadFollowingPanel since it just looks for DOM nodes that exist
+    // in the static markup.
+    initFollowingCollapseToggle();
 
     async function loadFollowingPanel(userId) {
       const $list    = document.getElementById("following-list");
