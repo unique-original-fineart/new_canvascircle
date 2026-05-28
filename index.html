@@ -456,16 +456,23 @@
     }
     .card.is-sold .price { color: var(--muted); text-decoration: line-through; }
 
-    /* Show Details CTA — small text at the bottom of the card body so users
-       know the card is clickable. The whole card is the link target; this is
-       just a visual affordance. */
+    /* Show Details / See Request CTA — visual cue that the card is
+       tappable. The whole card is the link target; this is just the
+       affordance.
+       --
+       Lives INSIDE the .pills span at the right end (margin-left:auto
+       pushes it past any preceding badges so the badge cluster stays
+       left-aligned and the CTA stays right-aligned). Previously this was
+       a standalone row below pills; consolidating them saves one full
+       row of card vertical real estate on mobile. */
     .card .cta {
-      margin-top: 4px;
+      margin-left: auto;
       font-size: 11px;
       font-weight: 600;
       color: var(--accent);
-      text-align: right;
       letter-spacing: .2px;
+      white-space: nowrap;
+      line-height: 1.2;
     }
     .card .cta::after { content: " →"; }
     .card:hover .cta { text-decoration: underline; }
@@ -765,6 +772,7 @@
             <span class="pills">
               <span class="cat iso-wanted">WANTED</span>
               ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
+              <span class="cta">See request</span>
             </span>
           </div>`;
       } else {
@@ -789,6 +797,7 @@
               ${isNotRenewed ? `<span class="cat not-renewed">NOT RENEWED</span>` : ""}
               ${isPending ? `<span class="cat pending-sale">PENDING SALE</span>` : ""}
               ${catLabel ? `<span class="cat${catCls}">${escapeHtml(catLabel)}</span>` : ""}
+              <span class="cta">Show details</span>
             </span>
           </div>`;
       }
@@ -800,13 +809,17 @@
         ? `<div class="verified-corner" title="Ownership Verified — the seller submitted proof of possession">✓</div>`
         : "";
 
+      // Note: the "Show details →" / "See request →" CTA used to live on
+      // its own line below the pills, but it has been moved INTO the
+      // .pills span (above) so it shares a row with the category badge.
+      // Saves one full row of card height on mobile. See .card .cta CSS
+      // for the margin-left:auto trick that keeps it right-aligned.
       card.innerHTML = `
         <div class="img">${imgInner}${verifiedBadge}</div>
         <div class="body">
           <div class="artist">${artistLine}</div>
           <div class="title">${titleLine}</div>
           ${priceRow}
-          <div class="cta">${isIso ? "See request" : "Show details"}</div>
         </div>`;
       const heart = document.createElement("button");
       heart.type = "button";
