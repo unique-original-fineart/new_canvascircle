@@ -676,6 +676,25 @@
       background: var(--banner-revoked-tint); color: var(--status-danger-deep);
       border: 1px solid var(--status-danger-soft);
     }
+    /* Small "View admin note →" trigger inside the rejected moderation
+       banner. Opens the generic info modal so a long admin note doesn't
+       stretch the preview card vertically. Visual style mirrors the
+       surrounding banner text but underlined to read as a link. */
+    .preview-card .pc-mod-info-btn {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 0;
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--status-danger-deep);
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .preview-card .pc-mod-info-btn:hover { filter: brightness(.85); }
     .preview-card .pc-metrics {
       font-size: 11px; color: var(--muted);
       display: flex; gap: 8px 10px; flex-wrap: wrap;
@@ -1105,7 +1124,15 @@
       user-select: none;
       transition: filter .15s ease, box-shadow .15s ease;
       max-width: 100%;
+      /* Reset native <button> defaults — these badges used to be <span>s
+         but switched to <button> when their click handler started opening
+         a modal instead of toggling inline. Without the resets the button's
+         default background/border/font would override the .pending /
+         .rejected color classes below. */
+      font-family: inherit;
+      cursor: inherit;
     }
+    button.vp-badge { border: none; background: none; }
     .vp-badge.is-clickable { cursor: pointer; }
     .vp-badge.is-clickable:hover,
     .vp-badge.is-clickable:focus-visible {
@@ -3959,6 +3986,26 @@
     </div>
   </div>
 
+  <!-- ============ GENERIC INFO MODAL ============
+       Reusable popup for short informational messages (admin notes,
+       verification revoke/reject reasons, moderation rejection details).
+       Replaced an inline click-to-expand pattern that was awkwardly
+       growing preview cards vertically. Title + bodyHtml are populated
+       by openInfoModal() at open time. Backdrop click + Escape + close
+       button all dismiss. Matches the visual pattern of the Stats/Saves
+       modals. -->
+  <div class="edit-modal-overlay" id="info-modal-overlay" role="dialog" aria-modal="true" hidden>
+    <div class="edit-modal" style="max-width: 480px;">
+      <div class="edit-modal-header">
+        <h2 id="info-modal-title">Info</h2>
+        <button type="button" class="em-close" id="info-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <div id="info-modal-body" style="font-size: 14px; line-height: 1.55;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ EMAIL MODAL (Contact Admin + Email Seller) ============ -->
   <div class="edit-modal-overlay" id="email-modal-overlay" role="dialog" aria-modal="true" hidden>
     <div class="edit-modal" style="max-width: 560px;">
@@ -5318,15 +5365,22 @@
       // Verified listings: the corner check on the image is the indicator —
       // body badge would duplicate. Render nothing here for the verified state.
       if (status === "verified") return "";
+
+      // Pending / Revoked / Rejected — show a click-to-OPEN-MODAL badge.
+      // Previously these were inline click-to-expand popovers; long admin
+      // notes made the preview card grow awkwardly in the 2-up grid.
+      // Now the click handler in renderPreviewCard reads data-info-title
+      // and data-info-html off the badge button and calls openInfoModal().
       if (status === "pending") {
+        const title = "Verification Pending";
+        const body  = "Your verification video is awaiting admin review. We'll review within 24-48 hours; the listing stays live in the meantime.";
         return `
           <div class="pc-verification">
-            <span class="vp-badge pending is-clickable" data-vp-toggle role="button" tabindex="0" aria-expanded="false" aria-controls="${popId}">
-              Verification Pending <span class="vp-chev" aria-hidden="true">▾</span>
-            </span>
-            <div class="vp-popover" id="${popId}" hidden>
-              Your verification video is awaiting admin review. We'll review within 24-48 hours; the listing stays live in the meantime.
-            </div>
+            <button type="button" class="vp-badge pending is-clickable" data-vp-info
+                    data-info-title="${escapeHtml(title)}"
+                    data-info-html="${escapeHtml(body)}">
+              Verification Pending <span class="vp-chev" aria-hidden="true">›</span>
+            </button>
           </div>
         `;
       }
@@ -5334,29 +5388,31 @@
         const reason = latestRevoked && latestRevoked.revoke_reason
           ? latestRevoked.revoke_reason
           : "Badge removed.";
+        const title = "Verified badge revoked";
+        const body  = `<p style="margin:0 0 8px;"><strong>Reason:</strong> ${escapeHtml(reason)}</p>` +
+                      `<p style="margin:0; color: var(--muted);">Tap <strong>Edit</strong> on the card and submit a new verification video to restore the badge.</p>`;
         return `
           <div class="pc-verification">
-            <span class="vp-badge rejected is-clickable" data-vp-toggle role="button" tabindex="0" aria-expanded="false" aria-controls="${popId}">
-              ✗ Revoked <span class="vp-chev" aria-hidden="true">▾</span>
-            </span>
-            <div class="vp-popover" id="${popId}" hidden>
-              <strong>Reason:</strong> ${escapeHtml(reason)}<br>
-              Click Edit and submit a new video to restore the badge.
-            </div>
+            <button type="button" class="vp-badge rejected is-clickable" data-vp-info
+                    data-info-title="${escapeHtml(title)}"
+                    data-info-html="${escapeHtml(body)}">
+              ✗ Revoked <span class="vp-chev" aria-hidden="true">›</span>
+            </button>
           </div>
         `;
       }
       if (status === "rejected") {
         const note = latest && latest.review_notes ? latest.review_notes : "";
+        const title = "Verification not approved";
+        const body  = (note ? `<p style="margin:0 0 8px;"><strong>Admin note:</strong> ${escapeHtml(note)}</p>` : "") +
+                      `<p style="margin:0; color: var(--muted);">Tap <strong>Edit</strong> on the card and submit a new video to try again.</p>`;
         return `
           <div class="pc-verification">
-            <span class="vp-badge rejected is-clickable" data-vp-toggle role="button" tabindex="0" aria-expanded="false" aria-controls="${popId}">
-              ✗ Not Approved <span class="vp-chev" aria-hidden="true">▾</span>
-            </span>
-            <div class="vp-popover" id="${popId}" hidden>
-              ${note ? `<strong>Admin note:</strong> ${escapeHtml(note)}<br>` : ""}
-              Click Edit and submit a new video to try again.
-            </div>
+            <button type="button" class="vp-badge rejected is-clickable" data-vp-info
+                    data-info-title="${escapeHtml(title)}"
+                    data-info-html="${escapeHtml(body)}">
+              ✗ Not Approved <span class="vp-chev" aria-hidden="true">›</span>
+            </button>
           </div>
         `;
       }
@@ -5422,17 +5478,39 @@
             ${isIso ? `<span class="pill" style="background:var(--accent-tint);color:var(--accent-deep);border:1px solid var(--accent-soft);font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px;">WANTED</span>` : ""}
           </div>
           ${l.moderation_status && l.moderation_status !== "approved"
-            ? `<div class="pc-mod-banner pc-mod-${escapeHtml(l.moderation_status)}">
-                 <strong>${l.moderation_status === "pending" ? "Pending Review" : (l.moderation_status === "rejected" ? "Rejected" : escapeHtml(l.moderation_status))}</strong>
-                 <span>${l.moderation_status === "pending"
-                   ? "Awaiting admin approval. Hidden from the public catalog until approved."
-                   : (l.moderation_status === "rejected"
-                     ? "This listing was rejected by the admin. Edit and resubmit, or contact the admin."
-                     : "")}</span>
-                 ${l.moderation_status === "rejected" && l.moderation_reason
-                   ? `<span class="pc-mod-reason"><strong>Admin note:</strong> ${escapeHtml(l.moderation_reason)}</span>`
-                   : ""}
-               </div>`
+            ? (() => {
+                // Pending: short inline banner, no admin note involved.
+                if (l.moderation_status === "pending") {
+                  return `<div class="pc-mod-banner pc-mod-pending">
+                            <strong>Pending Review</strong>
+                            <span>Awaiting admin approval. Hidden from the public catalog until approved.</span>
+                          </div>`;
+                }
+                // Rejected: show a compact banner with a click-for-details
+                // button if an admin note is attached. The full admin note
+                // is shown in the info modal (not inline) so a long reason
+                // doesn't stretch the preview card. Without a reason, just
+                // the short banner with no extra button.
+                if (l.moderation_status === "rejected") {
+                  const hasReason = !!l.moderation_reason;
+                  const modalTitle = "Listing rejected — admin note";
+                  const modalBody  = hasReason
+                    ? `<p style="margin:0 0 8px;"><strong>Admin note:</strong> ${escapeHtml(l.moderation_reason)}</p>` +
+                      `<p style="margin:0; color: var(--muted);">Tap <strong>Edit</strong> on the card to fix the issue and resubmit. Contact the admin if you have questions.</p>`
+                    : "";
+                  return `<div class="pc-mod-banner pc-mod-rejected">
+                            <strong>Rejected</strong>
+                            <span>This listing was rejected by the admin. Edit and resubmit, or contact the admin.</span>
+                            ${hasReason ? `<button type="button" class="pc-mod-info-btn" data-mod-info
+                              data-info-title="${escapeHtml(modalTitle)}"
+                              data-info-html="${escapeHtml(modalBody)}">View admin note →</button>` : ""}
+                          </div>`;
+                }
+                // Any other moderation status (defensive): minimal banner.
+                return `<div class="pc-mod-banner pc-mod-${escapeHtml(l.moderation_status)}">
+                          <strong>${escapeHtml(l.moderation_status)}</strong>
+                        </div>`;
+              })()
             : ""}
           ${renderPreviewVerificationBadge(l)}
           <div class="pc-metrics">
@@ -5455,26 +5533,32 @@
       card.querySelector("[data-action=renew-now]")?.addEventListener("click", () => renewListingDirect(l));
       card.querySelector("[data-action=open-stats]")?.addEventListener("click", () => openStatsModal(l));
 
-      // Verification badge popover toggle on the preview card. Same pattern
-      // as inside the edit modal — pending / revoked / rejected pills are
-      // click-to-expand. Verified is static (no chevron, no listener).
-      const $pcVpBadge = card.querySelector(".pc-verification [data-vp-toggle]");
-      const $pcVpPop   = card.querySelector(".pc-verification .vp-popover");
-      if ($pcVpBadge && $pcVpPop) {
-        const toggle = (e) => {
-          // Stop propagation so the click doesn't bubble up and trigger
-          // any card-wide handlers (e.g. open-edit) by accident.
-          e?.stopPropagation();
-          const willOpen = $pcVpPop.hidden;
-          $pcVpPop.hidden = !willOpen;
-          $pcVpBadge.setAttribute("aria-expanded", willOpen ? "true" : "false");
-        };
-        $pcVpBadge.addEventListener("click", toggle);
-        $pcVpBadge.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            toggle(e);
-          }
+      // Verification badge on the preview card: now opens the generic
+      // info modal instead of inline-expanding below the card (which used
+      // to grow the card vertically and break the 2-up grid alignment).
+      // The badge is a <button data-vp-info> with data-info-title and
+      // data-info-html attributes; clicking reads them and calls
+      // openInfoModal(). Native <button> handles keyboard activation
+      // (Space/Enter) automatically — no manual keydown listener needed.
+      const $pcVpBadge = card.querySelector(".pc-verification [data-vp-info]");
+      if ($pcVpBadge) {
+        $pcVpBadge.addEventListener("click", (e) => {
+          e.stopPropagation(); // don't let it bubble to any card-wide handlers
+          const title = $pcVpBadge.getAttribute("data-info-title") || "";
+          const body  = $pcVpBadge.getAttribute("data-info-html")  || "";
+          openInfoModal(title, body);
+        });
+      }
+      // Listing-moderation rejection: same pattern. The rendered card
+      // exposes a <button data-mod-info> when the listing was rejected
+      // with an admin note; click opens the modal with the full reason.
+      const $pcModBtn = card.querySelector("[data-mod-info]");
+      if ($pcModBtn) {
+        $pcModBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const title = $pcModBtn.getAttribute("data-info-title") || "";
+          const body  = $pcModBtn.getAttribute("data-info-html")  || "";
+          openInfoModal(title, body);
         });
       }
       card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => openSavesModal(l));
@@ -7447,6 +7531,38 @@
     // line doesn't jump across gaps. Vertical dashed lines come from a
     // custom Chart.js plugin that draws on the canvas after the datasets.
     // ========================================================================
+    // ========================================================================
+    // Generic info modal — replaces the old inline click-to-expand pattern
+    // for verification revoke/reject reasons + listing moderation rejection
+    // admin notes. Title + bodyHtml are populated per-open. Same visual
+    // language as Stats/Saves modals (.edit-modal-overlay). Backdrop click,
+    // Escape key, and the × button all dismiss.
+    // ========================================================================
+    const $infoModal       = document.getElementById("info-modal-overlay");
+    const $infoModalTitle  = document.getElementById("info-modal-title");
+    const $infoModalBody   = document.getElementById("info-modal-body");
+    const $infoModalClose  = document.getElementById("info-modal-close");
+
+    function openInfoModal(title, bodyHtml) {
+      if (!$infoModal) return;
+      if ($infoModalTitle) $infoModalTitle.textContent = title || "Info";
+      if ($infoModalBody)  $infoModalBody.innerHTML    = bodyHtml || "";
+      $infoModal.hidden = false;
+      $infoModal.classList.add("is-open");
+    }
+    function closeInfoModal() {
+      if (!$infoModal) return;
+      $infoModal.classList.remove("is-open");
+      $infoModal.hidden = true;
+    }
+    $infoModalClose?.addEventListener("click", closeInfoModal);
+    $infoModal?.addEventListener("click", (e) => {
+      if (e.target === $infoModal) closeInfoModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && $infoModal && !$infoModal.hidden) closeInfoModal();
+    });
+
     const $statsModal       = document.getElementById("stats-modal-overlay");
     const $statsModalTitle  = document.getElementById("stats-modal-title");
     const $statsModalClose  = document.getElementById("stats-modal-close");
