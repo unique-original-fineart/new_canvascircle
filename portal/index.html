@@ -345,10 +345,36 @@
     .signed-in-row .who .name  { font-weight: 600; }
     .signed-in-row .who .email { color: var(--muted); font-size: 13px; }
     /* Top-of-dashboard identity row — display name + @handle + (when
-       applicable) Established Member pill, all on one line. Wraps to
-       additional lines on narrow viewports without losing readability. */
+       applicable) Established Member pill + Sign Out, all on one line.
+       Wraps to additional lines on narrow viewports without losing
+       readability. The Sign Out button uses margin-left: auto so it
+       always pushes to the far right of whatever line it ends up on. */
     .signed-in-row .who .name-row {
       display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+    }
+    /* Compact ALL-CAPS text-link styling for the Sign Out button when
+       it lives in the name-row. Visually consistent with the other
+       text-links in the action cluster below (Selling Guidelines /
+       Contact Admin) but uppercase to read as a more deliberate
+       "leaving the dashboard" action. */
+    .signed-in-row .name-row .signout-link {
+      margin-left: auto;
+      background: none;
+      border: none;
+      padding: 4px 0;
+      color: var(--accent);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .6px;
+      text-transform: uppercase;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .signed-in-row .name-row .signout-link:hover {
+      color: var(--fg);
     }
     .signed-in-row .who .who-handle {
       color: var(--muted);
@@ -499,17 +525,30 @@
     }
 
     /* ------ Filter toolbar (dashboard) ------ */
+    /* Mobile layout (default): 3 rows instead of 5 to save vertical space.
+         Row 1: search (spans both columns)
+         Row 2: type | status
+         Row 3: sort | clear
+       Desktop (>=720px) flows everything onto a single row via the
+       4-column rule below — search spans naturally there, no override
+       needed. */
     .dash-toolbar {
       display: grid;
       gap: 8px;
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       margin: 8px 0 12px;
     }
+    .dash-toolbar input[type="search"] { grid-column: 1 / -1; }
+    .dash-toolbar #dash-clear           { width: 100%; }
     @media (min-width: 720px) {
       .dash-toolbar {
         grid-template-columns: 2fr 1fr 1fr auto;
         align-items: center;
       }
+      /* Reset mobile-specific spans/widths so desktop returns to its
+         compact single-row treatment. */
+      .dash-toolbar input[type="search"] { grid-column: auto; }
+      .dash-toolbar #dash-clear           { width: auto; }
     }
     .dash-toolbar input[type="search"], .dash-toolbar select {
       width: 100%;
@@ -3215,13 +3254,20 @@
               <span class="name" id="who-name">&nbsp;</span>
               <span class="who-handle" id="who-handle" hidden></span>
               <span class="who-established" id="who-established" hidden title="You're an Established Member — see Guidelines for what this unlocks.">Established Member</span>
+              <!-- Sign Out lives at the right end of the name-row (via
+                   margin-left: auto) instead of in the action-cluster
+                   below. Keeps the bottom row to "Selling Guidelines |
+                   Contact Admin" only — on mobile that used to wrap to
+                   3 lines because Sign Out got bumped onto its own row.
+                   Styled as an ALL-CAPS compact text link to fit
+                   alongside the name + @handle + Established pill. -->
+              <button type="button" class="signout-link" id="signout-btn">Sign Out</button>
             </div>
             <div class="email" id="who-email">&nbsp;</div>
           </div>
           <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
             <a href="/guidelines.html#selling" target="_blank" rel="noopener" style="color: var(--accent); font-weight: 600; text-decoration: underline; font-size: 14px;">Selling Guidelines</a>
             <a href="#" id="contact-admin-top" style="color: var(--accent); font-weight: 600; text-decoration: underline; font-size: 14px;">Contact Admin</a>
-            <button type="button" class="ghost" id="signout-btn">Sign out</button>
           </div>
         </div>
 
