@@ -10754,9 +10754,18 @@
         const kindLabel = isArtist ? "Artist" : "Seller";
         let nameHtml;
         if (isArtist) {
-          // Artist follows are just a string the user typed at follow time —
-          // no public page exists, so render it as a plain truncating line.
-          nameHtml = `<span class="fr-display-name">${escapeHtml(r.value)}</span>`;
+          // Artist follows: display name on line 1, "View listings →" link
+          // on line 2 that jumps to the catalog pre-filtered to this artist
+          // via ?q=<artist>. Symmetric with seller rows below (which show
+          // display_name + @handle link to /seller). The catalog reads ?q=
+          // and uses its existing ilike search, which matches artist_name
+          // (and artwork_title — close enough; titles rarely collide with
+          // artist names). The fr-handle class is re-used for the link
+          // styling so the visual rhythm of the two row types matches.
+          const artistName = r.value;
+          nameHtml =
+            `<span class="fr-display-name">${escapeHtml(artistName)}</span>` +
+            `<a class="fr-handle fr-artist-catalog-link" href="/?q=${encodeURIComponent(artistName)}" title="See ${escapeHtml(artistName)}'s listings in the catalog">View listings →</a>`;
         } else {
           // Seller follows: display name on line 1, @handle as a tappable
           // link on line 2 (so the handle never gets clipped by the
