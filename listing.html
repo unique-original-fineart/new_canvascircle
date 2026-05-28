@@ -1132,7 +1132,16 @@
             </div>` : ""}
           ${(fbUrl || seller.contact_email) ? `
             <div class="transaction-disclaimer">
-              <strong>Heads up:</strong> CanvasCircle is a free listing platform. Any transaction is directly between you and the ${isIso ? "buyer" : "seller"}. CanvasCircle does not process payments, verify authenticity, or mediate disputes. See our <a href="/terms.html" target="_blank" rel="noopener">Terms</a>.
+              <!-- Condensed from a longer paragraph (2026-05-28). The
+                   tight one-liner still carries the load-bearing legal
+                   elements: (a) transaction is direct buyer-to-${isIso ? "buyer" : "seller"},
+                   (b) CanvasCircle is not involved in payments / authenticity
+                   / disputes, (c) Terms link. Conspicuousness (legal magic
+                   word) is preserved by the surrounding colored box —
+                   not by verbosity or a warning glyph (initially had ⚠️
+                   here; removed because users read it as "danger" when
+                   the intent is purely informational). -->
+              Direct ${isIso ? "buyer-buyer" : "buyer-seller"} transaction. CanvasCircle doesn't process payments, verify authenticity, or mediate disputes. See <a href="/terms.html" target="_blank" rel="noopener">Terms</a>.
             </div>` : ""}
         </div>` : `
         <div class="seller-block" style="text-align:center;">
