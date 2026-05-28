@@ -1332,13 +1332,17 @@
         ? `<div class="verified-corner" title="Ownership Verified">✓</div>`
         : "";
 
+      // CTA removed (2026-05-28). Whole card is an <a>; the heart button +
+      // image + hover state are sufficient affordances. Matches the same
+      // cleanup done on the main catalog (index.html). The orphan
+      // .card .cta CSS rules above are inert but kept around in case we
+      // want to add the affordance back later in a different form.
       card.innerHTML = `
         <div class="img">${imgInner}${verifiedBadge}</div>
         <div class="body">
           <div class="artist">${artistLine}</div>
           <div class="title">${titleLine}</div>
           ${priceRow}
-          <div class="cta">${isIso ? "See request" : "Show details"}</div>
         </div>`;
       const heart = document.createElement("button");
       heart.type = "button";
