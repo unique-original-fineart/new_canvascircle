@@ -1528,10 +1528,19 @@
       background: var(--accent-softer);
       border: 1px solid var(--accent-soft);
     }
+    /* The "Notifications on" confirmation state is much more compact
+       than the other states — once the user has enabled notifications,
+       the banner has done its job. It shrinks to a slim status row with
+       just the checkmark, "Notifications on" label, and a Disable link
+       to the right. Smaller padding + smaller font so it doesn't visually
+       compete with the dashboard content below. */
     .push-opt-banner.is-granted {
       background: var(--surface-2);
       border: 1px solid var(--card-line);
+      padding: 6px 12px;
+      font-size: 12px;
     }
+    .push-opt-banner.is-granted .pob-icon { font-size: 14px; }
     .push-opt-banner.is-denied,
     .push-opt-banner.is-unsupported {
       background: var(--surface-3);
@@ -4687,12 +4696,15 @@
           </div>
         `;
       } else if (status === "granted-subscribed") {
+        // Compact confirmation — the long pitch was useful BEFORE the
+        // user enabled (it explained what they were turning on), but
+        // once on, it's clutter. Just status + Disable affordance.
+        // The CSS .is-granted rule shrinks padding + font for this state
+        // so it sits as a slim status row rather than a banner.
         $banner.classList.add("is-granted");
         $banner.innerHTML = `
           <div class="pob-icon">✓</div>
-          <div class="pob-text">
-            <strong>Notifications on.</strong> You'll get a push for new buyer inquiries, follow updates, and price drops on listings you've saved.
-          </div>
+          <div class="pob-text"><strong>Notifications on</strong></div>
           <button type="button" class="pob-link" data-pob-action="disable">Disable</button>
         `;
       } else {
