@@ -5665,7 +5665,14 @@
       $editModalBody.appendChild(editCard);
       $editModal.hidden = false;
       $editModal.classList.add("is-open");
-      window.scrollTo({ top: 0 });
+      // Note: we deliberately do NOT call window.scrollTo here. The overlay
+      // is position:fixed + inset:0 so it covers the viewport at whatever
+      // scroll position the user is at — no reason to reset their place.
+      // Removing the previous scrollTo(0) call fixed a bug where closing
+      // the Edit modal dropped users back at the top of the dashboard
+      // instead of where they were when they tapped the listing's Edit
+      // button. The Stats / Saves / Info modals never had a scrollTo and
+      // preserve scroll correctly; this brings Edit in line with them.
     }
 
     // ----- Ownership verification: section rendering + upload modal -----
