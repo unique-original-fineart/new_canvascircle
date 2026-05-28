@@ -87,10 +87,18 @@
     }
     .gallery .main-img img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
 
-    /* Heart/save button on the listing image */
-    .heart-btn {
+    /* Image-overlay action pills (Save + Share). Wrapping them in a flex
+       container instead of absolute-positioning each one separately means
+       neither pill needs to know the other's width; adding a third pill
+       later (e.g. Report) is trivial. */
+    .img-actions {
       position: absolute;
       top: 12px; right: 12px;
+      display: inline-flex; align-items: center; gap: 6px;
+      z-index: 2;
+    }
+    .heart-btn,
+    .share-btn {
       display: inline-flex; align-items: center; gap: 6px;
       background: rgba(255,255,255,.94);
       color: var(--text-soft);
@@ -101,13 +109,46 @@
       cursor: pointer;
       box-shadow: 0 2px 6px rgba(0,0,0,.18);
       transition: transform .12s ease, background .12s ease;
-      z-index: 2;
     }
-    .heart-btn:hover { transform: scale(1.04); background: var(--surface-1); }
+    .heart-btn:hover,
+    .share-btn:hover { transform: scale(1.04); background: var(--surface-1); }
     .heart-btn .heart-glyph { font-size: 18px; line-height: 1; }
     .heart-btn.is-saved { background: var(--surface-1); }
     .heart-btn.is-saved .heart-glyph { color: var(--status-danger-strong); }
-    .heart-btn[disabled] { opacity: .55; cursor: progress; }
+    .heart-btn[disabled],
+    .share-btn[disabled] { opacity: .55; cursor: progress; }
+    /* Share button — same pill shape as Save, just no count chip. The
+       icon is the iOS/Android-standard upward arrow + tray glyph
+       (Unicode 📤 is too cartoony; we use a clean SVG inline). */
+    .share-btn .share-glyph {
+      display: inline-block; width: 16px; height: 16px; line-height: 0;
+    }
+    .share-btn .share-glyph svg { width: 100%; height: 100%; display: block; }
+    .share-btn .share-label { font-size: 13px; }
+
+    /* Toast — one-shot confirmation after a successful clipboard fallback
+       (so non-mobile users know the share button "worked"). Fades in
+       quickly, hangs for ~2s, fades out. */
+    .cc-toast {
+      position: fixed;
+      left: 50%; bottom: 32px;
+      transform: translateX(-50%) translateY(8px);
+      background: var(--surface-1);
+      color: var(--fg);
+      border: 1px solid var(--card-line);
+      border-radius: 999px;
+      padding: 9px 18px;
+      font-size: 13px; font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 2000;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+    .cc-toast.is-visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
     .gallery .thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
     .gallery .thumbs img {
       width: 64px; height: 64px; object-fit: cover; border-radius: 6px;
@@ -601,6 +642,28 @@
       return "$" + Number(n).toLocaleString();
     }
 
+    // Lightweight one-shot toast — used after a clipboard fallback so
+    // non-mobile users get visible confirmation the share button actually
+    // did something. Pops in, hangs ~2s, fades out, then removes itself.
+    // Only one toast at a time (existing toast gets replaced).
+    function showShareToast(msg) {
+      document.querySelectorAll(".cc-toast").forEach(t => t.remove());
+      const $t = document.createElement("div");
+      $t.className = "cc-toast";
+      $t.textContent = msg;
+      document.body.appendChild($t);
+      // Force a reflow so the .is-visible transition actually animates
+      // (without this, adding both classes in the same tick skips the
+      // fade and the toast just snaps in — minor but uglier).
+      // eslint-disable-next-line no-unused-expressions
+      $t.offsetHeight;
+      $t.classList.add("is-visible");
+      setTimeout(() => {
+        $t.classList.remove("is-visible");
+        setTimeout(() => $t.remove(), 250);
+      }, 2000);
+    }
+
     function fmtDimensions(h, w, d) {
       const parts = [];
       if (h) parts.push(Number(h));
@@ -1071,10 +1134,25 @@
           <div class="gallery">
             <div class="main-img">
               ${heroBlock}
-              <button type="button" id="heart-btn" class="heart-btn${isSaved ? " is-saved" : ""}" aria-label="${isSaved ? "Unsave" : "Save listing"}">
-                <span class="heart-glyph">${isSaved ? "♥" : "♡"}</span>
-                <span class="heart-count">${saveCnt}</span>
-              </button>
+              <!-- Image-overlay action pills. Save (heart) is the
+                   original; Share was added 2026-05-28 to give buyers a
+                   one-tap path to forward listings via iMessage / WhatsApp
+                   / SMS / etc. Phase A here just wires the Web Share API
+                   with clipboard fallback — the per-listing rich-preview
+                   meta tags that make shared links actually compelling
+                   in iMessage are Phase B (Cloudflare Pages Function). -->
+              <div class="img-actions">
+                <button type="button" id="share-btn" class="share-btn" aria-label="Share this listing">
+                  <span class="share-glyph" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                  </span>
+                  <span class="share-label">Share</span>
+                </button>
+                <button type="button" id="heart-btn" class="heart-btn${isSaved ? " is-saved" : ""}" aria-label="${isSaved ? "Unsave" : "Save listing"}">
+                  <span class="heart-glyph">${isSaved ? "♥" : "♡"}</span>
+                  <span class="heart-count">${saveCnt}</span>
+                </button>
+              </div>
             </div>
             ${imgUrls.length > 1 ? `
               <div class="thumbs">
@@ -1173,6 +1251,79 @@
             partyLabel,
             inquirySubject: render._inquirySubject,
           });
+        });
+      }
+
+      // -----------------------------------------------------------------
+      // Share button — Web Share API where available (mobile), clipboard
+      // fallback elsewhere (desktop). Pre-fills a short message that hints
+      // at what's on the other side of the link; the rich-preview card
+      // (Phase B: per-listing OG meta tags via Cloudflare Pages Function)
+      // is what actually carries the artwork thumbnail + price in
+      // iMessage/Slack/etc.
+      //
+      // We deliberately keep the pre-filled `text` short — most messaging
+      // apps prepend it directly to the URL, and a long blurb buries the
+      // link. The OG preview is the real payload.
+      // -----------------------------------------------------------------
+      const $share = document.getElementById("share-btn");
+      if ($share) {
+        $share.addEventListener("click", async () => {
+          const url = window.location.href;
+          // Build a context-aware short message. Sold listings get past
+          // tense; ISO gets the "looking for" framing; everything else
+          // is the simple "found this" lead-in.
+          const artist = l.artist_name || "";
+          const work   = l.artwork_title || "";
+          const piece  = [artist, work].filter(Boolean).join(" — ") || "this listing";
+          let shareTitle, shareText;
+          if (isIso) {
+            shareTitle = `In Search Of on CanvasCircle`;
+            shareText  = `A collector is looking for ${piece} — see if you have anything to offer:`;
+          } else if (l.status === "sold") {
+            shareTitle = `Sold on CanvasCircle`;
+            shareText  = `Just sold on CanvasCircle: ${piece}.`;
+          } else {
+            shareTitle = `${piece} on CanvasCircle`;
+            shareText  = `Found this on CanvasCircle: ${piece}.`;
+          }
+
+          // Web Share API path — only on browsers + contexts that support
+          // it (https + user gesture, both satisfied). iOS Safari, iOS PWA,
+          // Android Chrome all qualify. Desktop Chrome/Edge support it
+          // too but typically open a clunky "share to Email/Apps" dialog
+          // that adds little value — still better than nothing.
+          if (navigator.share) {
+            try {
+              await navigator.share({ title: shareTitle, text: shareText, url });
+              // No toast on success — the share sheet already provided
+              // strong feedback ("Sent" / "Done" inside the OS UI).
+              return;
+            } catch (e) {
+              // User cancelled the share sheet — that's expected, not an
+              // error. AbortError fires on cancel; only fall through to
+              // clipboard if something genuinely failed.
+              if (e?.name === "AbortError") return;
+              console.warn("[share] navigator.share failed, falling back to clipboard:", e);
+              // fall through
+            }
+          }
+
+          // Clipboard fallback — desktop browsers, or any UA where
+          // navigator.share is unavailable. Copy ONLY the URL (not the
+          // pre-filled text) because most users paste into a context
+          // where they're already going to type their own message; the
+          // URL alone is the thing they actually need.
+          try {
+            await navigator.clipboard.writeText(url);
+            showShareToast("Link copied — paste it anywhere.");
+          } catch (e) {
+            console.error("[share] clipboard write failed:", e);
+            // Last-resort fallback: surface the URL in a prompt so the
+            // user can copy it manually. Rare path (requires both Web
+            // Share API and Clipboard API to fail).
+            window.prompt("Copy this listing link:", url);
+          }
         });
       }
 
