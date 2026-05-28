@@ -2431,6 +2431,34 @@
     }
     .following-kind-toggle button.is-active .pill-count { color: var(--fg); }
 
+    /* Collapsed "How does Following work?" explainer — keeps the section
+       header → list distance short for repeat users, while still letting
+       newcomers expand a help block. Same chevron treatment as the
+       (retired) .ppp-explainer block. */
+    .following-help { margin: 4px 0 12px; font-size: 12px; }
+    .following-help > summary {
+      list-style: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-style: italic;
+      padding: 2px 0;
+      user-select: none;
+    }
+    .following-help > summary::-webkit-details-marker { display: none; }
+    .following-help > summary::before {
+      content: "▸";
+      display: inline-block;
+      width: 14px;
+      transition: transform .15s ease;
+    }
+    .following-help[open] > summary::before { transform: rotate(90deg); }
+    .following-help p {
+      margin: 6px 0 0 14px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 13px;
+    }
+
     /* Inline "Follow an artist by name" form — sits between the kind toggle
        and the follow list, lets the user pre-follow an artist who doesn't
        yet have a listing in the catalog. Grid layout collapses to two rows
@@ -3608,9 +3636,17 @@
               <span class="dash-head-chevron" aria-hidden="true">▾</span>
             </div>
             <div class="dash-section-body" id="following-body">
-              <p class="help" style="margin: 8px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5;">
-                Follow artists and sellers to get a push notification the moment a matching listing is approved &mdash; no need to keep checking the catalog. Three ways to add a follow: type an artist's name in the box below (even if they have nothing listed yet), tap <strong>+ Follow artist</strong> on any listing, or tap <strong>+ Follow this seller</strong> on a seller's page. Narrow artist follows to <em>Unique/Original</em> or <em>Limited Edition</em> to keep alerts focused.
-              </p>
+              <!-- Help text collapsed into a <details> toggle (default
+                   closed) so the Following section opens straight to the
+                   kind toggle + Add-by-name input + follow list. The
+                   placeholder copy on the input below already self-explains
+                   the common path, so this block is here purely for first-
+                   time users who want to know how it works. Reuses the
+                   chevron-arrow pattern from earlier .ppp-explainer. -->
+              <details class="following-help">
+                <summary>How does Following work?</summary>
+                <p>Follow artists and sellers to get a push notification the moment a matching listing is approved &mdash; no need to keep checking the catalog. Three ways to add a follow: type an artist's name in the box below (even if they have nothing listed yet), tap <strong>+ Follow artist</strong> on any listing, or tap <strong>+ Follow this seller</strong> on a seller's page. Narrow artist follows to <em>Unique/Original</em> or <em>Limited Edition</em> to keep alerts focused.</p>
+              </details>
               <!-- Kind-filter pills: filter the follow list by artist vs
                    seller. Hidden when the follow list is empty (nothing
                    to filter). Active state + selection persists to
