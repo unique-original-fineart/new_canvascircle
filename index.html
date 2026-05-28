@@ -120,7 +120,11 @@
       padding: 14px 16px 14px;
     }
     .hero p.tagline {
-      margin: 0; color: var(--muted);
+      /* Tagline uses --fg (off-white) so the descriptive copy reads as a
+         confident brand statement rather than muted secondary text. The
+         "CanvasCircle" word itself stays in the brand gradient (see the
+         next rule). */
+      margin: 0; color: var(--fg);
       font-size: 14px; line-height: 1.45;
     }
     /* Brand-gradient text on the "CanvasCircle" word — ties the hero into
