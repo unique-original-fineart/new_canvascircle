@@ -2376,16 +2376,36 @@
       text-transform: uppercase;
       white-space: nowrap;
     }
+    /* fr-name is the middle column of a following-row. It holds the
+       display name (line 1) and, for sellers, the @handle link (line 2).
+       Stacking them vertically (instead of nameDisplay + handle on one
+       line) keeps the handle from getting clipped by text-overflow on
+       narrow mobile widths — that bug also wiped out the <a>'s tap
+       target since the ellipsis truncates the clickable area. Two lines
+       costs ~14px of vertical row height; worth it. */
     .following-row .fr-name {
       flex: 1; min-width: 0;
+      display: flex; flex-direction: column; align-items: flex-start;
+      gap: 1px;
+    }
+    .following-row .fr-name .fr-display-name {
       font-size: 14px; color: var(--fg); font-weight: 600;
+      max-width: 100%;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .following-row .fr-name a {
-      color: var(--accent); text-decoration: none; font-weight: 400; font-size: 13px;
-      margin-left: 4px;
+    .following-row .fr-name a.fr-handle {
+      color: var(--accent); text-decoration: none; font-weight: 500; font-size: 13px;
+      max-width: 100%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      /* Padding gives the @handle a real tap target on mobile — without
+         it the line-height alone is ~17px, below Apple's 44pt comfort
+         target. Vertical padding stays small so the row doesn't bloat. */
+      padding: 2px 0;
     }
-    .following-row .fr-name a:hover { text-decoration: underline; }
+    .following-row .fr-name a.fr-handle:hover,
+    .following-row .fr-name a.fr-handle:focus-visible {
+      text-decoration: underline;
+    }
     .following-row .fr-unfollow {
       padding: 5px 11px;
       border-radius: 999px;
@@ -10554,12 +10574,18 @@
         const kindLabel = isArtist ? "Artist" : "Seller";
         let nameHtml;
         if (isArtist) {
-          nameHtml = escapeHtml(r.value);
+          // Artist follows are just a string the user typed at follow time —
+          // no public page exists, so render it as a plain truncating line.
+          nameHtml = `<span class="fr-display-name">${escapeHtml(r.value)}</span>`;
         } else {
-          // Show seller display_name + linked @handle (if any) → public seller page.
+          // Seller follows: display name on line 1, @handle as a tappable
+          // link on line 2 (so the handle never gets clipped by the
+          // ellipsis on narrow mobile widths). Class names match the CSS
+          // selectors above — .fr-display-name truncates, .fr-handle is
+          // its own padded tap target.
           const name   = r._sellerName || "(unknown seller)";
           const handle = r._sellerHandle;
-          nameHtml = `${escapeHtml(name)}${handle ? ` <a href="/seller?handle=${encodeURIComponent(handle)}" target="_blank" rel="noopener">@${escapeHtml(handle)}</a>` : ""}`;
+          nameHtml = `<span class="fr-display-name">${escapeHtml(name)}</span>${handle ? `<a class="fr-handle" href="/seller?handle=${encodeURIComponent(handle)}" target="_blank" rel="noopener">@${escapeHtml(handle)}</a>` : ""}`;
         }
         return `
           <div class="following-row" data-following-id="${r.id}">
