@@ -213,6 +213,83 @@
       .catalog-tab { padding: 10px 12px; font-size: 14px; }
     }
 
+    /* ---- In-page filter toolbar (scoped to this seller's listings) ---- */
+    /* Visually lighter than the main catalog toolbar because we're inside
+       a seller-context page and don't want the filters to dominate; the
+       hierarchy is: seller identity > tabs > filters > grid. */
+    .seller-toolbar {
+      margin: 0 0 14px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .seller-toolbar[hidden] { display: none; }
+    .seller-toolbar .toolbar-row {
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .seller-toolbar .search-row { align-items: stretch; }
+    .seller-toolbar input[type="search"] {
+      flex: 1 1 240px; min-width: 0;
+      padding: 9px 12px;
+      font-size: 14px; font-family: inherit;
+      background: var(--surface-1);
+      color: var(--fg);
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      /* Hide the WebKit search 'x' so we don't double up with our Clear button. */
+      -webkit-appearance: none; appearance: none;
+    }
+    .seller-toolbar input[type="search"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .seller-toolbar .clear-btn {
+      padding: 9px 14px;
+      font-size: 13px; font-weight: 600;
+      font-family: inherit;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .seller-toolbar .clear-btn:hover {
+      color: var(--fg);
+      border-color: var(--fg);
+    }
+    .seller-toolbar .filter-row select {
+      flex: 1 1 130px; min-width: 0;
+      padding: 8px 30px 8px 11px;
+      font-size: 13px; font-family: inherit;
+      background: var(--surface-1);
+      color: var(--fg);
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      cursor: pointer;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M2 2l4 4 4-4' fill='none' stroke='%239AA3BA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 10px;
+    }
+    .seller-toolbar .filter-row select:hover { border-color: var(--fg); }
+    .seller-toolbar .filter-row select:focus { outline: none; border-color: var(--accent); }
+    @media (min-width: 720px) {
+      /* On desktop, keep filters from getting absurdly wide — they cap at
+         ~180px so the row stays scannable even with only 3 selects. */
+      .seller-toolbar .filter-row select { flex: 0 1 180px; }
+    }
+
+    /* "linklike" button — looks like a link but acts as a button. Reused
+       by the filter-empty Reset action. */
+    .linklike {
+      background: none; border: none; padding: 0;
+      color: var(--accent);
+      cursor: pointer;
+      font: inherit;
+      text-decoration: underline;
+    }
+    .linklike:hover { filter: brightness(1.15); }
+
     /* ---- Cards (mirrors index.html) ---- */
     .grid {
       display: grid;
@@ -437,10 +514,51 @@
         <button type="button" class="catalog-tab" data-listing-type="iso" role="tab" aria-selected="false">In Search Of <span class="count" id="count-iso"></span></button>
       </div>
 
+      <!-- In-page filter toolbar — scoped to this seller's listings.
+           Especially useful for sellers with large catalogs (50+ listings)
+           where buyers need to sift down to the relevant subset without
+           jumping over to the main catalog and losing the seller's bio +
+           references context. Filtering is client-side over the already-
+           loaded listingsAll array (fast — no re-query).
+           Hidden until at least one listing loads; revealed by JS. -->
+      <form id="seller-toolbar" class="seller-toolbar" autocomplete="off" hidden>
+        <div class="toolbar-row search-row">
+          <input type="search" id="sf-q" placeholder="Search artist or title…" />
+          <button type="button" id="sf-clear" class="clear-btn">Clear</button>
+        </div>
+        <div class="toolbar-row filter-row">
+          <select id="sf-category" title="Category">
+            <option value="">All categories</option>
+            <option value="Unique/Original">Unique/Original</option>
+            <option value="Limited Edition">Limited Edition</option>
+          </select>
+          <select id="sf-status" title="Status">
+            <option value="">All statuses</option>
+            <option value="available">Available</option>
+            <option value="pending">Pending Sale</option>
+            <option value="sold">Sold</option>
+          </select>
+          <select id="sf-sort" title="Sort">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="price-asc">Price: low to high</option>
+            <option value="price-desc">Price: high to low</option>
+          </select>
+        </div>
+      </form>
+
       <div id="grid" class="grid" hidden></div>
       <div id="empty" class="empty" hidden>
         <div class="empty-title" id="empty-title">No listings yet</div>
         <div id="empty-body">This collector hasn't posted anything in this category yet.</div>
+      </div>
+      <!-- Distinct empty state when filters return zero matches but there
+           ARE listings in this tab. Different copy + a Reset button so
+           users don't think the seller has no listings — just that the
+           current filter combination doesn't match any. -->
+      <div id="filter-empty" class="empty" hidden>
+        <div class="empty-title">No listings match these filters</div>
+        <div>Try clearing some filters above, or <button type="button" id="filter-reset-link" class="linklike">reset to defaults</button>.</div>
       </div>
     </div>
   </main>
@@ -500,6 +618,13 @@
     let currentTab    = "sale";
     let userSavesSet  = null;
     let viewerSignedIn = false;
+
+    // ----- Filter state (in-page toolbar) -----
+    // Client-side filter applied over the already-loaded listingsAll arrays.
+    // No re-query needed — we hold every listing in memory at render time.
+    // Filters reset on tab switch (each tab is its own context: "For Sale"
+    // status doesn't mean anything in the ISO tab).
+    let filterState = { q: "", category: "", status: "", sort: "newest" };
     // Module-level cache of the viewer's user_id. Set in the same auth
     // resolution path that sets viewerSignedIn. Used by the Follow seller
     // button to scope upsert/delete operations to the viewer's row.
@@ -960,28 +1085,152 @@
         : "No active listings";
 
       // Grid render
-      const rows = listingsAll[currentTab] || [];
+      const allRows = listingsAll[currentTab] || [];
       $grid.innerHTML = "";
-      if (rows.length === 0) {
+
+      // No listings AT ALL in this tab — show the "no listings yet" empty
+      // state and hide the filter toolbar (nothing to filter).
+      if (allRows.length === 0) {
         $grid.hidden = true;
         $empty.hidden = false;
+        if ($filterEmpty) $filterEmpty.hidden = true;
+        if ($toolbar)     $toolbar.hidden     = true;
         $emptyBody.textContent = currentTab === "iso"
           ? "This collector hasn't posted any open In Search Of requests."
           : "This collector doesn't have anything for sale right now.";
         return;
       }
+
+      // There ARE listings, so show the filter toolbar. Status filter is
+      // only meaningful on the For Sale tab — hide it on ISO where there's
+      // a single "open" status that matches everything.
+      if ($toolbar) {
+        $toolbar.hidden = false;
+        const $sfStatus = document.getElementById("sf-status");
+        if ($sfStatus) $sfStatus.style.display = (currentTab === "iso") ? "none" : "";
+      }
+
+      // Apply filters to the loaded rows.
+      const rows = getFilteredRows(allRows);
       $empty.hidden = true;
+
+      if (rows.length === 0) {
+        // Filters returned nothing — show the "no matches" empty state,
+        // not the "no listings yet" one. Keeps the seller from looking
+        // empty when they actually have plenty of listings.
+        $grid.hidden = true;
+        if ($filterEmpty) $filterEmpty.hidden = false;
+        return;
+      }
+      if ($filterEmpty) $filterEmpty.hidden = true;
+
       const frag = document.createDocumentFragment();
       for (const r of rows) frag.appendChild(renderCard(r));
       $grid.appendChild(frag);
       $grid.hidden = false;
     }
 
+    // -----------------------------------------------------------------
+    // Apply the in-page filter toolbar's state to the loaded rows.
+    // All filtering is in-memory — no re-query — because the page loads
+    // every listing for the seller upfront. Cheap even at 500 rows.
+    // -----------------------------------------------------------------
+    function getFilteredRows(rows) {
+      const q   = (filterState.q || "").trim().toLowerCase();
+      const cat = filterState.category || "";
+      const st  = filterState.status   || "";
+      let out = rows.slice();
+
+      if (q) {
+        out = out.filter(r => {
+          const artist = (r.artist_name   || "").toLowerCase();
+          const title  = (r.artwork_title || "").toLowerCase();
+          return artist.includes(q) || title.includes(q);
+        });
+      }
+      if (cat) {
+        out = out.filter(r => r.artwork_category === cat);
+      }
+      // Status filter applies to sale tab only — ISO listings use status
+      // semantically differently (see [[iso-status-semantics]] memory).
+      if (st && currentTab === "sale") {
+        out = out.filter(r => r.status === st);
+      }
+
+      // Sort. Default is the order rows arrived (newest-first from the
+      // load query). For price sorts we put listings without a price at
+      // the end so they don't crowd out the priced ones.
+      const sort = filterState.sort || "newest";
+      if (sort === "oldest") {
+        out.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      } else if (sort === "price-asc") {
+        out.sort((a, b) => priceForSort(a) - priceForSort(b));
+      } else if (sort === "price-desc") {
+        out.sort((a, b) => priceForSort(b) - priceForSort(a));
+      } else {
+        // newest — sort by created_at desc explicitly in case the source
+        // wasn't ordered (defensive).
+        out.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      }
+      return out;
+    }
+    function priceForSort(r) {
+      const n = Number(r.asking_price_usd);
+      return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+    }
+
+    // -----------------------------------------------------------------
+    // Toolbar wiring. Refs are looked up once at module init; the
+    // listeners call applyTab() on every change so the grid re-renders
+    // against the current filter state.
+    // -----------------------------------------------------------------
+    const $toolbar      = document.getElementById("seller-toolbar");
+    const $filterEmpty  = document.getElementById("filter-empty");
+    const $sfQ          = document.getElementById("sf-q");
+    const $sfCategory   = document.getElementById("sf-category");
+    const $sfStatus     = document.getElementById("sf-status");
+    const $sfSort       = document.getElementById("sf-sort");
+    const $sfClear      = document.getElementById("sf-clear");
+    const $filterReset  = document.getElementById("filter-reset-link");
+
+    let toolbarDebounce = null;
+    function pullToolbarStateAndApply() {
+      filterState.q        = $sfQ ? $sfQ.value : "";
+      filterState.category = $sfCategory ? $sfCategory.value : "";
+      filterState.status   = $sfStatus ? $sfStatus.value : "";
+      filterState.sort     = $sfSort ? $sfSort.value : "newest";
+      applyTab();
+    }
+    if ($sfQ) {
+      // Debounce text input so we don't re-render on every keystroke.
+      $sfQ.addEventListener("input", () => {
+        clearTimeout(toolbarDebounce);
+        toolbarDebounce = setTimeout(pullToolbarStateAndApply, 180);
+      });
+    }
+    [$sfCategory, $sfStatus, $sfSort].forEach(el => {
+      if (el) el.addEventListener("change", pullToolbarStateAndApply);
+    });
+    function resetSellerFilters() {
+      if ($sfQ)        $sfQ.value        = "";
+      if ($sfCategory) $sfCategory.value = "";
+      if ($sfStatus)   $sfStatus.value   = "";
+      if ($sfSort)     $sfSort.value     = "newest";
+      pullToolbarStateAndApply();
+    }
+    if ($sfClear)     $sfClear.addEventListener("click", resetSellerFilters);
+    if ($filterReset) $filterReset.addEventListener("click", resetSellerFilters);
+
     document.querySelectorAll(".catalog-tab").forEach(btn => {
       btn.addEventListener("click", () => {
         if (btn.dataset.listingType !== currentTab) {
           currentTab = btn.dataset.listingType;
-          applyTab();
+          // Reset filters on tab switch — each tab is its own context
+          // (a status filter from "For Sale" makes no sense in "In Search
+          // Of", and a sale-side search may not apply to ISO requests).
+          // resetSellerFilters() also calls applyTab() at the end, so
+          // we don't need to call applyTab() ourselves here.
+          resetSellerFilters();
         }
       });
     });
