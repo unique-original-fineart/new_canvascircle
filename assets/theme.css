@@ -324,9 +324,25 @@ body {
    Targets `body > header` to match both <header> and <header class="site">
    variants used across pages.
    ================================================================= */
+/* Sticky header — added 2026-05-28. Was previously position:relative
+   which silently overrode the per-page inline `header { position: sticky }`
+   rules (body>header has specificity 11, plain `header` has 1, so theme
+   wins). Switching theme.css itself to position:sticky pins the header to
+   the top of the viewport across every page in a single edit. Sticky
+   elements still establish a containing block for the absolute-positioned
+   ::after seam below, so the brand-gradient stripe continues to work.
+   z-index:50 stays below modals (which use 100+) so the modal overlays
+   still cover the header when open.
+   --
+   IMPORTANT: any per-page `header { position: sticky }` rule I left in
+   the inline styles is redundant and inert (theme.css wins on specificity).
+   Harmless; can clean up later if it bothers you. */
 body > header {
   border-bottom-color: transparent !important;
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
 }
 body > header::after {
   content: "";
