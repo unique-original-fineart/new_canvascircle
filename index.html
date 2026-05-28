@@ -453,6 +453,12 @@
       .card .title  { font-size: 12px; }
       .card .price  { font-size: 13px; }
       .card .cat    { font-size: 9px; padding: 2px 6px; }
+      /* Tighten the CTA on mobile so "Unique/Original" + "Details →" can
+         actually fit on one row. On a typical iPhone the card content area
+         is ~149px wide; the badge takes ~85px, so the CTA needs to come in
+         under ~60px. 10px font + slightly tighter letter-spacing achieves
+         that without dropping below readable size. */
+      .card .cta    { font-size: 10px; letter-spacing: 0; }
     }
     .card.is-sold .price { color: var(--muted); text-decoration: line-through; }
 
