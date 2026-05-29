@@ -2793,22 +2793,26 @@
     }
 
     /* Saved-search filter chips — small read-only badges shown on
-       kind='filter' following rows, beneath the display name + "View
-       results" link. Each chip names one criterion from filter_json
-       (category, status, price range, trust narrowing, etc.). */
+       kind='filter' following rows, beneath the "View results →" link.
+       Each chip names one criterion from filter_json (category, status,
+       price range, trust narrowing, etc.). Sized intentionally compact
+       so 2-3 fit per row on mobile, where the display name was
+       previously cut off and the chips stacked single-column. */
     .following-row .fr-saved-chips {
-      display: flex; flex-wrap: wrap; gap: 4px;
+      display: flex; flex-wrap: wrap; gap: 3px;
       margin-top: 4px;
     }
     .following-row .fr-saved-chip {
       display: inline-flex; align-items: center;
-      padding: 2px 8px;
+      padding: 1px 7px;
       border-radius: 999px;
       background: var(--surface-1);
       border: 1px solid var(--card-line);
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 500;
       color: var(--muted);
+      line-height: 1.5;
+      white-space: nowrap;
     }
 
     .following-row .fr-unfollow {
@@ -11701,6 +11705,10 @@
       function chipsFromFilterJson(f) {
         if (!f || typeof f !== "object") return [];
         const chips = [];
+        // ISO tag is meaningful only on iso saved searches — adds context
+        // that we wouldn't otherwise have since the kind=filter row's
+        // display name was dropped (see render block).
+        if (f.listing_type === "iso")                chips.push("ISO");
         if (f.q)                                     chips.push(`"${f.q}"`);
         if (f.cat)                                   chips.push(f.cat);
         if (f.status && f.status !== "active") {
@@ -11709,11 +11717,13 @@
         }
         if (f.trust_member === "established")        chips.push("Established");
         if (f.trust_member === "non-established")    chips.push("Non-Established");
-        if (f.trust_verify === "verified")           chips.push("Verified ownership");
+        if (f.trust_verify === "verified")           chips.push("Verified");
         if (f.trust_verify === "unverified")         chips.push("Unverified");
+        // Price chips: use ≤ / ≥ glyphs instead of "Up to" / "From" so
+        // each chip is shorter and 2-3 fit per row on mobile.
         if (f.min_price != null && f.max_price != null) chips.push(`$${Number(f.min_price).toLocaleString()}–$${Number(f.max_price).toLocaleString()}`);
-        else if (f.min_price != null)                chips.push(`From $${Number(f.min_price).toLocaleString()}`);
-        else if (f.max_price != null)                chips.push(`Up to $${Number(f.max_price).toLocaleString()}`);
+        else if (f.min_price != null)                chips.push(`≥ $${Number(f.min_price).toLocaleString()}`);
+        else if (f.max_price != null)                chips.push(`≤ $${Number(f.max_price).toLocaleString()}`);
         return chips;
       }
       function viewResultsUrlFromFilterJson(f) {
@@ -11737,21 +11747,22 @@
         const kindLabel = isFilter ? "Search" : (isArtist ? "Artist" : "Seller");
         let nameHtml;
         if (isFilter) {
-          // Saved-search row. Display name on line 1, "View results →"
-          // link on line 2 that jumps to the catalog with the saved
-          // filters pre-applied via URL params (existing catalog code
-          // already handles ?q=, ?cat=, ?seller=, ?min=, ?max= etc.).
-          // Chip row on line 3 visualizes the active criteria so the
-          // user remembers what this saved search captures.
-          const name      = r.display_name || "(saved search)";
-          const isoTag    = r.filter_json?.listing_type === "iso" ? " · ISO" : "";
+          // Saved-search row. Display name (r.display_name) is kept in
+          // the DB and powers the push-notification title, but it's
+          // intentionally NOT rendered here — the chips below already
+          // communicate exactly what the search captures, and on mobile
+          // the long auto-generated name caused both ellipsis truncation
+          // ("Kre8 · Uniq…") and made the row too tall. The chips ARE
+          // the search. "View results →" jumps to the catalog with the
+          // saved filters pre-applied via URL params (the catalog reads
+          // ?q=, ?cat=, ?seller=, ?min=, ?max=, ?trust_member=,
+          // ?trust_verify=, ?status=).
           const chips     = chipsFromFilterJson(r.filter_json);
           const linkHref  = viewResultsUrlFromFilterJson(r.filter_json);
           const chipsHtml = chips.length
             ? `<div class="fr-saved-chips">${chips.map(c => `<span class="fr-saved-chip">${escapeHtml(c)}</span>`).join("")}</div>`
             : "";
           nameHtml =
-            `<span class="fr-display-name">${escapeHtml(name)}${escapeHtml(isoTag)}</span>` +
             `<a class="fr-handle" href="${linkHref}" title="Jump to the catalog with these filters applied">View results →</a>` +
             chipsHtml;
         } else if (isArtist) {
