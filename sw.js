@@ -19,7 +19,7 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
-const CACHE_VERSION = 'cc-v110-admin-notify-pending-pushes';
+const CACHE_VERSION = 'cc-v111-verification-video-compression';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. Their URLs
@@ -64,6 +64,7 @@ const SHELL_ASSETS = [
   '/lib/auth-prompt.js',
   '/lib/install-prompt.js',
   '/lib/nav-auth.js?v=12',
+  '/lib/video-compression.js',
 ];
 
 const SUPABASE_LIB_URL = 'https://esm.sh/@supabase/supabase-js@2?bundle';

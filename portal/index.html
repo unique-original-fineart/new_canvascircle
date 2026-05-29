@@ -4366,6 +4366,7 @@
     import { readReturnTrail } from "/lib/return-trail.js";
     import { mountWelcomeBanner } from "/lib/welcome-banner.js";
     import { getPushStatus, subscribePush, unsubscribePush, pushSupported } from "/lib/push-notifications.js";
+    import { compressVideo, isSupported as videoCompressionSupported } from "/lib/video-compression.js";
 
     // Site-wide sticky "Continue to X" banner — see /lib/welcome-banner.js.
     // Self-renders only when a signed-in user has an active trail.
@@ -6271,8 +6272,20 @@
     // the handwritten date+handle card, and keeps modern phone HD/4K clips
     // safely under the 25MB hard cap. iPhone 60fps HD at 10s came in at
     // ~28MB which would fail the byte check — 7s solves that headroom.
-    const VM_MAX_DURATION_SEC = 7;
-    const VM_MAX_BYTES        = 25 * 1024 * 1024;  // 25 MB
+    // Verification video caps. As of 2026-05-29 we re-encode the seller's
+    // source on the client (lib/video-compression.js) before upload, so
+    // the SOURCE allowance is now generous (200MB / any reasonable length)
+    // and we trim + downscale to a much smaller artifact for storage +
+    // admin review. Numbers:
+    //   - Source cap: 200MB (covers any modern phone HD/4K capture).
+    //   - Output cap: 30 sec @ 720p / ~600kbps → typically 3-6 MB.
+    //   - Fallback (browsers without MediaRecorder support, basically only
+    //     iOS Safari <14.1): keep the original cap so we never reject a
+    //     legitimate upload.
+    const VM_MAX_DURATION_SEC     = 30;
+    const VM_MAX_BYTES            = 200 * 1024 * 1024;   // 200 MB source allowance
+    const VM_FALLBACK_MAX_BYTES   = 25 * 1024 * 1024;    // 25 MB cap when compression unavailable
+    const VM_FALLBACK_MAX_DURATION_SEC = 7;
 
     function openVerificationModal(listing, card) {
       currentVerifyListing   = listing;
@@ -6382,7 +6395,13 @@
         if (action === "submit") submitVerification();
       });
 
-      // File picked → validate, then show preview.
+      // File picked → validate, then show preview. Two validation paths:
+      //   - Modern browsers (Chrome/Firefox/Safari 14.1+ on iOS, all
+      //     Android browsers): source up to 200MB, any duration. We'll
+      //     trim + re-encode to 30s @ 720p during submit.
+      //   - Older Safari (<14.1): MediaRecorder/captureStream missing.
+      //     Fall back to the original 25MB / 7s caps so we never reject
+      //     a legitimate upload — the file uploads as-is, no compression.
       $file?.addEventListener("change", async (e) => {
         vmSetError("");
         const file = e.target.files?.[0];
@@ -6391,8 +6410,15 @@
           vmSetError("Please choose a video file.");
           return;
         }
-        if (file.size > VM_MAX_BYTES) {
-          vmSetError(`File is ${(file.size / 1024 / 1024).toFixed(1)}MB — max is 25MB. Try recording shorter or at lower resolution.`);
+        const canCompress = videoCompressionSupported();
+        const sizeLimit     = canCompress ? VM_MAX_BYTES         : VM_FALLBACK_MAX_BYTES;
+        const durationLimit = canCompress ? VM_MAX_DURATION_SEC  : VM_FALLBACK_MAX_DURATION_SEC;
+        if (file.size > sizeLimit) {
+          const limitMb = (sizeLimit / 1024 / 1024).toFixed(0);
+          vmSetError(canCompress
+            ? `File is ${(file.size / 1024 / 1024).toFixed(1)}MB — max is ${limitMb}MB. Try recording shorter or at lower resolution.`
+            : `File is ${(file.size / 1024 / 1024).toFixed(1)}MB — max is ${limitMb}MB on this older browser. Update Safari (iOS 14.1+) for higher limits.`
+          );
           return;
         }
         let duration;
@@ -6402,13 +6428,23 @@
           vmSetError(err.message || "Couldn't read the video.");
           return;
         }
-        if (duration > VM_MAX_DURATION_SEC + 0.5) {
-          vmSetError(`Video is ${duration.toFixed(1)}s — max is ${VM_MAX_DURATION_SEC}s. Re-record a shorter clip.`);
+        // When compression is available we accept any source duration and
+        // trim to 30s during encode. Without compression we still enforce
+        // the hard duration cap so the upload stays small.
+        if (!canCompress && duration > durationLimit + 0.5) {
+          vmSetError(`Video is ${duration.toFixed(1)}s — max is ${durationLimit}s on this older browser. Re-record a shorter clip, or update Safari (iOS 14.1+) for the 30s allowance.`);
           return;
         }
         currentVerifyFile = file;
         $preview.src = URL.createObjectURL(file);
-        vmSetInfo(`${(file.size / 1024 / 1024).toFixed(1)}MB · ${duration.toFixed(1)}s`);
+        // Info line shows source stats. The actual uploaded artifact will
+        // be smaller (compressed), but the seller sees what they picked.
+        const sizeStr = `${(file.size / 1024 / 1024).toFixed(1)}MB`;
+        const durStr  = `${duration.toFixed(1)}s`;
+        const compressNote = (canCompress && (file.size > 5 * 1024 * 1024 || duration > VM_MAX_DURATION_SEC))
+          ? " · will be compressed to ≤30s for upload"
+          : "";
+        vmSetInfo(`${sizeStr} · ${durStr}${compressNote}`);
         vmShowStage("preview");
       });
     })();
@@ -6422,26 +6458,70 @@
       const setProg = (t) => { if ($progress) $progress.textContent = t; };
 
       try {
+        // 1) Hash the ORIGINAL source bytes. The fraud-detection fingerprint
+        //    must match what would reappear if a scammer reused the same
+        //    source — compressing first would make the hash non-deterministic
+        //    across browsers + encoder versions.
         setProg("Hashing video…");
-        const hash = await sha256Hex(file);
+        const sourceHash = await sha256Hex(file);
 
-        // Insert the listing_verifications row first to reserve an id; then
-        // upload the file to the bucket at {listing_id}/{verification_id}.{ext}.
-        // If the upload fails we can clean up the orphan row (admin manual or
-        // a future cron); the trigger handles the listing.verification_status
-        // flip the moment the row is inserted.
+        // 2) Compress + trim. Caps the output at 30s and ~720p @ ~600kbps,
+        //    typical result 3-6 MB even for long source clips. Falls back
+        //    to the original file unchanged on older Safari (<14.1).
+        //    See [[verification-video-compression]] for the cost rationale.
+        let uploadBlob = file;
+        let outputMime = file.type || "video/mp4";
+        let outputExt  = (file.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "mp4";
+        let outputDuration = null;
+
+        if (videoCompressionSupported()) {
+          try {
+            setProg("Compressing video… 0%");
+            const result = await compressVideo(file, {
+              maxDurationSec: VM_MAX_DURATION_SEC,
+              targetHeight: 720,
+              videoBitsPerSecond: 600_000,
+              onProgress: (pct) => {
+                setProg(`Compressing video… ${Math.round(pct * 100)}%`);
+              },
+            });
+            uploadBlob     = result.blob;
+            outputMime     = result.mime;
+            outputExt      = result.ext;
+            outputDuration = result.durationSec;
+          } catch (compressErr) {
+            // If compression fails mid-way (unusual: corrupt source,
+            // encoder crash), fall back to uploading the original. The
+            // seller's verification still succeeds and the admin can
+            // still review the original video.
+            console.warn("[verify-submit] compression failed; uploading original:", compressErr);
+            uploadBlob = file;
+            outputMime = file.type || "video/mp4";
+            outputExt  = (file.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "mp4";
+            outputDuration = null;
+          }
+        }
+        // If we didn't get a duration from compressVideo (fallback path),
+        // probe the upload blob for it before inserting.
+        if (outputDuration == null) {
+          outputDuration = await readVideoDuration(uploadBlob).catch(() => null);
+        }
+
+        // 3) Insert the listing_verifications row first to reserve an id; then
+        //    upload to the bucket at {listing_id}/{verification_id}.{ext}.
+        //    If the upload fails we can clean up the orphan row (admin manual
+        //    or future cron); the trigger handles the listing.verification_status
+        //    flip the moment the row is inserted.
         const newId = crypto.randomUUID();
-        const ext = (file.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "mp4";
-        const path = `${listing.listing_id}/${newId}.${ext}`;
+        const path = `${listing.listing_id}/${newId}.${outputExt}`;
 
         setProg("Uploading video…");
         const { error: uploadErr } = await supabase.storage
           .from("verification-videos")
-          .upload(path, file, { contentType: file.type || "video/mp4", upsert: false });
+          .upload(path, uploadBlob, { contentType: outputMime, upsert: false });
         if (uploadErr) throw uploadErr;
 
         setProg("Recording submission…");
-        const duration = await readVideoDuration(file).catch(() => null);
         const { error: insertErr } = await supabase
           .from("listing_verifications")
           .insert({
@@ -6450,9 +6530,12 @@
             submitted_by: currentUserId,
             status: "pending",
             video_storage_path: path,
-            video_hash: hash,
-            video_size_bytes: file.size,
-            video_duration_sec: duration != null ? Number(duration.toFixed(2)) : null,
+            // Hash is computed from the ORIGINAL source so the fraud-
+            // detection fingerprint stays meaningful across compressions.
+            video_hash: sourceHash,
+            // Size + duration reflect what's actually stored in the bucket.
+            video_size_bytes: uploadBlob.size,
+            video_duration_sec: outputDuration != null ? Number(outputDuration.toFixed(2)) : null,
           });
         if (insertErr) {
           // Best-effort cleanup of the orphaned upload — no need to surface
@@ -13074,7 +13157,7 @@
       <button type="button" class="vm-close-x" data-vm-action="close" aria-label="Close">×</button>
       <h3 id="vm-title">Verify ownership</h3>
       <p class="vm-intro">
-        Submit a short video (<strong>max 7 seconds</strong>) showing the
+        Submit a short video (<strong>up to 30 seconds</strong>) showing the
         artwork along with a <strong>handwritten card</strong> displaying
         <strong>@yourhandle</strong> and <strong>today's date</strong>.
         Speak your name briefly if you can. We'll review within 24-48 hours.
@@ -13087,7 +13170,7 @@
       <div class="vm-stage vm-pick" data-vm-stage="picker">
         <input type="file" accept="video/*" id="vm-file" />
         <label for="vm-file" class="vm-pick-btn">Choose video</label>
-        <p class="vm-hint">Pick a video from your phone's library or record a new one. Max <strong>7 seconds</strong>, 25 MB. MP4 / MOV / WebM accepted.</p>
+        <p class="vm-hint">Pick a video from your phone's library or record a new one. Up to <strong>30 seconds</strong>; we'll auto-compress for upload so any normal phone video is fine. MP4 / MOV / WebM accepted.</p>
         <p class="vm-err" data-vm-error hidden></p>
       </div>
 
