@@ -6493,6 +6493,18 @@
           $editModalBody.appendChild(renderEditCard(listing));
         }
 
+        // Ping the admin so they don't miss the new video sitting in the
+        // verification queue. Fire-and-forget; failure must not block
+        // the seller's UI. Push tag dedups against re-submissions of
+        // the same listing's verification.
+        try {
+          supabase.functions.invoke("admin-notify", {
+            body: { kind: "verification", listing_id: listing.listing_id },
+          }).catch((e) => console.warn("[verify-submit] admin-notify dispatch failed (non-fatal):", e));
+        } catch (e) {
+          console.warn("[verify-submit] admin-notify dispatch threw (non-fatal):", e);
+        }
+
         // Signals closeVerificationModal to wrap up the whole workflow
         // (close edit modal + show success banner) when the seller
         // clicks Done. applyFilters already ran above so closeVerification
@@ -7580,6 +7592,17 @@
         if (idx >= 0) Object.assign(allListings[idx], payload);
         markDirty(card, false);
         card.classList.remove("has-error");
+        // Resubmission — content edit from a non-Established seller flipped
+        // the listing's moderation_status back to 'pending'. Ping the admin
+        // so they don't miss the resubmission. Fire-and-forget; failure
+        // must not block the seller's UI feedback. Push tag dedups against
+        // the original new-listing notification (same admin-listing-<id>
+        // tag), so the admin sees only the most recent state.
+        if (needsReview) {
+          supabase.functions.invoke("admin-notify", {
+            body: { kind: "listing", listing_id: id },
+          }).catch((e) => console.warn("[saveCard] admin-notify dispatch failed (non-fatal):", e));
+        }
         // Build a clear, specific success message including the listing label.
         const savedLabel = `${payload.artist_name || "Untitled"} — ${payload.artwork_title || ""}`.trim().replace(/[\s—]+$/, "");
         const successMsg = needsReview
@@ -12836,6 +12859,16 @@
           supabase.functions.invoke("send-email", {
             body: { mode: "trigger-listing-fanout", listing_id: newId },
           }).catch((e) => console.warn("[new-listing] fanout dispatch failed (non-fatal):", e));
+        } else {
+          // Non-Established listing → goes to admin queue with
+          // moderation_status='pending'. Ping the admin so they don't
+          // have to constantly check the admin tab. Fire-and-forget;
+          // failure must not block the seller's UI feedback. The
+          // admin-notify edge function looks up ADMIN_USER_ID from
+          // Supabase secrets and dispatches the push internally.
+          supabase.functions.invoke("admin-notify", {
+            body: { kind: "listing", listing_id: newId },
+          }).catch((e) => console.warn("[new-listing] admin-notify dispatch failed (non-fatal):", e));
         }
 
         // Success — show banner on the dashboard and reload listings.
@@ -12974,6 +13007,17 @@
         if (session?.user) {
           await refreshAccountView();
           showView("account");
+          // Deep-link support: ?tab=<name> activates that tab on first
+          // load. Powers admin-notify push notifications (URL is
+          // /portal/?tab=admin) and any future external links that
+          // want to land on a specific tab. Bound only to existing tab
+          // names — unknown values are ignored.
+          try {
+            const tabParam = new URLSearchParams(window.location.search).get("tab");
+            if (tabParam && document.querySelector(`.tab-btn[data-tab="${tabParam}"]`)) {
+              activateTab(tabParam);
+            }
+          } catch {}
         } else {
           showView("signin");
         }
