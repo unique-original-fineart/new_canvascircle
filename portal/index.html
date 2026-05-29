@@ -9169,7 +9169,7 @@
         .select(`
           listing_id, listing_type, artist_name, artwork_title, artwork_category,
           asking_price_usd, budget_min_usd, budget_max_usd,
-          description, status, moderation_status, created_at, seller_id,
+          description, status, moderation_status, verification_status, created_at, seller_id,
           listing_images ( storage_path, position ),
           listing_verifications ( id, status, submitted_at ),
           profiles!listings_seller_id_fkey ( display_name, handle, contact_email, is_trusted )
@@ -9191,13 +9191,29 @@
         const isVideoGate =
           l.listing_type === "sale" &&
           !l.profiles?.is_trusted;
-        // The gate is satisfied (admin can approve) when ANY verification
-        // record exists for this listing — pending counts since admin
-        // reviews the video as part of the approve action anyway, and
-        // approved verification is obviously fine. The gate is failed
-        // (admin must hold off) when no record exists at all.
-        const hasVideo = (l.listing_verifications || []).length > 0;
-        frag.appendChild(renderModItem(l, { isVideoGate, hasVideo }));
+        // Three sub-states for the gate UI (see renderModItem):
+        //   - 'verified'    → admin already approved the video; safe to
+        //                     approve the listing (the badge will appear).
+        //   - 'pending'     → seller submitted a video but admin hasn't
+        //                     reviewed it yet. Approve is BLOCKED — if
+        //                     we allowed it here, the listing would go
+        //                     live without the verified badge (the badge
+        //                     only renders when listing.verification_status
+        //                     === 'verified'). Admin needs to review the
+        //                     video first (Verified Listings panel), then
+        //                     come back and approve the listing.
+        //   - anything else → no usable verification on file ('none',
+        //                     'rejected', or 'revoked'). Approve is
+        //                     BLOCKED until the seller (re)submits and
+        //                     the video gets approved.
+        //
+        // Previously the gate accepted any listing_verifications record
+        // (including pending). That created a loophole where admin could
+        // approve the listing without ever approving the video, and the
+        // listing went live without the badge. Fixed 2026-05-29 by
+        // checking verification_status === 'verified' specifically.
+        const verifState = l.verification_status || "none";
+        frag.appendChild(renderModItem(l, { isVideoGate, verifState }));
       }
       $modList.appendChild(frag);
       $modList.hidden = false;
@@ -9215,14 +9231,16 @@
       const days   = Math.max(0, Math.floor((Date.now() - new Date(l.created_at).getTime()) / 86400000));
 
       // Sale-listing video gate context (see [[listingRequiresVideoGate]]).
-      // When the gate is active AND no verification video exists yet,
-      // admin cannot approve — the Approve button is disabled and a
-      // "verification video required" indicator surfaces above the
-      // actions row. As of 2026-05-29, the gate applies to EVERY sale
-      // listing from a non-Established seller, not just the first.
+      // Approve is blocked unless the listing's verification_status is
+      // 'verified' — i.e. admin has actually reviewed and approved the
+      // seller's video, not just received a submission. ANY other state
+      // ('none', 'pending', 'rejected', 'revoked') blocks the approve so
+      // the listing can't go live without the badge.
+      // As of 2026-05-29, the gate applies to EVERY sale listing from a
+      // non-Established seller, not just the first.
       const isVideoGate    = !!ctx.isVideoGate;
-      const hasVideo       = !!ctx.hasVideo;
-      const approveBlocked = isVideoGate && !hasVideo;
+      const verifState     = ctx.verifState || "none";   // 'none' | 'pending' | 'verified' | 'rejected' | 'revoked'
+      const approveBlocked = isVideoGate && verifState !== "verified";
 
       // Price / budget label
       let priceLabel;
@@ -9240,22 +9258,47 @@
         ? `<img src="${imgUrl}" alt="" loading="lazy" decoding="async" />`
         : (isIso ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--surface-3);color:var(--muted);font-size:20px;">🔍</div>` : "");
 
-      // Gate indicator — small pill above the actions row. Two variants:
-      //   - approveBlocked (no video yet) → soft-warning treatment
-      //   - hasVideo (gate satisfied)     → confirmation treatment so
-      //                                      admin knows the video's in
-      //                                      hand and review can proceed.
+      // Gate indicator — small pill above the actions row. Three states
+      // (was two before the 2026-05-29 loophole fix):
+      //   - verifState === 'verified' → admin already approved the video.
+      //                                  Green ready badge; Approve enabled.
+      //   - verifState === 'pending'  → seller submitted a video, admin
+      //                                  hasn't approved it yet. Amber
+      //                                  "review the video first" badge;
+      //                                  Approve disabled. This is the
+      //                                  loophole case — previously
+      //                                  Approve was enabled here, which
+      //                                  let the listing go live without
+      //                                  the badge.
+      //   - anything else             → no usable verification on file.
+      //                                  Red "video required" badge;
+      //                                  Approve disabled.
       let gateBadgeHtml = "";
       if (isVideoGate) {
-        if (approveBlocked) {
+        if (verifState === "verified") {
           gateBadgeHtml =
-            `<div class="mod-gate-badge mod-gate-badge-blocked" title="Seller is not an Established Member. Every non-Established sale listing requires a verification video before approval.">
-               ⚠ Non-Established seller — verification video required
+            `<div class="mod-gate-badge mod-gate-badge-ready" title="Verification video already approved — safe to approve this listing.">
+               ✓ Verification video approved — ready to approve listing
+             </div>`;
+        } else if (verifState === "pending") {
+          gateBadgeHtml =
+            `<div class="mod-gate-badge mod-gate-badge-blocked" title="Seller submitted a verification video but it hasn't been reviewed yet. Approve the video first in the Verified Listings admin panel, then come back here to approve this listing — otherwise the listing would go live without the Ownership Verified badge.">
+               ⏳ Review the verification video first
+             </div>`;
+        } else if (verifState === "rejected") {
+          gateBadgeHtml =
+            `<div class="mod-gate-badge mod-gate-badge-blocked" title="Previous verification was rejected. Seller needs to submit a new video before this listing can be approved.">
+               ⚠ Verification rejected — awaiting new video from seller
+             </div>`;
+        } else if (verifState === "revoked") {
+          gateBadgeHtml =
+            `<div class="mod-gate-badge mod-gate-badge-blocked" title="Previous verification was revoked. Seller needs to submit a new video before this listing can be approved.">
+               ⚠ Verification revoked — awaiting new video from seller
              </div>`;
         } else {
           gateBadgeHtml =
-            `<div class="mod-gate-badge mod-gate-badge-ready" title="Seller's verification video is in the queue — review it via the Verified Listings panel before approving.">
-               📹 Verification video submitted — ready to review
+            `<div class="mod-gate-badge mod-gate-badge-blocked" title="Non-Established seller. Every sale listing requires a verification video before approval. Seller hasn't submitted one yet for this listing.">
+               ⚠ Verification video required — none submitted yet
              </div>`;
         }
       }
@@ -9277,7 +9320,13 @@
           ${gateBadgeHtml}
           <div class="mod-actions">
             <a href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener" class="view-link" style="color:var(--accent); font-size:13px; font-weight:600; text-decoration:none; align-self:center;">Preview ↗</a>
-            <button type="button" class="btn-approve" data-action="approve" ${approveBlocked ? "disabled" : ""} ${approveBlocked ? `title="Cannot approve until the seller submits a verification video."` : ""}>Approve</button>
+            <button type="button" class="btn-approve" data-action="approve" ${approveBlocked ? "disabled" : ""}${approveBlocked ? ` title="${
+                verifState === "pending"
+                  ? "The seller submitted a verification video but it hasn't been admin-reviewed yet. Approve the video in the Verified Listings panel first — otherwise this listing would go live without the Ownership Verified badge."
+                  : verifState === "rejected" || verifState === "revoked"
+                  ? "Verification on file was rejected or revoked. Wait for the seller to submit a new video and approve it before approving this listing."
+                  : "Cannot approve until the seller submits a verification video and an admin approves it."
+              }"` : ""}>Approve</button>
             <button type="button" class="btn-reject"  data-action="reject">Reject</button>
           </div>
         </div>
