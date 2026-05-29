@@ -5738,8 +5738,21 @@
       // Now the click handler in renderPreviewCard reads data-info-title
       // and data-info-html off the badge button and calls openInfoModal().
       if (status === "pending") {
+        // Two copy variants based on whether the listing itself is already
+        // approved or still in the admin queue:
+        //   - moderation_status === 'approved' → listing is live; only the
+        //     video badge is pending. Original copy applies.
+        //   - moderation_status !== 'approved' → non-Established sale
+        //     listing that's gated on both the video AND the listing
+        //     approval. Original copy was misleading ("stays live in the
+        //     meantime" implied the listing was visible). New copy
+        //     reflects that the listing is held as a draft until both
+        //     gates clear. Fixed 2026-05-29.
+        const isLive = l.moderation_status === "approved";
         const title = "Verification Pending";
-        const body  = "Your verification video is awaiting admin review. We'll review within 24-48 hours; the listing stays live in the meantime.";
+        const body  = isLive
+          ? "Your verification video is awaiting admin review. We'll review within 24-48 hours; the listing stays live in the meantime."
+          : "Your verification video and the listing itself are both awaiting admin review. The listing won't appear in the public catalog until both the video and the listing are approved. Typical review window: 24-48 hours.";
         return `
           <div class="pc-verification">
             <button type="button" class="vp-badge pending is-clickable" data-vp-info
@@ -6074,12 +6087,20 @@
           </span>
         `;
       } else if (status === "pending") {
+        // Same isLive split as renderPreviewVerificationBadge — non-
+        // Established sellers' listings are held as drafts until both
+        // the video and the listing are approved, so the "stays live"
+        // copy doesn't apply. See comment block over there for context.
+        const isLive = l.moderation_status === "approved";
+        const popoverBody = isLive
+          ? "Your verification video was submitted and is awaiting admin review. We'll review within 24-48 hours; the listing stays live in the meantime."
+          : "Your verification video and the listing itself are both awaiting admin review. The listing won't appear in the public catalog until both the video and the listing are approved. Typical review window: 24-48 hours.";
         body = `
           <span class="vp-badge pending is-clickable" data-vp-toggle role="button" tabindex="0" aria-expanded="false" aria-controls="vp-pop-${escapeHtml(l.listing_id)}">
             Verification Pending <span class="vp-chev" aria-hidden="true">▾</span>
           </span>
           <div class="vp-popover" id="vp-pop-${escapeHtml(l.listing_id)}" hidden>
-            Your verification video was submitted and is awaiting admin review. We'll review within 24-48 hours; the listing stays live in the meantime.
+            ${popoverBody}
           </div>
         `;
       } else if (status === "revoked") {
