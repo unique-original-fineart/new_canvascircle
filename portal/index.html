@@ -764,6 +764,27 @@
       text-underline-offset: 2px;
     }
     .preview-card .pc-mod-info-btn:hover { filter: brightness(.85); }
+    /* Pending Review variant — when the .pc-mod-info-btn lives inside a
+       .pc-mod-pending banner, render as a compact single-line pill (no
+       underline, accent color, chevron at the end). Replaces the old
+       stacked <strong>+<span> block that stretched preview cards
+       vertically on mobile. Click opens the info modal explaining the
+       admin-review + video-required state. */
+    .preview-card .pc-mod-pending .pc-mod-info-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 0;
+      color: var(--accent-deeper);
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+    .preview-card .pc-mod-pending .pc-mod-info-btn .vp-chev {
+      font-size: 12px;
+      opacity: .7;
+    }
     .preview-card .pc-metrics {
       font-size: 11px; color: var(--muted);
       display: flex; gap: 8px 10px; flex-wrap: wrap;
@@ -5858,11 +5879,23 @@
           </div>
           ${l.moderation_status && l.moderation_status !== "approved"
             ? (() => {
-                // Pending: short inline banner, no admin note involved.
+                // Pending: compact clickable pill that opens an info modal
+                // with the full explanation. Was previously a stacked
+                // <strong> + <span> block that stretched the card
+                // height on mobile (Guy flagged 2026-05-29). Matches the
+                // same click-to-modal pattern used by the Rejected
+                // variant below and the Verification Pending badge.
                 if (l.moderation_status === "pending") {
+                  const modalTitle = "Pending admin review";
+                  const modalBody  = "<p style=\"margin:0 0 8px;\">This listing is in the admin queue and won't appear in the public catalog until the admin approves it.</p>" +
+                                     "<p style=\"margin:0 0 8px;\">For non-Established Members, every sale listing requires an <strong>ownership-verification video</strong> approved by the admin before the listing itself can be approved. If you haven't recorded yours yet, tap <strong>Edit</strong> on this card and submit a video.</p>" +
+                                     "<p style=\"margin:0; color: var(--muted);\">Typical review window: 24-48 hours.</p>";
                   return `<div class="pc-mod-banner pc-mod-pending">
-                            <strong>Pending Review</strong>
-                            <span>Awaiting admin approval. Hidden from the public catalog until approved.</span>
+                            <button type="button" class="pc-mod-info-btn" data-mod-info
+                                    data-info-title="${escapeHtml(modalTitle)}"
+                                    data-info-html="${escapeHtml(modalBody)}">
+                              ⏳ Pending Review <span class="vp-chev" aria-hidden="true">›</span>
+                            </button>
                           </div>`;
                 }
                 // Rejected: show a compact banner with a click-for-details
