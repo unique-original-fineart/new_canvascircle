@@ -19,7 +19,7 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
-const CACHE_VERSION = 'cc-v104-saved-search-row-chips-only';
+const CACHE_VERSION = 'cc-v105-video-gate-every-non-established-listing';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. Their URLs

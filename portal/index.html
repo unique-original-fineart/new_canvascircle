@@ -5559,61 +5559,46 @@
     }
 
     // ------------------------------------------------------------------
-    // First-sale-listing video gate.
+    // Sale-listing video gate (every-listing variant, 2026-05-29).
     //
-    // Trust-signal policy (introduced 2026-05-28): a brand-new non-
-    // Established seller posting their first sale listing MUST submit an
-    // ownership-verification video before admin can approve the listing.
-    // This replaces the older approach where admins manually eyeballed
-    // listings + FB URLs and approved with no hard evidence the seller
-    // actually owns the piece.
+    // Trust-signal policy: EVERY sale listing from a non-Established
+    // seller MUST include an ownership-verification video before admin
+    // can approve. ISOs and Established Members bypass.
     //
-    // Gate triggers when ALL of the following hold:
-    //   - listing_type === 'sale'              (ISOs are exempt — they're
-    //                                            buyer requests, no piece
-    //                                            to verify; admin review
-    //                                            remains the only gate)
-    //   - seller is not an Established Member  (is_trusted = false; admin
-    //                                            promotion bypasses the
-    //                                            gate by design)
-    //   - seller has zero prior approved sale  (one cleared listing is the
-    //                                            sale listings                permanent vetting checkpoint)
+    // History:
+    //   2026-05-28 — Initial rollout gated only the FIRST sale listing
+    //     for non-Established sellers (one-time vetting checkpoint).
+    //   2026-05-29 — Tightened to every-listing because (a) faking N
+    //     unique videos with matching @handles + recent dates is
+    //     exponentially harder than faking one, (b) the gate aligns
+    //     directly with the 4-verified-listing criterion for Established
+    //     status — every non-Established listing is now progress toward
+    //     graduation, not friction to be endured.
     //
-    // Implementation is purely client-side for Stage 1; admin can still
-    // override via direct DB update if needed. A future server-side
-    // trigger can enforce permanently.
+    // Gate triggers when:
+    //   - listing_type === 'sale'              (ISOs bypass — buyer requests)
+    //   - seller is not an Established Member  (is_trusted = false)
     //
-    // Inputs:
-    //   listing       — the listing row (must include listing_type)
-    //   allListings   — the seller's full set of listings from the
-    //                   dashboard query (includes moderation_status +
-    //                   listing_type so we can count prior approvals)
-    //   profile       — the seller's profile row, used for is_trusted
+    // No "prior approved" check — that was the first-listing-only rule
+    // we replaced. Now every sale listing for non-Established gets gated.
     //
     // Returns boolean: true → this listing is gated on video verification.
     // ------------------------------------------------------------------
-    function listingRequiresFirstTimeVideoGate(listing, allListings, profile) {
+    function listingRequiresVideoGate(listing, profile) {
       if (!listing || !profile) return false;
       if (listing.listing_type !== "sale") return false;
       if (profile.is_trusted) return false;
-      const priorApproved = (allListings || []).some(l =>
-        l.listing_id !== listing.listing_id &&
-        l.listing_type === "sale" &&
-        l.moderation_status === "approved"
-      );
-      return !priorApproved;
+      return true;
     }
 
     // Lighter-weight variant for the new-listing submit flow where the
     // listing hasn't been created yet — answers "will the listing about
-    // to be submitted be gated?" by examining the existing cache only.
-    function nextSaleListingWouldBeGated(allListings, profile) {
+    // to be submitted be gated?" Profile alone is enough now (no
+    // dependency on allListings).
+    function saleListingWouldBeGated(profile) {
       if (!profile) return false;
       if (profile.is_trusted) return false;
-      const priorApproved = (allListings || []).some(l =>
-        l.listing_type === "sale" && l.moderation_status === "approved"
-      );
-      return !priorApproved;
+      return true;
     }
 
     // ----- Helpers -----
@@ -5707,15 +5692,13 @@
       // detouring through Edit. Discoverability fix that doesn't bloat the
       // card (single text-button, no chrome).
       //
-      // Stage 1 of the first-sale-listing video gate (see
-      // [[listingRequiresFirstTimeVideoGate]]): when this listing falls
-      // under the gate (non-Established seller, first sale listing, no
-      // prior approved sale listing), upgrade the optional CTA to a
+      // Sale-listing video gate (see [[listingRequiresVideoGate]]):
+      // when this listing falls under the gate (any sale listing from
+      // a non-Established seller), upgrade the optional CTA to a
       // required-styling treatment. The seller's listing literally cannot
-      // be approved by admin until they record the video, so the urgency
-      // matters.
+      // be approved by admin until they record the video.
       if (status === "none") {
-        const isGated = listingRequiresFirstTimeVideoGate(l, allListings, currentProfileCached);
+        const isGated = listingRequiresVideoGate(l, currentProfileCached);
         if (isGated) {
           return `
             <div class="pc-verification">
@@ -9171,16 +9154,16 @@
       $modEmpty.hidden   = true;
       $modList.hidden    = true;
       $modList.innerHTML = "";
-      // Three pieces of data per row are needed for the first-sale-listing
-      // gate (see [[listingRequiresFirstTimeVideoGate]]):
+      // Two pieces of data per row are needed for the sale-listing video
+      // gate (see [[listingRequiresVideoGate]]):
       //   1. seller.is_trusted (so Established Members bypass the gate)
-      //   2. seller's prior approved sale-listing count (zero = gate active)
-      //   3. this listing's listing_verifications presence (any submitted
+      //   2. this listing's listing_verifications presence (any submitted
       //      video — pending or approved — clears the "needs video" half
       //      of the gate so admin can proceed)
-      // We fetch (1) via the existing profiles join + an is_trusted column;
-      // (2) and (3) via two follow-up batched queries against the loaded
-      // seller_ids and listing_ids.
+      // Both are fetched in the single listings query below via joins.
+      // Pre-2026-05-29 we also did a per-seller "prior approved sale
+      // listings" count to gate only the first listing — that's gone
+      // now that the policy is every-listing.
       const { data, error } = await supabase
         .from("listings")
         .select(`
@@ -9203,46 +9186,18 @@
       $adminPendingBadge.textContent = rows.length ? `(${rows.length})` : "";
       if (rows.length === 0) { $modEmpty.hidden = false; return; }
 
-      // Batched query: for each unique seller_id in the queue, count how
-      // many of their existing listings are approved sale listings. If
-      // the count is zero AND seller is non-Established, this seller's
-      // listings in the queue are subject to the first-sale-listing gate.
-      const saleSellerIds = Array.from(new Set(
-        rows.filter(r => r.listing_type === "sale").map(r => r.seller_id)
-      ));
-      const priorApprovedBySeller = new Map();
-      if (saleSellerIds.length) {
-        // PostgREST returns one row per matching listing; we only need
-        // a presence check so any limit works — but to keep the request
-        // cheap with many sellers, ask for just the seller_id column.
-        const { data: approvedRows, error: priorErr } = await supabase
-          .from("listings")
-          .select("seller_id")
-          .in("seller_id", saleSellerIds)
-          .eq("listing_type", "sale")
-          .eq("moderation_status", "approved");
-        if (priorErr) {
-          console.warn("[mod-queue] prior-approval query failed (gate will be conservative):", priorErr);
-        } else {
-          for (const r of (approvedRows || [])) {
-            priorApprovedBySeller.set(r.seller_id, (priorApprovedBySeller.get(r.seller_id) || 0) + 1);
-          }
-        }
-      }
-
       const frag = document.createDocumentFragment();
       for (const l of rows) {
-        const isFirstSaleGate =
+        const isVideoGate =
           l.listing_type === "sale" &&
-          !l.profiles?.is_trusted &&
-          (priorApprovedBySeller.get(l.seller_id) || 0) === 0;
+          !l.profiles?.is_trusted;
         // The gate is satisfied (admin can approve) when ANY verification
         // record exists for this listing — pending counts since admin
         // reviews the video as part of the approve action anyway, and
         // approved verification is obviously fine. The gate is failed
         // (admin must hold off) when no record exists at all.
         const hasVideo = (l.listing_verifications || []).length > 0;
-        frag.appendChild(renderModItem(l, { isFirstSaleGate, hasVideo }));
+        frag.appendChild(renderModItem(l, { isVideoGate, hasVideo }));
       }
       $modList.appendChild(frag);
       $modList.hidden = false;
@@ -9259,14 +9214,15 @@
       const email  = l.profiles?.contact_email || "";
       const days   = Math.max(0, Math.floor((Date.now() - new Date(l.created_at).getTime()) / 86400000));
 
-      // First-sale-listing gate context (see
-      // [[listingRequiresFirstTimeVideoGate]]). When the gate is active
-      // AND no verification video exists yet, admin cannot approve — the
-      // Approve button is disabled and a "first sale listing — video
-      // required" indicator surfaces above the actions row.
-      const isFirstSaleGate = !!ctx.isFirstSaleGate;
-      const hasVideo        = !!ctx.hasVideo;
-      const approveBlocked  = isFirstSaleGate && !hasVideo;
+      // Sale-listing video gate context (see [[listingRequiresVideoGate]]).
+      // When the gate is active AND no verification video exists yet,
+      // admin cannot approve — the Approve button is disabled and a
+      // "verification video required" indicator surfaces above the
+      // actions row. As of 2026-05-29, the gate applies to EVERY sale
+      // listing from a non-Established seller, not just the first.
+      const isVideoGate    = !!ctx.isVideoGate;
+      const hasVideo       = !!ctx.hasVideo;
+      const approveBlocked = isVideoGate && !hasVideo;
 
       // Price / budget label
       let priceLabel;
@@ -9287,20 +9243,19 @@
       // Gate indicator — small pill above the actions row. Two variants:
       //   - approveBlocked (no video yet) → soft-warning treatment
       //   - hasVideo (gate satisfied)     → confirmation treatment so
-      //                                      admin knows this is a first
-      //                                      listing but the video's in
+      //                                      admin knows the video's in
       //                                      hand and review can proceed.
       let gateBadgeHtml = "";
-      if (isFirstSaleGate) {
+      if (isVideoGate) {
         if (approveBlocked) {
           gateBadgeHtml =
-            `<div class="mod-gate-badge mod-gate-badge-blocked" title="The seller has zero prior approved sale listings and is not an Established Member. They must submit a verification video before this listing can be approved.">
-               ⚠ First sale listing — verification video required
+            `<div class="mod-gate-badge mod-gate-badge-blocked" title="Seller is not an Established Member. Every non-Established sale listing requires a verification video before approval.">
+               ⚠ Non-Established seller — verification video required
              </div>`;
         } else {
           gateBadgeHtml =
-            `<div class="mod-gate-badge mod-gate-badge-ready" title="First-time seller's verification video is in the queue — review it via the Verified Listings panel before approving.">
-               📹 First sale listing — video submitted, ready to review
+            `<div class="mod-gate-badge mod-gate-badge-ready" title="Seller's verification video is in the queue — review it via the Verified Listings panel before approving.">
+               📹 Verification video submitted — ready to review
              </div>`;
         }
       }
@@ -12084,17 +12039,18 @@
       // Ownership-verification hint is sale-only — ISO listings are buyer
       // requests and have no ownership to verify.
       // Copy is swapped based on whether this seller would be subject to
-      // the first-sale-listing video gate (see
-      // [[listingRequiresFirstTimeVideoGate]]). For gated submissions the
-      // copy reads as required-not-optional, with stronger visual chrome.
+      // the sale-listing video gate (see [[listingRequiresVideoGate]]).
+      // Non-Established sellers see the orange "video required" copy on
+      // every sale listing; Established Members see the blue optional
+      // copy since their listings auto-publish.
       const $nlVerifyHint = document.getElementById("nl-verify-hint");
       if ($nlVerifyHint) {
         $nlVerifyHint.hidden = isIso;
         if (!isIso) {
-          const gated = nextSaleListingWouldBeGated(allListings, currentProfileCached);
+          const gated = saleListingWouldBeGated(currentProfileCached);
           if (gated) {
             $nlVerifyHint.innerHTML =
-              `📹 <strong>Verification video required.</strong> Your first sale listing has to include an ownership-verification video before the admin can approve it. After you submit, you'll be guided through recording the video. You only need to do this once — future sale listings won't require it.`;
+              `📹 <strong>Verification video required.</strong> Every sale listing needs an ownership-verification video before the admin can approve it. After you submit, you'll be guided through recording the video. Once you have 4 verified listings and 3 accepted References from Established Members, you become an Established Member and your listings publish without per-listing video.`;
             $nlVerifyHint.style.background = "rgba(255,153,51,0.10)";
             $nlVerifyHint.style.borderColor = "rgba(255,153,51,0.35)";
           } else {
@@ -12780,23 +12736,14 @@
         //     CTA to add the badge.
         // (B) Non-Established + ISO:
         //     Admin review only, no video gate.
-        // (C) Non-Established + sale, prior approved sale listing exists:
-        //     Admin review; video is recommended but optional. Same
-        //     "Verify ownership now" prompt as before.
-        // (D) Non-Established + sale, ZERO prior approved sale listings:
-        //     The first-sale-listing video gate (see
-        //     [[listingRequiresFirstTimeVideoGate]]). Banner becomes
-        //     stronger + the video CTA is the only path forward — admin
-        //     cannot approve without it.
-        //
-        // After loadDashboardListings(), allListings reflects the new row.
-        // For the gate check we want to know whether the seller had any
-        // PRIOR approvals — so we use nextSaleListingWouldBeGated which
-        // ignores the newly-inserted (still-pending) listing entirely.
-        // The newly-inserted listing has moderation_status='pending', so
-        // it naturally doesn't count toward "prior approved" either way.
-        const isFirstSaleGate = !isTrusted && !isIso &&
-          nextSaleListingWouldBeGated(allListings, currentProfileCached);
+        // (C) Non-Established + sale (ANY sale listing):
+        //     The sale-listing video gate (see
+        //     [[listingRequiresVideoGate]]). Listing is saved as draft;
+        //     the video CTA is the only path forward — admin cannot
+        //     approve without it. Per 2026-05-29, this now applies to
+        //     EVERY non-Established sale listing, not just the first.
+        const isVideoGated = !isTrusted && !isIso &&
+          saleListingWouldBeGated(currentProfileCached);
 
         let bannerMsg;
         if (isTrusted) {
@@ -12805,8 +12752,8 @@
             : "Listing created and live on the catalog.";
         } else if (isIso) {
           bannerMsg = "Request submitted. The admin will review it before it appears in the public catalog.";
-        } else if (isFirstSaleGate) {
-          bannerMsg = "Listing saved as draft. Record a verification video next — your first sale listing can't be approved without it.";
+        } else if (isVideoGated) {
+          bannerMsg = "Listing saved as draft. Record a verification video next — sale listings can't be approved without it until you're an Established Member.";
         } else {
           bannerMsg = "Listing submitted. The admin will review it before it appears in the public catalog.";
         }
@@ -12819,21 +12766,18 @@
               }
             } : {})
           : {
-              // Both gated + ungated non-Established sale listings get the
-              // verify CTA. For the gated case it's required; for the
-              // ungated case it's a recommended next step.
+              // All non-Established sale listings need video. Banner stays
+              // visible until the user starts recording.
               action: {
-                label: isFirstSaleGate
-                  ? "📹 Record verification video →"
-                  : "Verify ownership now →",
+                label: "📹 Record verification video →",
                 onClick: () => triggerVerifyForListingId(newId)
               },
               // Don't auto-hide the gated banner — the user must take the
               // action or they'll forget the listing is stuck in draft.
-              autoHide: !isFirstSaleGate,
+              autoHide: !isVideoGated,
             };
 
-        showDashBanner(bannerMsg, isFirstSaleGate ? "info" : "success", bannerOpts);
+        showDashBanner(bannerMsg, isVideoGated ? "info" : "success", bannerOpts);
       } catch (err) {
         console.error("[new-listing] failed:", err);
         setBanner("new-listing", (isIso ? "Could not post the request: " : "Could not create the listing: ") + (err.message || err), "error");
