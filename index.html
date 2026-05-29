@@ -268,6 +268,129 @@
       color: var(--fg);
       border-color: var(--border-strong);
     }
+    /* "Save this search" bar — shown below the filter toolbar when any
+       filter or search input is non-default. Single-button affordance:
+       gradient pill that reads as "this is an action you can take right
+       now." Hidden by default; .has-filters class on body or
+       JS-driven .visible toggles display. */
+    .save-search-bar {
+      margin: 4px 4px 12px;
+    }
+    .save-search-bar[hidden] { display: none; }
+    .save-search-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,.18);
+    }
+    .save-search-btn:hover { filter: brightness(1.08); }
+    .save-search-btn:disabled { opacity: .6; cursor: wait; }
+
+    /* "Save this search" modal — small, focused, single-form. Reuses
+       the same dark-mode chrome as other catalog modals. */
+    .save-search-modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 1000;
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .save-search-modal-backdrop.visible { display: flex; }
+    .save-search-modal {
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 14px;
+      padding: 22px 24px;
+      max-width: 460px; width: 100%;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 20px 50px rgba(0,0,0,.4);
+    }
+    .save-search-modal h3 {
+      margin: 0 0 8px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 20px;
+      letter-spacing: -.02em;
+      color: var(--fg);
+    }
+    .save-search-modal .ss-help {
+      margin: 0 0 14px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .save-search-modal .ss-summary {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin: 0 0 14px;
+    }
+    .save-search-modal .ss-chip {
+      display: inline-flex; align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      font-size: 12px;
+      color: var(--fg);
+    }
+    .save-search-modal label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .save-search-modal input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      background: var(--surface-2);
+      color: var(--fg);
+      font-size: 14px;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    .save-search-modal input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 35%, transparent);
+    }
+    .save-search-modal .ss-error {
+      margin: 8px 0 0;
+      font-size: 13px;
+      color: #d44;
+    }
+    .save-search-modal .ss-error[hidden] { display: none; }
+    .save-search-modal .ss-actions {
+      display: flex; gap: 8px; justify-content: flex-end;
+      margin-top: 16px;
+    }
+    .save-search-modal .ss-actions button {
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .save-search-modal .ss-cancel {
+      background: var(--surface-2);
+      color: var(--fg);
+      border: 1px solid var(--card-line);
+    }
+    .save-search-modal .ss-confirm {
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      border: none;
+    }
+    .save-search-modal .ss-confirm:disabled { opacity: .6; cursor: wait; }
+
     .stats {
       color: var(--muted);
       font-size: 13px;
@@ -647,6 +770,17 @@
       </div>
     </form>
 
+    <!-- "Save this search" affordance — only visible when at least one
+         filter / search field is non-default. Saves the active filter
+         combo as a saved_searches row (kind='filter') that fires a push
+         notification whenever a new approved listing matches. See
+         [[saved-searches-as-filter]]. -->
+    <div id="save-search-bar" class="save-search-bar" hidden>
+      <button type="button" id="save-search-btn" class="save-search-btn">
+        🔔 Save this search &mdash; get pinged when matching listings post
+      </button>
+    </div>
+
     <div id="stats" class="stats" hidden></div>
     <div id="status">Loading catalog&hellip;</div>
     <div id="grid" class="grid" hidden></div>
@@ -657,6 +791,27 @@
       <div>Try clearing one or two of them.</div>
     </div>
   </main>
+
+  <!-- Save-this-search modal. Opened by the #save-search-btn affordance
+       below the catalog toolbar. The modal renders a chip-summary of the
+       active filters, a single text input for the search's display name
+       (auto-populated with a generated summary), and Cancel / Save Search
+       actions. Submit inserts a saved_searches row with kind='filter' +
+       filter_json + display_name. Hidden by default. -->
+  <div id="save-search-modal" class="save-search-modal-backdrop" aria-hidden="true">
+    <div class="save-search-modal" role="dialog" aria-labelledby="ss-modal-title" aria-modal="true">
+      <h3 id="ss-modal-title">Save this search</h3>
+      <p class="ss-help">We'll send a push notification the moment a new listing matches these criteria. You can manage saved searches anytime from My Account → Saved → Following.</p>
+      <div id="ss-summary" class="ss-summary" aria-label="Active filter summary"></div>
+      <label for="ss-name">Name this search</label>
+      <input type="text" id="ss-name" maxlength="120" placeholder="e.g. Limited Editions under $5K" />
+      <div id="ss-error" class="ss-error" hidden></div>
+      <div class="ss-actions">
+        <button type="button" class="ss-cancel" id="ss-cancel">Cancel</button>
+        <button type="button" class="ss-confirm" id="ss-confirm">Save search</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Back-to-top — initial visibility is controlled by the CSS (#back-to-top
        defaults to display:none; .visible flips it to flex when scrolled past
@@ -679,6 +834,7 @@
     import { supabase, publicImageUrl } from "/lib/supabase.js?v=2";
     import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
     import { showAuthPrompt } from "/lib/auth-prompt.js";
+    import { armReturnTrail } from "/lib/return-trail.js";
     import { mountWelcomeBanner } from "/lib/welcome-banner.js";
     import { mountInstallBanner } from "/lib/install-prompt.js";
 
@@ -1440,11 +1596,15 @@
       catch { return; }
       if (!params || ![...params].length) return;
 
-      const q       = params.get("q");
-      const cat     = params.get("cat");
-      const seller  = params.get("seller");
-      const tabRaw  = params.get("tab");
-      const statusF = params.get("status");
+      const q             = params.get("q");
+      const cat           = params.get("cat");
+      const seller        = params.get("seller");
+      const tabRaw        = params.get("tab");
+      const statusF       = params.get("status");
+      const trustMember   = params.get("trust_member");
+      const trustVerify   = params.get("trust_verify");
+      const minP          = params.get("min");
+      const maxP          = params.get("max");
 
       if (q       != null) $q.value = q;
       if (cat     != null) $cat.value = cat;
@@ -1452,6 +1612,19 @@
       if (statusF != null && ["active", "available", "pending", "sold", "not_renewed"].includes(statusF)) {
         $statusF.value = statusF;
       }
+      // Trust narrowing params come from saved-search rows (kind='filter')
+      // in the portal's Following section. Catalog already validates +
+      // ignores unknown values, but bound-checking here keeps the URL
+      // surface explicit. The trust selects are hidden for signed-out
+      // viewers — the values are still set in the DOM, just not visible.
+      if (trustMember != null && ["established", "non-established"].includes(trustMember)) {
+        $trustMember.value = trustMember;
+      }
+      if (trustVerify != null && ["verified", "unverified"].includes(trustVerify)) {
+        $trustVerify.value = trustVerify;
+      }
+      if (minP != null && minP !== "") $min.value = minP;
+      if (maxP != null && maxP !== "") $max.value = maxP;
       if (tabRaw === "iso" || tabRaw === "sale") currentTab = tabRaw;
 
       // Intentionally NO saveFilterState() here — see CRITICAL note above.
@@ -1561,6 +1734,254 @@
       clearFilterState();
       applyFilters();
     });
+
+    // ========================================================================
+    // Save-this-search — kind='filter' saved_searches row + push fanout.
+    //
+    // Companion to the kind='artist' / kind='seller' follow flows. When a
+    // signed-in user has filters active, they can save the combo as a
+    // named search; the saved-search-fanout edge function evaluates each
+    // newly-approved listing against the criteria and pushes a notification
+    // if matched. Migration 038 adds the filter_json + display_name columns.
+    //
+    // The button is contextually visible: hidden until at least one filter
+    // (or the search query) deviates from the default page state. Saving a
+    // truly-unfiltered catalog isn't useful (it would notify on every new
+    // listing — that's "follow all activity" and would spam users).
+    // ========================================================================
+
+    function isFilterMeaningfulForSave(snapshot) {
+      // Tab alone doesn't count — we don't want users saving "all Sale
+      // listings" or "all ISO." Status filter at its default ("active")
+      // also doesn't count. Anything else is meaningful.
+      if ((snapshot.q || "").trim()) return true;
+      if (snapshot.cat) return true;
+      if (snapshot.statusF && snapshot.statusF !== "active") return true;
+      if (snapshot.seller) return true;
+      if (snapshot.trustMember) return true;
+      if (snapshot.trustVerify) return true;
+      if (snapshot.min) return true;
+      if (snapshot.max) return true;
+      return false;
+    }
+
+    // Build the filter_json blob that gets persisted + later evaluated by
+    // the fanout edge function. Strip derived state (_sellerIds) — only
+    // user-intent fields land in storage so the saved row stays compact
+    // and the fanout reconstructs derived state from the user's q.
+    function buildFilterJsonForSave(snapshot) {
+      const f = { listing_type: snapshot.tab };
+      if ((snapshot.q || "").trim())   f.q = snapshot.q.trim();
+      if (snapshot.cat)                f.cat = snapshot.cat;
+      if (snapshot.statusF && snapshot.statusF !== "active")
+                                       f.status = snapshot.statusF;
+      if (snapshot.seller)             f.seller_id = snapshot.seller;
+      if (snapshot.trustMember)        f.trust_member = snapshot.trustMember;
+      if (snapshot.trustVerify)        f.trust_verify = snapshot.trustVerify;
+      if (snapshot.min)                f.min_price = Number(snapshot.min);
+      if (snapshot.max)                f.max_price = Number(snapshot.max);
+      return f;
+    }
+
+    // Chip labels for the modal summary + the default-name generator.
+    // Reads the SAME snapshot so visible chips and saved JSON stay in sync.
+    function summarizeFilterChips(snapshot) {
+      const chips = [];
+      const tabLabel = snapshot.tab === "iso" ? "In Search Of" : "For Sale";
+      chips.push({ label: tabLabel });
+      if ((snapshot.q || "").trim()) chips.push({ label: `"${snapshot.q.trim()}"` });
+      if (snapshot.cat) chips.push({ label: snapshot.cat });
+      if (snapshot.statusF && snapshot.statusF !== "active") {
+        const statusLabels = {
+          available: "Available only",
+          pending:   "Pending Sale",
+          sold:      snapshot.tab === "iso" ? "Closed" : "Sold",
+          not_renewed: "Not renewed",
+        };
+        chips.push({ label: statusLabels[snapshot.statusF] || snapshot.statusF });
+      }
+      if (snapshot.seller) {
+        const opt = Array.from($seller.options).find(o => o.value === snapshot.seller);
+        chips.push({ label: `Seller: ${opt?.textContent || "selected"}` });
+      }
+      if (snapshot.trustMember === "established")     chips.push({ label: "Established Members" });
+      if (snapshot.trustMember === "non-established") chips.push({ label: "Non-Established Members" });
+      if (snapshot.trustVerify === "verified")        chips.push({ label: "Verified ownership" });
+      if (snapshot.trustVerify === "unverified")      chips.push({ label: "Unverified ownership" });
+      if (snapshot.min && snapshot.max) chips.push({ label: `$${Number(snapshot.min).toLocaleString()}–$${Number(snapshot.max).toLocaleString()}` });
+      else if (snapshot.min)            chips.push({ label: `From $${Number(snapshot.min).toLocaleString()}` });
+      else if (snapshot.max)            chips.push({ label: `Up to $${Number(snapshot.max).toLocaleString()}` });
+      return chips;
+    }
+
+    // Generate a default display_name from the chip summary. Joined with
+    // " · " (matching the brand's typical chip-row visual). User can edit
+    // before saving.
+    function generateDefaultSearchName(snapshot) {
+      const chips = summarizeFilterChips(snapshot);
+      // Drop the tab chip — it's implied context, not a search-defining
+      // criterion in the saved-search name. Unless ISO; "ISO" is short
+      // enough to include for clarity.
+      const visible = snapshot.tab === "iso"
+        ? chips
+        : chips.slice(1);
+      const parts = visible.map(c => c.label);
+      return parts.join(" · ").slice(0, 120);
+    }
+
+    const $saveBar     = document.getElementById("save-search-bar");
+    const $saveBtn     = document.getElementById("save-search-btn");
+    const $saveModal   = document.getElementById("save-search-modal");
+    const $saveSummary = document.getElementById("ss-summary");
+    const $saveName    = document.getElementById("ss-name");
+    const $saveError   = document.getElementById("ss-error");
+    const $saveCancel  = document.getElementById("ss-cancel");
+    const $saveConfirm = document.getElementById("ss-confirm");
+
+    // Recompute the bar's visibility whenever filters change. Hook this
+    // into the same event lifecycle as applyFilters — no extra debounce
+    // since the function is cheap (just snapshot + boolean checks).
+    function updateSaveSearchBarVisibility() {
+      if (!$saveBar) return;
+      const snapshot = snapshotFilters();
+      $saveBar.hidden = !isFilterMeaningfulForSave(snapshot);
+    }
+    // Recompute on every applyFilters tick. Easiest hook: piggyback on
+    // updateStatsBar which already runs after each successful query.
+    const _origUpdateStatsBar = updateStatsBar;
+    updateStatsBar = function() {
+      _origUpdateStatsBar();
+      updateSaveSearchBarVisibility();
+    };
+    // Also recompute immediately after any filter-input change (even
+    // before the debounced applyFilters fires) so the button reacts
+    // snappily to the user's edits.
+    [$q, $min, $max].forEach(el => el.addEventListener("input", updateSaveSearchBarVisibility));
+    [$cat, $statusF, $seller, $trustMember, $trustVerify].forEach(el => {
+      el.addEventListener("change", updateSaveSearchBarVisibility);
+    });
+    $clear.addEventListener("click", updateSaveSearchBarVisibility);
+
+    function openSaveSearchModal() {
+      if (!$saveModal) return;
+      const snapshot = snapshotFilters();
+      // Render the chip summary so the user can confirm what's being saved.
+      const chips = summarizeFilterChips(snapshot);
+      $saveSummary.innerHTML = chips
+        .map(c => `<span class="ss-chip">${c.label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</span>`)
+        .join("");
+      // Pre-fill the name with a generated summary; user can edit.
+      $saveName.value = generateDefaultSearchName(snapshot);
+      $saveError.hidden = true;
+      $saveError.textContent = "";
+      $saveModal.classList.add("visible");
+      $saveModal.setAttribute("aria-hidden", "false");
+      setTimeout(() => $saveName.focus(), 50);
+    }
+
+    function closeSaveSearchModal() {
+      $saveModal.classList.remove("visible");
+      $saveModal.setAttribute("aria-hidden", "true");
+    }
+
+    $saveBtn?.addEventListener("click", async () => {
+      // Gate on signed-in. Unauthed users see the auth prompt + return
+      // trail breadcrumb so they land back on this same filter state
+      // after sign-in.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        try { armReturnTrail?.("the catalog with your filters"); } catch {}
+        showAuthPrompt({ message: "Sign up to save searches and get pinged when new listings match." });
+        return;
+      }
+      openSaveSearchModal();
+    });
+
+    $saveCancel?.addEventListener("click", closeSaveSearchModal);
+    $saveModal?.addEventListener("click", (e) => {
+      // Backdrop click closes; inner clicks bubble + don't close.
+      if (e.target === $saveModal) closeSaveSearchModal();
+    });
+
+    $saveConfirm?.addEventListener("click", async () => {
+      const name = ($saveName.value || "").trim();
+      if (!name) {
+        $saveError.textContent = "Give this search a name first.";
+        $saveError.hidden = false;
+        $saveName.focus();
+        return;
+      }
+      if (name.length > 120) {
+        $saveError.textContent = "Name is too long (max 120 characters).";
+        $saveError.hidden = false;
+        return;
+      }
+      const snapshot = snapshotFilters();
+      const filterJson = buildFilterJsonForSave(snapshot);
+      $saveConfirm.disabled = true;
+      $saveConfirm.textContent = "Saving…";
+      $saveError.hidden = true;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not signed in.");
+        const { error } = await supabase
+          .from("saved_searches")
+          .insert({
+            user_id:      user.id,
+            kind:         "filter",
+            value:        null,            // unused for kind='filter'
+            filter_json:  filterJson,
+            display_name: name,
+          });
+        if (error) throw error;
+        closeSaveSearchModal();
+        // Small confirmation — reuse the existing toast pattern if there
+        // is one, else a plain alert as a placeholder. Keep it brief.
+        showSavedSearchToast(name);
+      } catch (err) {
+        console.error("[save-search] insert failed:", err);
+        $saveError.textContent = "Could not save: " + (err.message || err);
+        $saveError.hidden = false;
+      } finally {
+        $saveConfirm.disabled = false;
+        $saveConfirm.textContent = "Save search";
+      }
+    });
+
+    // Lightweight confirmation toast — fades in/out at the bottom. Avoids
+    // building a full toast system since this is the only consumer here.
+    function showSavedSearchToast(name) {
+      const toast = document.createElement("div");
+      toast.textContent = `🔔 Search saved: ${name}`;
+      toast.style.cssText = [
+        "position:fixed",
+        "bottom:80px",
+        "left:50%",
+        "transform:translateX(-50%)",
+        "padding:10px 16px",
+        "border-radius:999px",
+        "background:var(--brand-gradient)",
+        "color:var(--text-inverse)",
+        "font-size:13px",
+        "font-weight:600",
+        "box-shadow:0 4px 14px rgba(0,0,0,.25)",
+        "z-index:200",
+        "opacity:0",
+        "transition:opacity .2s ease",
+        "max-width:90%",
+        "white-space:nowrap",
+        "overflow:hidden",
+        "text-overflow:ellipsis",
+      ].join(";");
+      document.body.appendChild(toast);
+      requestAnimationFrame(() => { toast.style.opacity = "1"; });
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        setTimeout(() => toast.remove(), 250);
+      }, 3500);
+    }
+    // Initial visibility check on page load.
+    updateSaveSearchBarVisibility();
 
     // Infinite scroll — observe the sentinel below the grid and pull the
     // next page of listings from the server when nearing the bottom.

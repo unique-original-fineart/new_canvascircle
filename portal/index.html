@@ -2792,6 +2792,25 @@
       opacity: .55; cursor: wait;
     }
 
+    /* Saved-search filter chips — small read-only badges shown on
+       kind='filter' following rows, beneath the display name + "View
+       results" link. Each chip names one criterion from filter_json
+       (category, status, price range, trust narrowing, etc.). */
+    .following-row .fr-saved-chips {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      margin-top: 4px;
+    }
+    .following-row .fr-saved-chip {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--surface-1);
+      border: 1px solid var(--card-line);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
     .following-row .fr-unfollow {
       padding: 5px 11px;
       border-radius: 999px;
@@ -3769,6 +3788,7 @@
                 <button type="button" class="is-active" data-kind="all" role="tab" aria-selected="true">All <span class="pill-count" id="ft-count-all"></span></button>
                 <button type="button" data-kind="artist" role="tab" aria-selected="false">Artists <span class="pill-count" id="ft-count-artist"></span></button>
                 <button type="button" data-kind="seller" role="tab" aria-selected="false">Sellers <span class="pill-count" id="ft-count-seller"></span></button>
+                <button type="button" data-kind="filter" role="tab" aria-selected="false">Searches <span class="pill-count" id="ft-count-filter"></span></button>
               </div>
 
               <!-- Inline "Follow an artist by name" form.
@@ -11348,16 +11368,16 @@
     // rows on every render.
     // ------------------------------------------------------------------
     const FOLLOWING_KIND_KEY = "cc_following_kind_filter";
-    let followingKindFilter = "all"; // "all" | "artist" | "seller"
+    let followingKindFilter = "all"; // "all" | "artist" | "seller" | "filter"
     try {
       const saved = localStorage.getItem(FOLLOWING_KIND_KEY);
-      if (saved === "artist" || saved === "seller" || saved === "all") {
+      if (saved === "artist" || saved === "seller" || saved === "filter" || saved === "all") {
         followingKindFilter = saved;
       }
     } catch {}
 
     function setFollowingKindFilter(kind) {
-      if (kind !== "all" && kind !== "artist" && kind !== "seller") kind = "all";
+      if (kind !== "all" && kind !== "artist" && kind !== "seller" && kind !== "filter") kind = "all";
       followingKindFilter = kind;
       try { localStorage.setItem(FOLLOWING_KIND_KEY, kind); } catch {}
       // Re-render to apply the filter (also updates pill active state +
@@ -11464,7 +11484,7 @@
               value:           raw,
               category_filter: categoryFilter,
             })
-            .select("id, kind, value, category_filter, created_at")
+            .select("id, kind, value, category_filter, filter_json, display_name, created_at")
             .single();
           if (error) throw error;
 
@@ -11515,7 +11535,15 @@
       // gated on whether we've finished listing existing rows. Visibility
       // still respects the kind filter ("seller" hides the form).
       const $addFormEarly = document.getElementById("follow-artist-add-form");
-      if ($addFormEarly && followingKindFilter !== "seller") $addFormEarly.hidden = false;
+      // Show the artist-add form only in views where adding an artist
+      // makes contextual sense: "all" and "artist". Hidden under
+      // "seller" (the input wouldn't add a seller) and under "filter"
+      // (saved searches are created from the catalog, not here).
+      if ($addFormEarly && (followingKindFilter === "all" || followingKindFilter === "artist")) {
+        $addFormEarly.hidden = false;
+      } else if ($addFormEarly) {
+        $addFormEarly.hidden = true;
+      }
 
       try {
         const { data, error } = await withTimeout(
@@ -11523,7 +11551,7 @@
             .from("saved_searches")
             // category_filter (migration 037) narrows artist follows to a
             // single artwork_category. NULL = match all categories (default).
-            .select("id, kind, value, category_filter, created_at")
+            .select("id, kind, value, category_filter, filter_json, display_name, created_at")
             .eq("user_id", userId)
             .order("created_at", { ascending: false }),
           10000,
@@ -11567,7 +11595,11 @@
         // the read failed — adding a follow is an independent write and
         // shouldn't be hidden just because we couldn't list existing ones.
         const $addForm = document.getElementById("follow-artist-add-form");
-        if ($addForm && followingKindFilter !== "seller") $addForm.hidden = false;
+        if ($addForm && (followingKindFilter === "all" || followingKindFilter === "artist")) {
+          $addForm.hidden = false;
+        } else if ($addForm) {
+          $addForm.hidden = true;
+        }
       }
     }
 
@@ -11595,7 +11627,7 @@
       // Visible regardless of whether the user has any follows yet — its
       // most important moment is the very first follow.
       if ($addForm) {
-        $addForm.hidden = (followingKindFilter === "seller");
+        $addForm.hidden = !(followingKindFilter === "all" || followingKindFilter === "artist");
       }
 
       // Empty list — show the "Not following anyone yet" state and hide
@@ -11616,14 +11648,17 @@
       // is a useful affordance).
       const artistRows = allRows.filter(r => r.kind === "artist");
       const sellerRows = allRows.filter(r => r.kind === "seller");
+      const filterRows = allRows.filter(r => r.kind === "filter");
       if ($toggle) {
         $toggle.hidden = false;
         const $cAll    = document.getElementById("ft-count-all");
         const $cArtist = document.getElementById("ft-count-artist");
         const $cSeller = document.getElementById("ft-count-seller");
+        const $cFilter = document.getElementById("ft-count-filter");
         if ($cAll)    $cAll.textContent    = allRows.length;
         if ($cArtist) $cArtist.textContent = artistRows.length;
         if ($cSeller) $cSeller.textContent = sellerRows.length;
+        if ($cFilter) $cFilter.textContent = filterRows.length;
         $toggle.querySelectorAll("button[data-kind]").forEach(btn => {
           const isActive = btn.getAttribute("data-kind") === followingKindFilter;
           btn.classList.toggle("is-active", isActive);
@@ -11633,9 +11668,10 @@
 
       // Apply the kind filter.
       let rows;
-      if (followingKindFilter === "artist")      rows = artistRows;
-      else if (followingKindFilter === "seller") rows = sellerRows;
-      else                                       rows = allRows;
+      if      (followingKindFilter === "artist")  rows = artistRows;
+      else if (followingKindFilter === "seller")  rows = sellerRows;
+      else if (followingKindFilter === "filter")  rows = filterRows;
+      else                                        rows = allRows;
 
       // Filter active but zero matches — show the kind-specific empty
       // state pointing the user at how to add this kind of follow.
@@ -11643,9 +11679,13 @@
         $list.hidden = true;
         $list.innerHTML = "";
         if ($kindEmpty && $kindEmptyText) {
-          $kindEmptyText.innerHTML = followingKindFilter === "artist"
-            ? `<strong>No artists in your follows yet.</strong><br>On any listing detail page, tap <strong>+ Follow artist</strong> next to the artist name.`
-            : `<strong>No sellers in your follows yet.</strong><br>On a seller's public page, tap <strong>+ Follow this seller</strong>.`;
+          if (followingKindFilter === "artist") {
+            $kindEmptyText.innerHTML = `<strong>No artists in your follows yet.</strong><br>On any listing detail page, tap <strong>+ Follow artist</strong> next to the artist name, or type one in the box above.`;
+          } else if (followingKindFilter === "seller") {
+            $kindEmptyText.innerHTML = `<strong>No sellers in your follows yet.</strong><br>On a seller's public page, tap <strong>+ Follow this seller</strong>.`;
+          } else {
+            $kindEmptyText.innerHTML = `<strong>No saved searches yet.</strong><br>In the catalog, set up filters or a search term, then tap <strong>🔔 Save this search</strong> below the filter row.`;
+          }
           $kindEmpty.hidden = false;
         }
         return;
@@ -11653,11 +11693,68 @@
       if ($kindEmpty) $kindEmpty.hidden = true;
       $list.hidden = false;
 
+      // Helper: turn a stored filter_json into a sequence of human-readable
+      // chip labels for the saved-search row. Mirrors the same fields the
+      // catalog's save-search modal renders so what the user named matches
+      // what they see in the row. Also used to build the "View results"
+      // URL that jumps the user to the catalog with these filters applied.
+      function chipsFromFilterJson(f) {
+        if (!f || typeof f !== "object") return [];
+        const chips = [];
+        if (f.q)                                     chips.push(`"${f.q}"`);
+        if (f.cat)                                   chips.push(f.cat);
+        if (f.status && f.status !== "active") {
+          const m = { available: "Available only", pending: "Pending Sale", sold: "Sold", not_renewed: "Not renewed" };
+          chips.push(m[f.status] || f.status);
+        }
+        if (f.trust_member === "established")        chips.push("Established");
+        if (f.trust_member === "non-established")    chips.push("Non-Established");
+        if (f.trust_verify === "verified")           chips.push("Verified ownership");
+        if (f.trust_verify === "unverified")         chips.push("Unverified");
+        if (f.min_price != null && f.max_price != null) chips.push(`$${Number(f.min_price).toLocaleString()}–$${Number(f.max_price).toLocaleString()}`);
+        else if (f.min_price != null)                chips.push(`From $${Number(f.min_price).toLocaleString()}`);
+        else if (f.max_price != null)                chips.push(`Up to $${Number(f.max_price).toLocaleString()}`);
+        return chips;
+      }
+      function viewResultsUrlFromFilterJson(f) {
+        if (!f) return "/";
+        const params = [];
+        if (f.q)                                     params.push(`q=${encodeURIComponent(f.q)}`);
+        if (f.cat)                                   params.push(`cat=${encodeURIComponent(f.cat)}`);
+        if (f.status && f.status !== "active")       params.push(`status=${encodeURIComponent(f.status)}`);
+        if (f.seller_id)                             params.push(`seller=${encodeURIComponent(f.seller_id)}`);
+        if (f.trust_member)                          params.push(`trust_member=${encodeURIComponent(f.trust_member)}`);
+        if (f.trust_verify)                          params.push(`trust_verify=${encodeURIComponent(f.trust_verify)}`);
+        if (f.min_price != null)                     params.push(`min=${encodeURIComponent(f.min_price)}`);
+        if (f.max_price != null)                     params.push(`max=${encodeURIComponent(f.max_price)}`);
+        if (f.listing_type === "iso")                params.push(`tab=iso`);
+        return params.length ? `/?${params.join("&")}` : "/";
+      }
+
       $list.innerHTML = rows.map((r) => {
         const isArtist = r.kind === "artist";
-        const kindLabel = isArtist ? "Artist" : "Seller";
+        const isFilter = r.kind === "filter";
+        const kindLabel = isFilter ? "Search" : (isArtist ? "Artist" : "Seller");
         let nameHtml;
-        if (isArtist) {
+        if (isFilter) {
+          // Saved-search row. Display name on line 1, "View results →"
+          // link on line 2 that jumps to the catalog with the saved
+          // filters pre-applied via URL params (existing catalog code
+          // already handles ?q=, ?cat=, ?seller=, ?min=, ?max= etc.).
+          // Chip row on line 3 visualizes the active criteria so the
+          // user remembers what this saved search captures.
+          const name      = r.display_name || "(saved search)";
+          const isoTag    = r.filter_json?.listing_type === "iso" ? " · ISO" : "";
+          const chips     = chipsFromFilterJson(r.filter_json);
+          const linkHref  = viewResultsUrlFromFilterJson(r.filter_json);
+          const chipsHtml = chips.length
+            ? `<div class="fr-saved-chips">${chips.map(c => `<span class="fr-saved-chip">${escapeHtml(c)}</span>`).join("")}</div>`
+            : "";
+          nameHtml =
+            `<span class="fr-display-name">${escapeHtml(name)}${escapeHtml(isoTag)}</span>` +
+            `<a class="fr-handle" href="${linkHref}" title="Jump to the catalog with these filters applied">View results →</a>` +
+            chipsHtml;
+        } else if (isArtist) {
           // Artist follows: display name on line 1, "View listings →" link
           // on line 2 that jumps to the catalog pre-filtered to this artist
           // via ?q=<artist> (and ?cat=<category> if the user has narrowed

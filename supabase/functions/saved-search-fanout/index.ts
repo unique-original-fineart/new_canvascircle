@@ -87,9 +87,11 @@ serve(async (req) => {
     // 1) Load the listing. Service-role bypasses RLS so we get the canonical
     //    row regardless of visibility policies. artwork_category is needed
     //    for the artist-follow category-filter narrowing (see migration 037).
+    //    verification_status is needed for kind='filter' saved searches that
+    //    narrow by ownership-verified state (migration 038).
     const { data: listing, error: listingErr } = await supabase
       .from("listings")
-      .select("listing_id, seller_id, artist_name, artwork_title, artwork_category, listing_type, status, moderation_status, asking_price_usd, budget_min_usd, budget_max_usd")
+      .select("listing_id, seller_id, artist_name, artwork_title, artwork_category, listing_type, status, moderation_status, asking_price_usd, budget_min_usd, budget_max_usd, verification_status")
       .eq("listing_id", listingId)
       .single();
     if (listingErr || !listing) {
@@ -100,10 +102,12 @@ serve(async (req) => {
       return json(200, { matched: 0, sent: 0, skipped: 0, reason: "not-approved" });
     }
 
-    // 2) Look up the seller's display name (used in the notification body).
+    // 2) Look up the seller's display name (used in the notification body)
+    //    and trust state (used by kind='filter' saved searches that
+    //    narrow by Established Member status — migration 038).
     const { data: sellerProfile } = await supabase
       .from("profiles")
-      .select("display_name, handle, account_status")
+      .select("display_name, handle, account_status, is_trusted")
       .eq("user_id", listing.seller_id)
       .single();
     if (sellerProfile?.account_status && sellerProfile.account_status !== "active") {
@@ -166,14 +170,91 @@ serve(async (req) => {
       }
     }
 
+    // (c) kind='filter' — arbitrary multi-criteria saved searches
+    // (migration 038). Pre-filter at the DB by listing_type so the
+    // returned set is small; per-criterion matching against filter_json
+    // is done in-process below. PostgREST .filter("filter_json", "cs", ...)
+    // is JSONB containment (@>) — matches rows where filter_json contains
+    // the given key/value subset.
+    type FilterFollower = { id: number; user_id: string; filter_json: any; display_name: string | null };
+    let filterFollowers: FilterFollower[] = [];
+    {
+      const typeContains = JSON.stringify({ listing_type: listing.listing_type });
+      const { data: rows, error: filterErr } = await supabase
+        .from("saved_searches")
+        .select("id, user_id, filter_json, display_name")
+        .eq("kind", "filter")
+        .filter("filter_json", "cs", typeContains);
+      if (filterErr) {
+        console.error("[saved-search-fanout] filter query failed:", filterErr);
+      } else {
+        filterFollowers = (rows || []) as FilterFollower[];
+      }
+    }
+
+    // Per-row evaluation against the loaded listing. Each saved-search's
+    // filter_json carries a set of optional criteria — a row matches when
+    // ALL its present criteria are satisfied. Absent criteria are skipped
+    // (the user chose not to narrow on that field). Match logic mirrors
+    // the catalog client-side filter behavior so what a user sees in the
+    // saved-search "View results" link equals what gets notified.
+    function matchesFilterCriteria(f: any): boolean {
+      if (!f || typeof f !== "object") return false;
+      if (f.listing_type !== listing.listing_type) return false;
+      if (f.cat && listing.artwork_category !== f.cat) return false;
+      if (f.seller_id && String(listing.seller_id) !== String(f.seller_id)) return false;
+      if (f.trust_member === "established"     && !sellerProfile?.is_trusted) return false;
+      if (f.trust_member === "non-established" &&  sellerProfile?.is_trusted) return false;
+      const isVerified = (listing as any).verification_status === "verified";
+      if (f.trust_verify === "verified"   && !isVerified) return false;
+      if (f.trust_verify === "unverified" &&  isVerified) return false;
+      // Price range only meaningful for sale listings with a posted price.
+      if (listing.listing_type === "sale" && listing.asking_price_usd != null) {
+        if (f.min_price != null && Number(listing.asking_price_usd) < Number(f.min_price)) return false;
+        if (f.max_price != null && Number(listing.asking_price_usd) > Number(f.max_price)) return false;
+      } else if (listing.listing_type === "sale" && (f.min_price != null || f.max_price != null)) {
+        // Sale listing without a posted price + saved search with a price
+        // range = no decision possible; default to non-match (conservative).
+        return false;
+      }
+      // Free-text q matches artist_name / artwork_title / seller display name / @handle.
+      if (f.q) {
+        const q = String(f.q).toLowerCase();
+        const haystack = [
+          (listing.artist_name   || "").toLowerCase(),
+          (listing.artwork_title || "").toLowerCase(),
+          (sellerProfile?.display_name || "").toLowerCase(),
+          (sellerProfile?.handle       || "").toLowerCase(),
+        ];
+        if (!haystack.some(s => s.includes(q))) return false;
+      }
+      return true;
+    }
+
+    const matchedFilterFollowers = filterFollowers.filter(r => matchesFilterCriteria(r.filter_json));
+
     // Dedupe by user_id. Prefer the artist-follower's saved_search_id when
     // a user has both (arbitrary choice — either is correct in the log).
-    const followerMap = new Map<string, { savedSearchId: number }>();
+    // For filter matches, also remember the saved search's display_name
+    // so we can use it in the notification title.
+    type FollowerRec = {
+      savedSearchId: number;
+      kind: "artist" | "seller" | "filter";
+      filterName?: string | null;
+    };
+    const followerMap = new Map<string, FollowerRec>();
     for (const r of artistFollowers) {
-      if (!followerMap.has(r.user_id)) followerMap.set(r.user_id, { savedSearchId: r.id });
+      if (!followerMap.has(r.user_id)) followerMap.set(r.user_id, { savedSearchId: r.id, kind: "artist" });
     }
     for (const r of sellerFollowers) {
-      if (!followerMap.has(r.user_id)) followerMap.set(r.user_id, { savedSearchId: r.id });
+      if (!followerMap.has(r.user_id)) followerMap.set(r.user_id, { savedSearchId: r.id, kind: "seller" });
+    }
+    for (const r of matchedFilterFollowers) {
+      if (!followerMap.has(r.user_id)) followerMap.set(r.user_id, {
+        savedSearchId: r.id,
+        kind: "filter",
+        filterName: r.display_name,
+      });
     }
 
     // 4) Skip the seller themselves (they shouldn't be notified about their
@@ -183,9 +264,11 @@ serve(async (req) => {
     let sent = 0, capped = 0, deduped = 0, errored = 0;
     const matched = followerMap.size;
 
-    // 5) Build notification copy.
+    // 5) Build notification copy. Title varies by saved-search kind so the
+    //    user knows WHY they're being pinged — important once a user has
+    //    a mix of artist follows, seller follows, and saved filter searches.
     const isIso = listing.listing_type === "iso";
-    const title = isIso
+    const artistTitleCopy = isIso
       ? `New In Search Of from ${sellerName}`
       : (artistName ? `New from ${artistName}` : `New listing from ${sellerName}`);
     const priceStr = isIso
@@ -197,13 +280,23 @@ serve(async (req) => {
           : "Price on request");
     const bodyText = `${listing.artwork_title || "Untitled"} — ${priceStr} — by ${sellerName}`;
 
+    // Per-kind title resolution. Defaults to the artist/seller copy above;
+    // filter matches use the saved search's user-chosen display_name.
+    function titleForFollower(rec: FollowerRec): string {
+      if (rec.kind === "filter" && rec.filterName) {
+        return `New match — ${rec.filterName}`;
+      }
+      return artistTitleCopy;
+    }
+
     // Per-day boundary (UTC — simpler than time-zoning per user; cap is
     // approximate, not load-bearing).
     const dayStartIso = new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString();
 
     // 6) Fan out. Sequential is fine — these counts are low and we want
     //    each insert's UNIQUE check to settle before the next.
-    for (const [userId, { savedSearchId }] of followerMap.entries()) {
+    for (const [userId, rec] of followerMap.entries()) {
+      const { savedSearchId } = rec;
       try {
         // Daily cap check.
         const { count: todayCount, error: capErr } = await supabase
@@ -259,7 +352,7 @@ serve(async (req) => {
             headers: { "apikey": SERVICE_KEY, "Content-Type": "application/json" },
             body: JSON.stringify({
               user_id: userId,
-              title,
+              title:   titleForFollower(rec),
               body:    bodyText,
               url:     `/listing.html?id=${listing.listing_id}`,
               tag:     `saved-search-${listing.listing_id}`,
