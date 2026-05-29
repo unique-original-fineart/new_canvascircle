@@ -2796,11 +2796,22 @@
        kind='filter' following rows, beneath the "View results →" link.
        Each chip names one criterion from filter_json (category, status,
        price range, trust narrowing, etc.). Sized intentionally compact
-       so 2-3 fit per row on mobile, where the display name was
-       previously cut off and the chips stacked single-column. */
+       so 2-3 fit per row on mobile.
+       --
+       width: 100% is load-bearing: the parent .fr-name column has
+       align-items: flex-start (so children take content width, not full
+       column width). Without an explicit width override here, the
+       chips container would collapse to the widest chip's width and
+       every chip would wrap to its own row — flex-wrap can't pack
+       items horizontally if there's no extra horizontal space to use.
+       Setting width: 100% (equivalent to align-self: stretch in this
+       column-flex context) gives the container the full available
+       horizontal space inside .fr-name, and flex-wrap then packs as
+       many chips per row as actually fit. */
     .following-row .fr-saved-chips {
       display: flex; flex-wrap: wrap; gap: 3px;
       margin-top: 4px;
+      width: 100%;
     }
     .following-row .fr-saved-chip {
       display: inline-flex; align-items: center;
