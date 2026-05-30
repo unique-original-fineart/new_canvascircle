@@ -3812,15 +3812,25 @@
                    chevron-arrow pattern from earlier .ppp-explainer. -->
               <details class="following-help">
                 <summary>How does Following work?</summary>
-                <p>Follow artists and sellers to get a push notification the moment a matching listing is approved &mdash; no need to keep checking the catalog. Three ways to add a follow: type an artist's name in the box below (even if they have nothing listed yet), tap <strong>+ Follow artist</strong> on any listing, or tap <strong>+ Follow this seller</strong> on a seller's page. Narrow artist follows to <em>Unique/Original</em> or <em>Limited Edition</em> to keep alerts focused.</p>
+                <p>Follow artists, sellers, or saved searches to get a push notification the moment a matching listing is approved &mdash; no need to keep checking the catalog. Four ways to add a follow:</p>
+                <ul>
+                  <li>Type an artist's name in the box below (even if they have nothing listed yet).</li>
+                  <li>Tap <strong>+ Follow artist</strong> on any listing's detail page.</li>
+                  <li>Tap <strong>+ Follow this seller</strong> on a seller's public page.</li>
+                  <li>In the catalog, apply filters or a search term and tap <strong>🔔 Save this search</strong> &mdash; great for catching <em>any</em> new listing that matches a price range, category, Verified-only, Established-only, or other combinations.</li>
+                </ul>
+                <p>Artist follows can be narrowed to <em>Unique/Original</em> or <em>Limited Edition</em>. Saved searches carry whatever filter combo you set up in the catalog.</p>
               </details>
-              <!-- Kind-filter pills: filter the follow list by artist vs
-                   seller. Hidden when the follow list is empty (nothing
-                   to filter). Active state + selection persists to
-                   localStorage (cc_following_kind_filter) so a power user
-                   who organizes follows by one kind stays in that view
+              <!-- Kind-filter pills: filter the follow list by artist /
+                   seller / saved-search. Visible even with zero follows
+                   (was previously hidden until at least one follow
+                   existed) so new users see the categories that exist
+                   and learn what kinds of follows the section can hold.
+                   Active state + selection persists to localStorage
+                   (cc_following_kind_filter) so a power user who
+                   organizes follows by one kind stays in that view
                    across reloads. Counts on each pill update on render. -->
-              <div class="following-kind-toggle" id="following-kind-toggle" role="tablist" aria-label="Filter follows by kind" hidden>
+              <div class="following-kind-toggle" id="following-kind-toggle" role="tablist" aria-label="Filter follows by kind">
                 <button type="button" class="is-active" data-kind="all" role="tab" aria-selected="true">All <span class="pill-count" id="ft-count-all"></span></button>
                 <button type="button" data-kind="artist" role="tab" aria-selected="false">Artists <span class="pill-count" id="ft-count-artist"></span></button>
                 <button type="button" data-kind="seller" role="tab" aria-selected="false">Sellers <span class="pill-count" id="ft-count-seller"></span></button>
@@ -11809,22 +11819,11 @@
         $addForm.hidden = !(followingKindFilter === "all" || followingKindFilter === "artist");
       }
 
-      // Empty list — show the "Not following anyone yet" state and hide
-      // the kind toggle since there's nothing to filter.
-      if (!allRows.length) {
-        $empty.hidden = false;
-        if ($kindEmpty) $kindEmpty.hidden = true;
-        if ($toggle)    $toggle.hidden    = true;
-        $list.hidden = true;
-        $list.innerHTML = "";
-        return;
-      }
-      $empty.hidden = true;
-
-      // Compute per-kind counts and update the toggle pills. Always show
-      // the toggle when there's at least one follow (even if there's
-      // only one kind — the user still gets the visual "All N" pill which
-      // is a useful affordance).
+      // Compute per-kind counts and update the toggle pills. The toggle
+      // is ALWAYS visible (even with zero follows) so new users see the
+      // four categories that exist and learn what kinds of follows the
+      // section can hold. Counts are accurate but may all read 0 on a
+      // fresh account; that's fine — informative, not noisy.
       const artistRows = allRows.filter(r => r.kind === "artist");
       const sellerRows = allRows.filter(r => r.kind === "seller");
       const filterRows = allRows.filter(r => r.kind === "filter");
@@ -11844,6 +11843,11 @@
           btn.setAttribute("aria-selected", isActive ? "true" : "false");
         });
       }
+      // The legacy "#following-empty" block (used when allRows was empty)
+      // is retired — we now route through the kind-empty handler below
+      // which renders kind-specific guidance instead of a generic
+      // "Not following anyone yet" message.
+      $empty.hidden = true;
 
       // Apply the kind filter.
       let rows;
@@ -11852,8 +11856,10 @@
       else if (followingKindFilter === "filter")  rows = filterRows;
       else                                        rows = allRows;
 
-      // Filter active but zero matches — show the kind-specific empty
-      // state pointing the user at how to add this kind of follow.
+      // Zero matches — show the kind-specific empty state. Four cases
+      // (including the "All" filter on a brand-new account that has no
+      // follows of any kind, which used to be handled by the now-retired
+      // early-return).
       if (rows.length === 0) {
         $list.hidden = true;
         $list.innerHTML = "";
@@ -11862,8 +11868,13 @@
             $kindEmptyText.innerHTML = `<strong>No artists in your follows yet.</strong><br>On any listing detail page, tap <strong>+ Follow artist</strong> next to the artist name, or type one in the box above.`;
           } else if (followingKindFilter === "seller") {
             $kindEmptyText.innerHTML = `<strong>No sellers in your follows yet.</strong><br>On a seller's public page, tap <strong>+ Follow this seller</strong>.`;
-          } else {
+          } else if (followingKindFilter === "filter") {
             $kindEmptyText.innerHTML = `<strong>No saved searches yet.</strong><br>In the catalog, set up filters or a search term, then tap <strong>🔔 Save this search</strong> below the filter row.`;
+          } else {
+            // "All" filter active but zero follows = brand-new account.
+            // Combine guidance for all four kinds so the user sees every
+            // entry point without needing to switch tabs.
+            $kindEmptyText.innerHTML = `<strong>Not following anyone yet.</strong><br>Type an artist's name in the box above, tap <strong>+ Follow artist</strong> on any listing, tap <strong>+ Follow this seller</strong> on a seller's page, or apply filters in the catalog and tap <strong>🔔 Save this search</strong>. You'll get a push notification the moment a matching listing is approved.`;
           }
           $kindEmpty.hidden = false;
         }
