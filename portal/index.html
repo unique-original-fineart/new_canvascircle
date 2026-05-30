@@ -3058,6 +3058,62 @@
       flex-wrap: wrap;
     }
 
+    /* Open-to-Trade checkbox row — used on both the new-listing form and the
+       edit-modal card form. Has to fight several inherited rules from the
+       form grids: input { width: 100% } would stretch the checkbox to a
+       giant square, label { display: block } would stack the text below it,
+       and label color { var(--muted) } would dim the strong text.
+       Scoping the overrides via .cc-trade-checkbox keeps the existing
+       form-grid rules intact for normal text inputs. Two columns of grids
+       use this — .nl-form-grid (new-listing form) and .form-grid inside
+       .listing-card (edit modal) — so the selector starts at the label
+       class, not at a parent grid. */
+    .nl-form-grid .cc-trade-checkbox,
+    .listing-card .form-grid .cc-trade-checkbox {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+      padding: 10px 12px;
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      margin-bottom: 0;            /* defeat .nl-form-grid label margin-bottom */
+      color: var(--fg);            /* defeat .nl-form-grid label muted color */
+      font-size: 13px;
+    }
+    .nl-form-grid .cc-trade-checkbox input[type="checkbox"],
+    .listing-card .form-grid .cc-trade-checkbox input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      flex: 0 0 18px;              /* checkbox stays its natural size */
+      margin: 2px 0 0;
+      padding: 0;
+      accent-color: var(--accent); /* native focus/check tint */
+      cursor: pointer;
+    }
+    .nl-form-grid .cc-trade-checkbox-text,
+    .listing-card .form-grid .cc-trade-checkbox-text {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: block;
+      line-height: 1.4;
+    }
+    .nl-form-grid .cc-trade-checkbox-text strong,
+    .listing-card .form-grid .cc-trade-checkbox-text strong {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--fg);
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .nl-form-grid .cc-trade-checkbox-text .small,
+    .listing-card .form-grid .cc-trade-checkbox-text .small {
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+
     /* ------ Sales post builder ------ */
     .sp-step {
       background: var(--surface-1);
@@ -4187,11 +4243,11 @@
                  Field stays sale-only via the data-nl-show-on attribute; ISO
                  listings have nothing to trade. See migration 039. -->
             <div class="span-2" data-nl-show-on="sale">
-              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid var(--card-line); border-radius:8px; background:var(--surface-2);">
-                <input type="checkbox" id="nl-open-to-trade" style="margin-top:3px; flex-shrink:0;" />
-                <span style="flex:1;">
-                  <strong style="display:block; margin-bottom:2px;">⇄ Open to trade offers</strong>
-                  <span class="small" style="color:var(--muted);">Buyers will see an "⇄ Trade" pill on your card and can reach out with trade proposals in addition to or instead of cash.</span>
+              <label class="cc-trade-checkbox">
+                <input type="checkbox" id="nl-open-to-trade" />
+                <span class="cc-trade-checkbox-text">
+                  <strong>⇄ Open to trade offers</strong>
+                  <span class="small">Buyers will see an "⇄ Trade" pill on your card and can reach out with trade proposals in addition to or instead of cash.</span>
                 </span>
               </label>
             </div>
@@ -6808,11 +6864,11 @@
                sellers don't have to retype it when they toggle the flag —
                we just send NULL on save when the checkbox is off. -->
           <div class="span-2">
-            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid var(--card-line); border-radius:8px; background:var(--surface-2);">
-              <input type="checkbox" data-field="open_to_trade" style="margin-top:3px; flex-shrink:0;" ${l.open_to_trade ? "checked" : ""} />
-              <span style="flex:1;">
-                <strong style="display:block; margin-bottom:2px;">⇄ Open to trade offers</strong>
-                <span class="small" style="color:var(--muted);">Buyers will see an "⇄ Trade" pill on your card.</span>
+            <label class="cc-trade-checkbox">
+              <input type="checkbox" data-field="open_to_trade" ${l.open_to_trade ? "checked" : ""} />
+              <span class="cc-trade-checkbox-text">
+                <strong>⇄ Open to trade offers</strong>
+                <span class="small">Buyers will see an "⇄ Trade" pill on your card.</span>
               </span>
             </label>
           </div>
