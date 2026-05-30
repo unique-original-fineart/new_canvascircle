@@ -3208,6 +3208,67 @@
       outline: none; border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(184,134,11,.15);
     }
+    /* Preset picker row inside Step 1. Dropdown + small action buttons.
+       Wraps to multiple rows on narrow viewports — the action buttons
+       are intentionally compact (Rename / Delete) so the dropdown gets
+       the most horizontal room. */
+    .sp-preset-row {
+      display: flex; align-items: center; gap: 8px;
+      margin: 10px 0 14px;
+      flex-wrap: wrap;
+    }
+    .sp-preset-label {
+      font-size: 13px; color: var(--muted); white-space: nowrap;
+    }
+    .sp-preset-row select {
+      min-width: 180px;
+      flex: 1 1 200px;
+      max-width: 360px;
+    }
+    .sp-preset-row .btn-secondary {
+      padding: 6px 10px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    /* "Include my seller-page link" checkbox row. Same shape as the
+       Open-to-Trade pattern: small native checkbox + stacked title +
+       help text. Selector targets .sp-step so the .sp-step textarea
+       margin rule doesn't bleed into the row. */
+    .sp-step .sp-link-checkbox {
+      display: flex; align-items: flex-start; gap: 10px;
+      cursor: pointer;
+      padding: 10px 12px;
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      margin: 8px 0 14px;
+      color: var(--fg);
+      font-size: 13px;
+    }
+    .sp-step .sp-link-checkbox input[type="checkbox"] {
+      width: 18px; height: 18px; min-width: 18px;
+      flex: 0 0 18px;
+      margin: 2px 0 0;
+      padding: 0;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .sp-link-checkbox-text {
+      flex: 1 1 auto; min-width: 0;
+      display: block; line-height: 1.4;
+    }
+    .sp-link-checkbox-text strong {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--fg);
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .sp-link-checkbox-text .small {
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+
     /* Tiles-per-collage picker row inside Step 3. Compact horizontal layout. */
     .sp-tiles-row {
       display: flex; align-items: center; gap: 10px;
@@ -4322,16 +4383,38 @@
           <button type="button" class="ghost" data-go="account">← Back to dashboard</button>
         </div>
 
-        <!-- Step 1: Header / Footer -->
+        <!-- Step 1: Header / Footer + per-group presets -->
         <div class="sp-step">
           <h3>1. Header &amp; Footer</h3>
-          <p class="help">Optional intro and closing for your post. Saved to your seller profile so you can reuse them.</p>
+          <p class="help">Save a named preset for each Facebook group you post to (different tone, hashtags, link policy). Pick one before generating.</p>
+
+          <!-- Preset picker row: dropdown + New / Rename / Delete controls -->
+          <div class="sp-preset-row">
+            <label for="sp-preset-select" class="sp-preset-label">Preset:</label>
+            <select id="sp-preset-select" aria-label="Choose a saved preset"></select>
+            <button type="button" class="btn-secondary" id="sp-preset-new"    title="Create a new preset">+ New</button>
+            <button type="button" class="btn-secondary" id="sp-preset-rename" title="Rename the current preset">Rename</button>
+            <button type="button" class="btn-secondary" id="sp-preset-delete" title="Delete the current preset">Delete</button>
+          </div>
+
           <label for="sp-header" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Header</label>
           <textarea id="sp-header" placeholder="e.g. Hi all — fresh listings posted on CanvasCircle below."></textarea>
           <label for="sp-footer" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Footer</label>
           <textarea id="sp-footer" placeholder="e.g. PM me with questions. Accept Venmo / PayPal G&S. Local pickup welcome."></textarea>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <button type="button" class="btn-primary" id="sp-save-text-btn">Save header &amp; footer</button>
+
+          <!-- Per-preset "include catalog link" toggle. Some FB groups
+               discourage external links; sellers can turn this on for
+               groups where it's welcome and off for stricter ones. -->
+          <label class="sp-link-checkbox">
+            <input type="checkbox" id="sp-include-link" />
+            <span class="sp-link-checkbox-text">
+              <strong>📎 Include my seller-page link at the end of the post</strong>
+              <span class="small">Appends "View full catalog: canvascircle.art/seller?handle=…" so buyers can jump to your full inventory.</span>
+            </span>
+          </label>
+
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
+            <button type="button" class="btn-primary" id="sp-save-text-btn">Save preset</button>
             <span class="sp-text-status" id="sp-text-status"></span>
           </div>
         </div>
@@ -12574,9 +12657,79 @@
     const $spSelAll        = document.getElementById("sp-select-all");
     const $spSelNone       = document.getElementById("sp-select-none");
 
+    // Per-group preset manager DOM
+    const $spPresetSelect  = document.getElementById("sp-preset-select");
+    const $spPresetNew     = document.getElementById("sp-preset-new");
+    const $spPresetRename  = document.getElementById("sp-preset-rename");
+    const $spPresetDelete  = document.getElementById("sp-preset-delete");
+    const $spIncludeLink   = document.getElementById("sp-include-link");
+
+    // In-memory state for the preset manager. Source-of-truth is the
+    // profile.post_presets jsonb column; we mirror it locally so dropdown
+    // changes / new / rename / delete can edit + persist in one shot.
+    let spPresets = [];           // array of {id, name, header, footer, include_seller_link}
+    let spCurrentPresetId = null; // active preset id
+    const SP_PRESET_LAST_KEY = "cc_sp_last_preset_id";
+
+    function genPresetId() {
+      // 12-char alphanumeric — enough entropy for per-user preset uniqueness.
+      return "preset_" + Math.random().toString(36).slice(2, 14);
+    }
+
+    function findPreset(id) {
+      return spPresets.find(p => p.id === id) || null;
+    }
+
+    function activePreset() {
+      return findPreset(spCurrentPresetId) || spPresets[0] || null;
+    }
+
+    // Push the current preset list to the database. Single-row update on the
+    // current user's profile. Returns the PostgrestError or null.
+    async function persistPresets() {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ post_presets: spPresets })
+        .eq("user_id", currentUserId);
+      return error || null;
+    }
+
+    // Render the dropdown options from spPresets. Restores the selected
+    // value to spCurrentPresetId. Disables Rename/Delete if there's only
+    // one preset (we always keep at least one — the implicit "Default").
+    function renderPresetDropdown() {
+      $spPresetSelect.innerHTML = "";
+      for (const p of spPresets) {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.name || "(untitled)";
+        $spPresetSelect.appendChild(opt);
+      }
+      if (spCurrentPresetId && findPreset(spCurrentPresetId)) {
+        $spPresetSelect.value = spCurrentPresetId;
+      }
+      // Block delete when only one preset remains — sellers always need
+      // at least one. Rename is always allowed.
+      $spPresetDelete.disabled = spPresets.length <= 1;
+      $spPresetDelete.title = spPresets.length <= 1
+        ? "At least one preset is required."
+        : "Delete the current preset";
+    }
+
+    // Load the active preset's values into the form fields. Called on
+    // dropdown change and on initial entry.
+    function loadActivePresetIntoForm() {
+      const p = activePreset();
+      $spHeader.value      = p?.header || "";
+      $spFooter.value      = p?.footer || "";
+      $spIncludeLink.checked = !!p?.include_seller_link;
+      $spTextStatus.textContent = "";
+      $spTextStatus.className   = "sp-text-status";
+    }
+
     let spInitialized = false;
 
-    // Open the sales-post view: load profile header/footer, render listing checkboxes.
+    // Open the sales-post view: load profile presets, render listing checkboxes.
     async function enterSalesPost() {
       // Reset output
       $spOutput.hidden = true;
@@ -12585,10 +12738,46 @@
       $spCopyStatus.className = "sp-text-status";
 
       const profile = await currentProfile();
-      $spHeader.value = profile?.post_header || "";
-      $spFooter.value = profile?.post_footer || "";
-      $spTextStatus.textContent = "";
-      $spTextStatus.className   = "sp-text-status";
+
+      // Pull presets out of the profile. If the seller has never used the
+      // builder, post_presets is null — seed an empty "Default" so the UI
+      // always has something to show. Persisting the seed back is deferred
+      // until the user actually edits something (Save preset click).
+      const presetsRaw = Array.isArray(profile?.post_presets) ? profile.post_presets : null;
+      if (presetsRaw && presetsRaw.length) {
+        // Normalize shape — guard against missing fields from old/manual rows.
+        spPresets = presetsRaw.map(p => ({
+          id:                  p.id || genPresetId(),
+          name:                String(p.name || "Default"),
+          header:              String(p.header || ""),
+          footer:              String(p.footer || ""),
+          include_seller_link: !!p.include_seller_link,
+        }));
+      } else {
+        // No presets yet — seed an in-memory "Default" with any legacy
+        // post_header/post_footer values (covers the rare case where the
+        // migration backfill didn't run, e.g. on a fresh profile created
+        // after the migration ran).
+        spPresets = [{
+          id: genPresetId(),
+          name: "Default",
+          header: String(profile?.post_header || ""),
+          footer: String(profile?.post_footer || ""),
+          include_seller_link: false,
+        }];
+      }
+
+      // Restore last-used preset for this device, falling back to the first.
+      let preferred = null;
+      try { preferred = localStorage.getItem(SP_PRESET_LAST_KEY); } catch {}
+      if (preferred && findPreset(preferred)) {
+        spCurrentPresetId = preferred;
+      } else {
+        spCurrentPresetId = spPresets[0].id;
+      }
+
+      renderPresetDropdown();
+      loadActivePresetIntoForm();
 
       // Render checkbox list of listings (newest first). Sales-post builder
       // is for selling — ISO (In Search Of) posts don't belong in a sales feed.
@@ -12639,29 +12828,160 @@
       b.addEventListener("click", () => { enterSalesPost(); });
     });
 
-    // Save header / footer to profile
+    // ----- Preset manager wiring -----
+    // Dropdown change: load the picked preset into the form. Doesn't
+    // auto-save the previous edit-in-progress — the seller has to click
+    // Save preset to commit (matches the explicit Save flow that existed
+    // before presets). Remember the choice per device.
+    $spPresetSelect.addEventListener("change", () => {
+      spCurrentPresetId = $spPresetSelect.value;
+      try { localStorage.setItem(SP_PRESET_LAST_KEY, spCurrentPresetId); } catch {}
+      loadActivePresetIntoForm();
+    });
+
+    // New preset: prompt for a name, create empty, switch to it.
+    $spPresetNew.addEventListener("click", async () => {
+      const name = prompt("Name this preset (e.g. \"Park West Group\", \"Modern Prints\"):", "");
+      if (name == null) return;
+      const trimmed = name.trim();
+      if (!trimmed) {
+        $spTextStatus.textContent = "Preset name can't be empty.";
+        $spTextStatus.className = "sp-text-status err";
+        return;
+      }
+      if (spPresets.some(p => p.name.toLowerCase() === trimmed.toLowerCase())) {
+        $spTextStatus.textContent = `A preset named "${trimmed}" already exists.`;
+        $spTextStatus.className = "sp-text-status err";
+        return;
+      }
+      const newPreset = {
+        id: genPresetId(),
+        name: trimmed,
+        header: "",
+        footer: "",
+        include_seller_link: false,
+      };
+      spPresets.push(newPreset);
+      spCurrentPresetId = newPreset.id;
+      try { localStorage.setItem(SP_PRESET_LAST_KEY, spCurrentPresetId); } catch {}
+      // Persist the new preset list right away — the seller's intent is
+      // already clear, no reason to wait for them to click Save preset.
+      $spTextStatus.textContent = "Creating…";
+      $spTextStatus.className = "sp-text-status";
+      const err = await persistPresets();
+      if (err) {
+        // Roll back local state on persist failure so UI doesn't lie.
+        spPresets = spPresets.filter(p => p.id !== newPreset.id);
+        spCurrentPresetId = spPresets[0]?.id || null;
+        renderPresetDropdown();
+        loadActivePresetIntoForm();
+        $spTextStatus.textContent = "Couldn't create preset: " + (err.message || err);
+        $spTextStatus.className = "sp-text-status err";
+        return;
+      }
+      renderPresetDropdown();
+      loadActivePresetIntoForm();
+      $spTextStatus.textContent = `Created "${trimmed}". Fill in header & footer, then Save preset.`;
+      $spTextStatus.className = "sp-text-status ok";
+    });
+
+    // Rename current preset.
+    $spPresetRename.addEventListener("click", async () => {
+      const current = activePreset();
+      if (!current) return;
+      const name = prompt("Rename preset:", current.name);
+      if (name == null) return;
+      const trimmed = name.trim();
+      if (!trimmed) {
+        $spTextStatus.textContent = "Preset name can't be empty.";
+        $spTextStatus.className = "sp-text-status err";
+        return;
+      }
+      if (trimmed === current.name) return;
+      if (spPresets.some(p => p.id !== current.id && p.name.toLowerCase() === trimmed.toLowerCase())) {
+        $spTextStatus.textContent = `A preset named "${trimmed}" already exists.`;
+        $spTextStatus.className = "sp-text-status err";
+        return;
+      }
+      const prior = current.name;
+      current.name = trimmed;
+      $spTextStatus.textContent = "Renaming…";
+      $spTextStatus.className = "sp-text-status";
+      const err = await persistPresets();
+      if (err) {
+        current.name = prior;
+        renderPresetDropdown();
+        $spTextStatus.textContent = "Couldn't rename: " + (err.message || err);
+        $spTextStatus.className = "sp-text-status err";
+        return;
+      }
+      renderPresetDropdown();
+      $spTextStatus.textContent = `Renamed to "${trimmed}".`;
+      $spTextStatus.className = "sp-text-status ok";
+    });
+
+    // Delete current preset.
+    $spPresetDelete.addEventListener("click", async () => {
+      if (spPresets.length <= 1) return;  // safety; button disabled too
+      const current = activePreset();
+      if (!current) return;
+      const ok = confirm(`Delete preset "${current.name}"? This can't be undone.`);
+      if (!ok) return;
+      const snapshot = spPresets.slice();
+      const snapshotCurrent = spCurrentPresetId;
+      spPresets = spPresets.filter(p => p.id !== current.id);
+      spCurrentPresetId = spPresets[0].id;
+      try { localStorage.setItem(SP_PRESET_LAST_KEY, spCurrentPresetId); } catch {}
+      $spTextStatus.textContent = "Deleting…";
+      $spTextStatus.className = "sp-text-status";
+      const err = await persistPresets();
+      if (err) {
+        spPresets = snapshot;
+        spCurrentPresetId = snapshotCurrent;
+        renderPresetDropdown();
+        loadActivePresetIntoForm();
+        $spTextStatus.textContent = "Couldn't delete: " + (err.message || err);
+        $spTextStatus.className = "sp-text-status err";
+        return;
+      }
+      renderPresetDropdown();
+      loadActivePresetIntoForm();
+      $spTextStatus.textContent = `Deleted "${current.name}".`;
+      $spTextStatus.className = "sp-text-status ok";
+    });
+
+    // Save preset: write current header + footer + include-link to the
+    // active preset, persist whole array. Replaces the old post_header/
+    // post_footer save — those columns are still in the DB but ignored by
+    // the UI from here on.
     $spSaveTextBtn.addEventListener("click", async () => {
+      const current = activePreset();
+      if (!current) {
+        $spTextStatus.textContent = "No active preset.";
+        $spTextStatus.className = "sp-text-status err";
+        return;
+      }
       $spTextStatus.textContent = "Saving…";
       $spTextStatus.className = "sp-text-status";
       $spSaveTextBtn.disabled = true;
-      try {
-        const { error } = await supabase
-          .from("profiles")
-          .update({
-            post_header: $spHeader.value,
-            post_footer: $spFooter.value,
-          })
-          .eq("user_id", currentUserId);
-        if (error) throw error;
-        $spTextStatus.textContent = "Saved.";
-        $spTextStatus.className = "sp-text-status ok";
-      } catch (err) {
-        console.error("[sales-post] save header/footer failed:", err);
+      const prior = { header: current.header, footer: current.footer, include_seller_link: current.include_seller_link };
+      current.header = $spHeader.value;
+      current.footer = $spFooter.value;
+      current.include_seller_link = !!$spIncludeLink.checked;
+      const err = await persistPresets();
+      if (err) {
+        // Roll back in-memory state so it stays consistent with the DB.
+        current.header = prior.header;
+        current.footer = prior.footer;
+        current.include_seller_link = prior.include_seller_link;
         $spTextStatus.textContent = "Could not save: " + (err.message || err);
         $spTextStatus.className = "sp-text-status err";
-      } finally {
         $spSaveTextBtn.disabled = false;
+        return;
       }
+      $spTextStatus.textContent = `Saved to "${current.name}".`;
+      $spTextStatus.className = "sp-text-status ok";
+      $spSaveTextBtn.disabled = false;
     });
 
     // Quick selects
@@ -13181,8 +13501,16 @@
 
       const tilesPer = getSelectedTilesPer();
 
-      // 1) Text
-      const text = buildFullPostText(selected, $spHeader.value, $spFooter.value);
+      // 1) Text. Build the listings block first, then optionally append the
+      // seller-page link if the active preset's include flag is on AND the
+      // seller has a handle to link to. The link goes at the absolute end,
+      // after the footer, so it reads as the natural "where to see more"
+      // close-out of the post.
+      const profile = await currentProfile();
+      let text = buildFullPostText(selected, $spHeader.value, $spFooter.value);
+      if ($spIncludeLink.checked && profile?.handle) {
+        text += `\n\nView full catalog: https://canvascircle.art/seller?handle=${encodeURIComponent(profile.handle)}`;
+      }
       $spText.value = text;
       // Remember this version so Revert can restore after the user edits.
       spOriginalText = text;
@@ -13195,7 +13523,6 @@
       $spGenerateBtn.disabled = true;
       $spGenerateBtn.textContent = "Rendering images…";
       try {
-        const profile = await currentProfile();
         const slug = slugifyName(profile?.display_name);
         await renderCollages(selected, slug, tilesPer);
         const imgCount = Math.ceil(selected.length / tilesPer);
