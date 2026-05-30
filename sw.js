@@ -19,7 +19,7 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
-const CACHE_VERSION = 'cc-v118-trade-checkbox-fix';
+const CACHE_VERSION = 'cc-v119-trade-textarea-conditional';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. Their URLs

@@ -6860,9 +6860,12 @@
           </div>
           ${isIso ? "" : `
           <!-- Open-to-Trade fields. Sale-only. The looking-for textarea is
-               kept visible regardless of the checkbox state in edit mode so
-               sellers don't have to retype it when they toggle the flag —
-               we just send NULL on save when the checkbox is off. -->
+               hidden until the checkbox is ticked (matches the new-listing
+               form behavior); the textarea's typed value is preserved across
+               toggles within a session, so re-checking the box restores
+               whatever the seller had typed. On save, an unchecked box still
+               nulls trade_looking_for at the payload level so stale text
+               can't leak server-side. -->
           <div class="span-2">
             <label class="cc-trade-checkbox">
               <input type="checkbox" data-field="open_to_trade" ${l.open_to_trade ? "checked" : ""} />
@@ -6872,7 +6875,7 @@
               </span>
             </label>
           </div>
-          <div class="span-2">
+          <div class="span-2" data-trade-looking-wrap ${l.open_to_trade ? "" : "hidden"}>
             <label>What you'd be interested in trading for <span class="small" style="color:var(--muted); font-weight:normal;">(optional)</span></label>
             <textarea data-field="trade_looking_for" rows="2" maxlength="500" placeholder="e.g. Mr. Brainwash 'Madonna' giclée, or any signed Banksy print under $5K">${escapeHtml(l.trade_looking_for || "")}</textarea>
           </div>`}
@@ -6918,6 +6921,20 @@
       card.querySelector("[data-action=show-savers]")?.addEventListener("click", () => openSavesModal(listing));
       card.querySelector("[data-action=renew]")?.addEventListener("click", () => renewCard(card, listing));
       card.querySelector("[data-action=verify-start]")?.addEventListener("click", () => openVerificationModal(listing, card));
+
+      // Open-to-Trade checkbox reveals / hides the looking-for textarea
+      // in the edit modal (matches the new-listing form). Textarea content
+      // is preserved while hidden — re-checking restores whatever the seller
+      // had typed. On save, readCardPayload nulls trade_looking_for at the
+      // payload level when the checkbox is off, so stale text never reaches
+      // the DB.
+      const $tradeChk  = card.querySelector('[data-field="open_to_trade"]');
+      const $tradeWrap = card.querySelector('[data-trade-looking-wrap]');
+      if ($tradeChk && $tradeWrap) {
+        $tradeChk.addEventListener("change", () => {
+          $tradeWrap.hidden = !$tradeChk.checked;
+        });
+      }
 
       // Verification badge popover toggle — pending / revoked / rejected
       // pills are click-to-expand to show the explanation/reason. Verified
