@@ -3147,6 +3147,39 @@
     .sp-text-status.ok  { color: var(--green); }
     .sp-text-status.err { color: var(--red); }
 
+    /* Moderation gate banner above the listing picker. Two flavors:
+       - "info" (blue tint): the seller has some approved listings AND some
+         non-approved being hidden — informational, no urgency.
+       - "warn" (amber tint): zero approved listings — the seller can't use
+         the builder at all yet. Hidden by default; JS reveals + populates. */
+    .sp-mod-banner {
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+      border: 1px solid var(--card-line);
+    }
+    .sp-mod-banner.is-info {
+      background: rgba(45, 127, 255, 0.10);
+      border-color: rgba(45, 127, 255, 0.30);
+      color: var(--fg);
+    }
+    .sp-mod-banner.is-warn {
+      background: rgba(255, 153, 51, 0.10);
+      border-color: rgba(255, 153, 51, 0.35);
+      color: var(--fg);
+    }
+    .sp-mod-banner strong { display: block; margin-bottom: 4px; }
+    /* Empty-state for the listing picker when there's nothing to show. */
+    .sp-listings-empty {
+      padding: 18px 14px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
     /* Quick-filter pill row. With 6 smart filters + 2 utility buttons + a
        divider, wrapping looked messy on narrow viewports — switched to a
        single-row horizontal scroll. iOS-friendly via -webkit-overflow-
@@ -4459,6 +4492,11 @@
         <!-- Step 2: Pick listings -->
         <div class="sp-step">
           <h3>2. Pick listings</h3>
+          <!-- Moderation gate banner. Populated by JS when the seller has
+               pending/rejected listings being hidden from the picker. Keeps
+               non-Established members from posting pre-approval listings on
+               Facebook before admin + verification-video review. -->
+          <div class="sp-mod-banner" id="sp-mod-banner" hidden></div>
           <!-- Quick-filter pill row. Smart filters first (by usage frequency:
                New 7d, Available, Price drops, Verified, Aging, Trade), then a
                visual divider, then the utility Select-all / Clear buttons.
@@ -12837,14 +12875,82 @@
       renderPresetDropdown();
       loadActivePresetIntoForm();
 
-      // Render checkbox list of listings (newest first). Sales-post builder
-      // is for selling — ISO (In Search Of) posts don't belong in a sales feed.
-      const rows = (allListings || [])
+      // Moderation gate: ONLY admin-approved listings are eligible for
+      // sales-post inclusion. Reason: a non-Established seller could post
+      // up to 10 pending-review listings, then use this builder to ship
+      // legitimate-looking Facebook posts before admin (and the verification
+      // video) have actually approved anything. We strip everything that
+      // isn't moderation_status='approved' here, and surface a banner so
+      // the seller understands why hidden listings aren't showing up.
+      //
+      // Established Members are auto-approved on insert, so the gate is a
+      // no-op for them — all their listings stay visible.
+      //
+      // Defense in depth: the generate handler also re-filters the selected
+      // ids before building text/images. See [[sales-post-approved-gate]].
+      const saleAll = (allListings || [])
         .filter(l => l.listing_type !== "iso")
-        .slice().sort(
-          (a,b) => new Date(b.created_at) - new Date(a.created_at)
-        );
+        .slice().sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      const rows = saleAll.filter(l => l.moderation_status === "approved");
+      const hiddenCount = saleAll.length - rows.length;
+      const hiddenPending  = saleAll.filter(l => l.moderation_status === "pending").length;
+      const hiddenRejected = saleAll.filter(l => l.moderation_status === "rejected").length;
+
+      // Populate the moderation banner above the picker.
+      const $spModBanner = document.getElementById("sp-mod-banner");
+      if (rows.length === 0 && saleAll.length === 0) {
+        // No sale listings at all yet.
+        $spModBanner.hidden = false;
+        $spModBanner.className = "sp-mod-banner is-warn";
+        $spModBanner.innerHTML =
+          `<strong>No sale listings yet</strong>` +
+          `Add a sale listing from the dashboard. Once it's admin-approved, it'll show up here so you can include it in a Facebook sales post.`;
+      } else if (rows.length === 0 && saleAll.length > 0) {
+        // Has listings but none approved — most commonly a non-Established
+        // seller waiting on first admin review (+ verification video).
+        $spModBanner.hidden = false;
+        $spModBanner.className = "sp-mod-banner is-warn";
+        const pendingMsg = hiddenPending > 0
+          ? `${hiddenPending} listing${hiddenPending === 1 ? " is" : "s are"} awaiting admin review`
+          : "";
+        const rejectedMsg = hiddenRejected > 0
+          ? `${hiddenRejected} listing${hiddenRejected === 1 ? " was" : "s were"} rejected`
+          : "";
+        const parts = [pendingMsg, rejectedMsg].filter(Boolean).join(" and ");
+        $spModBanner.innerHTML =
+          `<strong>No approved listings yet</strong>` +
+          `Sales post images and text can only be built from admin-approved listings. ${parts ? parts + ". " : ""}` +
+          `If you haven't recorded your ownership-verification video, that's the gate — record it and we'll review within 24-48 hours.`;
+      } else if (hiddenCount > 0) {
+        // Has approved listings, but some pending/rejected ones are hidden.
+        $spModBanner.hidden = false;
+        $spModBanner.className = "sp-mod-banner is-info";
+        const pendingMsg = hiddenPending > 0
+          ? `${hiddenPending} pending admin review`
+          : "";
+        const rejectedMsg = hiddenRejected > 0
+          ? `${hiddenRejected} rejected`
+          : "";
+        const parts = [pendingMsg, rejectedMsg].filter(Boolean).join(" + ");
+        $spModBanner.innerHTML =
+          `<strong>${hiddenCount} listing${hiddenCount === 1 ? "" : "s"} hidden</strong>` +
+          `Only admin-approved listings can be added to a sales post (${parts}). They'll appear here once approved.`;
+      } else {
+        $spModBanner.hidden = true;
+        $spModBanner.innerHTML = "";
+      }
+
       $spListings.innerHTML = "";
+      if (rows.length === 0) {
+        // Empty-state inside the picker — keeps the layout from looking
+        // broken when there's nothing eligible to render.
+        const empty = document.createElement("div");
+        empty.className = "sp-listings-empty";
+        empty.textContent = saleAll.length === 0
+          ? "No sale listings yet."
+          : "No approved sale listings yet — see the note above.";
+        $spListings.appendChild(empty);
+      }
       const frag = document.createDocumentFragment();
       for (const l of rows) {
         const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
@@ -13629,9 +13735,21 @@
         return;
       }
       const ids = new Set(checked.map((c) => c.dataset.id));
-      // Preserve the order they appear in the picker (newest first)
-      const selected = (allListings || []).filter((l) => ids.has(l.listing_id))
+      // Preserve the order they appear in the picker (newest first).
+      // Defense in depth on the moderation gate: re-filter to approved-only
+      // before building text + images. The picker already hides non-approved
+      // listings, but if state ever drifts (e.g. a listing's moderation_status
+      // flipped between page load and this click), this guarantees no
+      // pending/rejected row makes it into the generated post.
+      const selected = (allListings || [])
+        .filter((l) => ids.has(l.listing_id) && l.moderation_status === "approved")
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      if (selected.length === 0) {
+        $genStatus.textContent = "None of the selected listings are admin-approved. Wait for admin review, then try again.";
+        $genStatus.className = "sp-text-status err";
+        return;
+      }
 
       const tilesPer = getSelectedTilesPer();
 
