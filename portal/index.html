@@ -3147,9 +3147,46 @@
     .sp-text-status.ok  { color: var(--green); }
     .sp-text-status.err { color: var(--red); }
 
+    /* Quick-filter pill row. With 6 smart filters + 2 utility buttons + a
+       divider, wrapping looked messy on narrow viewports — switched to a
+       single-row horizontal scroll. iOS-friendly via -webkit-overflow-
+       scrolling. Padding-bottom leaves room for the scrollbar without
+       overlapping the buttons. */
     .sp-quick-selects {
-      display: flex; gap: 6px; flex-wrap: wrap;
+      display: flex;
+      gap: 6px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 4px;
       margin-bottom: 10px;
+      scrollbar-width: thin;
+    }
+    .sp-quick-selects::-webkit-scrollbar { height: 4px; }
+    .sp-quick-selects::-webkit-scrollbar-thumb {
+      background: var(--card-line);
+      border-radius: 2px;
+    }
+    .sp-quick-selects .sp-qf {
+      flex: 0 0 auto;          /* don't shrink — full label always visible */
+      white-space: nowrap;
+      padding: 6px 12px;
+      font-size: 13px;
+      line-height: 1.2;
+    }
+    /* Utility buttons (Select all / Clear) sit visually apart from content
+       filters. Slight color shift so they read as "controls" not "filters". */
+    .sp-quick-selects .sp-qf-util {
+      color: var(--muted);
+    }
+    /* Thin vertical separator between the content filters and the utility
+       buttons. Inherits the same card-line color used everywhere else. */
+    .sp-qf-divider {
+      flex: 0 0 1px;
+      width: 1px;
+      align-self: stretch;
+      background: var(--card-line);
+      margin: 2px 4px;
     }
     .sp-listings {
       max-height: 360px;
@@ -4422,10 +4459,26 @@
         <!-- Step 2: Pick listings -->
         <div class="sp-step">
           <h3>2. Pick listings</h3>
-          <div class="sp-quick-selects">
-            <button type="button" class="btn-secondary" id="sp-select-available">Available only</button>
-            <button type="button" class="btn-secondary" id="sp-select-all">Select all</button>
-            <button type="button" class="btn-secondary" id="sp-select-none">Clear</button>
+          <!-- Quick-filter pill row. Smart filters first (by usage frequency:
+               New 7d, Available, Price drops, Verified, Aging, Trade), then a
+               visual divider, then the utility Select-all / Clear buttons.
+               Horizontal scroll on narrow screens — see .sp-quick-selects CSS. -->
+          <div class="sp-quick-selects" role="toolbar" aria-label="Quick filters">
+            <button type="button" class="btn-secondary sp-qf" id="sp-select-new7d"
+                    title="Select all listings posted in the last 7 days that are still available.">✨ New 7d</button>
+            <button type="button" class="btn-secondary sp-qf" id="sp-select-available"
+                    title="Select all available (not sold, not expired) listings.">💎 Available</button>
+            <button type="button" class="btn-secondary sp-qf" id="sp-select-pricedrop"
+                    title="Select available listings with a price drop in the last 14 days.">📉 Price drops 14d</button>
+            <button type="button" class="btn-secondary sp-qf" id="sp-select-verified"
+                    title="Select available listings with the Ownership Verified badge.">✓ Verified</button>
+            <button type="button" class="btn-secondary sp-qf" id="sp-select-aging"
+                    title="Select available listings posted 60+ days ago — clearance / motivated-seller angle.">⏳ Aging 60d+</button>
+            <button type="button" class="btn-secondary sp-qf" id="sp-select-trade"
+                    title="Select available listings flagged as Open to Trade.">⇄ Trade</button>
+            <span class="sp-qf-divider" aria-hidden="true"></span>
+            <button type="button" class="btn-secondary sp-qf sp-qf-util" id="sp-select-all">Select all</button>
+            <button type="button" class="btn-secondary sp-qf sp-qf-util" id="sp-select-none">Clear</button>
           </div>
           <div class="sp-listings" id="sp-listings"></div>
           <div class="sp-selected-count" id="sp-selected-count">0 selected</div>
@@ -12653,7 +12706,12 @@
     let spOriginalText = "";
     const $spCopyBtn       = document.getElementById("sp-copy-btn");
     const $spCopyStatus    = document.getElementById("sp-copy-status");
+    const $spSelNew7d      = document.getElementById("sp-select-new7d");
     const $spSelAvailable  = document.getElementById("sp-select-available");
+    const $spSelPriceDrop  = document.getElementById("sp-select-pricedrop");
+    const $spSelVerified   = document.getElementById("sp-select-verified");
+    const $spSelAging      = document.getElementById("sp-select-aging");
+    const $spSelTrade      = document.getElementById("sp-select-trade");
     const $spSelAll        = document.getElementById("sp-select-all");
     const $spSelNone       = document.getElementById("sp-select-none");
 
@@ -12984,13 +13042,89 @@
       $spSaveTextBtn.disabled = false;
     });
 
-    // Quick selects
-    $spSelAvailable.addEventListener("click", () => {
+    // ----- Smart filter quick-selects -----
+    // All six content filters share one shape: a predicate runs against the
+    // full listing object (looked up by id from allListings — the checkbox's
+    // data-id attribute is the join key). Setting checked replaces any prior
+    // selection — quick-filters are one-shot actions, not toggles. Predicates
+    // exclude sold/expired listings by default since these posts are
+    // forward-sales; the "Recently sold" variant was discussed + skipped
+    // 2026-05-30 (per Guy's call).
+    function filterByPredicate(predicate) {
+      const byId = new Map((allListings || []).map(l => [l.listing_id, l]));
       $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => {
-        cb.checked = (cb.dataset.status === "available");
+        const listing = byId.get(cb.dataset.id);
+        cb.checked = listing ? !!predicate(listing) : false;
       });
       updateSpSelectedCount();
+    }
+
+    // 1. ✨ New 7d — available + listed within last 7 days. Uses created_at
+    //    (not last_renewed_at) so "new" reads as new-to-the-platform, per
+    //    Guy's call 2026-05-30.
+    $spSelNew7d.addEventListener("click", () => {
+      const cutoff = Date.now() - 7 * 86400000;
+      filterByPredicate(l =>
+        l.status === "available"
+        && l.created_at
+        && new Date(l.created_at).getTime() >= cutoff
+      );
     });
+
+    // 2. 💎 Available — status filter only. Preserves prior behavior of the
+    //    original "Available only" button (now relabeled to fit alongside
+    //    the smart filters).
+    $spSelAvailable.addEventListener("click", () => {
+      filterByPredicate(l => l.status === "available");
+    });
+
+    // 3. 📉 Price drops 14d — available + previous price was higher AND the
+    //    price changed within the last 14 days. Both conditions matter: a
+    //    listing that was edited from $1000 → $800 a year ago shouldn't
+    //    surface in today's "fresh drops" post.
+    $spSelPriceDrop.addEventListener("click", () => {
+      const cutoff = Date.now() - 14 * 86400000;
+      filterByPredicate(l => {
+        if (l.status !== "available") return false;
+        const prev = Number(l.previous_price_usd);
+        const cur  = Number(l.asking_price_usd);
+        if (!Number.isFinite(prev) || !Number.isFinite(cur) || prev <= cur) return false;
+        if (!l.price_updated_at) return false;
+        return new Date(l.price_updated_at).getTime() >= cutoff;
+      });
+    });
+
+    // 4. ✓ Verified — available + the listing carries the Ownership Verified
+    //    badge (the value flips to 'verified' only after admin review).
+    $spSelVerified.addEventListener("click", () => {
+      filterByPredicate(l =>
+        l.status === "available"
+        && l.verification_status === "verified"
+      );
+    });
+
+    // 5. ⏳ Aging 60d+ — available + listed 60+ days ago. Aligns with the
+    //    renewal window so "aging" implicitly means "approaching expiry."
+    $spSelAging.addEventListener("click", () => {
+      const cutoff = Date.now() - 60 * 86400000;
+      filterByPredicate(l =>
+        l.status === "available"
+        && l.created_at
+        && new Date(l.created_at).getTime() < cutoff
+      );
+    });
+
+    // 6. ⇄ Trade — available + flagged Open to Trade by the seller. Useful
+    //    for trade-focused FB groups (e.g. swap-meet collector communities).
+    $spSelTrade.addEventListener("click", () => {
+      filterByPredicate(l =>
+        l.status === "available"
+        && !!l.open_to_trade
+      );
+    });
+
+    // Utility — Select all / Clear. Operate on the visible checkboxes only
+    // (no predicate lookup needed).
     $spSelAll.addEventListener("click", () => {
       $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => { cb.checked = true; });
       updateSpSelectedCount();
