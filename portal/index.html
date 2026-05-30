@@ -3180,6 +3180,38 @@
       line-height: 1.5;
     }
 
+    /* Text search above the listings picker. Real-time filter for power
+       sellers with hundreds of listings — matches artist + title. The
+       16px font-size on the input prevents iOS Safari from zooming the
+       viewport on focus (a Mobile Safari quirk that fires on any input
+       with sub-16px font). type="search" gets us the native clear-button
+       + the Search key on the on-screen keyboard. */
+    .sp-search-row {
+      margin-bottom: 10px;
+    }
+    .sp-search-row input[type="search"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      background: var(--surface-1);
+      color: var(--fg);
+      font-size: 16px;
+      font-family: inherit;
+      box-sizing: border-box;
+      -webkit-appearance: none;     /* iOS: drop the default inner inset */
+      appearance: none;
+    }
+    .sp-search-row input[type="search"]::placeholder {
+      color: var(--muted);
+      opacity: 1;
+    }
+    .sp-search-row input[type="search"]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.15);
+    }
+
     /* Quick-filter pill row. Wraps naturally so all 8 buttons stay visible
        without a horizontal scrollbar — previous scroll-row treatment looked
        like the row was cut off (per Guy 2026-05-30). Each pill keeps its
@@ -4501,6 +4533,14 @@
                     title="Select available listings flagged as Open to Trade.">⇄ Trade</button>
             <button type="button" class="btn-secondary sp-qf sp-qf-util" id="sp-select-all">Select all</button>
             <button type="button" class="btn-secondary sp-qf sp-qf-util" id="sp-select-none">Clear</button>
+          </div>
+          <!-- Real-time text filter on artist + title. Matters most for power
+               sellers with hundreds of listings. type="search" gets the native
+               clear-button + the Search-key keyboard on mobile. -->
+          <div class="sp-search-row">
+            <input type="search" id="sp-search" placeholder="Search by artist or artwork title…"
+                   autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+                   aria-label="Filter listings by artist or artwork title" />
           </div>
           <div class="sp-listings" id="sp-listings"></div>
           <div class="sp-selected-count" id="sp-selected-count">0 selected</div>
@@ -12943,6 +12983,11 @@
         const isSold = l.status === "sold";
         const row = document.createElement("label");
         row.className = "sp-listing-row";
+        // Stash lowercase artist + title on the row so the search filter
+        // can substring-match without repeatedly walking allListings or
+        // calling toLowerCase() on every keystroke.
+        row.dataset.artist = (l.artist_name || "").toLowerCase();
+        row.dataset.title  = (l.artwork_title || "").toLowerCase();
         row.innerHTML = `
           <input type="checkbox" data-id="${l.listing_id}" data-status="${l.status}" />
           <div class="sp-thumb${isSold ? " is-sold" : ""}">
@@ -12958,6 +13003,15 @@
       }
       $spListings.appendChild(frag);
 
+      // Reset search input each time the picker is rebuilt (i.e. each time
+      // the seller enters the Sales Post view). Stale queries from a prior
+      // session would otherwise hide everything until the seller noticed.
+      const $spSearchInit = document.getElementById("sp-search");
+      if ($spSearchInit) {
+        $spSearchInit.value = "";
+        applySpSearch();
+      }
+
       // Wire listening for checkboxes (re-bound on every entry)
       $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => {
         cb.addEventListener("change", updateSpSelectedCount);
@@ -12970,6 +13024,29 @@
       const n = $spListings.querySelectorAll("input[type=checkbox]:checked").length;
       $spSelectedCount.textContent = `${n} selected`;
     }
+
+    // ----- Picker search: real-time filter on artist + title -----
+    // Reads the current query out of the search input, hides any row whose
+    // stashed data-artist / data-title doesn't contain the substring. When
+    // the query is empty (or the input doesn't exist yet), every row shows.
+    // This is the single source of truth for row visibility — smart filters
+    // and Select all / Clear honor row.hidden when picking what to operate
+    // on, so search effectively scopes every other selection action.
+    const $spSearch = document.getElementById("sp-search");
+    function applySpSearch() {
+      const q = ($spSearch?.value || "").trim().toLowerCase();
+      const rows = $spListings.querySelectorAll(".sp-listing-row");
+      if (!q) {
+        rows.forEach(r => { r.hidden = false; });
+        return;
+      }
+      rows.forEach(r => {
+        const artist = r.dataset.artist || "";
+        const title  = r.dataset.title  || "";
+        r.hidden = !(artist.includes(q) || title.includes(q));
+      });
+    }
+    $spSearch?.addEventListener("input", applySpSearch);
 
     // Hook the data-go listener so when user enters the sales-post view, we init it.
     document.querySelectorAll('[data-go="sales-post"]').forEach((b) => {
@@ -13140,9 +13217,17 @@
     // exclude sold/expired listings by default since these posts are
     // forward-sales; the "Recently sold" variant was discussed + skipped
     // 2026-05-30 (per Guy's call).
+    //
+    // When the picker search has a query, only currently-visible rows are
+    // touched — hidden rows keep whatever check state they already had.
+    // This lets the seller narrow the picker via search ("Banksy"), then
+    // hit a smart filter ("Available"), and get exactly "Banksy + available"
+    // without losing or affecting selections on unrelated artists.
     function filterByPredicate(predicate) {
       const byId = new Map((allListings || []).map(l => [l.listing_id, l]));
       $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+        const row = cb.closest(".sp-listing-row");
+        if (row && row.hidden) return;     // search-filtered out — leave alone
         const listing = byId.get(cb.dataset.id);
         cb.checked = listing ? !!predicate(listing) : false;
       });
@@ -13213,14 +13298,26 @@
       );
     });
 
-    // Utility — Select all / Clear. Operate on the visible checkboxes only
-    // (no predicate lookup needed).
+    // Utility — Select all / Clear. Scope to currently-visible rows so the
+    // search filter pre-narrows what they affect. With an empty search box,
+    // every row is visible, so behavior is identical to the old "operate on
+    // every row" semantics. With "Banksy" in the search box, Select all
+    // means "select all visible Banksy" and Clear means "clear visible
+    // Banksy" — hidden rows on other artists stay untouched.
     $spSelAll.addEventListener("click", () => {
-      $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => { cb.checked = true; });
+      $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+        const row = cb.closest(".sp-listing-row");
+        if (row && row.hidden) return;
+        cb.checked = true;
+      });
       updateSpSelectedCount();
     });
     $spSelNone.addEventListener("click", () => {
-      $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => { cb.checked = false; });
+      $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+        const row = cb.closest(".sp-listing-row");
+        if (row && row.hidden) return;
+        cb.checked = false;
+      });
       updateSpSelectedCount();
     });
 
