@@ -4549,7 +4549,7 @@
         <!-- Step 3: Generate -->
         <div class="sp-step">
           <h3>3. Generate</h3>
-          <p class="help">Builds the post text and collage images for your Facebook post.</p>
+          <p class="help">Builds the post text and collage images for your Facebook post. If you've selected 2+ listings from the same artist with the same category &amp; medium, they'll auto-condense into a group block in the post text — descriptions are dropped in grouped mode for conciseness.</p>
           <!-- Tiles-per-collage picker. Defaults to 6 (most-popular dense layout)
                but sellers can pick 4, 2, or 1 for cleaner per-piece feature cards.
                Choice persists in localStorage so they don't re-pick every visit. -->
@@ -13368,7 +13368,138 @@
       return raw;  // give up — return the original so something still renders
     }
 
-    // Build the text post
+    // ---- Medium fuzzy-match helpers ----------------------------------------
+    // Two seller-typed medium strings ("Giclee" vs "Giclée on Canvas" vs
+    // "GICLEE ON CANVAS") need to compare equivalent for grouping. Strategy:
+    //   1) lowercase + strip diacritics + drop punctuation
+    //   2) tokenize on whitespace, drop stopwords (on/the/of/with/in/...)
+    //   3) two mediums are equivalent if one token-set is a subset of the
+    //      other. "Giclee" → {giclee} ⊂ "Giclee on Canvas" → {giclee, canvas}
+    //      → equivalent. Stricter than substring containment (won't match
+    //      "Oil on canvas" with "Acrylic on canvas") but tolerates shorthand.
+    const MEDIUM_STOPWORDS = new Set([
+      "on", "the", "a", "an", "with", "of", "in", "and", "or",
+    ]);
+    // Combining-diacritic range U+0300..U+036F. Built via String.fromCharCode
+    // so the source is byte-clean (no literal combining marks in this file —
+    // those render invisibly and trip up editors / linters).
+    const __DIACRITIC_RE = new RegExp(
+      "[" + String.fromCharCode(0x0300) + "-" + String.fromCharCode(0x036F) + "]",
+      "g"
+    );
+    function normalizeMedium(s) {
+      return String(s || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(__DIACRITIC_RE, "")
+        .replace(/[^\w\s]/g, " ")           // punctuation → space
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+    function mediumTokens(s) {
+      const norm = normalizeMedium(s);
+      if (!norm) return new Set();
+      return new Set(norm.split(" ").filter(t => t && !MEDIUM_STOPWORDS.has(t)));
+    }
+    function mediumsEquivalent(a, b) {
+      const ta = mediumTokens(a);
+      const tb = mediumTokens(b);
+      // Both blank → equivalent (rare, but consistent).
+      if (ta.size === 0 && tb.size === 0) return true;
+      // One blank, one not → not equivalent.
+      if (ta.size === 0 || tb.size === 0) return false;
+      const [small, big] = ta.size <= tb.size ? [ta, tb] : [tb, ta];
+      for (const t of small) if (!big.has(t)) return false;
+      return true;
+    }
+    // Pick the longest medium string within a group as the canonical label —
+    // gives the seller the most-informative variant ("Giclee on Canvas" over
+    // a stray "Giclee" in the same group).
+    function pickCanonicalMedium(listings) {
+      let best = "";
+      for (const l of listings) {
+        const m = String(l.medium || "").trim();
+        if (m.length > best.length) best = m;
+      }
+      return best;
+    }
+
+    // ---- Grouping partitioner ----------------------------------------------
+    // Returns an ordered array of buckets:
+    //   { type: 'single', listing }              — render as today
+    //   { type: 'group',  items: [...] }         — render compact
+    //
+    // Group key: artist (case-insensitive) + artwork_category + a representative
+    // medium. Two listings get the same key iff their artist + category match
+    // exactly AND their mediums pass mediumsEquivalent. Sold listings always
+    // render as singletons (preserves the [-SOLD] marker treatment). Threshold
+    // 2+ to actually group; if a candidate "group" ends up with one listing,
+    // it's emitted as a single.
+    function groupSelectedListings(selected) {
+      const buckets = []; // ordered list of {key, items[]}
+      const singles = []; // sold/no-artist/no-category listings that bypass grouping
+      for (const l of selected) {
+        const isSold = l.status === "sold";
+        if (isSold || !l.artist_name || !l.artwork_category) {
+          singles.push({ type: "single", listing: l, _orderIdx: buckets.length + singles.length });
+          continue;
+        }
+        const artistKey = String(l.artist_name).trim().toLowerCase();
+        const catKey    = String(l.artwork_category).trim();
+        // Find an existing bucket with same artist + category + equivalent medium.
+        let found = null;
+        for (const b of buckets) {
+          if (b.artistKey === artistKey
+              && b.catKey === catKey
+              && mediumsEquivalent(b.representativeMedium, l.medium)) {
+            found = b;
+            break;
+          }
+        }
+        if (found) {
+          found.items.push(l);
+        } else {
+          buckets.push({
+            artistKey,
+            catKey,
+            representativeMedium: l.medium || "",
+            items: [l],
+            _orderIdx: buckets.length + singles.length,
+          });
+        }
+      }
+      // Flatten: any bucket with <2 items becomes a single. Preserve overall
+      // input order by sorting on _orderIdx (singles use their original
+      // insertion idx; buckets use the idx of their FIRST listing).
+      const out = [];
+      for (const s of singles) out.push(s);
+      for (const b of buckets) {
+        if (b.items.length < 2) {
+          out.push({ type: "single", listing: b.items[0], _orderIdx: b._orderIdx });
+        } else {
+          out.push({ type: "group", items: b.items, _orderIdx: b._orderIdx });
+        }
+      }
+      out.sort((a, z) => a._orderIdx - z._orderIdx);
+      return out;
+    }
+
+    // ---- Per-piece dimensions line builder ---------------------------------
+    // Mirrors the existing single-listing format: '19.5" x 29.5" artwork,
+    // 29" x 39" framed'. Either part is omitted if the corresponding fields
+    // are blank — sculptures with three dimensions and no frame just get the
+    // 'artwork' part, which already handles the three-number case via
+    // formatArtworkSizeFromNumbers (it joins h × w × d).
+    function dimensionsLineForListing(l) {
+      const artworkSize = formatArtworkSizeFromNumbers(l.height_in, l.width_in, l.depth_in);
+      const frameSize   = normalizeFramedSize(l.framed_size);
+      const parts = [];
+      if (artworkSize) parts.push(`${artworkSize} artwork`);
+      if (frameSize)   parts.push(`${frameSize} framed`);
+      return parts.join(", ");
+    }
+
+    // ---- Per-listing block (existing single-piece format) ------------------
     function buildPostBlockForListing(l) {
       const lines = [];
       const artistTitle = [l.artist_name, l.artwork_title].filter(Boolean).join(" – ");
@@ -13393,14 +13524,9 @@
       // Medium / Type
       if (l.medium) lines.push(l.medium);
 
-      // Dimensions: '20" x 24" artwork, 24" x 28" framed' (either part is
-      // omitted if the corresponding fields are blank).
-      const artworkSize = formatArtworkSizeFromNumbers(l.height_in, l.width_in, l.depth_in);
-      const frameSize   = normalizeFramedSize(l.framed_size);
-      const sizeParts   = [];
-      if (artworkSize) sizeParts.push(`${artworkSize} artwork`);
-      if (frameSize)   sizeParts.push(`${frameSize} framed`);
-      if (sizeParts.length) lines.push(sizeParts.join(", "));
+      // Dimensions
+      const dimLine = dimensionsLineForListing(l);
+      if (dimLine) lines.push(dimLine);
 
       // COA
       lines.push(l.coa_included === "Yes" ? "COA included" : "No COA");
@@ -13408,17 +13534,89 @@
       // Mood
       if (l.seller_mood) lines.push(l.seller_mood);
 
-      // Description
+      // Description — kept for singletons. Intentionally omitted in grouped
+      // mode (per Guy 2026-05-30) to preserve the conciseness benefit.
       if (l.description) lines.push(l.description);
 
       return lines.join("\n");
     }
 
+    // ---- Grouped block builder ---------------------------------------------
+    // Output shape:
+    //   {Artist} — {Category} · {Canonical Medium}
+    //   {shared price + shipping}   ← only if unanimous across the group
+    //   {shared COA line}            ← only if unanimous
+    //
+    //   – {Title} — {dimensions}        ← one per piece
+    //   – {Title} — {dimensions} — $X + shipping — No COA    ← if attrs vary
+    function buildGroupedBlock(group) {
+      const items = group.items;
+      // Header line: "Michael Godard — Limited Edition · Giclee on Canvas"
+      const artist = items[0].artist_name;
+      const category = items[0].artwork_category;
+      const medium = pickCanonicalMedium(items);
+      const headerParts = [artist, category].filter(Boolean).join(" — ");
+      const headerLine  = medium ? `${headerParts} · ${medium}` : headerParts;
+
+      // Detect which attrs are unanimous across the group.
+      const prices    = items.map(l => Number(l.asking_price_usd || 0));
+      const shippings = items.map(l => l.shipping_offered === "Yes" ? "Yes" : "No");
+      const coas      = items.map(l => l.coa_included === "Yes" ? "Yes" : "No");
+      const allSamePrice    = prices.every(p => p === prices[0]);
+      const allSameShipping = shippings.every(s => s === shippings[0]);
+      const allSameCOA      = coas.every(c => c === coas[0]);
+
+      const sharedLines = [];
+      // Price + shipping (hoisted as one line, since they pair naturally).
+      if (allSamePrice && allSameShipping) {
+        const priceStr = "$" + prices[0].toLocaleString();
+        const shipSuffix = shippings[0] === "Yes" ? " shipped" : " + shipping";
+        sharedLines.push(priceStr + shipSuffix + " each");
+      }
+      // COA (separate line so a seller can still pair-hoist price even when
+      // COAs vary, and vice versa).
+      if (allSameCOA) {
+        sharedLines.push(coas[0] === "Yes" ? "COAs included" : "No COA");
+      }
+
+      // Per-piece lines. Always include title + dimensions. Append price /
+      // shipping / COA when they vary across the group (so the per-piece line
+      // is self-explanatory). Dash bullet for natural readability.
+      const pieceLines = items.map(l => {
+        const title = l.artwork_title || "(untitled)";
+        const dimLine = dimensionsLineForListing(l);
+        const parts = [`– ${title}`];
+        if (dimLine) parts.push(dimLine);
+        if (!allSamePrice || !allSameShipping) {
+          const p = Number(l.asking_price_usd || 0);
+          const priceStr = "$" + p.toLocaleString();
+          const shipSuffix = l.shipping_offered === "Yes" ? " shipped" : " + shipping";
+          parts.push(priceStr + shipSuffix);
+        }
+        if (!allSameCOA) {
+          parts.push(l.coa_included === "Yes" ? "COA" : "No COA");
+        }
+        return parts.join(" — ");
+      });
+
+      // Assemble. Blank line between shared block + piece list when shared
+      // lines exist (visual breathing room in the FB post).
+      const sections = [headerLine];
+      if (sharedLines.length) sections.push(sharedLines.join("\n"));
+      sections.push(pieceLines.join("\n"));
+      return sections.join("\n\n");
+    }
+
     function buildFullPostText(selectedListings, header, footer) {
       const parts = [];
       if (header && header.trim()) parts.push(header.trim());
-      for (const l of selectedListings) {
-        parts.push(buildPostBlockForListing(l));
+      const buckets = groupSelectedListings(selectedListings);
+      for (const b of buckets) {
+        if (b.type === "single") {
+          parts.push(buildPostBlockForListing(b.listing));
+        } else {
+          parts.push(buildGroupedBlock(b));
+        }
       }
       if (footer && footer.trim()) parts.push(footer.trim());
       return parts.join("\n\n");
