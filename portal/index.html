@@ -3208,15 +3208,51 @@
       outline: none; border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(184,134,11,.15);
     }
+    /* Tiles-per-collage picker row inside Step 3. Compact horizontal layout. */
+    .sp-tiles-row {
+      display: flex; align-items: center; gap: 10px;
+      margin: 10px 0 14px;
+      flex-wrap: wrap;
+    }
+    .sp-tiles-label {
+      font-size: 13px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .sp-tiles-row select {
+      max-width: 320px;
+      flex: 1 1 auto;
+    }
+    /* Batch action row above the generated thumbnails: Share images (Web Share
+       on mobile) or Download .zip (desktop fallback). Only one of these shows
+       at a time based on platform capability detection. */
+    .sp-batch-actions {
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+      margin: 6px 0 12px;
+    }
+    .sp-batch-actions .sp-batch-help {
+      font-size: 12px; color: var(--muted);
+    }
+    /* Thumbnails grid: 1-col on mobile (vertically scrollable, friendly for
+       30+ collages), auto-fill on desktop to spread across width. Cards
+       maintain natural aspect ratios — 1-tile collages are taller than 6-tile. */
     .sp-collages {
-      display: flex; flex-direction: column; gap: 16px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
       margin-top: 8px;
+    }
+    @media (min-width: 720px) {
+      .sp-collages {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      }
     }
     .sp-collage {
       border: 1px solid var(--card-line);
       border-radius: 10px;
       padding: 10px;
       background: var(--surface-1);
+      display: flex; flex-direction: column; gap: 8px;
     }
     .sp-collage img {
       width: 100%; height: auto; display: block;
@@ -3224,7 +3260,8 @@
     }
     .sp-collage .sp-collage-actions {
       display: flex; gap: 8px; align-items: center;
-      margin-top: 8px;
+      margin-top: auto;            /* push actions to bottom when cards are tall */
+      flex-wrap: wrap;
     }
     .sp-collage .sp-collage-label {
       font-size: 13px; color: var(--muted);
@@ -4314,7 +4351,19 @@
         <!-- Step 3: Generate -->
         <div class="sp-step">
           <h3>3. Generate</h3>
-          <p class="help">Builds the post text and collage images. Up to 6 listings per collage; download each PNG and attach to your Facebook post.</p>
+          <p class="help">Builds the post text and collage images for your Facebook post.</p>
+          <!-- Tiles-per-collage picker. Defaults to 6 (most-popular dense layout)
+               but sellers can pick 4, 2, or 1 for cleaner per-piece feature cards.
+               Choice persists in localStorage so they don't re-pick every visit. -->
+          <div class="sp-tiles-row">
+            <label for="sp-tiles-per" class="sp-tiles-label">Listings per image:</label>
+            <select id="sp-tiles-per">
+              <option value="1">1 per image — feature card</option>
+              <option value="2">2 per image — pair</option>
+              <option value="4">4 per image — 2×2 grid</option>
+              <option value="6" selected>6 per image — 3×2 grid (default)</option>
+            </select>
+          </div>
           <button type="button" class="btn-primary" id="sp-generate-btn">Generate post + images</button>
           <span class="sp-text-status" id="sp-generate-status"></span>
         </div>
@@ -4330,6 +4379,10 @@
           </div>
 
           <h3 style="margin-top: 22px;">Collage images</h3>
+          <!-- Batch download / share row. Populated by JS based on capability:
+               - Mobile w/ Web Share files API → "Share images" (opens native sheet)
+               - Desktop or unsupported mobile → "Download all (.zip)" via JSZip -->
+          <div class="sp-batch-actions" id="sp-batch-actions" hidden></div>
           <div class="sp-collages" id="sp-collages"></div>
         </div>
       </section>
@@ -12731,12 +12784,37 @@
     }
 
     // -- Collage rendering ---------------------------------------------------
-    const COLLAGE_CELL_W   = 600;
-    const COLLAGE_CELL_H   = 600;
-    const COLLAGE_HEADER_H = 64;
-    const COLLAGE_PADDING  = 14;
-    const COLLAGE_MAX_PER  = 6;
+    // Sizes depend on the user's chosen tiles-per-collage. The 6-tile case
+    // (the legacy default) uses 600px cells — that produces a roughly
+    // 1856x1372 canvas, dense enough for Facebook's preview engine to show
+    // all six artworks in one card. The 1-tile "feature card" doubles the
+    // cell size so the single-artwork output isn't smaller than the multi-up
+    // versions; 2- and 4-tile variants stay at 600px because they already
+    // produce reasonably-sized canvases at that density.
+    function collageMetrics(tilesPerCollage) {
+      if (tilesPerCollage === 1) {
+        return {
+          cellW: 1200,
+          cellH: 1200,
+          headerH: 96,
+          padding: 18,
+          headerFontPx: 44,
+          soldFontPx: 220,
+        };
+      }
+      return {
+        cellW: 600,
+        cellH: 600,
+        headerH: 64,
+        padding: 14,
+        headerFontPx: 28,
+        soldFontPx: 110,
+      };
+    }
 
+    // Grid shape derives from the actual chunk size so the last (possibly
+    // partial) collage doesn't render blank cells. Same logic as before —
+    // existing 5-into-[3,2] behavior preserved.
     function gridShapeFor(n) {
       if (n <= 1) return [1, 1];
       if (n === 2) return [2, 1];
@@ -12769,25 +12847,26 @@
       return s + "…";
     }
 
-    async function drawCellOnCanvas(ctx, listing, x, y) {
-      // Header strip (dark bar with artist – title)
-      // Canvas API doesn't accept CSS variables; these hex codes mirror the
-      // dark/light surface tokens but are intentionally inlined. TODO phase 4.
+    async function drawCellOnCanvas(ctx, listing, x, y, metrics) {
+      const { cellW, cellH, headerH, headerFontPx, soldFontPx } = metrics;
+      // Header strip (dark bar with artist – title). Hex codes inlined since
+      // Canvas API doesn't accept CSS variables; they mirror the dark/light
+      // surface tokens.
       ctx.fillStyle = "#1f1a17";
-      ctx.fillRect(x, y, COLLAGE_CELL_W, COLLAGE_HEADER_H);
+      ctx.fillRect(x, y, cellW, headerH);
       ctx.fillStyle = "#ffffff";
-      ctx.font = "600 28px Georgia, 'Times New Roman', serif";
+      ctx.font = `600 ${headerFontPx}px Georgia, 'Times New Roman', serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       const headerText = [listing.artist_name, listing.artwork_title].filter(Boolean).join(" – ");
-      ctx.fillText(fitText(ctx, headerText, COLLAGE_CELL_W - 24),
-                   x + COLLAGE_CELL_W / 2,
-                   y + COLLAGE_HEADER_H / 2);
+      ctx.fillText(fitText(ctx, headerText, cellW - 24),
+                   x + cellW / 2,
+                   y + headerH / 2);
 
       // Image area background
-      const imgY = y + COLLAGE_HEADER_H;
+      const imgY = y + headerH;
       ctx.fillStyle = "#f0ede6";
-      ctx.fillRect(x, imgY, COLLAGE_CELL_W, COLLAGE_CELL_H);
+      ctx.fillRect(x, imgY, cellW, cellH);
 
       // Draw image cover-fitted
       const images = (listing.listing_images || []).slice().sort((a,b) => a.position - b.position);
@@ -12797,15 +12876,15 @@
           // Intentionally full-size — this image is being composited into a
           // downloadable Facebook post collage. Source quality matters here.
           const img = await loadCanvasImage(publicImageUrl(path));
-          const ratio = Math.max(COLLAGE_CELL_W / img.naturalWidth, COLLAGE_CELL_H / img.naturalHeight);
+          const ratio = Math.max(cellW / img.naturalWidth, cellH / img.naturalHeight);
           const dw = img.naturalWidth * ratio;
           const dh = img.naturalHeight * ratio;
-          const dx = x + (COLLAGE_CELL_W - dw) / 2;
-          const dy = imgY + (COLLAGE_CELL_H - dh) / 2;
+          const dx = x + (cellW - dw) / 2;
+          const dy = imgY + (cellH - dh) / 2;
           // Clip to cell bounds
           ctx.save();
           ctx.beginPath();
-          ctx.rect(x, imgY, COLLAGE_CELL_W, COLLAGE_CELL_H);
+          ctx.rect(x, imgY, cellW, cellH);
           ctx.clip();
           ctx.drawImage(img, dx, dy, dw, dh);
           ctx.restore();
@@ -12818,24 +12897,26 @@
       // SOLD overlay
       if (listing.status === "sold") {
         ctx.fillStyle = "rgba(168, 40, 31, 0.55)";
-        ctx.fillRect(x, imgY, COLLAGE_CELL_W, COLLAGE_CELL_H);
+        ctx.fillRect(x, imgY, cellW, cellH);
         ctx.fillStyle = "#ffffff";
-        ctx.font = "800 110px Georgia, 'Times New Roman', serif";
+        ctx.font = `800 ${soldFontPx}px Georgia, 'Times New Roman', serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.shadowColor = "rgba(0,0,0,.35)";
         ctx.shadowBlur  = 10;
-        ctx.fillText("SOLD", x + COLLAGE_CELL_W / 2, imgY + COLLAGE_CELL_H / 2);
+        ctx.fillText("SOLD", x + cellW / 2, imgY + cellH / 2);
         ctx.shadowBlur = 0;
       }
     }
 
-    async function buildCollageCanvas(chunkOfListings) {
+    async function buildCollageCanvas(chunkOfListings, tilesPerCollage) {
+      const metrics = collageMetrics(tilesPerCollage);
+      const { cellW, cellH, headerH, padding } = metrics;
       const n = chunkOfListings.length;
       const [cols, rows] = gridShapeFor(n);
-      const cellTotalH = COLLAGE_CELL_H + COLLAGE_HEADER_H;
-      const W = COLLAGE_PADDING + cols * COLLAGE_CELL_W + (cols - 1) * COLLAGE_PADDING + COLLAGE_PADDING;
-      const H = COLLAGE_PADDING + rows * cellTotalH    + (rows - 1) * COLLAGE_PADDING + COLLAGE_PADDING;
+      const cellTotalH = cellH + headerH;
+      const W = padding + cols * cellW + (cols - 1) * padding + padding;
+      const H = padding + rows * cellTotalH + (rows - 1) * padding + padding;
       const canvas = document.createElement("canvas");
       canvas.width  = W;
       canvas.height = H;
@@ -12845,9 +12926,9 @@
       for (let i = 0; i < n; i++) {
         const col = i % cols;
         const row = Math.floor(i / cols);
-        const x = COLLAGE_PADDING + col * (COLLAGE_CELL_W + COLLAGE_PADDING);
-        const y = COLLAGE_PADDING + row * (cellTotalH    + COLLAGE_PADDING);
-        await drawCellOnCanvas(ctx, chunkOfListings[i], x, y);
+        const x = padding + col * (cellW + padding);
+        const y = padding + row * (cellTotalH + padding);
+        await drawCellOnCanvas(ctx, chunkOfListings[i], x, y, metrics);
       }
       return canvas;
     }
@@ -12859,15 +12940,24 @@
         || "seller";
     }
 
-    async function renderCollages(selected, sellerSlug) {
+    // Generated canvases live here between Generate-button press and any
+    // subsequent Share/Download-all action. Module-scoped so the batch
+    // action buttons can read them without re-rendering. Cleared at the
+    // start of each Generate run.
+    let __spGeneratedCanvases = [];
+    let __spSellerSlug = "seller";
+
+    async function renderCollages(selected, sellerSlug, tilesPerCollage) {
       const $collages = document.getElementById("sp-collages");
       $collages.innerHTML = "";
-      const chunks = chunkArr(selected, COLLAGE_MAX_PER);
+      __spGeneratedCanvases = [];
+      __spSellerSlug = sellerSlug;
+      const chunks = chunkArr(selected, tilesPerCollage);
       for (let idx = 0; idx < chunks.length; idx++) {
         const wrap = document.createElement("div");
         wrap.className = "sp-collage";
         wrap.innerHTML = `
-          <div class="sp-collage-label">Collage ${idx + 1} of ${chunks.length} — ${chunks[idx].length} listing${chunks[idx].length === 1 ? "" : "s"}</div>
+          <div class="sp-collage-label">Image ${idx + 1} of ${chunks.length} — ${chunks[idx].length} listing${chunks[idx].length === 1 ? "" : "s"}</div>
           <div class="sp-collage-img"></div>
           <div class="sp-collage-actions">
             <button type="button" class="btn-primary" data-download>Download PNG</button>
@@ -12881,7 +12971,8 @@
         $msg.className = "sp-text-status";
 
         try {
-          const canvas = await buildCollageCanvas(chunks[idx]);
+          const canvas = await buildCollageCanvas(chunks[idx], tilesPerCollage);
+          __spGeneratedCanvases.push(canvas);
           // Show as <img> from data URL — easier to right-click-save in addition
           // to the explicit Download button.
           const dataUrl = canvas.toDataURL("image/png");
@@ -12906,6 +12997,170 @@
           $msg.className = "sp-text-status err";
         }
       }
+      // After all canvases finish, reveal + populate the batch action row.
+      renderBatchActions();
+    }
+
+    // ---- Tiles-per-collage picker: persist choice in localStorage so the
+    // seller doesn't have to re-pick every visit. Read on init, write on change.
+    const $spTilesPer = document.getElementById("sp-tiles-per");
+    const SP_TILES_KEY = "cc_sp_tiles_per_collage";
+    {
+      const stored = (() => {
+        try { return parseInt(localStorage.getItem(SP_TILES_KEY) || "", 10); }
+        catch { return NaN; }
+      })();
+      if ([1, 2, 4, 6].includes(stored)) {
+        $spTilesPer.value = String(stored);
+      }
+      $spTilesPer.addEventListener("change", () => {
+        try { localStorage.setItem(SP_TILES_KEY, $spTilesPer.value); } catch {}
+      });
+    }
+    function getSelectedTilesPer() {
+      const v = parseInt($spTilesPer.value, 10);
+      return [1, 2, 4, 6].includes(v) ? v : 6;
+    }
+
+    // ---- Web Share files API capability detection ----
+    // navigator.canShare with a real File is the only reliable way to know
+    // if the platform can share image files (iOS 15+ Safari + PWA, Android
+    // Chrome). Desktop browsers technically expose navigator.share but the
+    // canShare({files: [...]}) check returns false on most of them, so the
+    // zip path is automatically used there.
+    function canSharePngFiles() {
+      if (!navigator.canShare || !navigator.share) return false;
+      try {
+        const probe = new File([new Uint8Array([0])], "probe.png", { type: "image/png" });
+        return navigator.canShare({ files: [probe] });
+      } catch {
+        return false;
+      }
+    }
+
+    // ---- JSZip lazy-loader. Loaded on first batch-zip-download click so
+    // the library doesn't cost anything for users who never tap the button. ----
+    const JSZIP_URL = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
+    let __jszipPromise = null;
+    function loadJSZip() {
+      if (window.JSZip) return Promise.resolve(window.JSZip);
+      if (__jszipPromise) return __jszipPromise;
+      __jszipPromise = new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = JSZIP_URL;
+        s.async = true;
+        s.onload  = () => resolve(window.JSZip);
+        s.onerror = () => { __jszipPromise = null; reject(new Error("Couldn't load JSZip from CDN.")); };
+        document.head.appendChild(s);
+      });
+      return __jszipPromise;
+    }
+
+    function canvasToBlob(canvas) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((b) => b ? resolve(b) : reject(new Error("canvas.toBlob returned null")), "image/png");
+      });
+    }
+
+    async function canvasesToFiles(canvases, sellerSlug) {
+      const files = [];
+      for (let i = 0; i < canvases.length; i++) {
+        const blob = await canvasToBlob(canvases[i]);
+        files.push(new File([blob], `${sellerSlug}_SalesPost_${i + 1}.png`, { type: "image/png" }));
+      }
+      return files;
+    }
+
+    // Renders the batch-action row above the thumbnails grid. Picks ONE
+    // primary action based on platform capability:
+    //   - mobile / Web Share for files supported → "Share images" button
+    //     opens the native share sheet (FB, Photos, Files, Messages, etc.)
+    //   - desktop / unsupported → "Download all (.zip)" via JSZip
+    function renderBatchActions() {
+      const $row = document.getElementById("sp-batch-actions");
+      $row.innerHTML = "";
+      if (!__spGeneratedCanvases.length) { $row.hidden = true; return; }
+
+      if (canSharePngFiles()) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn-primary";
+        btn.id = "sp-batch-share-btn";
+        btn.textContent = `📤 Share all ${__spGeneratedCanvases.length} image${__spGeneratedCanvases.length === 1 ? "" : "s"}`;
+        const help = document.createElement("span");
+        help.className = "sp-batch-help";
+        help.textContent = "Opens your phone's share sheet — pick Facebook to post directly.";
+        $row.append(btn, help);
+        btn.addEventListener("click", async () => {
+          const origLabel = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = "Preparing images…";
+          try {
+            const files = await canvasesToFiles(__spGeneratedCanvases, __spSellerSlug);
+            // Re-check canShare against the actual files (mobile browsers
+            // sometimes reject a probe file but accept real ones, or vice
+            // versa). Bail to zip if the real-file check fails.
+            if (!navigator.canShare({ files })) {
+              throw new Error("share-not-supported-for-these-files");
+            }
+            await navigator.share({
+              files,
+              title: "CanvasCircle sales post",
+              text: "Sales post images",
+            });
+            // No success toast — the share sheet itself is the confirmation.
+          } catch (err) {
+            // AbortError fires if the user cancels — that's not an error
+            // worth surfacing. Anything else gets shown.
+            if (err && err.name === "AbortError") return;
+            console.warn("[sp-share] failed:", err);
+            alert("Couldn't open the share sheet: " + (err.message || err) + "\n\nTip: tap individual Download PNG buttons below instead.");
+          } finally {
+            btn.disabled = false;
+            btn.textContent = origLabel;
+          }
+        });
+      } else {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn-primary";
+        btn.id = "sp-batch-zip-btn";
+        btn.textContent = `📦 Download all ${__spGeneratedCanvases.length} as .zip`;
+        const help = document.createElement("span");
+        help.className = "sp-batch-help";
+        help.textContent = "Saves all images in one .zip — unzip then drag into your Facebook post.";
+        $row.append(btn, help);
+        btn.addEventListener("click", async () => {
+          const origLabel = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = "Building .zip…";
+          try {
+            const JSZip = await loadJSZip();
+            const zip = new JSZip();
+            for (let i = 0; i < __spGeneratedCanvases.length; i++) {
+              const blob = await canvasToBlob(__spGeneratedCanvases[i]);
+              zip.file(`${__spSellerSlug}_SalesPost_${i + 1}.png`, blob);
+            }
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+            const url = URL.createObjectURL(zipBlob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${__spSellerSlug}_SalesPost.zip`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            // Defer revoke so the browser actually starts the download.
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+          } catch (err) {
+            console.warn("[sp-zip] failed:", err);
+            alert("Couldn't build the .zip: " + (err.message || err) + "\n\nTip: tap individual Download PNG buttons below instead.");
+          } finally {
+            btn.disabled = false;
+            btn.textContent = origLabel;
+          }
+        });
+      }
+      $row.hidden = false;
     }
 
     $spGenerateBtn.addEventListener("click", async () => {
@@ -12924,6 +13179,8 @@
       const selected = (allListings || []).filter((l) => ids.has(l.listing_id))
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
+      const tilesPer = getSelectedTilesPer();
+
       // 1) Text
       const text = buildFullPostText(selected, $spHeader.value, $spFooter.value);
       $spText.value = text;
@@ -12940,8 +13197,9 @@
       try {
         const profile = await currentProfile();
         const slug = slugifyName(profile?.display_name);
-        await renderCollages(selected, slug);
-        $genStatus.textContent = `Rendered ${Math.ceil(selected.length / COLLAGE_MAX_PER)} collage image${selected.length > COLLAGE_MAX_PER ? "s" : ""}.`;
+        await renderCollages(selected, slug, tilesPer);
+        const imgCount = Math.ceil(selected.length / tilesPer);
+        $genStatus.textContent = `Rendered ${imgCount} image${imgCount === 1 ? "" : "s"}.`;
         $genStatus.className = "sp-text-status ok";
       } catch (err) {
         console.error("[generate] failed:", err);
