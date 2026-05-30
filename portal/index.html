@@ -3180,46 +3180,30 @@
       line-height: 1.5;
     }
 
-    /* Quick-filter pill row. With 6 smart filters + 2 utility buttons + a
-       divider, wrapping looked messy on narrow viewports — switched to a
-       single-row horizontal scroll. iOS-friendly via -webkit-overflow-
-       scrolling. Padding-bottom leaves room for the scrollbar without
-       overlapping the buttons. */
+    /* Quick-filter pill row. Wraps naturally so all 8 buttons stay visible
+       without a horizontal scrollbar — previous scroll-row treatment looked
+       like the row was cut off (per Guy 2026-05-30). Each pill keeps its
+       full label on one line; the row wraps as a whole when narrow.
+       Utility buttons (Select all / Clear) are distinguished by muted color
+       via .sp-qf-util — no literal divider needed, which used to wrap to
+       an awkward position. */
     .sp-quick-selects {
       display: flex;
       gap: 6px;
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      padding-bottom: 4px;
+      flex-wrap: wrap;
       margin-bottom: 10px;
-      scrollbar-width: thin;
-    }
-    .sp-quick-selects::-webkit-scrollbar { height: 4px; }
-    .sp-quick-selects::-webkit-scrollbar-thumb {
-      background: var(--card-line);
-      border-radius: 2px;
     }
     .sp-quick-selects .sp-qf {
-      flex: 0 0 auto;          /* don't shrink — full label always visible */
+      flex: 0 0 auto;
       white-space: nowrap;
       padding: 6px 12px;
       font-size: 13px;
       line-height: 1.2;
     }
     /* Utility buttons (Select all / Clear) sit visually apart from content
-       filters. Slight color shift so they read as "controls" not "filters". */
+       filters via a softer text color — reads as "control" not "filter". */
     .sp-quick-selects .sp-qf-util {
       color: var(--muted);
-    }
-    /* Thin vertical separator between the content filters and the utility
-       buttons. Inherits the same card-line color used everywhere else. */
-    .sp-qf-divider {
-      flex: 0 0 1px;
-      width: 1px;
-      align-self: stretch;
-      background: var(--card-line);
-      margin: 2px 4px;
     }
     .sp-listings {
       max-height: 360px;
@@ -4498,9 +4482,10 @@
                Facebook before admin + verification-video review. -->
           <div class="sp-mod-banner" id="sp-mod-banner" hidden></div>
           <!-- Quick-filter pill row. Smart filters first (by usage frequency:
-               New 7d, Available, Price drops, Verified, Aging, Trade), then a
-               visual divider, then the utility Select-all / Clear buttons.
-               Horizontal scroll on narrow screens — see .sp-quick-selects CSS. -->
+               New 7d, Available, Price drops, Verified, Aging, Trade), then
+               the utility Select-all / Clear buttons (distinguished by muted
+               text color — see .sp-qf-util CSS). Wraps to multiple rows on
+               narrow viewports; no horizontal scroll. -->
           <div class="sp-quick-selects" role="toolbar" aria-label="Quick filters">
             <button type="button" class="btn-secondary sp-qf" id="sp-select-new7d"
                     title="Select all listings posted in the last 7 days that are still available.">✨ New 7d</button>
@@ -4514,7 +4499,6 @@
                     title="Select available listings posted 60+ days ago — clearance / motivated-seller angle.">⏳ Aging 60d+</button>
             <button type="button" class="btn-secondary sp-qf" id="sp-select-trade"
                     title="Select available listings flagged as Open to Trade.">⇄ Trade</button>
-            <span class="sp-qf-divider" aria-hidden="true"></span>
             <button type="button" class="btn-secondary sp-qf sp-qf-util" id="sp-select-all">Select all</button>
             <button type="button" class="btn-secondary sp-qf sp-qf-util" id="sp-select-none">Clear</button>
           </div>
