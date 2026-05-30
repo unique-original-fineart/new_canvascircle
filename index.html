@@ -491,6 +491,33 @@
       outline: 3px solid rgba(45,127,255,.55);
       outline-offset: 2px;
     }
+    /* Open-to-Trade pill — rounded-rect overlay in the bottom-left corner of
+       the card image. Sale-only signal that the seller will consider trade
+       offers. Deliberately NOT circle-shaped to keep the gradient-circle
+       Ownership Verified glyph as a single-use trust mark (see
+       [[trust-glyph-single-use]]). Semi-transparent navy fill reads well over
+       any image; small but legible at the 2-up mobile grid width. */
+    .card .trade-pill {
+      position: absolute;
+      bottom: 8px; left: 8px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(10, 21, 56, .82);
+      color: var(--text-inverse);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: .2px;
+      border: 1px solid rgba(255, 255, 255, .18);
+      box-shadow: 0 2px 6px rgba(0,0,0,.35);
+      z-index: 2;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    @media (max-width: 540px) {
+      /* Tighten a touch on mobile where every pixel counts. */
+      .card .trade-pill { padding: 2px 6px; font-size: 10.5px; bottom: 6px; left: 6px; }
+    }
     /* Floating toast shown when a card's verified check is tapped — gives
        mobile users (who can't see the title= tooltip) the same explanation
        desktop users get on hover. Auto-dismisses after a few seconds or on
@@ -763,6 +790,10 @@
           <option value="verified">Verified Ownership</option>
           <option value="unverified">Unverified Ownership</option>
         </select>
+        <select id="f-trade" title="Sellers who are open to trade offers" hidden>
+          <option value="">Any (cash + trade)</option>
+          <option value="1">⇄ Open to Trade only</option>
+        </select>
         <div class="price-pair">
           <input type="number" id="f-min" placeholder="Min $" min="0" step="50" />
           <input type="number" id="f-max" placeholder="Max $" min="0" step="50" />
@@ -878,6 +909,7 @@
     const $seller       = document.getElementById("f-seller");
     const $trustMember  = document.getElementById("f-trust-member");
     const $trustVerify  = document.getElementById("f-trust-verify");
+    const $trade        = document.getElementById("f-trade");
     const $min      = document.getElementById("f-min");
     const $max      = document.getElementById("f-max");
     const $sort     = document.getElementById("f-sort");
@@ -988,6 +1020,14 @@
       const verifiedBadge = (viewerSignedIn && listing.verification_status === "verified")
         ? `<div class="verified-corner" title="Ownership Verified — the seller submitted proof of possession">✓</div>`
         : "";
+      // Open-to-Trade pill — bottom-left overlay on the image. Sale-only +
+      // visible to all viewers (it's a public listing attribute, not a
+      // trust signal that needs to be gated). Deliberately a rounded
+      // rectangle (not a circle) so it stays visually distinct from the
+      // gradient-circle Ownership Verified glyph (see [[trust-glyph-single-use]]).
+      const tradePill = (!isIso && listing.open_to_trade)
+        ? `<div class="trade-pill" title="Seller is open to trade offers">⇄ Trade</div>`
+        : "";
 
       // Note: the "Show details →" / "See request →" CTA was removed from
       // the card body entirely (2026-05-28). The whole card is already
@@ -999,7 +1039,7 @@
       // pattern used by Etsy / eBay / Amazon. Saves one row of card
       // vertical real estate per card.
       card.innerHTML = `
-        <div class="img">${imgInner}${verifiedBadge}</div>
+        <div class="img">${imgInner}${verifiedBadge}${tradePill}</div>
         <div class="body">
           <div class="artist">${artistLine}</div>
           <div class="title">${titleLine}</div>
@@ -1086,6 +1126,7 @@
           asking_price_usd, previous_price_usd, budget_min_usd, budget_max_usd,
           status, created_at, save_count, shipping_offered,
           verification_status, verified_at,
+          open_to_trade, trade_looking_for,
           listing_images ( storage_path, position ),
           profiles!listings_seller_id_fkey!inner ( display_name, account_status, is_trusted )
         `, { count: "exact" })
@@ -1138,6 +1179,10 @@
       if (filters.trustVerify === "verified")            q = q.eq("verification_status", "verified");
       else if (filters.trustVerify === "unverified")     q = q.neq("verification_status", "verified");
 
+      // Open-to-Trade filter — sale-only. The dropdown is hidden on the ISO
+      // tab so this branch is effectively unreachable there, but guard anyway.
+      if (filters.openToTrade && tab === "sale") q = q.eq("open_to_trade", true);
+
       // Price/budget filter — column depends on the tab. For ISO we filter by
       // budget_max (so "max $500" finds requests willing to pay up to $500+).
       if (tab === "iso") {
@@ -1182,6 +1227,7 @@
         seller:       $seller.value,
         trustMember:  $trustMember.value,
         trustVerify:  $trustVerify.value,
+        openToTrade:  $trade ? $trade.value === "1" : false,
         min:          $min.value,
         max:     $max.value,
         sort:    $sort.value,
@@ -1445,6 +1491,13 @@
       // Status filter doesn't apply to ISO (no sold/not_renewed states).
       $statusF.hidden = isIso;
       $statusF.disabled = isIso;
+      // Open-to-Trade is a sale-only filter — ISO listings have no piece
+      // to trade. Reset the value when switching to ISO so it doesn't
+      // silently persist through the tab swap.
+      if ($trade) {
+        $trade.hidden = isIso;
+        if (isIso) $trade.value = "";
+      }
       // Price-pair labels swap to "budget" framing on the ISO tab.
       $min.placeholder = isIso ? "Min budget $" : "Min $";
       $max.placeholder = isIso ? "Max budget $" : "Max $";
@@ -1502,6 +1555,11 @@
         $trustVerify.value   = "";
         userSavesSet = null;
       }
+      // Open-to-Trade is a public listing attribute (not a trust signal),
+      // so it shows for anonymous viewers too. The dropdown still gets
+      // hidden on the ISO tab below in applyTabUiMode where the rest of
+      // the sale-only chrome lives.
+      if ($trade) $trade.hidden = false;
 
       restoreFilterState(); // pull saved filters (incl. tab) from sessionStorage if present
       applyFiltersFromUrlParams(); // URL params override session-stored filters
@@ -1539,6 +1597,7 @@
           q: $q.value, cat: $cat.value, statusF: $statusF.value,
           seller: $seller.value,
           trustMember: $trustMember.value, trustVerify: $trustVerify.value,
+          trade: $trade ? $trade.value : "",
           min: $min.value, max: $max.value, sort: $sort.value,
         }));
       } catch (e) { /* private mode etc — ignore */ }
@@ -1555,6 +1614,7 @@
         if (s.seller       != null) $seller.value       = s.seller;
         if (s.trustMember  != null) $trustMember.value  = s.trustMember;
         if (s.trustVerify  != null) $trustVerify.value  = s.trustVerify;
+        if (s.trade        != null && $trade) $trade.value = s.trade;
         if (s.min     != null) $min.value     = s.min;
         if (s.max     != null) $max.value     = s.max;
         if (s.sort    != null) $sort.value    = s.sort;
@@ -1603,6 +1663,7 @@
       const statusF       = params.get("status");
       const trustMember   = params.get("trust_member");
       const trustVerify   = params.get("trust_verify");
+      const tradeP        = params.get("trade");
       const minP          = params.get("min");
       const maxP          = params.get("max");
 
@@ -1622,6 +1683,11 @@
       }
       if (trustVerify != null && ["verified", "unverified"].includes(trustVerify)) {
         $trustVerify.value = trustVerify;
+      }
+      // Open-to-Trade — single boolean toggle. Accept either "1" or "true"
+      // for forward-compat with hand-crafted shareable links.
+      if (tradeP != null && (tradeP === "1" || tradeP === "true") && $trade) {
+        $trade.value = "1";
       }
       if (minP != null && minP !== "") $min.value = minP;
       if (maxP != null && maxP !== "") $max.value = maxP;
@@ -1715,7 +1781,7 @@
       filterDebounce = setTimeout(applyFilters, 250);
     }
     [$q, $min, $max].forEach(el => el.addEventListener("input", debouncedApply));
-    [$cat, $statusF, $seller, $trustMember, $trustVerify, $sort].forEach(el => {
+    [$cat, $statusF, $seller, $trustMember, $trustVerify, $trade, $sort].filter(Boolean).forEach(el => {
       el.addEventListener("change", () => { saveFilterState(); applyFilters(); });
     });
     $clear.addEventListener("click", () => {
@@ -1728,6 +1794,7 @@
       $seller.value = "";
       $trustMember.value = "";
       $trustVerify.value = "";
+      if ($trade) $trade.value = "";
       $min.value = "";
       $max.value = "";
       $sort.value = "newest";
@@ -1760,6 +1827,7 @@
       if (snapshot.seller) return true;
       if (snapshot.trustMember) return true;
       if (snapshot.trustVerify) return true;
+      if (snapshot.openToTrade) return true;
       if (snapshot.min) return true;
       if (snapshot.max) return true;
       return false;
@@ -1778,6 +1846,7 @@
       if (snapshot.seller)             f.seller_id = snapshot.seller;
       if (snapshot.trustMember)        f.trust_member = snapshot.trustMember;
       if (snapshot.trustVerify)        f.trust_verify = snapshot.trustVerify;
+      if (snapshot.openToTrade)        f.open_to_trade = true;
       if (snapshot.min)                f.min_price = Number(snapshot.min);
       if (snapshot.max)                f.max_price = Number(snapshot.max);
       return f;
@@ -1808,6 +1877,7 @@
       if (snapshot.trustMember === "non-established") chips.push({ label: "Non-Established Members" });
       if (snapshot.trustVerify === "verified")        chips.push({ label: "Verified ownership" });
       if (snapshot.trustVerify === "unverified")      chips.push({ label: "Unverified ownership" });
+      if (snapshot.openToTrade)                       chips.push({ label: "⇄ Open to Trade" });
       if (snapshot.min && snapshot.max) chips.push({ label: `$${Number(snapshot.min).toLocaleString()}–$${Number(snapshot.max).toLocaleString()}` });
       else if (snapshot.min)            chips.push({ label: `From $${Number(snapshot.min).toLocaleString()}` });
       else if (snapshot.max)            chips.push({ label: `Up to $${Number(snapshot.max).toLocaleString()}` });

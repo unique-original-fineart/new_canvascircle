@@ -233,6 +233,18 @@
     .badge.mood             { background: var(--badge-mood-bg); color: var(--badge-mood-fg); border-color: var(--badge-mood-border); }
     .badge.cat-unique       { background: var(--badge-unique-bg); color: var(--badge-unique-fg); border-color: var(--badge-unique-border); }
     .badge.cat-edition      { background: var(--badge-limited-bg); color: var(--badge-limited-fg); border-color: var(--badge-limited-border); }
+    /* Open-to-Trade badge. Solid dark-navy pill with off-white text to set it
+       apart from the lighter category badges; matches the catalog card pill
+       so users see the same signal on the card and the detail view. Pill
+       shape (rounded but not full-circle) is deliberate — gradient circles
+       are reserved for the Ownership Verified trust glyph (see
+       [[trust-glyph-single-use]]). */
+    .badge.trade-badge {
+      background: rgba(10, 21, 56, .85);
+      color: var(--text-inverse);
+      border: 1px solid rgba(255, 255, 255, .15);
+      letter-spacing: .25px;
+    }
     /* Verified badge sits alongside the category/status pills. Click/tap
        opens a small inline popover explaining what verification means.
        Phase 4: full brand gradient + NO border — borderless treatment
@@ -809,6 +821,7 @@
                 shipping_offered, coa_included, status, moderation_status,
                 seller_mood, last_renewed_at, created_at, seller_id, save_count,
                 verification_status, verified_at,
+                open_to_trade, trade_looking_for,
                 listing_images ( storage_path, position ),
                 profiles!listings_seller_id_fkey ( ${profileCols} )
               `)
@@ -1016,6 +1029,13 @@
            <span class="verified-hint" id="verified-hint" tabindex="0" role="button" aria-label="What does Ownership Verified mean?">What's this?</span>`
         : "";
 
+      // Open-to-Trade badge for the detail view — sits in the badges row
+       // next to category/status/mood. Rounded-rect (not circle) per
+       // [[trust-glyph-single-use]]. Public viewers see it too.
+       const tradeBadge = (!isIso && l.open_to_trade)
+         ? `<span class="badge trade-badge" title="Seller is open to trade offers">⇄ Open to Trade</span>`
+         : "";
+
       // ------ Badges row ------
       const badgesBlock = `
         <div class="badges">
@@ -1027,6 +1047,7 @@
           ${!isIso && l.status !== "available"
             ? `<span class="badge ${sb.cls}">${escapeHtml(sb.label)}</span>` : ""}
           ${!isIso && l.seller_mood ? `<span class="badge mood">${escapeHtml(l.seller_mood)}</span>` : ""}
+          ${tradeBadge}
           ${verifiedBadge}
         </div>`;
 
@@ -1051,10 +1072,21 @@
         </div>`;
 
       // ------ Optional sections — Condition/Provenance hidden for ISO ------
+      // Open-to-Trade block: only renders when the flag is on. If the seller
+      // included looking-for text, we show it; otherwise a generic "reach
+      // out with a proposal" line so buyers know the option is real.
+      const tradeSection = (!isIso && l.open_to_trade)
+        ? `<div class="section"><h3>⇄ Open to Trade</h3>
+             <p>${l.trade_looking_for
+                 ? escapeHtml(l.trade_looking_for)
+                 : `The seller is open to trade offers on this piece. Reach out via the contact buttons below with a proposal.`}</p>
+           </div>`
+        : "";
       const optionalSections = `
         ${!isIso && l.condition_notes ? `<div class="section"><h3>Condition</h3><p>${escapeHtml(l.condition_notes)}</p></div>` : ""}
         ${!isIso && l.provenance      ? `<div class="section"><h3>Provenance</h3><p>${escapeHtml(l.provenance)}</p></div>` : ""}
         ${l.description               ? `<div class="section"><h3>${isIso ? "Details from the buyer" : "Description"}</h3><p>${escapeHtml(l.description)}</p></div>` : ""}
+        ${tradeSection}
       `;
 
       // ------ Counter-party block (seller for sale / buyer for ISO) ------

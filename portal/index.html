@@ -620,6 +620,28 @@
       outline: 3px solid rgba(45,127,255,.55);
       outline-offset: 2px;
     }
+    /* Open-to-Trade pill — small rounded-rect badge in the bottom-left of
+       the image. Deliberately NOT a circle so it doesn't visually compete
+       with the gradient-circle Ownership Verified glyph (see
+       [[trust-glyph-single-use]]). Semi-transparent dark fill + off-white
+       text reads cleanly on any image. */
+    .preview-card .pc-trade-pill {
+      position: absolute;
+      bottom: 8px; left: 8px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(10, 21, 56, .82);
+      color: var(--text-inverse);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: .2px;
+      border: 1px solid rgba(255, 255, 255, .18);
+      box-shadow: 0 2px 6px rgba(0,0,0,.35);
+      pointer-events: none;
+      z-index: 2;
+      white-space: nowrap;
+    }
     /* "Add Ownership Verified badge →" link on unverified sale cards.
        Single-line text button, no heavy chrome — discoverability fix
        without bloating the card. Hover state matches other accent links. */
@@ -4159,6 +4181,24 @@
               <label for="nl-description"><span data-nl-label-sale>Seller notes / Description</span><span data-nl-label-iso hidden>Describe what you're looking for</span></label>
               <textarea id="nl-description" rows="4" placeholder="Condition, provenance, why you're selling, anything buyers should know."></textarea>
             </div>
+
+            <!-- ===== Open to Trade ===== Sale-only optional flag + free-text
+                 hunting field. Checkbox reveals the textarea via JS toggle.
+                 Field stays sale-only via the data-nl-show-on attribute; ISO
+                 listings have nothing to trade. See migration 039. -->
+            <div class="span-2" data-nl-show-on="sale">
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid var(--card-line); border-radius:8px; background:var(--surface-2);">
+                <input type="checkbox" id="nl-open-to-trade" style="margin-top:3px; flex-shrink:0;" />
+                <span style="flex:1;">
+                  <strong style="display:block; margin-bottom:2px;">⇄ Open to trade offers</strong>
+                  <span class="small" style="color:var(--muted);">Buyers will see an "⇄ Trade" pill on your card and can reach out with trade proposals in addition to or instead of cash.</span>
+                </span>
+              </label>
+            </div>
+            <div class="span-2" data-nl-show-on="sale" id="nl-trade-looking-wrap" hidden>
+              <label for="nl-trade-looking-for">What you'd be interested in trading for <span class="small" style="color:var(--muted); font-weight:normal;">(optional)</span></label>
+              <textarea id="nl-trade-looking-for" rows="2" maxlength="500" placeholder="e.g. Mr. Brainwash 'Madonna' giclée, or any signed Banksy print under $5K"></textarea>
+            </div>
           </div>
 
           <div id="banner-new-listing" class="banner" hidden></div>
@@ -5872,6 +5912,13 @@
        const verifiedCorner = showVerifiedCorner
          ? `<div class="pc-verified-corner" title="Ownership Verified — you submitted proof of possession" role="button" tabindex="0" aria-label="Ownership Verified">✓</div>`
          : "";
+       // Open-to-Trade pill — small rounded-rect badge in the bottom-left of
+       // the image. Non-circle shape per [[trust-glyph-single-use]] (gradient
+       // circle is reserved for Ownership Verified). Sale-only.
+       const showTradePill = !isIso && !!l.open_to_trade;
+       const tradePill = showTradePill
+         ? `<div class="pc-trade-pill" title="Seller is open to trade offers" aria-label="Open to Trade">⇄ Trade</div>`
+         : "";
 
       const card = document.createElement("div");
       card.className = "preview-card" + (showSoldOverlay ? " is-sold" : "") + (isIso ? " is-iso" : "");
@@ -5880,6 +5927,7 @@
         <div class="pc-img${showSoldOverlay ? " is-sold" : ""}">
           ${imgInner}
           ${verifiedCorner}
+          ${tradePill}
         </div>
         <div class="pc-body">
           <div class="pc-artist">${escapeHtml(l.artist_name || (isIso ? "Any artist" : "Unknown"))}</div>
@@ -6754,6 +6802,24 @@
             <label>${isIso ? "Describe what you're looking for" : "Seller notes / Description"}</label>
             <textarea data-field="description" rows="4">${escapeHtml(l.description || "")}</textarea>
           </div>
+          ${isIso ? "" : `
+          <!-- Open-to-Trade fields. Sale-only. The looking-for textarea is
+               kept visible regardless of the checkbox state in edit mode so
+               sellers don't have to retype it when they toggle the flag —
+               we just send NULL on save when the checkbox is off. -->
+          <div class="span-2">
+            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid var(--card-line); border-radius:8px; background:var(--surface-2);">
+              <input type="checkbox" data-field="open_to_trade" style="margin-top:3px; flex-shrink:0;" ${l.open_to_trade ? "checked" : ""} />
+              <span style="flex:1;">
+                <strong style="display:block; margin-bottom:2px;">⇄ Open to trade offers</strong>
+                <span class="small" style="color:var(--muted);">Buyers will see an "⇄ Trade" pill on your card.</span>
+              </span>
+            </label>
+          </div>
+          <div class="span-2">
+            <label>What you'd be interested in trading for <span class="small" style="color:var(--muted); font-weight:normal;">(optional)</span></label>
+            <textarea data-field="trade_looking_for" rows="2" maxlength="500" placeholder="e.g. Mr. Brainwash 'Madonna' giclée, or any signed Banksy print under $5K">${escapeHtml(l.trade_looking_for || "")}</textarea>
+          </div>`}
           <div class="span-2 replace-image-row">
             <button type="button" class="btn-secondary" data-action="replace-image-btn">${isIso && !imgUrl ? "Add reference image" : "Replace image"}</button>
             <input type="file" accept="image/*" data-action="replace-image-input" hidden />
@@ -7464,6 +7530,13 @@
       payload.depth_in  = d;
       const price = parsePrice(get("asking_price_usd"));
       payload.asking_price_usd = price;
+      // Open-to-Trade. Checkbox state + textarea content. If the checkbox is
+      // off we null trade_looking_for so the DB never carries orphan text from
+      // a deselected flag — keeps the data crisp for the catalog filter query.
+      const openToTrade = !!card.querySelector('[data-field="open_to_trade"]')?.checked;
+      const lookingFor  = card.querySelector('[data-field="trade_looking_for"]')?.value.trim() || "";
+      payload.open_to_trade     = openToTrade;
+      payload.trade_looking_for = (openToTrade && lookingFor) ? lookingFor : null;
       return payload;
     }
 
@@ -7489,12 +7562,13 @@
     // an array of human-readable field names that contain URLs (empty if clean).
     function findUrlOffendingFields(p) {
       const fields = {
-        "artist name":     p.artist_name,
-        "artwork title":   p.artwork_title,
-        "medium":          p.medium,
-        "description":     p.description,
-        "condition notes": p.condition_notes,
-        "provenance":      p.provenance,
+        "artist name":           p.artist_name,
+        "artwork title":         p.artwork_title,
+        "medium":                p.medium,
+        "description":           p.description,
+        "condition notes":       p.condition_notes,
+        "provenance":            p.provenance,
+        "what you're looking for in a trade": p.trade_looking_for,
       };
       const hits = [];
       for (const [label, val] of Object.entries(fields)) {
@@ -7950,6 +8024,7 @@
               seller_mood, last_renewed_at, created_at,
               save_count, view_count,
               verification_status, verified_at,
+              open_to_trade, trade_looking_for,
               listing_images ( storage_path, position ),
               listing_verifications ( id, status, review_notes, submitted_at, reviewed_at, revoked_at, revoke_reason )
             `)
@@ -9351,6 +9426,7 @@
           listing_id, listing_type, artist_name, artwork_title, artwork_category,
           asking_price_usd, budget_min_usd, budget_max_usd,
           description, status, moderation_status, verification_status, created_at, seller_id,
+          open_to_trade, trade_looking_for,
           listing_images ( storage_path, position ),
           listing_verifications ( id, status, submitted_at ),
           profiles!listings_seller_id_fkey ( display_name, handle, contact_email, is_trusted )
@@ -9498,6 +9574,10 @@
             · ${days === 0 ? "submitted today" : `submitted ${days}d ago`}
           </div>
           ${l.description ? `<div class="mod-desc">${escapeHtml(l.description)}</div>` : ""}
+          ${(!isIso && l.open_to_trade) ? `<div class="mod-trade" style="margin-top:6px; padding:6px 10px; background:rgba(10,21,56,0.45); border:1px solid var(--card-line); border-radius:6px; font-size:12px; color:var(--fg);">
+              <strong style="color:var(--text-inverse);">⇄ Open to Trade</strong>
+              ${l.trade_looking_for ? ` — looking for: <span style="color:var(--muted);">${escapeHtml(l.trade_looking_for)}</span>` : ` — no specific trade target listed`}
+            </div>` : ""}
           ${gateBadgeHtml}
           <div class="mod-actions">
             <a href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener" class="view-link" style="color:var(--accent); font-size:13px; font-weight:600; text-decoration:none; align-self:center;">Preview ↗</a>
@@ -12193,6 +12273,24 @@
       $nlPlaceholder.hidden = false;
       $nlImageZone.classList.remove("has-file");
       clearBanner("new-listing");
+      // Re-hide the trade looking-for textarea (form.reset() unchecks the
+      // checkbox but our manual show/hide doesn't follow form-reset semantics).
+      const $tradeWrap = document.getElementById("nl-trade-looking-wrap");
+      if ($tradeWrap) $tradeWrap.hidden = true;
+    }
+
+    // ---- Open-to-Trade checkbox: reveal the looking-for textarea on tick ----
+    // Pure UI toggle. The actual flag value is read off the checkbox at submit
+    // time. We don't bother clearing the textarea content when unticked — if
+    // the seller toggles it on/off they probably don't want to lose their text.
+    {
+      const $tradeChk  = document.getElementById("nl-open-to-trade");
+      const $tradeWrap = document.getElementById("nl-trade-looking-wrap");
+      if ($tradeChk && $tradeWrap) {
+        $tradeChk.addEventListener("change", () => {
+          $tradeWrap.hidden = !$tradeChk.checked;
+        });
+      }
     }
 
     $nlImageInput.addEventListener("change", (e) => {
@@ -12817,15 +12915,19 @@
       const shipping  = document.getElementById("nl-shipping")?.value || "";
       const coa       = document.getElementById("nl-coa")?.value || "";
       const desc      = document.getElementById("nl-description").value.trim();
+      // Open-to-Trade fields (sale-only; ignored on ISO inserts).
+      const openToTrade  = !!document.getElementById("nl-open-to-trade")?.checked;
+      const tradeLooking = document.getElementById("nl-trade-looking-for")?.value.trim() || "";
 
       // ----- Validate -----
       const errs = [];
       // Anti-phishing: block URLs/links anywhere in the listing free text.
       const urlHits = findUrlOffendingFields({
-        artist_name:   artist,
-        artwork_title: title,
-        medium:        medium,
-        description:   desc,
+        artist_name:        artist,
+        artwork_title:      title,
+        medium:             medium,
+        description:        desc,
+        trade_looking_for:  tradeLooking,
       });
       if (urlHits.length) {
         errs.push(URL_BLOCK_MESSAGE + urlHits.join(", ") + ". If you need to mention a website, email admin@canvascircle.art.");
@@ -12906,6 +13008,11 @@
           shipping_offered: shipping,
           coa_included:     coa,
           description:      desc || null,
+          // Open-to-Trade — sale-only (CHECK constraint listings_trade_sale_only
+          // enforces this server-side). trade_looking_for is only meaningful
+          // when open_to_trade=true; if seller leaves it blank we still null it.
+          open_to_trade:     openToTrade,
+          trade_looking_for: (openToTrade && tradeLooking) ? tradeLooking : null,
           status:           status,
           moderation_status: moderation_status,
         };

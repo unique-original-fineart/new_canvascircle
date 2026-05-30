@@ -91,7 +91,7 @@ serve(async (req) => {
     //    narrow by ownership-verified state (migration 038).
     const { data: listing, error: listingErr } = await supabase
       .from("listings")
-      .select("listing_id, seller_id, artist_name, artwork_title, artwork_category, listing_type, status, moderation_status, asking_price_usd, budget_min_usd, budget_max_usd, verification_status")
+      .select("listing_id, seller_id, artist_name, artwork_title, artwork_category, listing_type, status, moderation_status, asking_price_usd, budget_min_usd, budget_max_usd, verification_status, open_to_trade")
       .eq("listing_id", listingId)
       .single();
     if (listingErr || !listing) {
@@ -208,6 +208,14 @@ serve(async (req) => {
       const isVerified = (listing as any).verification_status === "verified";
       if (f.trust_verify === "verified"   && !isVerified) return false;
       if (f.trust_verify === "unverified" &&  isVerified) return false;
+      // Open-to-Trade — matches catalog filter behavior. If the saved search
+      // narrows to open_to_trade=true, ALL non-trade listings drop. The
+      // open_to_trade column is sale-only (CHECK constraint), so this is
+      // automatically a no-op for ISO listings — but we still guard
+      // listing_type because an ISO row would have open_to_trade=false and
+      // would otherwise spuriously fail the criterion.
+      if (f.open_to_trade === true && listing.listing_type === "sale"
+          && !(listing as any).open_to_trade) return false;
       // Price range only meaningful for sale listings with a posted price.
       if (listing.listing_type === "sale" && listing.asking_price_usd != null) {
         if (f.min_price != null && Number(listing.asking_price_usd) < Number(f.min_price)) return false;

@@ -349,6 +349,30 @@
       border: 2px solid var(--surface-1);
       z-index: 2;
     }
+    /* Open-to-Trade pill — bottom-left rounded-rect overlay. Matches the
+       catalog (index.html) card treatment exactly so users see the same
+       signal across the seller page and the catalog grid. Distinct from
+       the gradient-circle Verified glyph per [[trust-glyph-single-use]]. */
+    .card .trade-pill {
+      position: absolute;
+      bottom: 8px; left: 8px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(10, 21, 56, .82);
+      color: var(--text-inverse);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: .2px;
+      border: 1px solid rgba(255, 255, 255, .18);
+      box-shadow: 0 2px 6px rgba(0,0,0,.35);
+      z-index: 2;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    @media (max-width: 540px) {
+      .card .trade-pill { padding: 2px 6px; font-size: 10.5px; bottom: 6px; left: 6px; }
+    }
     .card .iso-placeholder {
       width: 100%; height: 100%;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -797,6 +821,7 @@
           asking_price_usd, previous_price_usd, status, created_at, save_count,
           shipping_offered, budget_min_usd, budget_max_usd,
           verification_status, verified_at,
+          open_to_trade, trade_looking_for,
           listing_images ( storage_path, position )
         `)
           .eq("seller_id", profile.user_id)
@@ -1341,6 +1366,11 @@
       const verifiedBadge = (viewerSignedIn && listing.verification_status === "verified")
         ? `<div class="verified-corner" title="Ownership Verified">✓</div>`
         : "";
+      // Open-to-Trade pill — bottom-left overlay. Same treatment as the
+      // catalog card. Sale-only, visible to all viewers.
+      const tradePill = (!isIso && listing.open_to_trade)
+        ? `<div class="trade-pill" title="Seller is open to trade offers">⇄ Trade</div>`
+        : "";
 
       // CTA removed (2026-05-28). Whole card is an <a>; the heart button +
       // image + hover state are sufficient affordances. Matches the same
@@ -1348,7 +1378,7 @@
       // .card .cta CSS rules above are inert but kept around in case we
       // want to add the affordance back later in a different form.
       card.innerHTML = `
-        <div class="img">${imgInner}${verifiedBadge}</div>
+        <div class="img">${imgInner}${verifiedBadge}${tradePill}</div>
         <div class="body">
           <div class="artist">${artistLine}</div>
           <div class="title">${titleLine}</div>
