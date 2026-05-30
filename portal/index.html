@@ -12435,6 +12435,21 @@
         const show = showOn === "both" || showOn === nlType;
         el.hidden = !show;
       });
+      // Override for the Open-to-Trade looking-for wrap: its visibility is
+      // controlled by the checkbox state, NOT the tab type. The sweep above
+      // would set it visible on every sale-tab toggle (since the wrap is
+      // tagged data-nl-show-on="sale"), overriding both the initial static
+      // `hidden` attribute and the unticked-checkbox state. Re-sync here so
+      // the wrap stays hidden on a fresh sale form until the seller ticks
+      // the box. On ISO the wrap is force-hidden anyway because the box
+      // itself isn't shown.
+      {
+        const $tradeWrap = document.getElementById("nl-trade-looking-wrap");
+        const $tradeChk  = document.getElementById("nl-open-to-trade");
+        if ($tradeWrap) {
+          $tradeWrap.hidden = isIso || !$tradeChk?.checked;
+        }
+      }
       // Sale-only / ISO-only labels
       document.querySelectorAll("[data-nl-label-sale]").forEach(el => el.hidden = isIso);
       document.querySelectorAll("[data-nl-label-iso]").forEach(el  => el.hidden = !isIso);
