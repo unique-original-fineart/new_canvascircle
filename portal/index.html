@@ -13925,10 +13925,10 @@
         btn.type = "button";
         btn.className = "btn-primary";
         btn.id = "sp-batch-share-btn";
-        btn.textContent = `📤 Share all ${__spGeneratedCanvases.length} image${__spGeneratedCanvases.length === 1 ? "" : "s"}`;
+        btn.textContent = `📤 Share post + ${__spGeneratedCanvases.length} image${__spGeneratedCanvases.length === 1 ? "" : "s"}`;
         const help = document.createElement("span");
         help.className = "sp-batch-help";
-        help.textContent = "Opens your phone's share sheet — pick Facebook to post directly.";
+        help.textContent = "Opens your phone's share sheet — pick Facebook to post directly with the text already filled in.";
         $row.append(btn, help);
         btn.addEventListener("click", async () => {
           const origLabel = btn.textContent;
@@ -13942,10 +13942,17 @@
             if (!navigator.canShare({ files })) {
               throw new Error("share-not-supported-for-these-files");
             }
+            // Pull the LIVE post text out of the textarea (not the cached
+            // spOriginalText) so any seller edits land in the Facebook
+            // compose screen. The `text` field of navigator.share becomes
+            // the post BODY on Facebook (and Messenger, Threads, etc.) —
+            // images attach separately. Empty fallback keeps the call
+            // valid if the seller cleared the textarea.
+            const postText = ($spText?.value || "").trim();
             await navigator.share({
               files,
               title: "CanvasCircle sales post",
-              text: "Sales post images",
+              text: postText || "Sales post from CanvasCircle",
             });
             // No success toast — the share sheet itself is the confirmation.
           } catch (err) {
