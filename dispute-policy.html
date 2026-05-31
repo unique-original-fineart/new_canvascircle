@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dispute Policy — CanvasCircle</title>
+
+  <link rel="icon" type="image/x-icon" href="/assets/favicon.ico" />
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="96x96" href="/assets/favicon-96x96.png" />
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/manifest.webmanifest" />
+  <meta name="theme-color" content="#0A1538" />
+
+  <link rel="stylesheet" href="/assets/theme.css?v=9" />
+
+  <meta property="og:title"       content="Dispute Policy — CanvasCircle" />
+  <meta property="og:description" content="What CanvasCircle will and won't mediate, how reports are evaluated, what gets a seller suspended, and the appeal process." />
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://canvascircle.art/dispute-policy.html" />
+  <meta property="og:image"       content="https://canvascircle.art/assets/og-image.png" />
+  <meta name="twitter:card"       content="summary_large_image" />
+
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+    }
+    a { color: var(--accent); }
+
+    header.site {
+      padding: 18px 16px;
+      border-bottom: 1px solid var(--card-line);
+      background: var(--surface-1);
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
+    }
+    header.site .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); }
+    header.site img    { height: 48px; width: 48px; border-radius: 12px; }
+    header.site .title { font-weight: 600; font-size: 18px; letter-spacing: .2px; }
+    nav a { color: var(--fg); text-decoration: none; margin-left: 16px; font-size: 14px; }
+    nav a:hover { color: var(--accent); }
+
+    main {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+    }
+
+    .hero { padding: 24px 0 16px; }
+    .hero h1 {
+      margin: 0 0 8px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(28px, 4vw, 42px);
+      letter-spacing: -.02em;
+      font-weight: 600;
+    }
+    .hero p { margin: 0; color: var(--muted); }
+
+    /* Jump-link TOC — small pill row at the top so users can skip to the
+       section they need. Same shape as guidelines.html. */
+    .toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 8px; }
+    .toc a {
+      display: inline-flex; align-items: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      color: var(--fg);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .toc a:hover { border-color: var(--accent); color: var(--accent); }
+
+    .section {
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 14px;
+      padding: 22px 24px;
+      box-shadow: var(--shadow);
+      margin: 16px 0;
+      scroll-margin-top: 84px;
+    }
+    .section h2 {
+      margin: 0 0 12px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 24px;
+      letter-spacing: -.02em;
+      font-weight: 600;
+    }
+    .section h3 {
+      margin: 18px 0 8px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .section p { margin: 0 0 10px; }
+    .section p:last-child { margin-bottom: 0; }
+    .section ul { margin: 8px 0 0; padding-left: 22px; }
+    .section li { margin-bottom: 8px; }
+    .section li:last-child { margin-bottom: 0; }
+    .section .lede {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    .section .fine-print {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--card-line);
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* The three-layer breakdown. Each layer gets a distinct treatment so
+       readers see at a glance which type of dispute they're dealing with. */
+    .layer {
+      margin: 10px 0;
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--card-line);
+      background: var(--surface-2);
+    }
+    .layer.layer-no {
+      background: rgba(168, 40, 31, 0.06);
+      border-color: rgba(168, 40, 31, 0.30);
+    }
+    .layer.layer-yes {
+      background: rgba(34, 139, 34, 0.06);
+      border-color: rgba(34, 139, 34, 0.30);
+    }
+    .layer-label {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+    .layer-no .layer-label    { background: rgba(168, 40, 31, 0.18); color: #d57e7e; }
+    .layer-yes .layer-label   { background: rgba(34, 139, 34, 0.18); color: #95d098; }
+    .layer h3 { margin-top: 0; }
+    .layer p:last-child { margin-bottom: 0; }
+
+    /* "What gets you suspended" rubric — tighter spacing for the rule list. */
+    .rubric-list li { margin-bottom: 10px; }
+    .rubric-list strong { color: var(--fg); }
+
+    .footer-link { margin-top: 24px; text-align: center; }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 32px 16px;
+      border-top: 1px solid var(--card-line);
+      background: var(--surface-1);
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site">
+    <a class="brand" href="/">
+      <img src="/assets/logo-on-white.svg" alt="CanvasCircle" />
+      <span class="title">CanvasCircle™</span>
+    </a>
+    <nav>
+      <a href="/">Catalog</a>
+      <a href="/portal/" class="cc-auth-link">Log In</a>
+      <a href="/guidelines.html">Guidelines</a>
+      <a href="/about.html">About</a>
+    </nav>
+  </header>
+
+  <script type="module" src="/lib/nav-auth.js?v=12"></script>
+
+  <main>
+    <section class="hero">
+      <h1>Dispute Policy</h1>
+      <p>How CanvasCircle handles disagreements, reports, and account-level concerns — written down so every decision can be traced back to a policy section, not to admin discretion.</p>
+    </section>
+
+    <nav class="toc" aria-label="On-this-page navigation">
+      <a href="#overview">Overview</a>
+      <a href="#three-layers">The three layers</a>
+      <a href="#transaction-recourse">Transaction dispute recourse</a>
+      <a href="#suspension-rubric">Suspension &amp; banning</a>
+      <a href="#not-bannable">Not bannable</a>
+      <a href="#reporting">Reporting</a>
+      <a href="#appeals">Appeals</a>
+      <a href="#fairness">Fairness commitments</a>
+    </nav>
+
+    <section class="section" id="overview">
+      <h2>Overview</h2>
+      <p class="lede">CanvasCircle is a listing platform — not a marketplace, not an escrow, not an arbiter of taste. Our role in disputes is to <strong>provide structure for the community</strong>, not to deliver justice on individual transactions. The line between what we do and don't act on is drawn explicitly below so it can be applied consistently regardless of who's involved.</p>
+      <p>If you've found this page because of a dispute right now, scan the section headers above — the most useful section for you is probably <a href="#transaction-recourse">Transaction dispute recourse</a> if it's a buyer-seller issue, or <a href="#reporting">Reporting</a> if you've encountered an account-level violation.</p>
+    </section>
+
+    <section class="section" id="three-layers">
+      <h2>The three layers</h2>
+      <p class="lede">Disputes that come to CanvasCircle fall into one of three categories. The first is the most common. We handle each differently.</p>
+
+      <div class="layer layer-no">
+        <span class="layer-label">CanvasCircle does NOT mediate</span>
+        <h3>1. Transaction disputes</h3>
+        <p>Disagreements about a specific buyer-seller transaction: price disputes, condition disagreements after receipt, missing or delayed shipping, seller didn't communicate something the buyer assumed, buyer wants a partial refund, authenticity disagreements, "they ghosted me," "they're being slow to ship."</p>
+        <p>These are between you and the other party. CanvasCircle has no payment, escrow, or shipping infrastructure to act on. See <a href="#transaction-recourse">Transaction dispute recourse</a> below for where to actually take these.</p>
+      </div>
+
+      <div class="layer layer-yes">
+        <span class="layer-label">CanvasCircle DOES enforce</span>
+        <h3>2. Account-level violations</h3>
+        <p>Things the seller is doing that affect the whole platform, not just one buyer: posting listings that don't qualify as fine art after warning, reposting under a new account after suspension, falsified verification videos, banned-credentials matches at signup, a documented pattern of misrepresentation across multiple buyers, refusing to honor the verification-video commitment when a buyer asks for it. The full list is in <a href="#suspension-rubric">Suspension &amp; banning</a>.</p>
+      </div>
+
+      <div class="layer layer-yes">
+        <span class="layer-label">CanvasCircle DOES act on</span>
+        <h3>3. Cross-user safety issues</h3>
+        <p>Harassment, doxxing, threats, abusive messages, coordinated retaliation, or any behavior that makes the platform feel unsafe for other users. These are handled as account-level matters — the standard is the impact on other users, not the dispute that triggered them.</p>
+      </div>
+
+      <p style="margin-top: 14px;">If you're not sure which layer your situation falls into, default to treating it as Layer 1 and follow the recourse paths below. CanvasCircle staff will redirect to Layer 2 / 3 if there's clear evidence of an account-level concern.</p>
+    </section>
+
+    <section class="section" id="transaction-recourse">
+      <h2>Transaction dispute recourse</h2>
+      <p class="lede">CanvasCircle doesn't mediate transactions, but you have real recourse — and the platform's guidelines steer sellers toward using these from day one.</p>
+
+      <h3>If you paid via PayPal Goods &amp; Services</h3>
+      <p>Open a PayPal dispute within their stated window (typically 180 days). PayPal G&amp;S exists specifically to cover "item not as described" and "item not received" cases. This is why the Selling Guidelines explicitly steer sellers toward PayPal G&amp;S over Friends &amp; Family for any unfamiliar buyer relationship.</p>
+
+      <h3>If you paid via Venmo Goods &amp; Services</h3>
+      <p>Venmo's purchase protection covers similar cases — open a dispute through their app under "Get help" within their stated window.</p>
+
+      <h3>For higher-value items</h3>
+      <p>If a piece is high enough value to justify professional involvement, third-party authentication services (e.g. authentication houses for specific artists) and small-claims court in the seller's jurisdiction are both options. Get receipts, listing screenshots, the seller's verification video, and all messages preserved early — most third parties will ask for them.</p>
+
+      <h3>Informal recourse: References</h3>
+      <p>If the seller has accepted Sales References, those references are publicly listed Established Members who personally vouched for the seller. Messaging a reference and explaining the situation is a legitimate way to escalate informally. References take their vouches seriously — if you can show evidence of a clear breach, they may revoke their reference, which is a public signal to other buyers.</p>
+
+      <p class="fine-print">CanvasCircle has no payment processing, no escrow, no transaction records, and no shipping visibility. Even if we wanted to mediate a transaction dispute, we'd have nothing to mediate it with. The infrastructure that does have that data is the payment provider you used.</p>
+    </section>
+
+    <section class="section" id="suspension-rubric">
+      <h2>Suspension &amp; banning</h2>
+      <p class="lede">Specific things that result in account-level action. Decisions cite a section from this list; none are made on personal judgment of the user.</p>
+
+      <ul class="rubric-list">
+        <li><strong>Banned-credentials match at signup or profile save.</strong> Email addresses, Facebook URLs, or other identifying credentials previously associated with banned accounts are blocked at the technical level. This catches most return-attempts by previously-removed users.</li>
+        <li><strong>Falsified, AI-generated, or reused ownership-verification video.</strong> The video must show physical possession of the artwork with a handwritten card showing the seller's @handle and today's date. Faking, stealing, or recycling videos is grounds for immediate ban.</li>
+        <li><strong>Documented pattern of misrepresentation.</strong> Multiple independent buyers reporting the same kind of issue (condition not as described, items significantly different from photos, etc.) with evidence. One isolated complaint is not a pattern; three from unrelated buyers in a short window is.</li>
+        <li><strong>Refusing to provide the verification video when a buyer asks.</strong> The verification video exists so buyers can confirm physical possession before transacting. Sellers who refuse to share it directly when asked may have their Ownership Verified badge revoked and, in repeat cases, lose listing access.</li>
+        <li><strong>Listings that don't qualify as fine art, after warning.</strong> The <a href="/guidelines.html#fine-art-definition">Fine Art definition</a> is the standard. First offense: rejection + warning. Repeat offenses after warning: temporary suspension.</li>
+        <li><strong>Harassment of other users.</strong> Abusive messages, threats, doxxing, retaliatory complaint-spamming, or coordinated harm. Severity-based: a one-time rude message gets a warning; sustained or targeted abuse gets a permanent ban.</li>
+        <li><strong>Attempting to circumvent platform rules.</strong> Creating multiple accounts to bypass the listing cap, using sock accounts to add false References, posting listings on behalf of suspended sellers, etc.</li>
+        <li><strong>Not honoring the collectors-only requirement.</strong> Artists, dealers, galleries, and consigners are explicitly not permitted on the platform — see <a href="/guidelines.html#selling">Selling Guidelines</a>. Listings discovered to be from these categories are removed; repeat attempts result in account suspension.</li>
+      </ul>
+
+      <h3>How decisions are made</h3>
+      <p>Each suspension or ban cites the specific item from the list above. A note explaining which rule was violated, and what evidence was reviewed, is recorded in the platform's moderation audit log. The decision-maker is the admin acting on this written rubric, not on personal judgment of the user.</p>
+
+      <p class="fine-print">Suspension durations escalate: first warning (no suspension), 7-day suspension, 30-day suspension, permanent ban. Severity of the violation can fast-track straight to permanent ban for the worst categories (falsified verification, harassment, multi-account abuse).</p>
+    </section>
+
+    <section class="section" id="not-bannable">
+      <h2>Not bannable</h2>
+      <p class="lede">Equally important: what does NOT result in account-level action. This protects sellers from one-off bad-faith reports and personal grievances.</p>
+      <ul>
+        <li><strong>One isolated buyer complaint without supporting evidence.</strong> Reports are evaluated on patterns and evidence, not on volume of complaints from a single source.</li>
+        <li><strong>Disagreements about price.</strong> If a seller wants to ask $5,000 for a piece a buyer thinks is worth $500, that's the market's job to resolve, not the platform's.</li>
+        <li><strong>Slow but ultimately completed shipping.</strong> Unless egregiously delayed (multiple weeks past stated commitment, no communication), shipping speed is between buyer and seller.</li>
+        <li><strong>Miscommunication that wasn't deliberate deception.</strong> "I assumed the frame was included" or "I didn't realize the dimensions were inches" type issues belong in the transaction dispute layer, not account action.</li>
+        <li><strong>Personal animosity toward other users or the admin.</strong> Disliking someone is not a violation, even when expressed publicly. Reports made out of personal grievance — without underlying evidence of a rule violation — don't trigger action against the reported user. (Repeated bad-faith reporting itself can become an account-level violation under "attempting to circumvent platform rules.")</li>
+        <li><strong>Disagreement with platform rules.</strong> You're welcome to use the platform within the rules, or to use platforms with different rules. We don't suspend accounts for opinions about our policies.</li>
+      </ul>
+    </section>
+
+    <section class="section" id="reporting">
+      <h2>Reporting</h2>
+      <p class="lede">When something does cross into Layer 2 or 3, here's how to file a report that actually moves.</p>
+
+      <h3>Where to report</h3>
+      <p>Every listing page has a <strong>Report listing</strong> button (or its equivalent flag). Use it for listings that don't qualify as fine art, listings that appear to be reproductions, listings from suspected non-collector accounts (artists, dealers, consigners), and listings with falsified verification videos.</p>
+      <p>For account-level concerns that aren't tied to a specific listing — harassment, banned-credentials suspicions, multi-account abuse — email <a href="mailto:admin@canvascircle.art">admin@canvascircle.art</a> with the subject line "Account report: [reason]."</p>
+
+      <h3>What to include</h3>
+      <ul>
+        <li><strong>Specifics.</strong> Listing ID or @handle of the user in question. Vague reports ("someone is doing something bad") can't be acted on.</li>
+        <li><strong>Evidence.</strong> Screenshots, message logs, transaction records — whatever you have. Reports without evidence get noted but rarely result in action.</li>
+        <li><strong>Pattern, if any.</strong> If you're aware of other buyers experiencing the same thing, mention it. Single complaints are slow to escalate; patterns are fast.</li>
+        <li><strong>What rule you believe was violated.</strong> Link to the specific section of this policy or Guidelines. Helps the admin evaluate quickly and consistently.</li>
+      </ul>
+
+      <h3>What happens next</h3>
+      <p>Reports are logged on receipt. CanvasCircle's standard practice is a <strong>24-hour cooling-off period</strong> before taking any account-level action — even when a report is clear-cut, decisions get a second look the next day to reduce the chance of reactive over-correction. You'll receive an acknowledgement that the report was received; you generally won't be told what action (if any) was taken, since that's between CanvasCircle and the reported account.</p>
+    </section>
+
+    <section class="section" id="appeals">
+      <h2>Appeals</h2>
+      <p class="lede">If your account is suspended or your listing is rejected and you believe it was applied incorrectly, you can appeal once.</p>
+      <p><strong>How to appeal:</strong> reply to the suspension or rejection notice (or email <a href="mailto:admin@canvascircle.art">admin@canvascircle.art</a> with the subject line "Appeal: [your @handle]"). Include any new information that wasn't available at the time of the original decision — re-photographed listings, missing context, corrections to misidentified facts.</p>
+      <p><strong>What gets reviewed:</strong> the original decision is re-evaluated against the same rubric. If new evidence changes the assessment, the action is reversed. If the original decision still stands, you'll receive a one-sentence explanation citing the policy section and the appeal is closed.</p>
+      <p><strong>One appeal per decision.</strong> Continued back-and-forth after a closed appeal isn't engaged with. This isn't dismissive — it's the same principle as not litigating closed transactions: at some point a decision is made and the platform moves on.</p>
+      <p class="fine-print">Appeals during active suspensions don't pause the suspension clock unless the appeal results in a reversal.</p>
+    </section>
+
+    <section class="section" id="fairness">
+      <h2>Fairness commitments</h2>
+      <p class="lede">The structures CanvasCircle commits to so that policy stays predictable over time, regardless of who's involved.</p>
+      <ul>
+        <li><strong>Every account-level action cites a specific policy section.</strong> No action is taken on the basis of "I don't like this person." If a decision can't be tied to a written rule, it doesn't happen.</li>
+        <li><strong>24-hour cooling-off before account-level action.</strong> Reports get logged on receipt; the admin doesn't act on them within the first 24 hours. This reduces reactive decisions and gives time to re-read the policy and check the evidence.</li>
+        <li><strong>Audit trail.</strong> Every moderation action — listing rejection, account suspension, ban — is logged with the timestamp, the rule cited, and the evidence considered. If a decision is ever questioned, there's a record.</li>
+        <li><strong>Reports are evaluated on evidence, not on who reported them.</strong> Frequent reporters don't get faster action. Personally-disliked users don't get rougher treatment. The evidence is what moves things, not the social dynamics around them.</li>
+        <li><strong>Bad-faith reporting itself is reportable.</strong> Filing repeated reports against another user without underlying evidence is treated as an attempt to circumvent platform rules — which is itself an account-level violation.</li>
+        <li><strong>Consistency over individual cases.</strong> If applying a rule strictly would produce an unfair outcome in a specific case, the answer is to fix the rule via policy update — not to make an exception. Exceptions erode the entire structure.</li>
+      </ul>
+      <p class="fine-print">This policy is reviewed and updated as the platform learns from real cases. Material changes are dated and announced; the current version is what's on this page.</p>
+    </section>
+
+    <div class="footer-link">
+      <a href="/">&larr; Return to the catalog</a>
+    </div>
+  </main>
+
+  <footer>
+    &copy; CanvasCircle.
+    <a href="/about.html" style="color:inherit;">About</a> &middot;
+    <a href="/guidelines.html" style="color:inherit;">Guidelines</a> &middot;
+    <a href="/dispute-policy.html" style="color:inherit;">Dispute Policy</a> &middot;
+    <a href="/terms.html" style="color:inherit;">Terms</a> &middot;
+    <a href="/privacy.html" style="color:inherit;">Privacy</a> &middot;
+    <a href="/portal/" style="color:inherit;" class="cc-auth-link">Log In</a>
+  </footer>
+
+  <style>
+    #back-to-top {
+      position: fixed;
+      bottom: 20px; right: 20px;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      border: 1px solid var(--card-line);
+      background: var(--surface-1);
+      color: var(--fg);
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 100;
+      transition: opacity .15s ease;
+    }
+    #back-to-top.visible { display: flex; }
+    #back-to-top:hover { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); }
+  </style>
+  <button type="button" id="back-to-top" aria-label="Back to top">↑</button>
+  <script>
+    (function () {
+      var btn = document.getElementById("back-to-top");
+      if (!btn) return;
+      function onScroll() {
+        if (window.scrollY > 400) btn.classList.add("visible");
+        else btn.classList.remove("visible");
+      }
+      window.addEventListener("scroll", onScroll, { passive: true });
+      btn.addEventListener("click", function () {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    })();
+  </script>
+</body>
+</html>
