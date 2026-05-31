@@ -4441,6 +4441,14 @@
                 </div>
 
                 <div class="field" style="margin-bottom: 10px;">
+                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="checkbox" id="cs-show-logo" style="width:18px; height:18px;" />
+                    <span>Add a CanvasCircle logo to the collage corner</span>
+                  </label>
+                  <p class="small" style="margin: 4px 0 0 26px; color: var(--muted);">Small watermark in the bottom-right corner of each generated collage. Lets buyers see where the listing came from when the post gets reshared.</p>
+                </div>
+
+                <div class="field" style="margin-bottom: 10px;">
                   <label for="cs-bg-color" style="display:block; font-weight:600; margin-bottom:4px;">Banner color</label>
                   <div style="display:flex; align-items:center; gap:8px;">
                     <input type="color" id="cs-bg-color" style="width: 56px; height: 36px; padding: 0; border: 1px solid var(--card-line); border-radius: 6px; cursor: pointer;" />
@@ -5122,8 +5130,12 @@
                 <input type="checkbox" id="sp-banner-sold-toggle" style="width:16px; height:16px;" />
                 <span>Show SOLD overlay on sold listings</span>
               </label>
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size: 13px;">
+                <input type="checkbox" id="sp-banner-logo-toggle" style="width:16px; height:16px;" />
+                <span>Add CanvasCircle logo to the collage corner</span>
+              </label>
               <p class="small" style="margin: 4px 0 0; color: var(--muted);">
-                Quick toggles for this builder session. To change banner colors, font, or the SOLD label text — or to make these toggle changes your default — open <a href="#" id="sp-banner-quick-profile-link" style="color: var(--accent); text-decoration: underline;">Profile → Sales Post collage style ↗</a>.
+                Quick toggles for this builder session. To change banner colors or font — or to make these toggle changes your default — open <a href="#" id="sp-banner-quick-profile-link" style="color: var(--accent); text-decoration: underline;">Profile → Sales Post collage style ↗</a>.
               </p>
             </div>
           </details>
@@ -11519,6 +11531,7 @@
     const COLLAGE_STYLE_DEFAULTS = Object.freeze({
       header_enabled: true,
       sold_enabled:   true,
+      show_logo:      false,    // opt-in; off by default so existing sellers see no change
       bg_color:       "#1f1a17",
       text_color:     "#ffffff",
       font_family:    "Georgia, 'Times New Roman', serif",
@@ -11535,6 +11548,7 @@
       // Populate form
       const $hen = document.getElementById("cs-header-enabled");
       const $sen = document.getElementById("cs-sold-enabled");
+      const $log = document.getElementById("cs-show-logo");
       const $bg  = document.getElementById("cs-bg-color");
       const $bgH = document.getElementById("cs-bg-color-hex");
       const $tx  = document.getElementById("cs-text-color");
@@ -11542,6 +11556,7 @@
       const $ff  = document.getElementById("cs-font-family");
       if ($hen) $hen.checked = !!merged.header_enabled;
       if ($sen) $sen.checked = !!merged.sold_enabled;
+      if ($log) $log.checked = !!merged.show_logo;
       if ($bg)  $bg.value    = merged.bg_color   || COLLAGE_STYLE_DEFAULTS.bg_color;
       if ($bgH) $bgH.value   = merged.bg_color   || COLLAGE_STYLE_DEFAULTS.bg_color;
       if ($tx)  $tx.value    = merged.text_color || COLLAGE_STYLE_DEFAULTS.text_color;
@@ -11553,6 +11568,7 @@
     function readCollageStyleForm() {
       const $hen = document.getElementById("cs-header-enabled");
       const $sen = document.getElementById("cs-sold-enabled");
+      const $log = document.getElementById("cs-show-logo");
       const $bg  = document.getElementById("cs-bg-color");
       const $tx  = document.getElementById("cs-text-color");
       const $ff  = document.getElementById("cs-font-family");
@@ -11562,6 +11578,7 @@
       return {
         header_enabled: !!$hen?.checked,
         sold_enabled:   !!$sen?.checked,
+        show_logo:      !!$log?.checked,
         bg_color:       bg,
         text_color:     tx,
         font_family:    ($ff?.value || COLLAGE_STYLE_DEFAULTS.font_family),
@@ -11629,6 +11646,16 @@
         ctx.fillText("SOLD", W / 2, imgY + cellH / 2);
         ctx.shadowBlur = 0;
       }
+
+      // Watermark preview — mirrors the real buildCollageCanvas behavior so
+      // the seller sees exactly what will land on their generated collage.
+      // drawLogoWatermark resolves async; we don't await it here (the
+      // preview canvas re-renders on every form input, so eventually-
+      // consistent is fine) — instead fire-and-forget and let the image
+      // appear on the next tick once the SVG is loaded + cached.
+      if (s.show_logo) {
+        drawLogoWatermark(ctx, W, H).catch(() => {});
+      }
     }
 
     // Hex (#RRGGBB) → rgba string. Used by the SOLD overlay so the
@@ -11648,7 +11675,7 @@
     // Save persists to the profile row; Reset reverts to defaults.
     (function wireCollageStyleForm() {
       const inputs = [
-        "cs-header-enabled", "cs-sold-enabled",
+        "cs-header-enabled", "cs-sold-enabled", "cs-show-logo",
         "cs-bg-color", "cs-bg-color-hex",
         "cs-text-color", "cs-text-color-hex",
         "cs-font-family", "cs-preview-sold",
@@ -14142,8 +14169,10 @@
       const s = window.__collageStyle || {};
       const $h = document.getElementById("sp-banner-header-toggle");
       const $d = document.getElementById("sp-banner-sold-toggle");
+      const $l = document.getElementById("sp-banner-logo-toggle");
       if ($h) $h.checked = !!s.header_enabled;
       if ($d) $d.checked = !!s.sold_enabled;
+      if ($l) $l.checked = !!s.show_logo;
       updateSpBannerQuickSummary();
     }
     function updateSpBannerQuickSummary() {
@@ -14153,6 +14182,7 @@
       const parts = [
         s.header_enabled ? "header on" : "header off",
         s.sold_enabled   ? "SOLD on"   : "SOLD off",
+        s.show_logo      ? "logo on"   : "logo off",
       ];
       $sum.textContent = `— ${parts.join(", ")}`;
     }
@@ -14163,6 +14193,10 @@
       });
       document.getElementById("sp-banner-sold-toggle")?.addEventListener("change", (e) => {
         window.__collageStyle = { ...(window.__collageStyle || {}), sold_enabled: !!e.currentTarget.checked };
+        updateSpBannerQuickSummary();
+      });
+      document.getElementById("sp-banner-logo-toggle")?.addEventListener("change", (e) => {
+        window.__collageStyle = { ...(window.__collageStyle || {}), show_logo: !!e.currentTarget.checked };
         updateSpBannerQuickSummary();
       });
       // "Customize in Profile →" link — leave the Sales Post view (a
@@ -15449,6 +15483,55 @@
     const COLLAGE_EXPORT_QUALITY = 0.92;
     const COLLAGE_EXPORT_EXT = "jpg";
 
+    // =========================================================================
+    // CanvasCircle watermark — opt-in (collage_banner_settings.show_logo).
+    // Renders /assets/logo-on-white.svg at ~12% of the collage width in the
+    // bottom-right corner of the FULL collage (not per-tile). Loaded once
+    // per page and cached. SVG load can fail silently in older mobile
+    // browsers — drawLogoWatermark just returns false if so, never throws.
+    // The on-white variant sits cleanly over any image because it carries
+    // its own pill background; no extra contrast layer needed.
+    // =========================================================================
+    const LOGO_WATERMARK_URL = "/assets/logo-on-white.svg";
+    let __logoImagePromise = null;
+    function loadLogoImage() {
+      if (__logoImagePromise) return __logoImagePromise;
+      __logoImagePromise = new Promise((resolve) => {
+        const img = new Image();
+        // Same-origin asset, so CORS isn't strictly needed; setting it
+        // anonymous matches our other loadCanvasImage usage and stays
+        // safe if a future CDN move makes this cross-origin.
+        img.crossOrigin = "anonymous";
+        img.onload  = () => resolve(img);
+        img.onerror = (e) => {
+          console.warn("[collage] logo watermark failed to load:", e);
+          resolve(null);
+        };
+        img.src = LOGO_WATERMARK_URL;
+      });
+      return __logoImagePromise;
+    }
+    async function drawLogoWatermark(ctx, W, H) {
+      const img = await loadLogoImage();
+      if (!img || !img.naturalWidth || !img.naturalHeight) return false;
+      // Target width = 14% of the collage's short side, capped at 140 logical
+      // px so it stays subtle on huge collages and visible on small ones.
+      const targetW = Math.max(60, Math.min(140, Math.round(Math.min(W, H) * 0.14)));
+      const aspect  = img.naturalWidth / img.naturalHeight;
+      const targetH = Math.round(targetW / aspect);
+      const margin  = Math.round(Math.min(W, H) * 0.025);   // breathing room
+      const dx = W - targetW - margin;
+      const dy = H - targetH - margin;
+      // Slight white pill underneath the logo so it has a clean read even
+      // against busy or dark artwork edges. logo-on-white.svg already has a
+      // white field but the artwork beneath it can still bleed visually.
+      ctx.save();
+      ctx.globalAlpha = 0.85;        // a touch translucent — feels like a watermark, not a sticker
+      ctx.drawImage(img, dx, dy, targetW, targetH);
+      ctx.restore();
+      return true;
+    }
+
     async function buildCollageCanvas(chunkOfListings, tilesPerCollage) {
       const metrics = collageMetrics(tilesPerCollage);
       const { cellW, cellH, headerH, padding } = metrics;
@@ -15474,6 +15557,14 @@
         const x = padding + col * (cellW + padding);
         const y = padding + row * (cellTotalH + padding);
         await drawCellOnCanvas(ctx, chunkOfListings[i], x, y, metrics);
+      }
+      // Watermark — drawn LAST so it sits on top of everything else (including
+      // SOLD overlays on the bottom-right tile). Bypasses if disabled in the
+      // seller's settings, or if the logo asset failed to load.
+      const style = window.__collageStyle || {};
+      if (style.show_logo) {
+        try { await drawLogoWatermark(ctx, W, H); }
+        catch (e) { console.warn("[collage] watermark draw failed:", e); }
       }
       return canvas;
     }
