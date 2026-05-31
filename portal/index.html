@@ -3371,6 +3371,70 @@
     }
     .sp-order-handle:active { cursor: grabbing; }
 
+    /* Per-tile banner-text edit affordance — the small pencil that sits to
+       the left of the drag handle. Tap to expand an inline editor below the
+       row that lets the seller override what shows in the collage banner
+       for THIS post. Overrides are session-only (not persisted to the DB or
+       to the listing data). See bannerOverrides Map in JS. */
+    .sp-order-edit-btn {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px; height: 32px;
+      background: transparent;
+      border: 1px solid var(--card-line);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 0;
+    }
+    .sp-order-edit-btn:hover { color: var(--fg); border-color: var(--accent); }
+    .sp-order-edit-btn.is-active { color: var(--accent); border-color: var(--accent); background: var(--accent-tint); }
+    .sp-order-edit-form {
+      grid-column: 1 / -1;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      margin: -2px 4px 6px;
+      background: var(--bg);
+      border: 1px solid var(--card-line);
+      border-radius: 6px;
+    }
+    .sp-order-edit-form.is-open { display: flex; }
+    .sp-order-edit-form label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .sp-order-edit-form input {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 13px;
+      padding: 6px 8px;
+    }
+    .sp-order-edit-form .sp-edit-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .sp-order-edit-form .sp-edit-help {
+      font-size: 11px;
+      color: var(--muted);
+      margin: 0;
+    }
+    .sp-order-artist.is-overridden,
+    .sp-order-title-line.is-overridden {
+      color: var(--accent);
+      font-style: italic;
+    }
+
     /* Text search above the listings picker. Real-time filter for power
        sellers with hundreds of listings — matches artist + title. The
        16px font-size on the input prevents iOS Safari from zooming the
@@ -4413,11 +4477,6 @@
                   </select>
                 </div>
 
-                <div class="field" style="margin-bottom: 10px;">
-                  <label for="cs-sold-label" style="display:block; font-weight:600; margin-bottom:4px;">SOLD overlay text</label>
-                  <input type="text" id="cs-sold-label" maxlength="20" placeholder="SOLD" />
-                  <p class="small" style="margin: 4px 0 0; color: var(--muted);">Up to 20 characters. Try "SOLD ✓", "GONE", "OFF MARKET" — anything that reads clearly.</p>
-                </div>
               </div>
 
               <!-- Live preview column -->
@@ -11463,7 +11522,9 @@
       bg_color:       "#1f1a17",
       text_color:     "#ffffff",
       font_family:    "Georgia, 'Times New Roman', serif",
-      sold_label:     "SOLD",
+      // sold_label removed from the UI 2026-05-31 — the canvas now always
+      // renders "SOLD" in the overlay. The DB column still exists for
+      // historical rows but we no longer read or write it.
     });
     window.__collageStyle = { ...COLLAGE_STYLE_DEFAULTS };
 
@@ -11479,7 +11540,6 @@
       const $tx  = document.getElementById("cs-text-color");
       const $txH = document.getElementById("cs-text-color-hex");
       const $ff  = document.getElementById("cs-font-family");
-      const $sl  = document.getElementById("cs-sold-label");
       if ($hen) $hen.checked = !!merged.header_enabled;
       if ($sen) $sen.checked = !!merged.sold_enabled;
       if ($bg)  $bg.value    = merged.bg_color   || COLLAGE_STYLE_DEFAULTS.bg_color;
@@ -11487,7 +11547,6 @@
       if ($tx)  $tx.value    = merged.text_color || COLLAGE_STYLE_DEFAULTS.text_color;
       if ($txH) $txH.value   = merged.text_color || COLLAGE_STYLE_DEFAULTS.text_color;
       if ($ff)  $ff.value    = merged.font_family || COLLAGE_STYLE_DEFAULTS.font_family;
-      if ($sl)  $sl.value    = merged.sold_label || COLLAGE_STYLE_DEFAULTS.sold_label;
       renderCollagePreview();
     }
 
@@ -11497,7 +11556,6 @@
       const $bg  = document.getElementById("cs-bg-color");
       const $tx  = document.getElementById("cs-text-color");
       const $ff  = document.getElementById("cs-font-family");
-      const $sl  = document.getElementById("cs-sold-label");
       const isHex = (s) => /^#[0-9a-fA-F]{6}$/.test(String(s || "").trim());
       const bg = isHex($bg?.value) ? $bg.value : COLLAGE_STYLE_DEFAULTS.bg_color;
       const tx = isHex($tx?.value) ? $tx.value : COLLAGE_STYLE_DEFAULTS.text_color;
@@ -11507,7 +11565,7 @@
         bg_color:       bg,
         text_color:     tx,
         font_family:    ($ff?.value || COLLAGE_STYLE_DEFAULTS.font_family),
-        sold_label:     ($sl?.value || COLLAGE_STYLE_DEFAULTS.sold_label).slice(0, 20),
+        // sold_label intentionally omitted — feature removed 2026-05-31.
       };
     }
 
@@ -11568,7 +11626,7 @@
         ctx.textBaseline = "middle";
         ctx.shadowColor = "rgba(0,0,0,.35)";
         ctx.shadowBlur  = 10;
-        ctx.fillText(s.sold_label || "SOLD", W / 2, imgY + cellH / 2);
+        ctx.fillText("SOLD", W / 2, imgY + cellH / 2);
         ctx.shadowBlur = 0;
       }
     }
@@ -11593,7 +11651,7 @@
         "cs-header-enabled", "cs-sold-enabled",
         "cs-bg-color", "cs-bg-color-hex",
         "cs-text-color", "cs-text-color-hex",
-        "cs-font-family", "cs-sold-label", "cs-preview-sold",
+        "cs-font-family", "cs-preview-sold",
       ];
       for (const id of inputs) {
         const el = document.getElementById(id);
@@ -13852,6 +13910,13 @@
         syncSpBannerQuickFromStyle();
       } catch (e) { console.warn("[sp-banner-quick] sync on open failed:", e); }
 
+      // Reset per-tile banner-text overrides each time the seller opens
+      // the Sales Post Builder. Overrides are session-only and only make
+      // sense in the context of the current post — carrying them across
+      // sessions would surprise the seller with old custom text on a fresh
+      // composition. Drafts don't carry overrides yet either.
+      try { clearBannerOverrides(); } catch {}
+
       // Pull presets out of the profile. If the seller has never used the
       // builder, post_presets is null — seed an empty "Default" so the UI
       // always has something to show. Persisting the seed back is deferred
@@ -14162,9 +14227,11 @@
       const $list  = document.getElementById("sp-order-list");
       if (!$panel || !$list) return;
 
-      // Panel only shows when there are 2+ items — no point in "ordering"
-      // a single listing.
-      if (spSelectedOrder.length < 2) {
+      // Panel shows whenever the seller has 1+ selected listings. With 1
+      // there's no reordering to do but the panel still gives them the
+      // per-tile "Edit banner text" affordance, which is useful for any
+      // collage size (including single-tile feature cards).
+      if (spSelectedOrder.length < 1) {
         $panel.hidden = true;
         $list.innerHTML = "";
         if (__sortableInstance) { __sortableInstance.destroy(); __sortableInstance = null; }
@@ -14198,6 +14265,21 @@
         if (!l) continue;  // listing no longer in allListings (deleted etc.)
         const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
         const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 120 }) : "";
+
+        // Per-tile banner overrides (session-only). See window.__bannerOverrides
+        // — keyed by listing_id, values { artist, title }. If override exists,
+        // display the override values in the chip and mark them visually so
+        // the seller knows they're looking at custom text, not listing data.
+        const override = (window.__bannerOverrides || {})[id];
+        const displayedArtist = override?.artist ?? (l.artist_name || "Unknown");
+        const displayedTitle  = override?.title  ?? (l.artwork_title || "");
+        const artistOverridden = !!(override && override.artist !== undefined && override.artist !== (l.artist_name || ""));
+        const titleOverridden  = !!(override && override.title  !== undefined && override.title  !== (l.artwork_title || ""));
+        const editBtnClass = (artistOverridden || titleOverridden) ? "sp-order-edit-btn is-active" : "sp-order-edit-btn";
+        const editBtnTitle = (artistOverridden || titleOverridden)
+          ? "Banner text customized — tap to edit or reset"
+          : "Edit how this tile's artist + title shows in the collage banner";
+
         const chip = document.createElement("div");
         chip.className = "sp-order-chip";
         chip.dataset.id = id;
@@ -14205,9 +14287,10 @@
           <span class="sp-order-index" aria-hidden="true">${i + 1}</span>
           <div class="sp-order-thumb">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}</div>
           <div class="sp-order-meta">
-            <span class="sp-order-artist">${escapeHtml(l.artist_name || "Unknown")}</span>
-            <span class="sp-order-title-line">${escapeHtml(l.artwork_title || "")}</span>
+            <span class="sp-order-artist ${artistOverridden ? "is-overridden" : ""}">${escapeHtml(displayedArtist)}</span>
+            <span class="sp-order-title-line ${titleOverridden ? "is-overridden" : ""}">${escapeHtml(displayedTitle)}</span>
           </div>
+          <button type="button" class="${editBtnClass}" data-edit-id="${escapeHtml(id)}" title="${editBtnTitle}" aria-label="${editBtnTitle}">✎</button>
           <span class="sp-order-handle" aria-label="Drag to reorder" role="button">≡</span>
         `;
         frag.appendChild(chip);
@@ -14217,6 +14300,127 @@
 
       // Initialize / re-init Sortable.
       initSortableOnOrderPanel();
+    }
+
+    // =========================================================================
+    // Per-tile banner-text override — session-only edits to the artist + title
+    // strings rendered in the collage banner for one specific Sales Post run.
+    // Storage: window.__bannerOverrides — plain object keyed by listing_id
+    // with values { artist?: string, title?: string }. Setting a key to ""
+    // explicitly means "render as empty" (e.g. clear an awkward title), so
+    // we use Object.hasOwn / typeof checks rather than truthy checks. Missing
+    // keys (or a missing object entry) mean "use the listing's actual data."
+    //
+    // Cleared by clearBannerOverrides() — called from enterSalesPost() so a
+    // fresh visit always starts from the listing data. Drafts don't carry
+    // overrides yet (would need to extend the draft JSON shape); revisit
+    // that if sellers ask for it.
+    // =========================================================================
+    if (!window.__bannerOverrides) window.__bannerOverrides = Object.create(null);
+    function clearBannerOverrides() { window.__bannerOverrides = Object.create(null); }
+    function setBannerOverride(listingId, fields) {
+      const map = window.__bannerOverrides;
+      const existing = map[listingId] || {};
+      const merged = { ...existing, ...fields };
+      // If both fields equal the listing data, drop the override entry so
+      // future renders fall back cleanly to the data path.
+      const byId = new Map((typeof allListings !== "undefined" ? allListings || [] : []).map(l => [l.listing_id, l]));
+      const l = byId.get(listingId);
+      const matchesArtist = l && typeof merged.artist === "string" && merged.artist === (l.artist_name || "");
+      const matchesTitle  = l && typeof merged.title  === "string" && merged.title  === (l.artwork_title || "");
+      if (matchesArtist && matchesTitle) {
+        delete map[listingId];
+      } else {
+        map[listingId] = merged;
+      }
+    }
+    function resolveBannerText(listing) {
+      const id = listing?.listing_id;
+      const override = id ? (window.__bannerOverrides || {})[id] : null;
+      const artist = (override && typeof override.artist === "string") ? override.artist : (listing?.artist_name || "");
+      const title  = (override && typeof override.title  === "string") ? override.title  : (listing?.artwork_title || "");
+      return { artist, title };
+    }
+
+    // Click delegation for the pencil + inline editor. One handler on the
+    // panel covers every chip — listeners survive renderSelectedOrderPanel
+    // rebuilds because the panel element itself persists.
+    (function wireSpOrderEditDelegation() {
+      const $panel = document.getElementById("sp-selected-order");
+      if (!$panel || $panel.__editDelegated) return;
+      $panel.__editDelegated = true;
+      $panel.addEventListener("click", (ev) => {
+        const $btn = ev.target.closest && ev.target.closest(".sp-order-edit-btn");
+        if (!$btn) return;
+        ev.preventDefault();
+        const id = $btn.dataset.editId;
+        if (!id) return;
+        toggleSpOrderEditor($btn, id);
+      });
+    })();
+
+    function toggleSpOrderEditor($btn, listingId) {
+      const $chip = $btn.closest(".sp-order-chip");
+      if (!$chip) return;
+      // If an editor is already open for this chip, close it.
+      const existing = $chip.nextElementSibling;
+      if (existing && existing.classList.contains("sp-order-edit-form") && existing.dataset.forId === listingId) {
+        existing.remove();
+        return;
+      }
+      // Otherwise close any other open editors first (one-at-a-time UX).
+      document.querySelectorAll("#sp-order-list .sp-order-edit-form").forEach(el => el.remove());
+
+      const byId = new Map((allListings || []).map(l => [l.listing_id, l]));
+      const l = byId.get(listingId);
+      if (!l) return;
+      const current = resolveBannerText(l);
+      const isOverridden = !!(window.__bannerOverrides || {})[listingId];
+
+      const $form = document.createElement("div");
+      $form.className = "sp-order-edit-form is-open";
+      $form.dataset.forId = listingId;
+      $form.innerHTML = `
+        <p class="sp-edit-help">Override only what shows in <strong>this post's collage banner</strong>. Your listing is not changed.</p>
+        <div>
+          <label for="sp-edit-artist-${escapeHtml(listingId)}">Artist (banner only)</label>
+          <input type="text" id="sp-edit-artist-${escapeHtml(listingId)}" maxlength="80" value="${escapeHtml(current.artist)}" placeholder="e.g. ${escapeHtml(l.artist_name || "Artist")}" />
+        </div>
+        <div>
+          <label for="sp-edit-title-${escapeHtml(listingId)}">Title (banner only)</label>
+          <input type="text" id="sp-edit-title-${escapeHtml(listingId)}" maxlength="100" value="${escapeHtml(current.title)}" placeholder="e.g. ${escapeHtml(l.artwork_title || "Title")}" />
+        </div>
+        <div class="sp-edit-actions">
+          <button type="button" class="btn-primary"   data-action="apply">Apply</button>
+          <button type="button" class="btn-secondary" data-action="reset" ${isOverridden ? "" : "disabled"}>Reset to listing</button>
+          <button type="button" class="btn-secondary" data-action="cancel">Cancel</button>
+        </div>
+      `;
+      // Insert directly after the chip so the editor visually attaches to it.
+      $chip.after($form);
+
+      const $artist = $form.querySelector(`#sp-edit-artist-${CSS.escape(listingId)}`);
+      const $title  = $form.querySelector(`#sp-edit-title-${CSS.escape(listingId)}`);
+
+      $form.querySelector('[data-action="cancel"]').addEventListener("click", () => $form.remove());
+      $form.querySelector('[data-action="reset"]').addEventListener("click", () => {
+        delete (window.__bannerOverrides || {})[listingId];
+        renderSelectedOrderPanel();
+      });
+      $form.querySelector('[data-action="apply"]').addEventListener("click", () => {
+        // We store BOTH fields whenever applying — even if the seller only
+        // changed one, the other should also be pinned to its current value
+        // so an edit to listing data later doesn't silently change one
+        // banner field but not the other.
+        setBannerOverride(listingId, {
+          artist: ($artist.value || "").trim().slice(0, 80),
+          title:  ($title.value  || "").trim().slice(0, 100),
+        });
+        renderSelectedOrderPanel();
+      });
+
+      // Auto-focus the artist field so the seller can start typing immediately.
+      try { $artist.focus(); $artist.select(); } catch {}
     }
 
     function loadSortableJS() {
@@ -15150,12 +15354,16 @@
         header_enabled: true, sold_enabled: true,
         bg_color: "#1f1a17", text_color: "#ffffff",
         font_family: "Georgia, 'Times New Roman', serif",
-        sold_label: "SOLD",
       };
 
       // Header strip (dark bar with artist – title) — only drawn if the
       // seller's settings have header_enabled. When off, the image fills
       // the full cell height including what would have been the header.
+      //
+      // The artist/title text can be overridden per-tile for THIS post via
+      // the Edit pencil in the selected-order panel. resolveBannerText
+      // returns the override if present, the listing's actual values
+      // otherwise. See window.__bannerOverrides.
       const effectiveHeaderH = style.header_enabled ? headerH : 0;
       if (style.header_enabled) {
         ctx.fillStyle = style.bg_color;
@@ -15164,7 +15372,10 @@
         ctx.font = `600 ${headerFontPx}px ${style.font_family}`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        const headerText = [listing.artist_name, listing.artwork_title].filter(Boolean).join(" – ");
+        const banner = (typeof resolveBannerText === "function")
+          ? resolveBannerText(listing)
+          : { artist: listing.artist_name || "", title: listing.artwork_title || "" };
+        const headerText = [banner.artist, banner.title].filter(Boolean).join(" – ");
         ctx.fillText(fitText(ctx, headerText, cellW - 24),
                      x + cellW / 2,
                      y + headerH / 2);
@@ -15207,8 +15418,8 @@
       // Overlay tint inherits the seller's bg_color at 0.55 alpha so the
       // SOLD wash reads as part of their personal style instead of always
       // dropping in a generic platform-red. Text uses the configured text_color
-      // and font_family. The label text itself is configurable too — sellers
-      // can swap "SOLD" for "GONE", "OFF MARKET", "SOLD ✓", etc.
+      // and font_family. Label is always "SOLD" — the customizable-label
+      // feature was removed 2026-05-31 (Guy decided it wasn't necessary).
       if (listing.status === "sold" && style.sold_enabled) {
         ctx.fillStyle = hexToRgba(style.bg_color, 0.55);
         ctx.fillRect(x, imgY, cellW, effectiveCellH);
@@ -15219,7 +15430,7 @@
         ctx.shadowColor = "rgba(0,0,0,.35)";
         ctx.shadowBlur  = 10;
         ctx.fillText(
-          fitText(ctx, (style.sold_label || "SOLD"), cellW - 24),
+          "SOLD",
           x + cellW / 2,
           imgY + effectiveCellH / 2
         );
