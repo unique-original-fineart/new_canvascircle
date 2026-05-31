@@ -3294,6 +3294,78 @@
       outline: none; border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(184,134,11,.15);
     }
+    /* Collapsible step (used by Step 1). The h3-as-button header is the
+       only always-visible thing; .sp-step-body is shown/hidden via the
+       .is-collapsed class on the wrapper. Chevron rotates to indicate
+       state. Header summary text reveals the active-preset name when the
+       section is collapsed, so the seller never loses context about
+       what's loaded. */
+    .sp-step-collapsible .sp-step-header {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0;
+      margin: 0 0 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      color: var(--fg);
+      font-family: inherit;
+    }
+    .sp-step-collapsible .sp-step-header:hover .sp-step-chevron,
+    .sp-step-collapsible .sp-step-header:focus-visible .sp-step-chevron {
+      color: var(--accent);
+    }
+    .sp-step-collapsible .sp-step-header:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+    .sp-step-header-main {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sp-step-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: .2px;
+    }
+    .sp-step-chevron {
+      display: inline-block;
+      font-size: 14px;
+      color: var(--muted);
+      transition: transform .15s ease, color .15s ease;
+      transform: rotate(0deg);
+    }
+    .sp-step-collapsible.is-collapsed .sp-step-chevron {
+      transform: rotate(-90deg);
+    }
+    .sp-step-header-summary {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    /* Summary text is only meaningful when collapsed — when expanded the
+       user can see the full preset picker, no need to duplicate. */
+    .sp-step-collapsible:not(.is-collapsed) .sp-step-header-summary {
+      display: none;
+    }
+    .sp-step-collapsible.is-collapsed .sp-step-body {
+      display: none;
+    }
+    .sp-step-body {
+      margin-top: 8px;
+    }
+
     /* Saved-drafts bar — sits above Step 1, only shown when the seller has
        1+ saved drafts. Provides resume / delete actions for in-progress
        compositions. Wraps on narrow viewports. */
@@ -4517,39 +4589,52 @@
           <span class="sp-text-status" id="sp-drafts-status"></span>
         </div>
 
-        <!-- Step 1: Header / Footer + per-group presets -->
-        <div class="sp-step">
-          <h3>1. Header &amp; Footer</h3>
-          <p class="help">Save a named preset for each Facebook group you post to (different tone, hashtags, link policy). Pick one before generating.</p>
-
-          <!-- Preset picker row: dropdown + New / Rename / Delete controls -->
-          <div class="sp-preset-row">
-            <label for="sp-preset-select" class="sp-preset-label">Preset:</label>
-            <select id="sp-preset-select" aria-label="Choose a saved preset"></select>
-            <button type="button" class="btn-secondary" id="sp-preset-new"    title="Create a new preset">+ New</button>
-            <button type="button" class="btn-secondary" id="sp-preset-rename" title="Rename the current preset">Rename</button>
-            <button type="button" class="btn-secondary" id="sp-preset-delete" title="Delete the current preset">Delete</button>
-          </div>
-
-          <label for="sp-header" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Header</label>
-          <textarea id="sp-header" placeholder="e.g. Hi all — fresh listings posted on CanvasCircle below."></textarea>
-          <label for="sp-footer" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Footer</label>
-          <textarea id="sp-footer" placeholder="e.g. PM me with questions. Accept Venmo / PayPal G&S. Local pickup welcome."></textarea>
-
-          <!-- Per-preset "include catalog link" toggle. Some FB groups
-               discourage external links; sellers can turn this on for
-               groups where it's welcome and off for stricter ones. -->
-          <label class="sp-link-checkbox">
-            <input type="checkbox" id="sp-include-link" />
-            <span class="sp-link-checkbox-text">
-              <strong>📎 Include my seller-page link at the end of the post</strong>
-              <span class="small">Appends "View full catalog: canvascircle.art/seller?handle=…" so buyers can jump to your full inventory.</span>
+        <!-- Step 1: Header / Footer + per-group presets.
+             Collapsible — power sellers who've already saved their presets
+             don't need to see this every visit. Defaults to expanded for
+             first-time users; auto-collapses on Save preset and stays
+             collapsed across visits via localStorage. -->
+        <div class="sp-step sp-step-collapsible" id="sp-step-1">
+          <button type="button" class="sp-step-header" id="sp-step-1-toggle"
+                  aria-expanded="true" aria-controls="sp-step-1-body">
+            <span class="sp-step-header-main">
+              <span class="sp-step-chevron" aria-hidden="true">▾</span>
+              <span class="sp-step-title">1. Header &amp; Footer</span>
             </span>
-          </label>
+            <span class="sp-step-header-summary" id="sp-step-1-summary"></span>
+          </button>
+          <div class="sp-step-body" id="sp-step-1-body">
+            <p class="help">Save a named preset for each Facebook group you post to (different tone, hashtags, link policy). Pick one before generating.</p>
 
-          <div style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
-            <button type="button" class="btn-primary" id="sp-save-text-btn">Save preset</button>
-            <span class="sp-text-status" id="sp-text-status"></span>
+            <!-- Preset picker row: dropdown + New / Rename / Delete controls -->
+            <div class="sp-preset-row">
+              <label for="sp-preset-select" class="sp-preset-label">Preset:</label>
+              <select id="sp-preset-select" aria-label="Choose a saved preset"></select>
+              <button type="button" class="btn-secondary" id="sp-preset-new"    title="Create a new preset">+ New</button>
+              <button type="button" class="btn-secondary" id="sp-preset-rename" title="Rename the current preset">Rename</button>
+              <button type="button" class="btn-secondary" id="sp-preset-delete" title="Delete the current preset">Delete</button>
+            </div>
+
+            <label for="sp-header" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Header</label>
+            <textarea id="sp-header" placeholder="e.g. Hi all — fresh listings posted on CanvasCircle below."></textarea>
+            <label for="sp-footer" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Footer</label>
+            <textarea id="sp-footer" placeholder="e.g. PM me with questions. Accept Venmo / PayPal G&S. Local pickup welcome."></textarea>
+
+            <!-- Per-preset "include catalog link" toggle. Some FB groups
+                 discourage external links; sellers can turn this on for
+                 groups where it's welcome and off for stricter ones. -->
+            <label class="sp-link-checkbox">
+              <input type="checkbox" id="sp-include-link" />
+              <span class="sp-link-checkbox-text">
+                <strong>📎 Include my seller-page link at the end of the post</strong>
+                <span class="small">Appends "View full catalog: canvascircle.art/seller?handle=…" so buyers can jump to your full inventory.</span>
+              </span>
+            </label>
+
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
+              <button type="button" class="btn-primary" id="sp-save-text-btn">Save preset</button>
+              <span class="sp-text-status" id="sp-text-status"></span>
+            </div>
           </div>
         </div>
 
@@ -12857,6 +12942,39 @@
     let spDrafts = [];
     const SP_DRAFTS_CAP = 10;
 
+    // ----- Step 1 collapsible state -----
+    // localStorage key:
+    //   - missing  → default expanded (first-time users see the form)
+    //   - "1"      → collapsed
+    //   - "0"      → expanded (manually re-opened after collapse)
+    // Auto-set to "1" when the seller clicks "Save preset" — at that
+    // point they've configured what they need and the section can step
+    // out of their way on subsequent visits.
+    const SP_STEP1_COLLAPSED_KEY = "cc_sp_step1_collapsed";
+    const $spStep1Wrap    = document.getElementById("sp-step-1");
+    const $spStep1Toggle  = document.getElementById("sp-step-1-toggle");
+    const $spStep1Summary = document.getElementById("sp-step-1-summary");
+    function setStep1Collapsed(collapsed, persist = true) {
+      if (!$spStep1Wrap) return;
+      $spStep1Wrap.classList.toggle("is-collapsed", !!collapsed);
+      if ($spStep1Toggle) $spStep1Toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      if (persist) {
+        try { localStorage.setItem(SP_STEP1_COLLAPSED_KEY, collapsed ? "1" : "0"); } catch {}
+      }
+      updateStep1Summary();
+    }
+    function updateStep1Summary() {
+      if (!$spStep1Summary) return;
+      const p = activePreset();
+      if (!p) { $spStep1Summary.textContent = ""; return; }
+      const linkBit = p.include_seller_link ? " · 📎 link on" : "";
+      $spStep1Summary.textContent = `Using: ${p.name}${linkBit}`;
+    }
+    $spStep1Toggle?.addEventListener("click", () => {
+      const isCollapsed = $spStep1Wrap.classList.contains("is-collapsed");
+      setStep1Collapsed(!isCollapsed);
+    });
+
     function genPresetId() {
       // 12-char alphanumeric — enough entropy for per-user preset uniqueness.
       return "preset_" + Math.random().toString(36).slice(2, 14);
@@ -12906,7 +13024,9 @@
     }
 
     // Load the active preset's values into the form fields. Called on
-    // dropdown change and on initial entry.
+    // dropdown change and on initial entry. Also refreshes the collapsed
+    // Step 1 summary so the seller always sees the right active-preset
+    // name in the header bar — even when the body is hidden.
     function loadActivePresetIntoForm() {
       const p = activePreset();
       $spHeader.value      = p?.header || "";
@@ -12914,6 +13034,7 @@
       $spIncludeLink.checked = !!p?.include_seller_link;
       $spTextStatus.textContent = "";
       $spTextStatus.className   = "sp-text-status";
+      updateStep1Summary();
     }
 
     let spInitialized = false;
@@ -12967,6 +13088,18 @@
 
       renderPresetDropdown();
       loadActivePresetIntoForm();
+
+      // Apply the persisted Step 1 collapsed state. First-time users (no
+      // localStorage value) get the expanded form so they can fill it in.
+      // Returning sellers who've saved before get the collapsed view so the
+      // section stays out of their way. The summary line shows the active
+      // preset name regardless of state.
+      {
+        let stored = null;
+        try { stored = localStorage.getItem(SP_STEP1_COLLAPSED_KEY); } catch {}
+        const collapsed = stored === "1";  // default expanded when null/"0"
+        setStep1Collapsed(collapsed, /*persist*/ false);
+      }
 
       // Moderation gate: ONLY admin-approved listings are eligible for
       // sales-post inclusion. Reason: a non-Established seller could post
@@ -13293,6 +13426,10 @@
       $spTextStatus.textContent = `Saved to "${current.name}".`;
       $spTextStatus.className = "sp-text-status ok";
       $spSaveTextBtn.disabled = false;
+      // Auto-collapse Step 1 after a successful Save preset — power sellers
+      // who've configured what they need don't need to keep seeing the
+      // form on subsequent visits. Toggles back open via the chevron.
+      setStep1Collapsed(true);
     });
 
     // ===== Drafts manager =================================================
