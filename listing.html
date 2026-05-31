@@ -525,7 +525,7 @@
     </nav>
   </header>
 
-  <script type="module" src="/lib/nav-auth.js?v=12"></script>
+  <script type="module" src="/lib/nav-auth.js?v=13"></script>
 
   <main>
     <a class="back" id="back-link" href="/">&larr; Back to catalog</a>
@@ -577,7 +577,7 @@
   </footer>
 
   <script type="module">
-    import { supabase, publicImageUrl } from "/lib/supabase.js?v=2";
+    import { supabase, publicImageUrl, loadBlockFilter, isBlockedUid, currentUser } from "/lib/supabase.js?v=3";
     import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
     import { showAuthPrompt } from "/lib/auth-prompt.js";
     import { armReturnTrail } from "/lib/return-trail.js";
@@ -867,6 +867,18 @@
         $status.textContent = "This listing isn't available.";
         return;
       }
+
+      // User-block gate. If the viewer has blocked this seller OR the seller
+      // has blocked the viewer, hide the listing the same way we'd hide an
+      // inactive-account listing. Generic copy preserves privacy — we don't
+      // tell either party "you've been blocked." See [[user-blocks]].
+      try {
+        const blockSet = await loadBlockFilter();
+        if (data.seller_id && isBlockedUid(blockSet, data.seller_id)) {
+          $status.textContent = "This listing isn't available.";
+          return;
+        }
+      } catch (e) { /* anon viewer or RPC blip — fall through */ }
       // Anonymous viewers see the listing but not the seller's identity or
       // contact info — they're prompted to sign in to reach out. (signedIn
       // is the auth state we computed up top, before issuing the query.)

@@ -294,6 +294,24 @@ serve(async (req) => {
         return json(400, { error: "This seller's account is no longer active." });
       }
 
+      // User-block gate. If either party has blocked the other, refuse the
+      // contact-seller request. Generic error to preserve privacy — we don't
+      // reveal which direction the block was set. See
+      // db/migrations/042_user_blocks.sql for the symmetric semantics.
+      {
+        const { data: blocked, error: blockErr } = await adminClient
+          .rpc("is_blocked_between", { p_user_a: user.id, p_user_b: seller.user_id });
+        if (blockErr) {
+          console.error("[contact-seller] block check failed:", blockErr);
+          // Fail closed on RPC errors — if we can't confirm absence of a
+          // block we'd rather refuse than risk leaking the message through.
+          return json(503, { error: "Couldn't send right now. Try again in a moment." });
+        }
+        if (blocked === true) {
+          return json(403, { error: "This message can't be delivered." });
+        }
+      }
+
       // Rate-limit check.
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const { count: recentCount, error: countErr } = await adminClient

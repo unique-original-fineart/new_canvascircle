@@ -3768,7 +3768,7 @@
     </nav>
   </header>
 
-  <script type="module" src="/lib/nav-auth.js?v=12"></script>
+  <script type="module" src="/lib/nav-auth.js?v=13"></script>
 
   <main>
     <div class="card">
@@ -4335,6 +4335,29 @@
               <div id="vouching-refs-list" class="refs-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
             </div>
           </div>
+
+          <!-- ============================================================ -->
+          <!-- Blocked users section — view-only filter list, not destructive.-->
+          <!-- ============================================================ -->
+          <!-- See db/migrations/042_user_blocks.sql. The list shown here is
+               the OUTGOING blocks only (users this caller blocked). The
+               reverse — users who blocked me — is intentionally not shown,
+               to preserve the privacy guarantee that blocked users don't
+               learn the identity of who blocked them. Unblock restores the
+               filter immediately on next page load. -->
+          <details id="blocked-users-section" style="margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--card-line);">
+            <summary style="font-size: 16px; font-weight: 600; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px;">
+              <span>Blocked users <span id="blocked-users-count" class="small" style="color: var(--muted); font-weight: 400;"></span></span>
+              <span style="color: var(--muted); font-size: 13px; font-weight: 400;">▾</span>
+            </summary>
+            <p class="small" style="margin: 10px 0 12px; color: var(--muted);">
+              Users you've blocked. Their listings and seller pages are hidden from you, and yours are hidden from them. This does <strong>not</strong> block them from contacting you off-platform (email, Facebook, phone). Unblock to restore visibility in both directions.
+            </p>
+            <div id="blocked-users-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            <div id="blocked-users-empty" class="small" style="color: var(--muted); margin-top: 6px;" hidden>
+              You haven't blocked anyone.
+            </div>
+          </details>
         </div>
 
         <!-- Tab: Saved listings + follows -->
@@ -5114,7 +5137,7 @@
   </footer>
 
   <script type="module">
-    import { supabase, currentProfile, publicImageUrl, compressImage } from "/lib/supabase.js?v=2";
+    import { supabase, currentProfile, publicImageUrl, compressImage, clearBlockFilterCache } from "/lib/supabase.js?v=3";
     import { getSavedListings, toggleSave, clearSavesCache } from "/lib/saves.js";
     import { readReturnTrail } from "/lib/return-trail.js";
     import { mountWelcomeBanner } from "/lib/welcome-banner.js";
@@ -11348,6 +11371,9 @@
       // Refresh the references section (outgoing + incoming requests). This
       // is fire-and-forget — the profile form is fully usable while it loads.
       loadReferences().catch(err => console.warn("[refs] load failed:", err));
+      // Refresh the Blocked Users list (only OUTGOING blocks shown — see
+      // db/migrations/042_user_blocks.sql for the privacy rationale).
+      loadBlockedUsersSection().catch(err => console.warn("[blocked-users] load failed:", err));
       // Render the Path to Established Member progress block. Hidden if the
       // user is already Established (is_trusted = true).
       loadEstablishedProgress(profile).catch(err => console.warn("[established-progress] load failed:", err));
@@ -11984,6 +12010,87 @@
       } catch (err) {
         console.error("[revoke-ref] failed:", err);
         alert("Could not remove: " + (err.message || err));
+      }
+    }
+
+    // =========================================================================
+    // Blocked users — list management. See db/migrations/042_user_blocks.sql.
+    //
+    // Loads the OUTGOING block list (rows where this user is the blocker).
+    // We deliberately do NOT show the reverse direction here; surfacing
+    // "people who blocked you" would defeat the privacy of the block tool.
+    // Each row has an Unblock button that calls unblock_user(), clears the
+    // per-tab block-filter cache, and re-renders the section.
+    // =========================================================================
+    async function loadBlockedUsersSection() {
+      if (!currentUserId) return;
+      const $list  = document.getElementById("blocked-users-list");
+      const $empty = document.getElementById("blocked-users-empty");
+      const $count = document.getElementById("blocked-users-count");
+      if (!$list || !$empty) return;
+      $list.innerHTML = "";
+
+      const { data, error } = await supabase
+        .from("user_blocks")
+        .select(`
+          blocked_user_id, created_at,
+          target:profiles!user_blocks_blocked_user_id_fkey
+            ( user_id, display_name, handle )
+        `)
+        .eq("blocker_user_id", currentUserId)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.warn("[blocked-users] query failed:", error);
+        $empty.hidden = true;
+        $list.innerHTML = `<p class="small" style="color:var(--muted);">Couldn't load blocked users.</p>`;
+        if ($count) $count.textContent = "";
+        return;
+      }
+
+      const rows = data || [];
+      if ($count) $count.textContent = rows.length ? `(${rows.length})` : "";
+      if (rows.length === 0) {
+        $empty.hidden = false;
+        return;
+      }
+      $empty.hidden = true;
+
+      for (const r of rows) {
+        const p = r.target || {};
+        const label = p.display_name
+          ? `${p.display_name} (@${p.handle || "?"})`
+          : (p.handle ? `@${p.handle}` : "Unknown user");
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; border:1px solid var(--card-line); border-radius:6px;";
+        row.innerHTML = `
+          <div style="min-width:0; flex:1;">
+            <div style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(label)}</div>
+            <div class="small" style="color:var(--muted);">Blocked ${new Date(r.created_at).toLocaleDateString()}</div>
+          </div>
+          <button type="button" class="btn-secondary" data-action="unblock" data-uid="${escapeHtml(r.blocked_user_id)}" data-label="${escapeHtml(label)}">Unblock</button>
+        `;
+        row.querySelector('[data-action="unblock"]').addEventListener("click", async (ev) => {
+          const btn = ev.currentTarget;
+          const uid = btn.dataset.uid;
+          const lbl = btn.dataset.label;
+          if (!uid) return;
+          if (!confirm(`Unblock ${lbl}? Their listings + page will become visible to you again, and yours to them.`)) return;
+          btn.disabled = true;
+          btn.textContent = "Unblocking…";
+          try {
+            const { error } = await supabase.rpc("unblock_user", { p_target_user_id: uid });
+            if (error) throw error;
+            clearBlockFilterCache();
+            await loadBlockedUsersSection();
+          } catch (e) {
+            console.error("[unblock-user] failed:", e);
+            alert("Couldn't unblock: " + (e?.message || e));
+            btn.disabled = false;
+            btn.textContent = "Unblock";
+          }
+        });
+        $list.appendChild(row);
       }
     }
 

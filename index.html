@@ -736,7 +736,7 @@
     </nav>
   </header>
 
-  <script type="module" src="/lib/nav-auth.js?v=12"></script>
+  <script type="module" src="/lib/nav-auth.js?v=13"></script>
 
   <main>
     <section class="hero">
@@ -863,7 +863,7 @@
   </footer>
 
   <script type="module">
-    import { supabase, publicImageUrl } from "/lib/supabase.js?v=2";
+    import { supabase, publicImageUrl, loadBlockFilter, isBlockedUid } from "/lib/supabase.js?v=3";
     import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
     import { showAuthPrompt } from "/lib/auth-prompt.js";
     import { armReturnTrail } from "/lib/return-trail.js";
@@ -1184,6 +1184,15 @@
       // tab so this branch is effectively unreachable there, but guard anyway.
       if (filters.openToTrade && tab === "sale") q = q.eq("open_to_trade", true);
 
+      // User-block filter — hide listings whose seller has either blocked the
+      // current viewer or been blocked by them. Symmetric semantics; see
+      // db/migrations/042_user_blocks.sql. The Set is loaded once per
+      // applyFilters() pass into filters._blockSet.
+      if (filters._blockSet && filters._blockSet.size > 0) {
+        const ids = [...filters._blockSet];
+        q = q.not("seller_id", "in", `(${ids.join(",")})`);
+      }
+
       // Price/budget filter — column depends on the tab. For ISO we filter by
       // budget_max (so "max $500" finds requests willing to pay up to $500+).
       if (tab === "iso") {
@@ -1286,6 +1295,11 @@
       // buildCatalogQuery reads currentFilters._sellerIds and ORs the
       // matching seller_ids into the listings query.
       currentFilters._sellerIds = await resolveSellerIdsForSearch(currentFilters.q);
+      // Load the user-block filter set (mutual: users I blocked + users who
+      // blocked me). For anonymous viewers this resolves to an empty Set.
+      // See db/migrations/042_user_blocks.sql for the symmetric semantics.
+      try { currentFilters._blockSet = await loadBlockFilter(); }
+      catch (e) { currentFilters._blockSet = new Set(); }
       listings      = [];
       loadedCount   = 0;
       totalCount    = 0;
