@@ -3294,6 +3294,42 @@
       outline: none; border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(184,134,11,.15);
     }
+    /* Saved-drafts bar — sits above Step 1, only shown when the seller has
+       1+ saved drafts. Provides resume / delete actions for in-progress
+       compositions. Wraps on narrow viewports. */
+    .sp-drafts-bar {
+      display: flex; align-items: center; gap: 8px;
+      flex-wrap: wrap;
+      padding: 10px 12px;
+      margin: 8px 0 16px;
+      background: rgba(45, 127, 255, 0.08);
+      border: 1px solid rgba(45, 127, 255, 0.25);
+      border-radius: 8px;
+    }
+    .sp-drafts-label {
+      font-size: 13px;
+      color: var(--fg);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .sp-drafts-bar select {
+      min-width: 200px;
+      flex: 1 1 240px;
+      max-width: 420px;
+    }
+    .sp-drafts-bar .btn-secondary {
+      padding: 6px 10px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    /* Generate row in Step 3 — primary Generate button + secondary Save
+       Draft button. Stacks on mobile if needed. */
+    .sp-generate-row {
+      display: flex; align-items: center; gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
     /* Preset picker row inside Step 1. Dropdown + small action buttons.
        Wraps to multiple rows on narrow viewports — the action buttons
        are intentionally compact (Rename / Delete) so the dropdown gets
@@ -4469,6 +4505,18 @@
           <button type="button" class="ghost" data-go="account">← Back to dashboard</button>
         </div>
 
+        <!-- Saved drafts bar. Shown only when the seller has 1+ saved
+             drafts. Lets them resume a paused composition (or load a
+             previously-saved post for a different group). Hidden by default;
+             JS reveals + populates on enterSalesPost. -->
+        <div class="sp-drafts-bar" id="sp-drafts-bar" hidden>
+          <label for="sp-drafts-picker" class="sp-drafts-label">📂 Resume a draft:</label>
+          <select id="sp-drafts-picker" aria-label="Choose a saved draft"></select>
+          <button type="button" class="btn-secondary" id="sp-drafts-load">Load</button>
+          <button type="button" class="btn-secondary" id="sp-drafts-delete" title="Delete the selected draft">Delete</button>
+          <span class="sp-text-status" id="sp-drafts-status"></span>
+        </div>
+
         <!-- Step 1: Header / Footer + per-group presets -->
         <div class="sp-step">
           <h3>1. Header &amp; Footer</h3>
@@ -4562,7 +4610,11 @@
               <option value="6" selected>6 per image — 3×2 grid (default)</option>
             </select>
           </div>
-          <button type="button" class="btn-primary" id="sp-generate-btn">Generate post + images</button>
+          <div class="sp-generate-row">
+            <button type="button" class="btn-primary" id="sp-generate-btn">Generate post + images</button>
+            <button type="button" class="btn-secondary" id="sp-save-draft-btn"
+                    title="Save this composition (selected listings + active preset + tiles choice + post text) to come back to later.">💾 Save draft</button>
+          </div>
           <span class="sp-text-status" id="sp-generate-status"></span>
         </div>
 
@@ -12784,6 +12836,14 @@
     const $spPresetDelete  = document.getElementById("sp-preset-delete");
     const $spIncludeLink   = document.getElementById("sp-include-link");
 
+    // Drafts manager DOM
+    const $spDraftsBar     = document.getElementById("sp-drafts-bar");
+    const $spDraftsPicker  = document.getElementById("sp-drafts-picker");
+    const $spDraftsLoad    = document.getElementById("sp-drafts-load");
+    const $spDraftsDelete  = document.getElementById("sp-drafts-delete");
+    const $spDraftsStatus  = document.getElementById("sp-drafts-status");
+    const $spSaveDraftBtn  = document.getElementById("sp-save-draft-btn");
+
     // In-memory state for the preset manager. Source-of-truth is the
     // profile.post_presets jsonb column; we mirror it locally so dropdown
     // changes / new / rename / delete can edit + persist in one shot.
@@ -12791,9 +12851,18 @@
     let spCurrentPresetId = null; // active preset id
     const SP_PRESET_LAST_KEY = "cc_sp_last_preset_id";
 
+    // In-memory state for drafts. Source-of-truth is profile.post_drafts.
+    // Cap at 10 (oldest evicted on save). Each: {id, name, listing_ids,
+    // preset_id, tiles_per_collage, text_snapshot, created_at}.
+    let spDrafts = [];
+    const SP_DRAFTS_CAP = 10;
+
     function genPresetId() {
       // 12-char alphanumeric — enough entropy for per-user preset uniqueness.
       return "preset_" + Math.random().toString(36).slice(2, 14);
+    }
+    function genDraftId() {
+      return "draft_" + Math.random().toString(36).slice(2, 14);
     }
 
     function findPreset(id) {
@@ -13017,6 +13086,23 @@
         cb.addEventListener("change", updateSpSelectedCount);
       });
       updateSpSelectedCount();
+
+      // Pull saved drafts out of the profile + render the drafts bar.
+      // Normalized read (missing fields don't crash the UI) — the profile
+      // JSON could be stale from before this column existed.
+      const draftsRaw = Array.isArray(profile?.post_drafts) ? profile.post_drafts : [];
+      spDrafts = draftsRaw.map(d => ({
+        id:                d.id || genDraftId(),
+        name:              String(d.name || "Untitled draft"),
+        listing_ids:       Array.isArray(d.listing_ids) ? d.listing_ids.map(String) : [],
+        preset_id:         d.preset_id || null,
+        tiles_per_collage: [1, 2, 4, 6].includes(parseInt(d.tiles_per_collage, 10))
+                            ? parseInt(d.tiles_per_collage, 10) : 6,
+        text_snapshot:     String(d.text_snapshot || ""),
+        created_at:        d.created_at || new Date().toISOString(),
+      })).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      renderDraftsBar();
+
       spInitialized = true;
     }
 
@@ -13207,6 +13293,202 @@
       $spTextStatus.textContent = `Saved to "${current.name}".`;
       $spTextStatus.className = "sp-text-status ok";
       $spSaveTextBtn.disabled = false;
+    });
+
+    // ===== Drafts manager =================================================
+    // Save and resume in-progress sales-post compositions. Mirrors the preset
+    // pattern (jsonb column on profiles, in-memory mirror, persist on each
+    // change), but drafts capture the WHOLE composition state — selected
+    // listing ids, active preset, tiles-per-collage choice, and the current
+    // post text. Capped at 10 per profile (oldest evicted on save).
+    function persistDrafts() {
+      return supabase
+        .from("profiles")
+        .update({ post_drafts: spDrafts })
+        .eq("user_id", currentUserId)
+        .then(({ error }) => error || null);
+    }
+
+    function renderDraftsBar() {
+      if (!$spDraftsBar || !$spDraftsPicker) return;
+      if (spDrafts.length === 0) {
+        $spDraftsBar.hidden = true;
+        return;
+      }
+      $spDraftsPicker.innerHTML = "";
+      for (const d of spDrafts) {
+        const opt = document.createElement("option");
+        opt.value = d.id;
+        const when = (() => {
+          try {
+            const dt = new Date(d.created_at);
+            return dt.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+          } catch { return ""; }
+        })();
+        const n = d.listing_ids.length;
+        opt.textContent = `${d.name} — ${n} listing${n === 1 ? "" : "s"}${when ? ` · ${when}` : ""}`;
+        $spDraftsPicker.appendChild(opt);
+      }
+      $spDraftsBar.hidden = false;
+      $spDraftsStatus.textContent = "";
+      $spDraftsStatus.className = "sp-text-status";
+    }
+
+    // Default name for a fresh draft. Includes the active preset name (if
+    // any) plus a short timestamp so the picker reads naturally even when
+    // the seller saves multiple drafts on the same day.
+    function defaultDraftName() {
+      const presetName = activePreset()?.name || "Draft";
+      const stamp = (() => {
+        try {
+          const dt = new Date();
+          return dt.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+        } catch { return ""; }
+      })();
+      return stamp ? `${presetName} — ${stamp}` : presetName;
+    }
+
+    // Save current composition. Pulls the live state of the picker + Step 3
+    // controls + the text textarea. If the seller hasn't generated yet, we
+    // still save what they have (selected listings + active preset + tiles
+    // choice). On load, the text is restored alongside the selection.
+    $spSaveDraftBtn?.addEventListener("click", async () => {
+      const $genStatus = document.getElementById("sp-generate-status");
+      const setStatus = (msg, cls) => {
+        if ($genStatus) { $genStatus.textContent = msg; $genStatus.className = "sp-text-status " + (cls || ""); }
+      };
+
+      // Capture current state.
+      const checkedIds = Array.from(
+        $spListings.querySelectorAll("input[type=checkbox]:checked")
+      ).map(cb => cb.dataset.id).filter(Boolean);
+
+      if (checkedIds.length === 0) {
+        setStatus("Pick at least one listing before saving a draft.", "err");
+        return;
+      }
+
+      const suggestedName = defaultDraftName();
+      const name = prompt("Name this draft:", suggestedName);
+      if (name == null) return;
+      const trimmed = name.trim() || suggestedName;
+
+      const tilesPer = getSelectedTilesPer();
+      const presetId = spCurrentPresetId;
+      const textSnapshot = $spText?.value || "";
+
+      const draft = {
+        id:                genDraftId(),
+        name:              trimmed,
+        listing_ids:       checkedIds,
+        preset_id:         presetId,
+        tiles_per_collage: tilesPer,
+        text_snapshot:     textSnapshot,
+        created_at:        new Date().toISOString(),
+      };
+
+      // Add + cap at SP_DRAFTS_CAP (oldest evicted). Newest first ordering.
+      const next = [draft, ...spDrafts].slice(0, SP_DRAFTS_CAP);
+      const snapshotPrior = spDrafts;
+      spDrafts = next;
+
+      setStatus("Saving draft…", "");
+      $spSaveDraftBtn.disabled = true;
+      const err = await persistDrafts();
+      $spSaveDraftBtn.disabled = false;
+      if (err) {
+        spDrafts = snapshotPrior;
+        setStatus("Couldn't save draft: " + (err.message || err), "err");
+        return;
+      }
+      renderDraftsBar();
+      setStatus(`Draft "${trimmed}" saved (${checkedIds.length} listing${checkedIds.length === 1 ? "" : "s"}).`, "ok");
+    });
+
+    // Load the selected draft. Re-checks matching listing checkboxes (skips
+    // any listings no longer in the picker — could be deleted, sold + hidden
+    // by status filter, or unapproved), restores active preset if it still
+    // exists, restores tiles choice, restores text. Surfaces a soft warning
+    // if any listings dropped out so the seller knows the post may differ
+    // from what they saved.
+    $spDraftsLoad?.addEventListener("click", () => {
+      const id = $spDraftsPicker.value;
+      const d = spDrafts.find(x => x.id === id);
+      if (!d) {
+        $spDraftsStatus.textContent = "Draft not found.";
+        $spDraftsStatus.className = "sp-text-status err";
+        return;
+      }
+
+      // Restore listing selection — only check rows that exist in the picker.
+      const desired = new Set(d.listing_ids);
+      let matched = 0;
+      $spListings.querySelectorAll("input[type=checkbox]").forEach(cb => {
+        const wanted = desired.has(cb.dataset.id);
+        cb.checked = wanted;
+        if (wanted) matched++;
+      });
+      const missing = d.listing_ids.length - matched;
+      updateSpSelectedCount();
+
+      // Restore preset if it still exists; otherwise keep current preset.
+      let presetMissing = false;
+      if (d.preset_id && findPreset(d.preset_id)) {
+        spCurrentPresetId = d.preset_id;
+        try { localStorage.setItem(SP_PRESET_LAST_KEY, spCurrentPresetId); } catch {}
+        $spPresetSelect.value = spCurrentPresetId;
+        loadActivePresetIntoForm();
+      } else if (d.preset_id) {
+        presetMissing = true;
+      }
+
+      // Restore tiles choice.
+      if ([1, 2, 4, 6].includes(d.tiles_per_collage)) {
+        const $tiles = document.getElementById("sp-tiles-per");
+        if ($tiles) {
+          $tiles.value = String(d.tiles_per_collage);
+          try { localStorage.setItem(SP_TILES_KEY, $tiles.value); } catch {}
+        }
+      }
+
+      // Restore text snapshot into the output textarea.
+      if (d.text_snapshot && $spText) {
+        $spText.value = d.text_snapshot;
+        spOriginalText = d.text_snapshot;
+        $spOutput.hidden = false;
+        $spCopyStatus.textContent = "";
+        $spCopyStatus.className = "sp-text-status";
+      }
+
+      // Surface the load result + any soft warnings.
+      const bits = [`Loaded "${d.name}".`];
+      if (missing > 0) bits.push(`${missing} listing${missing === 1 ? "" : "s"} from this draft are no longer available (deleted, hidden, or unapproved).`);
+      if (presetMissing) bits.push("Original preset was deleted — current preset kept.");
+      bits.push("Tap Generate to refresh the collage images for the current selection.");
+      $spDraftsStatus.textContent = bits.join(" ");
+      $spDraftsStatus.className = (missing > 0 || presetMissing) ? "sp-text-status err" : "sp-text-status ok";
+    });
+
+    // Delete the selected draft.
+    $spDraftsDelete?.addEventListener("click", async () => {
+      const id = $spDraftsPicker.value;
+      const d = spDrafts.find(x => x.id === id);
+      if (!d) return;
+      if (!confirm(`Delete draft "${d.name}"? This can't be undone.`)) return;
+      const snapshotPrior = spDrafts;
+      spDrafts = spDrafts.filter(x => x.id !== id);
+      $spDraftsStatus.textContent = "Deleting…";
+      $spDraftsStatus.className = "sp-text-status";
+      const err = await persistDrafts();
+      if (err) {
+        spDrafts = snapshotPrior;
+        $spDraftsStatus.textContent = "Couldn't delete: " + (err.message || err);
+        $spDraftsStatus.className = "sp-text-status err";
+        return;
+      }
+      renderDraftsBar();
+      $spDraftsStatus.textContent = `Deleted "${d.name}".`;
+      $spDraftsStatus.className = "sp-text-status ok";
     });
 
     // ----- Smart filter quick-selects -----
