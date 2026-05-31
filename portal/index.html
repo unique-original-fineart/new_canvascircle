@@ -14100,19 +14100,34 @@
         window.__collageStyle = { ...(window.__collageStyle || {}), sold_enabled: !!e.currentTarget.checked };
         updateSpBannerQuickSummary();
       });
-      // "Customize in Profile →" link — close the Sales Post view, switch
-      // to the Profile tab, and open the collage-style disclosure so the
-      // seller lands directly on the controls. closeSalesPost() doesn't
-      // exist as a stable handle, so we just programmatically click the
-      // existing back/close affordance + activate the Profile tab.
+      // "Customize in Profile →" link — leave the Sales Post view (a
+      // separate data-view="sales-post" section, NOT an overlay), then
+      // activate the Profile tab on the dashboard and open the collage-
+      // style disclosure. The Sales Post view fully replaces the dashboard,
+      // so just clicking the tab strip doesn't work — we have to call
+      // showView("account") first to bring the dashboard back. Then a
+      // microtask later (so the view swap finishes), click the Profile
+      // tab and open + scroll to the style section.
       document.getElementById("sp-banner-quick-profile-link")?.addEventListener("click", (ev) => {
         ev.preventDefault();
-        // Switch to Profile tab
-        const $profileTabBtn = document.querySelector('.tab-btn[data-tab="profile"]');
-        if ($profileTabBtn) $profileTabBtn.click();
-        // Open the disclosures the seller needs to see
-        const $styleSection = document.getElementById("collage-style-section");
-        if ($styleSection) { $styleSection.open = true; $styleSection.scrollIntoView({ behavior: "smooth", block: "start" }); }
+        try {
+          if (typeof showView === "function") showView("account");
+        } catch (e) { console.warn("[sp-banner-quick-profile-link] showView failed:", e); }
+        setTimeout(() => {
+          const $profileTabBtn = document.querySelector('.tab-btn[data-tab="profile"]');
+          if ($profileTabBtn) $profileTabBtn.click();
+          // Defer one more tick so the tab panel becomes the active one
+          // (its display:none → block transition happens on the tab click).
+          // Without this, scrollIntoView targets a hidden element and the
+          // browser refuses to scroll.
+          setTimeout(() => {
+            const $styleSection = document.getElementById("collage-style-section");
+            if ($styleSection) {
+              $styleSection.open = true;
+              $styleSection.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }, 50);
+        }, 30);
       });
     })();
 
