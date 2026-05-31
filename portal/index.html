@@ -3058,6 +3058,38 @@
       flex-wrap: wrap;
     }
 
+    /* "What counts as fine art" expander under the category dropdown in the
+       new-listing form. Compact policy reminder at submit-time so sellers
+       can self-correct before admin review. Native <details> with custom
+       chevron + muted color for the summary line — keeps it discoverable
+       without competing visually with required fields. */
+    .nl-fine-art-helper {
+      margin-top: 6px;
+      padding: 8px 10px;
+      background: rgba(45, 127, 255, 0.07);
+      border: 1px solid rgba(45, 127, 255, 0.22);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .nl-fine-art-helper > summary {
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .nl-fine-art-helper > summary::-webkit-details-marker { display: none; }
+    .nl-fine-art-helper > summary::before {
+      content: "▸";
+      display: inline-block;
+      width: 14px;
+      transition: transform .15s ease;
+    }
+    .nl-fine-art-helper[open] > summary::before {
+      transform: rotate(90deg);
+    }
+    .nl-fine-art-helper a { color: var(--accent); }
+
     /* Open-to-Trade checkbox row — used on both the new-listing form and the
        edit-modal card form. Has to fight several inherited rules from the
        form grids: input { width: 100% } would stretch the checkbox to a
@@ -4644,6 +4676,22 @@
                 <option value="Unique/Original">Unique/Original</option>
                 <option value="Limited Edition">Limited Edition</option>
               </select>
+              <!-- Inline policy hint: tells the seller at submit-time what
+                   qualifies as fine art on CanvasCircle. Catches mis-aligned
+                   listings before admin even sees them. Full text lives on
+                   the Guidelines page; this is just a teaser + link. Sale-
+                   only via data-nl-show-on (ISO buyers aren't subject to
+                   the same rules). -->
+              <details class="nl-fine-art-helper" data-nl-show-on="sale">
+                <summary>What counts as fine art on CanvasCircle?</summary>
+                <p class="small" style="margin: 6px 0;">A listing must be one of:</p>
+                <ul class="small" style="margin: 0 0 6px 18px; padding: 0;">
+                  <li><strong>Original artwork</strong> hand-created by the artist (painting, drawing, sculpture, etc.).</li>
+                  <li><strong>Limited edition prints</strong> with a numbered edition (e.g. <em>#34/150</em>, <em>AP</em>, <em>HC</em>) <em>and</em> hand-signed by the artist.</li>
+                </ul>
+                <p class="small" style="margin: 0 0 6px;"><strong>Not allowed:</strong> open-edition prints (no edition number), posters / reproductions, mass-market home decor, AI-generated art, NFTs.</p>
+                <p class="small" style="margin: 0;"><a href="/guidelines.html#fine-art-definition" target="_blank" rel="noopener">Full definition + edge cases on the Guidelines page →</a></p>
+              </details>
             </div>
             <div data-nl-show-on="both">
               <label for="nl-size"><span data-nl-label-sale>Artwork size (inches)<span class="required">*</span></span><span data-nl-label-iso hidden>Desired size (inches, optional)</span></label>
@@ -4966,6 +5014,47 @@
         <p class="help stats-foot" style="margin: 10px 0 0; font-size: 12px; color: var(--muted); line-height: 1.5;">
           Views are filtered to exclude your own visits. Vertical dashed lines mark price changes.
         </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ADMIN REJECT MODAL ============
+       Replaces the old prompt() in moderateListing(reject) with a proper
+       picker + textarea. Admin chooses from a list of canned reasons
+       (each linked to the Fine Art definition or another guideline);
+       the textarea pre-fills with the canned text but stays editable so
+       admin can append context. Seller sees the final text on their
+       listings dashboard as the rejection reason. -->
+  <div class="edit-modal-overlay" id="mod-reject-overlay" role="dialog" aria-modal="true" hidden>
+    <div class="edit-modal" style="max-width: 560px;">
+      <div class="edit-modal-header">
+        <h2>Reject listing</h2>
+        <button type="button" class="em-close" id="mod-reject-close" aria-label="Close">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <p class="small" style="color: var(--muted); margin: 0 0 10px;">
+          The seller will see this text on their dashboard when their listing is rejected.
+          Pick a canned reason (which prefills the box below) or write your own.
+        </p>
+        <label for="mod-reject-template" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Canned reason</label>
+        <select id="mod-reject-template" style="width:100%; margin-bottom:10px;">
+          <option value="">— Custom (write your own below) —</option>
+          <option value="fine_art_open_edition">Open edition print — not a limited edition</option>
+          <option value="fine_art_no_edition_num">No visible edition number on the print</option>
+          <option value="fine_art_no_signature">No visible artist signature on the print</option>
+          <option value="fine_art_mass_market">Mass-market home decor (HomeGoods / Target / etc.)</option>
+          <option value="fine_art_reproduction">Reproduction / poster (not the original work)</option>
+          <option value="fine_art_ai_generated">AI-generated artwork (not allowed)</option>
+          <option value="fine_art_hand_customized">Hand-customized retail item</option>
+          <option value="image_quality">Image quality — please resubmit with a clear photo</option>
+          <option value="missing_info">Missing required information</option>
+        </select>
+        <label for="mod-reject-reason" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Final reason text (visible to seller)</label>
+        <textarea id="mod-reject-reason" rows="5" style="width:100%;" placeholder="Type a custom rejection reason, or pick a canned one above."></textarea>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px; flex-wrap: wrap;">
+          <button type="button" class="btn-secondary" id="mod-reject-cancel">Cancel</button>
+          <button type="button" class="btn-danger" id="mod-reject-confirm">Reject listing</button>
+        </div>
       </div>
     </div>
   </div>
@@ -10231,6 +10320,86 @@
       return item;
     }
 
+    // Canned rejection-reason templates. Keys map to <option value> in the
+    // reject modal's <select>. Values are the prefilled text the seller
+    // ultimately sees (the admin can still edit before confirming). Most
+    // entries link back to the Fine Art definition on the Guidelines page
+    // so the seller has a clear next step.
+    const MOD_REJECT_TEMPLATES = {
+      fine_art_open_edition:
+        "Open edition print — limited editions on CanvasCircle require a numbered edition (e.g. #34/150, AP, HC, PP) AND a hand signature from the artist. See the Fine Art definition: https://canvascircle.art/guidelines.html#fine-art-definition",
+      fine_art_no_edition_num:
+        "No visible edition number — limited edition prints must have the edition number visible in the listing photo (e.g. #34/150, AP, HC, PP). Please re-photograph showing the edition number and resubmit. https://canvascircle.art/guidelines.html#fine-art-definition",
+      fine_art_no_signature:
+        "No visible artist signature — limited edition prints must be hand-signed by the artist. Please re-photograph showing the signature and resubmit. https://canvascircle.art/guidelines.html#fine-art-definition",
+      fine_art_mass_market:
+        "This appears to be mass-market home decor rather than fine art. CanvasCircle is for original artwork and properly numbered + signed limited editions only. Items from retailers like HomeGoods, Wayfair, IKEA, Target, etc. aren't eligible. See the Fine Art definition: https://canvascircle.art/guidelines.html#fine-art-definition",
+      fine_art_reproduction:
+        "This appears to be a reproduction / poster rather than an original artwork or numbered + signed limited edition. Only originals or properly numbered + hand-signed limited editions qualify. See the Fine Art definition: https://canvascircle.art/guidelines.html#fine-art-definition",
+      fine_art_ai_generated:
+        "AI-generated artwork (Midjourney, DALL-E, Stable Diffusion, etc.) isn't eligible on CanvasCircle. See the Fine Art definition: https://canvascircle.art/guidelines.html#fine-art-definition",
+      fine_art_hand_customized:
+        "Hand-customized retail items aren't eligible — only original works by the artist themselves (or properly numbered and signed limited editions) qualify as fine art. See the Fine Art definition: https://canvascircle.art/guidelines.html#fine-art-definition",
+      image_quality:
+        "Please resubmit with a clear, front-view photo of the artwork. Significant glare, obstruction, or low-resolution images make it hard for buyers (and our admin) to assess the piece.",
+      missing_info:
+        "Some required information is missing. Please fill in the artist name, artwork title, medium, dimensions, and category before resubmitting.",
+    };
+
+    // Modal-based reject reason picker. Returns a Promise that resolves to
+    // a trimmed string on confirm, or null on cancel.
+    function openRejectModal(initialReason) {
+      return new Promise((resolve) => {
+        const $overlay  = document.getElementById("mod-reject-overlay");
+        const $template = document.getElementById("mod-reject-template");
+        const $reason   = document.getElementById("mod-reject-reason");
+        const $confirm  = document.getElementById("mod-reject-confirm");
+        const $cancel   = document.getElementById("mod-reject-cancel");
+        const $close    = document.getElementById("mod-reject-close");
+
+        // Reset state on each open. Pre-fill the textarea with the prior
+        // rejection reason if there was one (resubmissions cycle quickly).
+        $template.value = "";
+        $reason.value = initialReason || "";
+
+        function cleanup(result) {
+          $template.removeEventListener("change", onTemplate);
+          $confirm.removeEventListener("click", onConfirm);
+          $cancel.removeEventListener("click", onCancelClick);
+          $close.removeEventListener("click", onCancelClick);
+          $overlay.removeEventListener("click", onOverlayClick);
+          $overlay.hidden = true;
+          resolve(result);
+        }
+        function onTemplate() {
+          const key = $template.value;
+          if (key && MOD_REJECT_TEMPLATES[key]) {
+            $reason.value = MOD_REJECT_TEMPLATES[key];
+          }
+        }
+        function onConfirm() {
+          const txt = ($reason.value || "").trim();
+          if (!txt) {
+            $reason.focus();
+            return;  // require some text
+          }
+          cleanup(txt);
+        }
+        function onCancelClick() { cleanup(null); }
+        function onOverlayClick(e) {
+          if (e.target === $overlay) cleanup(null);
+        }
+        $template.addEventListener("change", onTemplate);
+        $confirm.addEventListener("click", onConfirm);
+        $cancel.addEventListener("click", onCancelClick);
+        $close.addEventListener("click", onCancelClick);
+        $overlay.addEventListener("click", onOverlayClick);
+
+        $overlay.hidden = false;
+        setTimeout(() => $reason.focus(), 30);  // tick wait for layout
+      });
+    }
+
     async function moderateListing(item, listing, decision) {
       const id = listing.listing_id;
       let payload;
@@ -10241,16 +10410,14 @@
           moderation_reason: null, moderation_reason_at: null,
         };
       } else {
-        // Prompt for a rejection reason so the seller knows what to fix.
-        // Cancel → abort the reject entirely.
-        const reason = prompt(
-          "Reject this listing — what's the reason? (The seller will see this on their listings dashboard.)",
-          listing.moderation_reason || ""
-        );
+        // Open the reject modal — canned-reason dropdown + editable textarea.
+        // Resolves to null on cancel (abort reject); resolves to the final
+        // rejection-reason text on confirm.
+        const reason = await openRejectModal(listing.moderation_reason);
         if (reason === null) return;
         payload = {
           moderation_status: "rejected", status: "rejected",
-          moderation_reason: reason.trim() || null,
+          moderation_reason: reason,
           moderation_reason_at: new Date().toISOString(),
         };
       }

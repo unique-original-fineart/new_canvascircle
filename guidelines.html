@@ -165,6 +165,39 @@
     .section details a { color: var(--accent); }
     /* Inline "fine print" italic line at the bottom of a section
        (e.g. the falsified-video warning under Ownership Verification). */
+    /* "What qualifies as fine art" box inside Selling Guidelines. Visually
+       distinct from the surrounding text so it reads as policy / canonical
+       reference, not as a casual tip. Same brand-card colors but a slightly
+       tinted background to bump signal. */
+    .fine-art-box {
+      margin: 12px 0 16px;
+      padding: 14px 16px;
+      background: rgba(45, 127, 255, 0.06);
+      border: 1px solid rgba(45, 127, 255, 0.25);
+      border-radius: 10px;
+    }
+    .fine-art-box > p:first-child { margin-top: 0; }
+    .fine-art-box > p:last-child { margin-bottom: 0; }
+    .fine-art-box ul { margin: 8px 0 10px; }
+    .fine-art-box li { margin-bottom: 6px; font-size: 14px; line-height: 1.5; }
+    .fine-art-box details { margin: 10px 0 8px; padding-top: 8px; border-top: 1px solid var(--card-line); }
+    .fine-art-box details summary {
+      list-style: none; cursor: pointer; user-select: none;
+      color: var(--muted); font-style: italic; font-size: 13px;
+    }
+    .fine-art-box details summary::-webkit-details-marker { display: none; }
+    .fine-art-box details summary::before { content: "▸"; display: inline-block; width: 14px; transition: transform .15s ease; }
+    .fine-art-box details[open] summary::before { transform: rotate(90deg); }
+    .fine-art-box details p { font-size: 14px; margin: 6px 0; }
+    .fine-art-fine-print {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--card-line);
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
     .section .fine-print {
       margin-top: 10px;
       padding-top: 10px;
@@ -239,6 +272,31 @@
       <p class="lede">A short checklist for getting a listing ready to go live and ready for buyers to engage with. The deeper trust-and-status systems — Ownership Verification, Sales References, and Established Member status — each get their own section below.</p>
 
       <p><strong>Who can list:</strong> CanvasCircle is for collectors selling pieces from their own personal collections. <strong>Not permitted</strong> on this platform: artists selling their own work, dealers / galleries / agents, and consigners (anyone listing art owned by someone else). The seller of record must be the legal owner. Listings that fall outside this scope will be removed and the account may be suspended.</p>
+
+      <div id="fine-art-definition" class="fine-art-box">
+        <p><strong>What qualifies as fine art:</strong> a listing must fit one of two categories:</p>
+        <ul>
+          <li><strong>Original artwork</strong> — hand-created by the artist (painting, drawing, sculpture, photograph, mixed media). One-of-a-kind by definition. Includes pieces where the artist has done significant hand-embellishment over a base.</li>
+          <li><strong>Limited edition prints</strong> — numbered in the standard format (<em>#34/150</em>, <em>AP</em>, <em>HC</em>, <em>PP</em>, etc.) <em>and</em> hand-signed by the artist. The edition number is required — without it, the piece isn't a limited edition in the art-market sense.</li>
+        </ul>
+        <p><strong>Not allowed on the platform:</strong></p>
+        <ul>
+          <li>Open-edition prints (no edition number, mass-produced)</li>
+          <li>Posters, postcards, photographic reproductions of artworks</li>
+          <li>Mass-market home decor (HomeGoods, Wayfair, IKEA, Target, etc.)</li>
+          <li>Hand-customized retail items (a retail poster you painted on)</li>
+          <li>AI-generated art (Midjourney, DALL-E, Stable Diffusion, etc.)</li>
+          <li>NFTs and purely digital works</li>
+          <li>Antiques or collectibles that aren't fine art (furniture, ceramics — even if "artisan-made")</li>
+        </ul>
+        <details>
+          <summary>Edge cases — estate-signed, hand-embellished editions, vintage pieces</summary>
+          <p><strong>Estate-signed prints:</strong> allowed. Some artists' estates sign and number prints after the artist's death (with the estate's stamp or signature). Disclose "estate-signed" in your listing description.</p>
+          <p><strong>Hand-embellished editions:</strong> allowed. Some artists (Mr. Brainwash, KAWS, etc.) release <em>HC</em> or <em>AP</em> pieces where they hand-paint over a print base. As long as the piece is still properly numbered and signed by the artist, it qualifies as a limited edition.</p>
+          <p><strong>Vintage or older works without modern numbering:</strong> pre-1970 prints don't always follow the modern X/N format. Admin reviews these case-by-case — if the work is hand-signed and historically documented (auction records, gallery provenance, etc.), it's eligible. If it looks like a mid-century catalog reproduction, it's not.</p>
+        </details>
+        <p class="fine-art-fine-print">CanvasCircle's admin reviews every new listing against this definition. Listings that don't fit will be rejected with a note pointing back to this section. Once the market — i.e. actual buyers and the platform's Established Member network — knows what to expect here, that consistency is what makes the catalog worth browsing.</p>
+      </div>
 
       <ul>
         <li><strong>One clear front-view photo</strong> of the artwork, ideally without glare. No stock or copyright images.</li>
