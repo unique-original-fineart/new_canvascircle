@@ -3180,6 +3180,121 @@
       line-height: 1.5;
     }
 
+    /* Selected-order panel — shows when 2+ items are checked in the picker.
+       Numbered, draggable chips that determine the order pieces appear in
+       the generated post text and collage images. Mobile-friendly: the
+       drag handle is the only thing that initiates drag (SortableJS
+       handle: '.sp-order-handle'), so tapping the chip body for any
+       reason doesn't accidentally start a drag. Visual feedback during
+       drag via the .sp-order-chip.sortable-drag / .sortable-ghost classes
+       that SortableJS adds automatically. */
+    .sp-selected-order {
+      margin: 8px 0 12px;
+      padding: 10px 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+    }
+    .sp-order-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .sp-order-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--fg);
+    }
+    .sp-order-help {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .sp-order-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .sp-order-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: var(--surface-1);
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      transition: box-shadow .12s ease, border-color .12s ease;
+    }
+    .sp-order-chip.sortable-ghost {
+      opacity: .35;
+    }
+    .sp-order-chip.sortable-drag {
+      box-shadow: 0 6px 18px rgba(0,0,0,.32);
+      border-color: var(--accent);
+    }
+    .sp-order-index {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--text-inverse);
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .sp-order-thumb {
+      width: 32px; height: 32px;
+      border-radius: 4px;
+      overflow: hidden;
+      background: var(--surface-3);
+      flex-shrink: 0;
+    }
+    .sp-order-thumb img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .sp-order-meta {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.25;
+    }
+    .sp-order-artist {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--fg);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sp-order-title-line {
+      font-size: 12px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sp-order-handle {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px; height: 36px;
+      color: var(--muted);
+      font-size: 18px;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;       /* tell the browser we'll handle touch dragging */
+    }
+    .sp-order-handle:active { cursor: grabbing; }
+
     /* Text search above the listings picker. Real-time filter for power
        sellers with hundreds of listings — matches artist + title. The
        16px font-size on the input prevents iOS Safari from zooming the
@@ -4674,6 +4789,19 @@
             <input type="search" id="sp-search" placeholder="Search by artist or artwork title…"
                    autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
                    aria-label="Filter listings by artist or artwork title" />
+          </div>
+          <!-- Selected-order panel. Appears when 2+ listings are checked.
+               Drag the ≡ handle to reorder — the post text and collage
+               images render in this exact order at Generate time. Position
+               1 leads the post, which is the spot a seller usually wants
+               their attention-grabbing piece (a price drop, a verified
+               headliner, a rare sold-out artist's piece). -->
+          <div class="sp-selected-order" id="sp-selected-order" hidden>
+            <div class="sp-order-header">
+              <span class="sp-order-title">Selected order</span>
+              <span class="sp-order-help">Drag the ≡ handle to reorder — position 1 leads your post.</span>
+            </div>
+            <div class="sp-order-list" id="sp-order-list"></div>
           </div>
           <div class="sp-listings" id="sp-listings"></div>
           <div class="sp-selected-count" id="sp-selected-count">0 selected</div>
@@ -13218,6 +13346,10 @@
       $spListings.querySelectorAll("input[type=checkbox]").forEach((cb) => {
         cb.addEventListener("change", updateSpSelectedCount);
       });
+      // Reset selected-order on fresh entry so previous-visit state doesn't
+      // leak. updateSpSelectedCount() re-derives the array from any pre-
+      // checked rows (e.g. from a draft load).
+      spSelectedOrder = [];
       updateSpSelectedCount();
 
       // Pull saved drafts out of the profile + render the drafts bar.
@@ -13242,6 +13374,132 @@
     function updateSpSelectedCount() {
       const n = $spListings.querySelectorAll("input[type=checkbox]:checked").length;
       $spSelectedCount.textContent = `${n} selected`;
+      // Keep the order array in sync with checkbox state, then re-render
+      // the order panel. Order survives across check/uncheck cycles: if a
+      // listing is re-checked after being unchecked, it appends at the end
+      // (not its original position), which matches user intent ("this is
+      // newly added").
+      syncSelectedOrderFromCheckboxes();
+      renderSelectedOrderPanel();
+    }
+
+    // ===== Selected-order panel (drag to reorder) =========================
+    // Persists per-session in spSelectedOrder. The order ARRAY drives the
+    // Generate handler — Generate respects this order instead of created_at.
+    // Reset to empty when entering the Sales Post view; rebuilt from any
+    // pre-checked rows (drafts, page reloads). SortableJS is lazy-loaded
+    // on first show via the existing cdn.jsdelivr.net allowlist in the SW.
+    let spSelectedOrder = [];   // array of listing_id strings, render order
+    let __sortableInstance = null;
+    let __sortableLoading = null;
+
+    function syncSelectedOrderFromCheckboxes() {
+      const checkedIds = new Set(
+        Array.from($spListings.querySelectorAll("input[type=checkbox]:checked"))
+          .map(cb => cb.dataset.id)
+          .filter(Boolean)
+      );
+      // Keep the existing order for ids that are still checked; drop ids
+      // that have been unchecked; append newly-checked ids at the end in
+      // DOM order (which is created_at desc, matching the picker render).
+      const kept = spSelectedOrder.filter(id => checkedIds.has(id));
+      const keptSet = new Set(kept);
+      const added = [];
+      $spListings.querySelectorAll("input[type=checkbox]:checked").forEach(cb => {
+        const id = cb.dataset.id;
+        if (id && !keptSet.has(id)) added.push(id);
+      });
+      spSelectedOrder = kept.concat(added);
+    }
+
+    function renderSelectedOrderPanel() {
+      const $panel = document.getElementById("sp-selected-order");
+      const $list  = document.getElementById("sp-order-list");
+      if (!$panel || !$list) return;
+
+      // Panel only shows when there are 2+ items — no point in "ordering"
+      // a single listing.
+      if (spSelectedOrder.length < 2) {
+        $panel.hidden = true;
+        $list.innerHTML = "";
+        if (__sortableInstance) { __sortableInstance.destroy(); __sortableInstance = null; }
+        return;
+      }
+
+      $list.innerHTML = "";
+      const byId = new Map((allListings || []).map(l => [l.listing_id, l]));
+      const frag = document.createDocumentFragment();
+      for (let i = 0; i < spSelectedOrder.length; i++) {
+        const id = spSelectedOrder[i];
+        const l = byId.get(id);
+        if (!l) continue;  // listing no longer in allListings (deleted etc.)
+        const images = (l.listing_images || []).slice().sort((a,b) => a.position - b.position);
+        const imgUrl = images[0]?.storage_path ? publicImageUrl(images[0].storage_path, { width: 120 }) : "";
+        const chip = document.createElement("div");
+        chip.className = "sp-order-chip";
+        chip.dataset.id = id;
+        chip.innerHTML = `
+          <span class="sp-order-index" aria-hidden="true">${i + 1}</span>
+          <div class="sp-order-thumb">${imgUrl ? `<img src="${imgUrl}" alt="" loading="lazy" />` : ""}</div>
+          <div class="sp-order-meta">
+            <span class="sp-order-artist">${escapeHtml(l.artist_name || "Unknown")}</span>
+            <span class="sp-order-title-line">${escapeHtml(l.artwork_title || "")}</span>
+          </div>
+          <span class="sp-order-handle" aria-label="Drag to reorder" role="button">≡</span>
+        `;
+        frag.appendChild(chip);
+      }
+      $list.appendChild(frag);
+      $panel.hidden = false;
+
+      // Initialize / re-init Sortable.
+      initSortableOnOrderPanel();
+    }
+
+    function loadSortableJS() {
+      if (window.Sortable) return Promise.resolve(window.Sortable);
+      if (__sortableLoading) return __sortableLoading;
+      const SORTABLE_URL = "https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js";
+      __sortableLoading = new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = SORTABLE_URL;
+        s.async = true;
+        s.onload  = () => resolve(window.Sortable);
+        s.onerror = () => { __sortableLoading = null; reject(new Error("Couldn't load SortableJS from CDN.")); };
+        document.head.appendChild(s);
+      });
+      return __sortableLoading;
+    }
+
+    async function initSortableOnOrderPanel() {
+      const $list = document.getElementById("sp-order-list");
+      if (!$list) return;
+      // Destroy any prior instance before re-init — the panel's child
+      // nodes get replaced on each renderSelectedOrderPanel() call, so
+      // the previous Sortable instance is stale.
+      if (__sortableInstance) { __sortableInstance.destroy(); __sortableInstance = null; }
+      let Sortable;
+      try { Sortable = await loadSortableJS(); }
+      catch (err) {
+        console.warn("[sp-order] SortableJS load failed; drag disabled:", err);
+        return;
+      }
+      __sortableInstance = Sortable.create($list, {
+        handle: ".sp-order-handle",   // ONLY the ≡ icon initiates drag
+        animation: 150,
+        forceFallback: true,           // consistent touch behavior across browsers
+        fallbackTolerance: 4,
+        onEnd: (evt) => {
+          // Rebuild spSelectedOrder from the current DOM order, then
+          // refresh the index pills (the chip elements moved but their
+          // index numbers didn't).
+          const newOrder = Array.from($list.querySelectorAll(".sp-order-chip"))
+            .map(c => c.dataset.id).filter(Boolean);
+          spSelectedOrder = newOrder;
+          // Cheap re-render to update the numbered badges.
+          renderSelectedOrderPanel();
+        },
+      });
     }
 
     // ----- Picker search: real-time filter on artist + title -----
@@ -13566,6 +13824,12 @@
         if (wanted) matched++;
       });
       const missing = d.listing_ids.length - matched;
+      // Restore the drag-reorder sequence from the draft's listing_ids
+      // array. updateSpSelectedCount() will run syncSelectedOrderFromCheckboxes()
+      // — by pre-seeding spSelectedOrder with the draft's order first, the
+      // sync function keeps that ordering for ids that still exist and
+      // appends any new ones at the end (none in this case).
+      spSelectedOrder = d.listing_ids.filter(id => desired.has(id));
       updateSpSelectedCount();
 
       // Restore preset if it still exists; otherwise keep current preset.
@@ -14469,15 +14733,27 @@
         return;
       }
       const ids = new Set(checked.map((c) => c.dataset.id));
-      // Preserve the order they appear in the picker (newest first).
-      // Defense in depth on the moderation gate: re-filter to approved-only
-      // before building text + images. The picker already hides non-approved
-      // listings, but if state ever drifts (e.g. a listing's moderation_status
-      // flipped between page load and this click), this guarantees no
-      // pending/rejected row makes it into the generated post.
-      const selected = (allListings || [])
-        .filter((l) => ids.has(l.listing_id) && l.moderation_status === "approved")
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      // Render in the seller's chosen order from the drag-reorder panel
+      // (spSelectedOrder). Any checked ids NOT in the order array (rare
+      // edge case — e.g. checkbox state changed faster than the panel
+      // could sync) fall back to created_at desc at the end. Defense in
+      // depth on the moderation gate: re-filter to approved-only before
+      // building text + images. The picker already hides non-approved
+      // listings, but if state ever drifts this guarantees no pending/
+      // rejected row makes it into the generated post.
+      const byId = new Map((allListings || []).map(l => [l.listing_id, l]));
+      const orderedIds = spSelectedOrder.filter(id => ids.has(id));
+      const orderedSet = new Set(orderedIds);
+      const leftoverIds = Array.from(ids)
+        .filter(id => !orderedSet.has(id))
+        .sort((a, b) => {
+          const la = byId.get(a), lb = byId.get(b);
+          return new Date(lb?.created_at || 0) - new Date(la?.created_at || 0);
+        });
+      const fullOrder = orderedIds.concat(leftoverIds);
+      const selected = fullOrder
+        .map(id => byId.get(id))
+        .filter(l => l && l.moderation_status === "approved");
 
       if (selected.length === 0) {
         $genStatus.textContent = "None of the selected listings are admin-approved. Wait for admin review, then try again.";
