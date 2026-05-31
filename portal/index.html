@@ -13748,18 +13748,12 @@
       }
     }
 
-    // Device-pixel-ratio supersampling for the exported collages. Canvas
-    // logical coords (cellW, cellH, font sizes, etc.) stay unchanged so no
-    // draw call needs to know about it — we just allocate a 2x-denser
-    // bitmap and ctx.scale(DPR, DPR) before any drawing. Result: header
-    // text and SOLD overlay rasterize at 2x density → crisp on FB zoom.
-    // Image cover-fit also benefits since drawImage scales into the
-    // higher-resolution backing store.
-    // Trade-off: PNG file sizes ~3-4x larger (~1MB → ~3-5MB for 6-tile).
-    // Still well under Facebook's 25MB-per-image limit; Web Share +
-    // native FB upload handle multi-MB images without issue.
-    const COLLAGE_DPR = 2;
-
+    // Reverted from 2x DPR back to 1x (2026-05-30) — the 2x PNGs hit ~11 MB
+    // and Facebook's iOS share extension was choking on them (Feed/Story/
+    // Groups picker appeared and then collapsed silently). 1x produces
+    // ~1-2 MB PNGs which the share sheet handles cleanly. If we want to
+    // revisit image sharpness later, the right path is JPEG q=0.92 at
+    // 2x DPR (gives crisp text + ~2-3 MB files) — not raw PNG at 2x.
     async function buildCollageCanvas(chunkOfListings, tilesPerCollage) {
       const metrics = collageMetrics(tilesPerCollage);
       const { cellW, cellH, headerH, padding } = metrics;
@@ -13769,17 +13763,9 @@
       const W = padding + cols * cellW + (cols - 1) * padding + padding;
       const H = padding + rows * cellTotalH + (rows - 1) * padding + padding;
       const canvas = document.createElement("canvas");
-      // Backing-store is DPR-multiplied; logical drawing coords stay the
-      // same after ctx.scale().
-      canvas.width  = W * COLLAGE_DPR;
-      canvas.height = H * COLLAGE_DPR;
+      canvas.width  = W;
+      canvas.height = H;
       const ctx = canvas.getContext("2d");
-      ctx.scale(COLLAGE_DPR, COLLAGE_DPR);
-      // imageSmoothingQuality='high' improves the artwork-image scaling on
-      // browsers that honor it (Chrome/Safari/Edge — Firefox ignores but
-      // doesn't error). Default is 'low' on most engines.
-      ctx.imageSmoothingEnabled = true;
-      try { ctx.imageSmoothingQuality = "high"; } catch {}
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, W, H);
       for (let i = 0; i < n; i++) {
@@ -13945,57 +13931,39 @@
         btn.type = "button";
         btn.className = "btn-primary";
         btn.id = "sp-batch-share-btn";
-        btn.textContent = `📤 Share to Facebook (${__spGeneratedCanvases.length} image${__spGeneratedCanvases.length === 1 ? "" : "s"})`;
+        btn.textContent = `📤 Share all ${__spGeneratedCanvases.length} image${__spGeneratedCanvases.length === 1 ? "" : "s"}`;
         const help = document.createElement("span");
         help.className = "sp-batch-help";
-        help.textContent = "Copies the post text to your clipboard, then opens the share sheet for the images. After picking Facebook, long-press the post body and tap Paste.";
+        help.textContent = "Opens your phone's share sheet — pick Facebook to post directly.";
         $row.append(btn, help);
         btn.addEventListener("click", async () => {
           const origLabel = btn.textContent;
           btn.disabled = true;
           btn.textContent = "Preparing images…";
           try {
-            // Step 1: copy the LIVE post text to clipboard BEFORE opening
-            // the share sheet. We tried passing `text` via navigator.share
-            // earlier but Facebook's mobile app handles it inconsistently
-            // — when the text contains a URL (which it does, via the
-            // auto-append catalog link or seller-typed URLs), FB extracts
-            // the URL into a link-card and discards the rest of the body.
-            // Clipboard is reliable across iOS Facebook, Android Facebook,
-            // Messenger, Discord, etc. — the seller pastes once into the
-            // compose box and gets the full text intact.
-            const postText = ($spText?.value || "").trim();
-            let clipboardOK = false;
-            if (postText) {
-              try {
-                await navigator.clipboard.writeText(postText);
-                clipboardOK = true;
-              } catch (clipErr) {
-                console.warn("[sp-share] clipboard write failed:", clipErr);
-              }
-            }
-
-            // Step 2: open the share sheet with images only. No `text` or
-            // `title` — FB would mishandle them anyway and other apps that
-            // honor `text` can also receive the same content via paste.
             const files = await canvasesToFiles(__spGeneratedCanvases, __spSellerSlug);
+            // Re-check canShare against the actual files (mobile browsers
+            // sometimes reject a probe file but accept real ones, or vice
+            // versa). Bail to zip if the real-file check fails.
             if (!navigator.canShare({ files })) {
               throw new Error("share-not-supported-for-these-files");
             }
-            await navigator.share({ files });
-
-            // Surface a brief inline status confirming the clipboard step.
-            // The share sheet itself confirms the image hand-off.
-            const $statusEl = document.getElementById("sp-generate-status");
-            if ($statusEl) {
-              if (clipboardOK) {
-                $statusEl.textContent = "Post text copied to your clipboard — long-press the Facebook post body and tap Paste.";
-                $statusEl.className = "sp-text-status ok";
-              } else if (postText) {
-                $statusEl.textContent = "Couldn't auto-copy the post text — tap Copy text above, then paste into Facebook.";
-                $statusEl.className = "sp-text-status err";
-              }
-            }
+            // Reverted to placeholder text + title (2026-05-30). Tried two
+            // upgrades that both broke FB:
+            //   (a) passing the live post text — FB extracted URLs into a
+            //       link card and lost the body
+            //   (b) passing only `{files}` + clipboard-copy — FB started
+            //       showing a Feed/Story/Groups picker that silently
+            //       collapsed when tapped (likely the larger 2x-DPR PNGs
+            //       overran the share extension's memory)
+            // This v121 form is the known-good baseline. Sellers manually
+            // tap "Copy text" above + paste into FB after sharing images.
+            await navigator.share({
+              files,
+              title: "CanvasCircle sales post",
+              text: "Sales post images",
+            });
+            // No success toast — the share sheet itself is the confirmation.
           } catch (err) {
             // AbortError fires if the user cancels — that's not an error
             // worth surfacing. Anything else gets shown.
