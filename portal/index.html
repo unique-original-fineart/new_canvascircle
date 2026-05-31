@@ -15485,14 +15485,20 @@
 
     // =========================================================================
     // CanvasCircle watermark — opt-in (collage_banner_settings.show_logo).
-    // Renders /assets/logo-on-white.svg at ~12% of the collage width in the
-    // bottom-right corner of the FULL collage (not per-tile). Loaded once
-    // per page and cached. SVG load can fail silently in older mobile
-    // browsers — drawLogoWatermark just returns false if so, never throws.
-    // The on-white variant sits cleanly over any image because it carries
-    // its own pill background; no extra contrast layer needed.
+    // Renders /assets/logo.svg (the full-color brand mark on a transparent
+    // background — navy outer ring + gradient inner C) in the bottom-right
+    // corner of the FULL collage (not per-tile). Loaded once per page and
+    // cached. SVG load can fail silently in older mobile browsers —
+    // drawLogoWatermark just returns false if so, never throws.
+    //
+    // Sizing + opacity tuned 2026-05-31 for subtlety per Guy:
+    //   - 7% of the collage's short side (was 14%) — feels like a small mark,
+    //     not a sticker. Capped at 70 logical px on huge collages.
+    //   - 0.55 alpha — clearly visible attribution but recedes against the
+    //     artwork. A soft drop-shadow gives it readable contrast on light
+    //     and dark images without needing a white pill background.
     // =========================================================================
-    const LOGO_WATERMARK_URL = "/assets/logo-on-white.svg";
+    const LOGO_WATERMARK_URL = "/assets/logo.svg";
     let __logoImagePromise = null;
     function loadLogoImage() {
       if (__logoImagePromise) return __logoImagePromise;
@@ -15514,19 +15520,24 @@
     async function drawLogoWatermark(ctx, W, H) {
       const img = await loadLogoImage();
       if (!img || !img.naturalWidth || !img.naturalHeight) return false;
-      // Target width = 14% of the collage's short side, capped at 140 logical
-      // px so it stays subtle on huge collages and visible on small ones.
-      const targetW = Math.max(60, Math.min(140, Math.round(Math.min(W, H) * 0.14)));
+      // Target width = 7% of the collage's short side, capped 30–70 logical
+      // px. Half what it used to be — sellers explicitly asked for subtler.
+      const targetW = Math.max(30, Math.min(70, Math.round(Math.min(W, H) * 0.07)));
       const aspect  = img.naturalWidth / img.naturalHeight;
       const targetH = Math.round(targetW / aspect);
       const margin  = Math.round(Math.min(W, H) * 0.025);   // breathing room
       const dx = W - targetW - margin;
       const dy = H - targetH - margin;
-      // Slight white pill underneath the logo so it has a clean read even
-      // against busy or dark artwork edges. logo-on-white.svg already has a
-      // white field but the artwork beneath it can still bleed visually.
       ctx.save();
-      ctx.globalAlpha = 0.85;        // a touch translucent — feels like a watermark, not a sticker
+      // Soft drop-shadow so the logo reads on light/white artwork as well
+      // as dark. Without a contrast cushion, the navy ring disappears
+      // against white backgrounds and the gradient C disappears against
+      // dark ones; the shadow + low alpha give it just enough lift.
+      ctx.shadowColor = "rgba(0,0,0,0.35)";
+      ctx.shadowBlur  = 6;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 1;
+      ctx.globalAlpha = 0.55;        // subtle attribution mark, not a sticker
       ctx.drawImage(img, dx, dy, targetW, targetH);
       ctx.restore();
       return true;
