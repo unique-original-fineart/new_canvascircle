@@ -13748,6 +13748,18 @@
       }
     }
 
+    // Device-pixel-ratio supersampling for the exported collages. Canvas
+    // logical coords (cellW, cellH, font sizes, etc.) stay unchanged so no
+    // draw call needs to know about it — we just allocate a 2x-denser
+    // bitmap and ctx.scale(DPR, DPR) before any drawing. Result: header
+    // text and SOLD overlay rasterize at 2x density → crisp on FB zoom.
+    // Image cover-fit also benefits since drawImage scales into the
+    // higher-resolution backing store.
+    // Trade-off: PNG file sizes ~3-4x larger (~1MB → ~3-5MB for 6-tile).
+    // Still well under Facebook's 25MB-per-image limit; Web Share +
+    // native FB upload handle multi-MB images without issue.
+    const COLLAGE_DPR = 2;
+
     async function buildCollageCanvas(chunkOfListings, tilesPerCollage) {
       const metrics = collageMetrics(tilesPerCollage);
       const { cellW, cellH, headerH, padding } = metrics;
@@ -13757,9 +13769,17 @@
       const W = padding + cols * cellW + (cols - 1) * padding + padding;
       const H = padding + rows * cellTotalH + (rows - 1) * padding + padding;
       const canvas = document.createElement("canvas");
-      canvas.width  = W;
-      canvas.height = H;
+      // Backing-store is DPR-multiplied; logical drawing coords stay the
+      // same after ctx.scale().
+      canvas.width  = W * COLLAGE_DPR;
+      canvas.height = H * COLLAGE_DPR;
       const ctx = canvas.getContext("2d");
+      ctx.scale(COLLAGE_DPR, COLLAGE_DPR);
+      // imageSmoothingQuality='high' improves the artwork-image scaling on
+      // browsers that honor it (Chrome/Safari/Edge — Firefox ignores but
+      // doesn't error). Default is 'low' on most engines.
+      ctx.imageSmoothingEnabled = true;
+      try { ctx.imageSmoothingQuality = "high"; } catch {}
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, W, H);
       for (let i = 0; i < n; i++) {
