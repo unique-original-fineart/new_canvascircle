@@ -5039,6 +5039,36 @@
               <option value="6" selected>6 per image — 3×2 grid (default)</option>
             </select>
           </div>
+
+          <!-- Banner style quick-access — session-level overrides for the two
+               toggles. The master settings (colors, font, custom SOLD label)
+               live in My Account → Profile → Sales Post collage style; this
+               disclosure only handles the two on/off switches that sellers
+               are most likely to flip on a per-post basis (e.g. "this one
+               post I want clean images, no header text"). Toggling here
+               updates window.__collageStyle in memory so the next Generate
+               run reflects the change. It does NOT persist to the DB — for
+               that, click the Customize link to open the Profile setting. -->
+          <details id="sp-banner-quick" style="margin: 4px 0 8px; padding: 10px 12px; background: var(--bg); border: 1px solid var(--card-line); border-radius: 6px;">
+            <summary style="cursor: pointer; font-size: 13px; font-weight: 600; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span>Banner style <span id="sp-banner-quick-summary" class="small" style="color: var(--muted); font-weight: 400;"></span></span>
+              <span style="color: var(--muted); font-size: 12px; font-weight: 400;">▾</span>
+            </summary>
+            <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size: 13px;">
+                <input type="checkbox" id="sp-banner-header-toggle" style="width:16px; height:16px;" />
+                <span>Show artist – title header strip on each tile</span>
+              </label>
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size: 13px;">
+                <input type="checkbox" id="sp-banner-sold-toggle" style="width:16px; height:16px;" />
+                <span>Show SOLD overlay on sold listings</span>
+              </label>
+              <p class="small" style="margin: 4px 0 0; color: var(--muted);">
+                Quick toggles for this builder session. To change banner colors, font, or the SOLD label text — or to make these toggle changes your default — open <a href="#" id="sp-banner-quick-profile-link" style="color: var(--accent); text-decoration: underline;">Profile → Sales Post collage style ↗</a>.
+              </p>
+            </div>
+          </details>
+
           <div class="sp-generate-row">
             <button type="button" class="btn-primary" id="sp-generate-btn">Generate post + images</button>
             <button type="button" class="btn-secondary" id="sp-save-draft-btn"
@@ -11601,6 +11631,10 @@
             .eq("user_id", currentUserId);
           if (error) throw error;
           window.__collageStyle = settings;
+          // Keep the Sales Post quick-access strip in sync if it's been
+          // rendered already (seller may have opened the builder before
+          // editing the master defaults).
+          try { if (typeof syncSpBannerQuickFromStyle === "function") syncSpBannerQuickFromStyle(); } catch {}
           if ($status) { $status.textContent = "Saved ✓"; $status.style.color = "var(--accent)"; }
           setTimeout(() => { if ($status) $status.textContent = ""; }, 2500);
         } catch (e) {
@@ -13807,6 +13841,17 @@
 
       const profile = await currentProfile();
 
+      // Mirror the saved collage_banner_settings into the Sales Post quick-
+      // access strip in Step 3. window.__collageStyle was set in the Profile
+      // form's load path, but enterSalesPost may run before that on a fresh
+      // visit to /portal/, so re-merge from the profile we just fetched.
+      try {
+        if (typeof loadCollageStyleSettings === "function") {
+          loadCollageStyleSettings(profile);
+        }
+        syncSpBannerQuickFromStyle();
+      } catch (e) { console.warn("[sp-banner-quick] sync on open failed:", e); }
+
       // Pull presets out of the profile. If the seller has never used the
       // builder, post_presets is null — seed an empty "Default" so the UI
       // always has something to show. Persisting the seed back is deferred
@@ -14016,6 +14061,61 @@
     // ===== Selected-order panel (drag to reorder) =========================
     // Persists per-session in spSelectedOrder. The order ARRAY drives the
     // Generate handler — Generate respects this order instead of created_at.
+    // =========================================================================
+    // Sales Post — banner-style quick-access strip (Step 3). Mirrors a subset
+    // of the Profile → Sales Post collage style settings so sellers can flip
+    // the two on/off toggles without leaving the builder. Color/font/SOLD-
+    // label edits still happen in Profile. Changes here are session-only —
+    // they update window.__collageStyle in memory so the next Generate run
+    // picks them up, but DO NOT persist to the DB. Saving to DB requires
+    // the seller to open the Profile section and tap Save there.
+    //
+    // The summary text (e.g. "Header on, SOLD off") is updated after every
+    // sync so the seller sees the state without expanding the disclosure.
+    // =========================================================================
+    function syncSpBannerQuickFromStyle() {
+      const s = window.__collageStyle || {};
+      const $h = document.getElementById("sp-banner-header-toggle");
+      const $d = document.getElementById("sp-banner-sold-toggle");
+      if ($h) $h.checked = !!s.header_enabled;
+      if ($d) $d.checked = !!s.sold_enabled;
+      updateSpBannerQuickSummary();
+    }
+    function updateSpBannerQuickSummary() {
+      const $sum = document.getElementById("sp-banner-quick-summary");
+      if (!$sum) return;
+      const s = window.__collageStyle || {};
+      const parts = [
+        s.header_enabled ? "header on" : "header off",
+        s.sold_enabled   ? "SOLD on"   : "SOLD off",
+      ];
+      $sum.textContent = `— ${parts.join(", ")}`;
+    }
+    (function wireSpBannerQuick() {
+      document.getElementById("sp-banner-header-toggle")?.addEventListener("change", (e) => {
+        window.__collageStyle = { ...(window.__collageStyle || {}), header_enabled: !!e.currentTarget.checked };
+        updateSpBannerQuickSummary();
+      });
+      document.getElementById("sp-banner-sold-toggle")?.addEventListener("change", (e) => {
+        window.__collageStyle = { ...(window.__collageStyle || {}), sold_enabled: !!e.currentTarget.checked };
+        updateSpBannerQuickSummary();
+      });
+      // "Customize in Profile →" link — close the Sales Post view, switch
+      // to the Profile tab, and open the collage-style disclosure so the
+      // seller lands directly on the controls. closeSalesPost() doesn't
+      // exist as a stable handle, so we just programmatically click the
+      // existing back/close affordance + activate the Profile tab.
+      document.getElementById("sp-banner-quick-profile-link")?.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        // Switch to Profile tab
+        const $profileTabBtn = document.querySelector('.tab-btn[data-tab="profile"]');
+        if ($profileTabBtn) $profileTabBtn.click();
+        // Open the disclosures the seller needs to see
+        const $styleSection = document.getElementById("collage-style-section");
+        if ($styleSection) { $styleSection.open = true; $styleSection.scrollIntoView({ behavior: "smooth", block: "start" }); }
+      });
+    })();
+
     // Reset to empty when entering the Sales Post view; rebuilt from any
     // pre-checked rows (drafts, page reloads). SortableJS is lazy-loaded
     // on first show via the existing cdn.jsdelivr.net allowlist in the SW.
