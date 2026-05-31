@@ -13748,12 +13748,17 @@
       }
     }
 
-    // Reverted from 2x DPR back to 1x (2026-05-30) — the 2x PNGs hit ~11 MB
-    // and Facebook's iOS share extension was choking on them (Feed/Story/
-    // Groups picker appeared and then collapsed silently). 1x produces
-    // ~1-2 MB PNGs which the share sheet handles cleanly. If we want to
-    // revisit image sharpness later, the right path is JPEG q=0.92 at
-    // 2x DPR (gives crisp text + ~2-3 MB files) — not raw PNG at 2x.
+    // 2x DPR supersampling + JPEG export (2026-05-30). Earlier attempt at
+    // 2x DPR PNG produced ~11 MB files that broke Facebook's iOS share
+    // extension. Switching to JPEG q=0.92 at the same 2x DPR keeps the
+    // text-sharpness benefit while bringing files down to ~2-3 MB — well
+    // within the share extension's comfort zone. Visually indistinguishable
+    // from PNG for our content; text edges stay crisp at q=0.92, no halos.
+    const COLLAGE_DPR = 2;
+    const COLLAGE_EXPORT_MIME = "image/jpeg";
+    const COLLAGE_EXPORT_QUALITY = 0.92;
+    const COLLAGE_EXPORT_EXT = "jpg";
+
     async function buildCollageCanvas(chunkOfListings, tilesPerCollage) {
       const metrics = collageMetrics(tilesPerCollage);
       const { cellW, cellH, headerH, padding } = metrics;
@@ -13763,9 +13768,14 @@
       const W = padding + cols * cellW + (cols - 1) * padding + padding;
       const H = padding + rows * cellTotalH + (rows - 1) * padding + padding;
       const canvas = document.createElement("canvas");
-      canvas.width  = W;
-      canvas.height = H;
+      // Backing-store is DPR-multiplied; logical draw coords stay the same
+      // after ctx.scale().
+      canvas.width  = W * COLLAGE_DPR;
+      canvas.height = H * COLLAGE_DPR;
       const ctx = canvas.getContext("2d");
+      ctx.scale(COLLAGE_DPR, COLLAGE_DPR);
+      ctx.imageSmoothingEnabled = true;
+      try { ctx.imageSmoothingQuality = "high"; } catch {}
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, W, H);
       for (let i = 0; i < n; i++) {
@@ -13805,7 +13815,7 @@
           <div class="sp-collage-label">Image ${idx + 1} of ${chunks.length} — ${chunks[idx].length} listing${chunks[idx].length === 1 ? "" : "s"}</div>
           <div class="sp-collage-img"></div>
           <div class="sp-collage-actions">
-            <button type="button" class="btn-primary" data-download>Download PNG</button>
+            <button type="button" class="btn-primary" data-download>Download image</button>
             <span class="sp-text-status sp-collage-msg"></span>
           </div>
         `;
@@ -13819,8 +13829,10 @@
           const canvas = await buildCollageCanvas(chunks[idx], tilesPerCollage);
           __spGeneratedCanvases.push(canvas);
           // Show as <img> from data URL — easier to right-click-save in addition
-          // to the explicit Download button.
-          const dataUrl = canvas.toDataURL("image/png");
+          // to the explicit Download button. JPEG export keeps the data URL
+          // small (~2-3 MB instead of ~11 MB PNG) so rendering the preview
+          // <img> doesn't choke on mobile.
+          const dataUrl = canvas.toDataURL(COLLAGE_EXPORT_MIME, COLLAGE_EXPORT_QUALITY);
           const previewImg = document.createElement("img");
           previewImg.alt = `Collage ${idx + 1}`;
           previewImg.src = dataUrl;
@@ -13831,7 +13843,7 @@
             // Use the same data URL; trigger a download.
             const a = document.createElement("a");
             a.href = dataUrl;
-            a.download = `${sellerSlug}_SalesPost_${idx + 1}.png`;
+            a.download = `${sellerSlug}_SalesPost_${idx + 1}.${COLLAGE_EXPORT_EXT}`;
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -13903,7 +13915,11 @@
 
     function canvasToBlob(canvas) {
       return new Promise((resolve, reject) => {
-        canvas.toBlob((b) => b ? resolve(b) : reject(new Error("canvas.toBlob returned null")), "image/png");
+        canvas.toBlob(
+          (b) => b ? resolve(b) : reject(new Error("canvas.toBlob returned null")),
+          COLLAGE_EXPORT_MIME,
+          COLLAGE_EXPORT_QUALITY
+        );
       });
     }
 
@@ -13911,7 +13927,11 @@
       const files = [];
       for (let i = 0; i < canvases.length; i++) {
         const blob = await canvasToBlob(canvases[i]);
-        files.push(new File([blob], `${sellerSlug}_SalesPost_${i + 1}.png`, { type: "image/png" }));
+        files.push(new File(
+          [blob],
+          `${sellerSlug}_SalesPost_${i + 1}.${COLLAGE_EXPORT_EXT}`,
+          { type: COLLAGE_EXPORT_MIME }
+        ));
       }
       return files;
     }
@@ -13994,7 +14014,7 @@
             const zip = new JSZip();
             for (let i = 0; i < __spGeneratedCanvases.length; i++) {
               const blob = await canvasToBlob(__spGeneratedCanvases[i]);
-              zip.file(`${__spSellerSlug}_SalesPost_${i + 1}.png`, blob);
+              zip.file(`${__spSellerSlug}_SalesPost_${i + 1}.${COLLAGE_EXPORT_EXT}`, blob);
             }
             const zipBlob = await zip.generateAsync({ type: "blob" });
             const url = URL.createObjectURL(zipBlob);
