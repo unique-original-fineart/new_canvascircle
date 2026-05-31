@@ -15491,12 +15491,13 @@
     // cached. SVG load can fail silently in older mobile browsers —
     // drawLogoWatermark just returns false if so, never throws.
     //
-    // Sizing + opacity tuned 2026-05-31 for subtlety per Guy:
+    // Sizing + opacity tuned 2026-05-31 per Guy:
     //   - 7% of the collage's short side (was 14%) — feels like a small mark,
     //     not a sticker. Capped at 70 logical px on huge collages.
-    //   - 0.55 alpha — clearly visible attribution but recedes against the
-    //     artwork. A soft drop-shadow gives it readable contrast on light
-    //     and dark images without needing a white pill background.
+    //   - 0.85 alpha — slightly translucent so it feels like a watermark
+    //     rather than a sticker, but plenty visible. A soft drop-shadow gives
+    //     it readable contrast on both light and dark artwork without needing
+    //     a white pill background.
     // =========================================================================
     const LOGO_WATERMARK_URL = "/assets/logo.svg";
     let __logoImagePromise = null;
@@ -15537,7 +15538,7 @@
       ctx.shadowBlur  = 6;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 1;
-      ctx.globalAlpha = 0.55;        // subtle attribution mark, not a sticker
+      ctx.globalAlpha = 0.85;        // watermark, not a sticker — visible but not aggressive
       ctx.drawImage(img, dx, dy, targetW, targetH);
       ctx.restore();
       return true;
