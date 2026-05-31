@@ -3216,6 +3216,47 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      /* Cap the panel height so 30+ selections don't push the whole picker
+         off-screen. SortableJS auto-scrolls the parent during drag (its
+         default `scroll` option) so dragging from item 40 to item 1 still
+         works — the panel scrolls automatically when you near the edge. */
+      max-height: 380px;
+      overflow-y: auto;
+      padding: 2px;            /* prevents the scrollbar from clipping chip shadows */
+      -webkit-overflow-scrolling: touch;
+    }
+    @media (max-width: 540px) {
+      .sp-order-list { max-height: 300px; }
+    }
+    /* Collage group divider — a labeled rule between chunks of N (where N
+       is the tiles-per-collage choice). Tells the seller "items 1-6 are
+       Collage 1, 7-12 are Collage 2…" at a glance. Sortable ignores these
+       elements via the filter option in initSortableOnOrderPanel. The
+       wrapper element keeps the label sticky-ish at the top of its
+       group when scrolling on long lists. */
+    .sp-order-divider {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 4px 2px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--muted);
+      cursor: default;
+      pointer-events: none;     /* never let users drag the divider */
+    }
+    .sp-order-divider::before,
+    .sp-order-divider::after {
+      content: "";
+      flex: 1 1 auto;
+      height: 1px;
+      background: var(--card-line);
+    }
+    .sp-order-divider .sp-order-divider-label {
+      flex: 0 0 auto;
+      white-space: nowrap;
     }
     .sp-order-chip {
       display: flex;
@@ -13428,8 +13469,26 @@
 
       $list.innerHTML = "";
       const byId = new Map((allListings || []).map(l => [l.listing_id, l]));
+      // Group size = the seller's current tiles-per-collage choice. Drives
+      // the dividers ("Collage 1 — 6 listings", "Collage 2 — …"). When the
+      // seller switches the dropdown in Step 3 we re-call this function so
+      // the groupings update live.
+      const tilesPer = getSelectedTilesPer();
+      const total = spSelectedOrder.length;
+      const numCollages = Math.ceil(total / tilesPer);
+
       const frag = document.createDocumentFragment();
-      for (let i = 0; i < spSelectedOrder.length; i++) {
+      for (let i = 0; i < total; i++) {
+        // Insert a divider at the start of each collage group.
+        if (i % tilesPer === 0) {
+          const collageIdx = Math.floor(i / tilesPer);
+          const remaining = total - i;
+          const inThisCollage = Math.min(tilesPer, remaining);
+          const divider = document.createElement("div");
+          divider.className = "sp-order-divider";
+          divider.innerHTML = `<span class="sp-order-divider-label">Collage ${collageIdx + 1} of ${numCollages} — ${inThisCollage} listing${inThisCollage === 1 ? "" : "s"}</span>`;
+          frag.appendChild(divider);
+        }
         const id = spSelectedOrder[i];
         const l = byId.get(id);
         if (!l) continue;  // listing no longer in allListings (deleted etc.)
@@ -13489,14 +13548,23 @@
         animation: 150,
         forceFallback: true,           // consistent touch behavior across browsers
         fallbackTolerance: 4,
+        // Group dividers are siblings of chips in the same flex column.
+        // filter prevents them from being draggable; preventOnFilter:false
+        // means clicks on dividers still fire normally (we just don't
+        // start a drag from them).
+        filter: ".sp-order-divider",
+        preventOnFilter: false,
+        // Auto-scroll the parent when dragging near top/bottom — critical
+        // for long lists where the seller wants to drag item 30 to slot 1.
+        scroll: true,
+        scrollSensitivity: 60,
+        scrollSpeed: 12,
         onEnd: (evt) => {
           // Rebuild spSelectedOrder from the current DOM order, then
-          // refresh the index pills (the chip elements moved but their
-          // index numbers didn't).
+          // re-render so dividers + index pills reflect the new positions.
           const newOrder = Array.from($list.querySelectorAll(".sp-order-chip"))
             .map(c => c.dataset.id).filter(Boolean);
           spSelectedOrder = newOrder;
-          // Cheap re-render to update the numbered badges.
           renderSelectedOrderPanel();
         },
       });
@@ -14555,6 +14623,10 @@
       }
       $spTilesPer.addEventListener("change", () => {
         try { localStorage.setItem(SP_TILES_KEY, $spTilesPer.value); } catch {}
+        // Re-render the selected-order panel so the collage-group dividers
+        // update to reflect the new grouping (e.g. switching 6-up → 2-up
+        // splits one section of 6 chips into three sections of 2).
+        renderSelectedOrderPanel();
       });
     }
     function getSelectedTilesPer() {
