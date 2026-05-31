@@ -13945,36 +13945,57 @@
         btn.type = "button";
         btn.className = "btn-primary";
         btn.id = "sp-batch-share-btn";
-        btn.textContent = `📤 Share post + ${__spGeneratedCanvases.length} image${__spGeneratedCanvases.length === 1 ? "" : "s"}`;
+        btn.textContent = `📤 Share to Facebook (${__spGeneratedCanvases.length} image${__spGeneratedCanvases.length === 1 ? "" : "s"})`;
         const help = document.createElement("span");
         help.className = "sp-batch-help";
-        help.textContent = "Opens your phone's share sheet — pick Facebook to post directly with the text already filled in.";
+        help.textContent = "Copies the post text to your clipboard, then opens the share sheet for the images. After picking Facebook, long-press the post body and tap Paste.";
         $row.append(btn, help);
         btn.addEventListener("click", async () => {
           const origLabel = btn.textContent;
           btn.disabled = true;
           btn.textContent = "Preparing images…";
           try {
+            // Step 1: copy the LIVE post text to clipboard BEFORE opening
+            // the share sheet. We tried passing `text` via navigator.share
+            // earlier but Facebook's mobile app handles it inconsistently
+            // — when the text contains a URL (which it does, via the
+            // auto-append catalog link or seller-typed URLs), FB extracts
+            // the URL into a link-card and discards the rest of the body.
+            // Clipboard is reliable across iOS Facebook, Android Facebook,
+            // Messenger, Discord, etc. — the seller pastes once into the
+            // compose box and gets the full text intact.
+            const postText = ($spText?.value || "").trim();
+            let clipboardOK = false;
+            if (postText) {
+              try {
+                await navigator.clipboard.writeText(postText);
+                clipboardOK = true;
+              } catch (clipErr) {
+                console.warn("[sp-share] clipboard write failed:", clipErr);
+              }
+            }
+
+            // Step 2: open the share sheet with images only. No `text` or
+            // `title` — FB would mishandle them anyway and other apps that
+            // honor `text` can also receive the same content via paste.
             const files = await canvasesToFiles(__spGeneratedCanvases, __spSellerSlug);
-            // Re-check canShare against the actual files (mobile browsers
-            // sometimes reject a probe file but accept real ones, or vice
-            // versa). Bail to zip if the real-file check fails.
             if (!navigator.canShare({ files })) {
               throw new Error("share-not-supported-for-these-files");
             }
-            // Pull the LIVE post text out of the textarea (not the cached
-            // spOriginalText) so any seller edits land in the Facebook
-            // compose screen. The `text` field of navigator.share becomes
-            // the post BODY on Facebook (and Messenger, Threads, etc.) —
-            // images attach separately. Empty fallback keeps the call
-            // valid if the seller cleared the textarea.
-            const postText = ($spText?.value || "").trim();
-            await navigator.share({
-              files,
-              title: "CanvasCircle sales post",
-              text: postText || "Sales post from CanvasCircle",
-            });
-            // No success toast — the share sheet itself is the confirmation.
+            await navigator.share({ files });
+
+            // Surface a brief inline status confirming the clipboard step.
+            // The share sheet itself confirms the image hand-off.
+            const $statusEl = document.getElementById("sp-generate-status");
+            if ($statusEl) {
+              if (clipboardOK) {
+                $statusEl.textContent = "Post text copied to your clipboard — long-press the Facebook post body and tap Paste.";
+                $statusEl.className = "sp-text-status ok";
+              } else if (postText) {
+                $statusEl.textContent = "Couldn't auto-copy the post text — tap Copy text above, then paste into Facebook.";
+                $statusEl.className = "sp-text-status err";
+              }
+            }
           } catch (err) {
             // AbortError fires if the user cancels — that's not an error
             // worth surfacing. Anything else gets shown.
