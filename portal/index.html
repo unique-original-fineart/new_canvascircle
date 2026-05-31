@@ -2275,6 +2275,9 @@
     @media (max-width: 720px) {
       .report-row { grid-template-columns: 56px 1fr; }
       .report-row .rr-actions { grid-column: 1 / -1; flex-direction: row; }
+      /* Collage-style settings — stack form + preview on mobile so the
+         color pickers + font dropdown aren't cramped to half-width. */
+      #collage-style-grid { grid-template-columns: 1fr !important; }
     }
 
     .mod-item {
@@ -4335,6 +4338,107 @@
               <div id="vouching-refs-list" class="refs-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
             </div>
           </div>
+
+          <!-- ============================================================ -->
+          <!-- Sales Post collage style — per-seller banner styling.         -->
+          <!-- ============================================================ -->
+          <!-- See db/migrations/043_collage_banner_settings.sql. Settings
+               apply to the Sales Post Builder's generated collage tiles
+               (artist–title header strip + SOLD overlay). The live preview
+               canvas below the form shows the current settings against a
+               mock tile so the seller can dial it in before saving. -->
+          <details id="collage-style-section" style="margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--card-line);">
+            <summary style="font-size: 16px; font-weight: 600; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px;">
+              <span>Sales Post collage style</span>
+              <span style="color: var(--muted); font-size: 13px; font-weight: 400;">▾</span>
+            </summary>
+            <p class="small" style="margin: 10px 0 14px; color: var(--muted);">
+              Personalize how your generated Facebook post collages look. Defaults match the platform's standard dark-brown header. Changes apply the next time you build a Sales Post.
+            </p>
+
+            <!-- Two-column layout on desktop, single column on mobile.
+                 Form on the left, live preview on the right. -->
+            <div id="collage-style-grid" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start;">
+              <div>
+                <div class="field" style="margin-bottom: 10px;">
+                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="checkbox" id="cs-header-enabled" style="width:18px; height:18px;" />
+                    <span>Show the artist – title header strip</span>
+                  </label>
+                  <p class="small" style="margin: 4px 0 0 26px; color: var(--muted);">Off = clean image, no text overlay above the artwork.</p>
+                </div>
+
+                <div class="field" style="margin-bottom: 10px;">
+                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="checkbox" id="cs-sold-enabled" style="width:18px; height:18px;" />
+                    <span>Show the SOLD overlay on sold listings</span>
+                  </label>
+                  <p class="small" style="margin: 4px 0 0 26px; color: var(--muted);">Off = sold listings look the same as available ones in the collage.</p>
+                </div>
+
+                <div class="field" style="margin-bottom: 10px;">
+                  <label for="cs-bg-color" style="display:block; font-weight:600; margin-bottom:4px;">Banner color</label>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <input type="color" id="cs-bg-color" style="width: 56px; height: 36px; padding: 0; border: 1px solid var(--card-line); border-radius: 6px; cursor: pointer;" />
+                    <input type="text" id="cs-bg-color-hex" maxlength="7" style="flex: 1; font-family: monospace; font-size: 13px;" placeholder="#1f1a17" />
+                  </div>
+                  <p class="small" style="margin: 4px 0 0; color: var(--muted);">Background for the artist–title strip; also tints the SOLD overlay.</p>
+                </div>
+
+                <div class="field" style="margin-bottom: 10px;">
+                  <label for="cs-text-color" style="display:block; font-weight:600; margin-bottom:4px;">Banner text color</label>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <input type="color" id="cs-text-color" style="width: 56px; height: 36px; padding: 0; border: 1px solid var(--card-line); border-radius: 6px; cursor: pointer;" />
+                    <input type="text" id="cs-text-color-hex" maxlength="7" style="flex: 1; font-family: monospace; font-size: 13px;" placeholder="#ffffff" />
+                  </div>
+                </div>
+
+                <div class="field" style="margin-bottom: 10px;">
+                  <label for="cs-font-family" style="display:block; font-weight:600; margin-bottom:4px;">Banner font</label>
+                  <!-- Curated list of web-safe fonts available on virtually
+                       every device. Custom @font-face would defeat the
+                       purpose since the canvas needs the font registered at
+                       draw time. Comic Sans intentionally included — Park
+                       West collectors are a different aesthetic crowd than
+                       a design portfolio and we don't want to gatekeep. -->
+                  <select id="cs-font-family">
+                    <option value="Georgia, 'Times New Roman', serif">Georgia (serif, default)</option>
+                    <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                    <option value="Helvetica, Arial, sans-serif">Helvetica / Arial (sans-serif)</option>
+                    <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                    <option value="Verdana, sans-serif">Verdana</option>
+                    <option value="'Courier New', Courier, monospace">Courier New (mono)</option>
+                    <option value="Impact, 'Arial Black', sans-serif">Impact (bold display)</option>
+                    <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                  </select>
+                </div>
+
+                <div class="field" style="margin-bottom: 10px;">
+                  <label for="cs-sold-label" style="display:block; font-weight:600; margin-bottom:4px;">SOLD overlay text</label>
+                  <input type="text" id="cs-sold-label" maxlength="20" placeholder="SOLD" />
+                  <p class="small" style="margin: 4px 0 0; color: var(--muted);">Up to 20 characters. Try "SOLD ✓", "GONE", "OFF MARKET" — anything that reads clearly.</p>
+                </div>
+              </div>
+
+              <!-- Live preview column -->
+              <div>
+                <div style="font-weight:600; margin-bottom:6px; font-size: 13px;">Preview</div>
+                <canvas id="cs-preview-canvas" style="width: 100%; max-width: 300px; aspect-ratio: 4 / 5; border: 1px solid var(--card-line); border-radius: 6px; background: #f0ede6;"></canvas>
+                <div style="margin-top: 8px;">
+                  <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px;">
+                    <input type="checkbox" id="cs-preview-sold" style="width:14px; height:14px;" checked />
+                    <span>Preview as sold listing</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top: 14px; display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
+              <button type="button" class="btn-primary"   id="cs-save-btn">Save collage style</button>
+              <button type="button" class="btn-secondary" id="cs-reset-btn">Reset to defaults</button>
+              <span id="cs-save-status" class="small" style="color: var(--muted);"></span>
+            </div>
+          </details>
 
           <!-- ============================================================ -->
           <!-- Blocked users section — view-only filter list, not destructive.-->
@@ -11310,6 +11414,211 @@
       updateAboutCount();
     }
 
+    // =========================================================================
+    // Sales Post collage style — see db/migrations/043_collage_banner_settings.sql.
+    //
+    // The same settings object is consumed by two places:
+    //   1. The live preview canvas in the Profile tab (so the seller sees
+    //      exactly what they're configuring before saving).
+    //   2. drawCellOnCanvas() in the Sales Post Builder (so the saved
+    //      preference is applied to real generated collages).
+    //
+    // We keep the working copy on `window.__collageStyle` so the builder can
+    // read it without re-fetching the profile each time. Save persists to
+    // profiles.collage_banner_settings and updates the in-memory copy.
+    // =========================================================================
+    const COLLAGE_STYLE_DEFAULTS = Object.freeze({
+      header_enabled: true,
+      sold_enabled:   true,
+      bg_color:       "#1f1a17",
+      text_color:     "#ffffff",
+      font_family:    "Georgia, 'Times New Roman', serif",
+      sold_label:     "SOLD",
+    });
+    window.__collageStyle = { ...COLLAGE_STYLE_DEFAULTS };
+
+    function loadCollageStyleSettings(profile) {
+      const raw = profile?.collage_banner_settings || {};
+      const merged = { ...COLLAGE_STYLE_DEFAULTS, ...raw };
+      window.__collageStyle = merged;
+      // Populate form
+      const $hen = document.getElementById("cs-header-enabled");
+      const $sen = document.getElementById("cs-sold-enabled");
+      const $bg  = document.getElementById("cs-bg-color");
+      const $bgH = document.getElementById("cs-bg-color-hex");
+      const $tx  = document.getElementById("cs-text-color");
+      const $txH = document.getElementById("cs-text-color-hex");
+      const $ff  = document.getElementById("cs-font-family");
+      const $sl  = document.getElementById("cs-sold-label");
+      if ($hen) $hen.checked = !!merged.header_enabled;
+      if ($sen) $sen.checked = !!merged.sold_enabled;
+      if ($bg)  $bg.value    = merged.bg_color   || COLLAGE_STYLE_DEFAULTS.bg_color;
+      if ($bgH) $bgH.value   = merged.bg_color   || COLLAGE_STYLE_DEFAULTS.bg_color;
+      if ($tx)  $tx.value    = merged.text_color || COLLAGE_STYLE_DEFAULTS.text_color;
+      if ($txH) $txH.value   = merged.text_color || COLLAGE_STYLE_DEFAULTS.text_color;
+      if ($ff)  $ff.value    = merged.font_family || COLLAGE_STYLE_DEFAULTS.font_family;
+      if ($sl)  $sl.value    = merged.sold_label || COLLAGE_STYLE_DEFAULTS.sold_label;
+      renderCollagePreview();
+    }
+
+    function readCollageStyleForm() {
+      const $hen = document.getElementById("cs-header-enabled");
+      const $sen = document.getElementById("cs-sold-enabled");
+      const $bg  = document.getElementById("cs-bg-color");
+      const $tx  = document.getElementById("cs-text-color");
+      const $ff  = document.getElementById("cs-font-family");
+      const $sl  = document.getElementById("cs-sold-label");
+      const isHex = (s) => /^#[0-9a-fA-F]{6}$/.test(String(s || "").trim());
+      const bg = isHex($bg?.value) ? $bg.value : COLLAGE_STYLE_DEFAULTS.bg_color;
+      const tx = isHex($tx?.value) ? $tx.value : COLLAGE_STYLE_DEFAULTS.text_color;
+      return {
+        header_enabled: !!$hen?.checked,
+        sold_enabled:   !!$sen?.checked,
+        bg_color:       bg,
+        text_color:     tx,
+        font_family:    ($ff?.value || COLLAGE_STYLE_DEFAULTS.font_family),
+        sold_label:     ($sl?.value || COLLAGE_STYLE_DEFAULTS.sold_label).slice(0, 20),
+      };
+    }
+
+    // Render the mock-tile preview into #cs-preview-canvas using current
+    // form values (without saving). Mirrors drawCellOnCanvas's logic so what
+    // the seller sees is exactly what the Sales Post Builder will produce.
+    function renderCollagePreview() {
+      const $canvas = document.getElementById("cs-preview-canvas");
+      if (!$canvas) return;
+      const $previewSold = document.getElementById("cs-preview-sold");
+      const showSold = !!$previewSold?.checked;
+      const s = readCollageStyleForm();
+      // Logical canvas dimensions — 4:5 portrait, matches the real tile aspect.
+      const W = 300, H = 375;
+      const dpr = window.devicePixelRatio || 1;
+      $canvas.width  = W * dpr;
+      $canvas.height = H * dpr;
+      const ctx = $canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      try { ctx.imageSmoothingQuality = "high"; } catch {}
+      // Cell metrics
+      const headerH = s.header_enabled ? 36 : 0;
+      const imgY = headerH;
+      const cellH = H - headerH;
+      // Header strip
+      if (s.header_enabled) {
+        ctx.fillStyle = s.bg_color;
+        ctx.fillRect(0, 0, W, headerH);
+        ctx.fillStyle = s.text_color;
+        ctx.font = `600 14px ${s.font_family}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Sample Artist – Untitled", W / 2, headerH / 2);
+      }
+      // Image placeholder — gradient swatch so the user can see colors over
+      // a non-trivial background (real listings have photos, not flat fills).
+      const grad = ctx.createLinearGradient(0, imgY, W, H);
+      grad.addColorStop(0, "#cdb89a");
+      grad.addColorStop(1, "#7a5f3e");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, imgY, W, cellH);
+      // Soft "frame" suggestion so the placeholder reads as artwork
+      ctx.strokeStyle = "rgba(0,0,0,0.15)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(20, imgY + 20, W - 40, cellH - 40);
+      // SOLD overlay (toggled by checkbox below preview)
+      if (showSold && s.sold_enabled) {
+        // Tint over image using the seller's bg color at 0.55 alpha. We
+        // expand the hex to rgba so the configured color can theme the
+        // overlay — keeps the seller's brand cohesive rather than always
+        // dropping in a generic red wash.
+        ctx.fillStyle = hexToRgba(s.bg_color, 0.55);
+        ctx.fillRect(0, imgY, W, cellH);
+        ctx.fillStyle = s.text_color;
+        ctx.font = `800 48px ${s.font_family}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "rgba(0,0,0,.35)";
+        ctx.shadowBlur  = 10;
+        ctx.fillText(s.sold_label || "SOLD", W / 2, imgY + cellH / 2);
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // Hex (#RRGGBB) → rgba string. Used by the SOLD overlay so the
+    // seller's chosen bg color tints the overlay at 0.55 alpha. Falls back
+    // to a safe red on parse failure.
+    function hexToRgba(hex, alpha) {
+      const m = /^#([0-9a-fA-F]{6})$/.exec(String(hex || "").trim());
+      if (!m) return `rgba(168, 40, 31, ${alpha})`;
+      const n = parseInt(m[1], 16);
+      const r = (n >> 16) & 0xff;
+      const g = (n >> 8)  & 0xff;
+      const b =  n        & 0xff;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    // Wire up the form interactions: every change re-renders the preview;
+    // Save persists to the profile row; Reset reverts to defaults.
+    (function wireCollageStyleForm() {
+      const inputs = [
+        "cs-header-enabled", "cs-sold-enabled",
+        "cs-bg-color", "cs-bg-color-hex",
+        "cs-text-color", "cs-text-color-hex",
+        "cs-font-family", "cs-sold-label", "cs-preview-sold",
+      ];
+      for (const id of inputs) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        el.addEventListener("input",  renderCollagePreview);
+        el.addEventListener("change", renderCollagePreview);
+      }
+      // Two-way bind color picker ↔ hex text input.
+      const pairs = [["cs-bg-color", "cs-bg-color-hex"], ["cs-text-color", "cs-text-color-hex"]];
+      for (const [pickerId, hexId] of pairs) {
+        const $picker = document.getElementById(pickerId);
+        const $hex    = document.getElementById(hexId);
+        if (!$picker || !$hex) continue;
+        $picker.addEventListener("input", () => { $hex.value = $picker.value; renderCollagePreview(); });
+        $hex.addEventListener("input", () => {
+          const v = ($hex.value || "").trim();
+          if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+            $picker.value = v;
+            renderCollagePreview();
+          }
+        });
+      }
+      // Save button
+      document.getElementById("cs-save-btn")?.addEventListener("click", async () => {
+        const $status = document.getElementById("cs-save-status");
+        const $btn    = document.getElementById("cs-save-btn");
+        if ($status) { $status.textContent = "Saving…"; $status.style.color = "var(--muted)"; }
+        if ($btn)    { $btn.disabled = true; }
+        try {
+          if (!currentUserId) throw new Error("Not signed in.");
+          const settings = readCollageStyleForm();
+          const { error } = await supabase
+            .from("profiles")
+            .update({ collage_banner_settings: settings })
+            .eq("user_id", currentUserId);
+          if (error) throw error;
+          window.__collageStyle = settings;
+          if ($status) { $status.textContent = "Saved ✓"; $status.style.color = "var(--accent)"; }
+          setTimeout(() => { if ($status) $status.textContent = ""; }, 2500);
+        } catch (e) {
+          console.error("[collage-style] save failed:", e);
+          if ($status) { $status.textContent = "Save failed: " + (e?.message || e); $status.style.color = "var(--status-danger-deep)"; }
+        } finally {
+          if ($btn) $btn.disabled = false;
+        }
+      });
+      // Reset button — restore form to defaults without saving so the seller
+      // can preview before committing.
+      document.getElementById("cs-reset-btn")?.addEventListener("click", () => {
+        loadCollageStyleSettings({ collage_banner_settings: { ...COLLAGE_STYLE_DEFAULTS } });
+        const $status = document.getElementById("cs-save-status");
+        if ($status) { $status.textContent = "Defaults loaded — tap Save to apply."; $status.style.color = "var(--muted)"; }
+      });
+    })();
+
     // Live character counter for the About textarea.
     function updateAboutCount() {
       const $count = document.getElementById("prof-about-count");
@@ -11377,6 +11686,11 @@
       // Render the Path to Established Member progress block. Hidden if the
       // user is already Established (is_trusted = true).
       loadEstablishedProgress(profile).catch(err => console.warn("[established-progress] load failed:", err));
+      // Populate the Sales Post collage style panel from the just-loaded
+      // profile. The settings power both the live preview AND the actual
+      // collage generation later (drawCellOnCanvas reads the same global).
+      try { loadCollageStyleSettings(profile); }
+      catch (e) { console.warn("[collage-style] load failed:", e); }
       // Reflect handle state in the UI — if NULL, the "Change handle" button
       // becomes a "Set handle" button (different copy, no retirement warning).
       const isInitialSet = !profile.handle;
@@ -14714,24 +15028,39 @@
 
     async function drawCellOnCanvas(ctx, listing, x, y, metrics) {
       const { cellW, cellH, headerH, headerFontPx, soldFontPx } = metrics;
-      // Header strip (dark bar with artist – title). Hex codes inlined since
-      // Canvas API doesn't accept CSS variables; they mirror the dark/light
-      // surface tokens.
-      ctx.fillStyle = "#1f1a17";
-      ctx.fillRect(x, y, cellW, headerH);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = `600 ${headerFontPx}px Georgia, 'Times New Roman', serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      const headerText = [listing.artist_name, listing.artwork_title].filter(Boolean).join(" – ");
-      ctx.fillText(fitText(ctx, headerText, cellW - 24),
-                   x + cellW / 2,
-                   y + headerH / 2);
+      // Pull the seller's saved banner style. Falls through to the defaults
+      // if the profile load is racing this draw or the column is missing.
+      // See db/migrations/043_collage_banner_settings.sql.
+      const style = window.__collageStyle || {
+        header_enabled: true, sold_enabled: true,
+        bg_color: "#1f1a17", text_color: "#ffffff",
+        font_family: "Georgia, 'Times New Roman', serif",
+        sold_label: "SOLD",
+      };
 
-      // Image area background
-      const imgY = y + headerH;
+      // Header strip (dark bar with artist – title) — only drawn if the
+      // seller's settings have header_enabled. When off, the image fills
+      // the full cell height including what would have been the header.
+      const effectiveHeaderH = style.header_enabled ? headerH : 0;
+      if (style.header_enabled) {
+        ctx.fillStyle = style.bg_color;
+        ctx.fillRect(x, y, cellW, headerH);
+        ctx.fillStyle = style.text_color;
+        ctx.font = `600 ${headerFontPx}px ${style.font_family}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const headerText = [listing.artist_name, listing.artwork_title].filter(Boolean).join(" – ");
+        ctx.fillText(fitText(ctx, headerText, cellW - 24),
+                     x + cellW / 2,
+                     y + headerH / 2);
+      }
+
+      // Image area background. When the header is off, expand the image
+      // area upward to fill the full cell.
+      const imgY = y + effectiveHeaderH;
+      const effectiveCellH = cellH + (style.header_enabled ? 0 : headerH);
       ctx.fillStyle = "#f0ede6";
-      ctx.fillRect(x, imgY, cellW, cellH);
+      ctx.fillRect(x, imgY, cellW, effectiveCellH);
 
       // Draw image cover-fitted
       const images = (listing.listing_images || []).slice().sort((a,b) => a.position - b.position);
@@ -14741,15 +15070,15 @@
           // Intentionally full-size — this image is being composited into a
           // downloadable Facebook post collage. Source quality matters here.
           const img = await loadCanvasImage(publicImageUrl(path));
-          const ratio = Math.max(cellW / img.naturalWidth, cellH / img.naturalHeight);
+          const ratio = Math.max(cellW / img.naturalWidth, effectiveCellH / img.naturalHeight);
           const dw = img.naturalWidth * ratio;
           const dh = img.naturalHeight * ratio;
           const dx = x + (cellW - dw) / 2;
-          const dy = imgY + (cellH - dh) / 2;
+          const dy = imgY + (effectiveCellH - dh) / 2;
           // Clip to cell bounds
           ctx.save();
           ctx.beginPath();
-          ctx.rect(x, imgY, cellW, cellH);
+          ctx.rect(x, imgY, cellW, effectiveCellH);
           ctx.clip();
           ctx.drawImage(img, dx, dy, dw, dh);
           ctx.restore();
@@ -14759,17 +15088,26 @@
         }
       }
 
-      // SOLD overlay
-      if (listing.status === "sold") {
-        ctx.fillStyle = "rgba(168, 40, 31, 0.55)";
-        ctx.fillRect(x, imgY, cellW, cellH);
-        ctx.fillStyle = "#ffffff";
-        ctx.font = `800 ${soldFontPx}px Georgia, 'Times New Roman', serif`;
+      // SOLD overlay — only drawn if the seller's settings have sold_enabled.
+      // Overlay tint inherits the seller's bg_color at 0.55 alpha so the
+      // SOLD wash reads as part of their personal style instead of always
+      // dropping in a generic platform-red. Text uses the configured text_color
+      // and font_family. The label text itself is configurable too — sellers
+      // can swap "SOLD" for "GONE", "OFF MARKET", "SOLD ✓", etc.
+      if (listing.status === "sold" && style.sold_enabled) {
+        ctx.fillStyle = hexToRgba(style.bg_color, 0.55);
+        ctx.fillRect(x, imgY, cellW, effectiveCellH);
+        ctx.fillStyle = style.text_color;
+        ctx.font = `800 ${soldFontPx}px ${style.font_family}`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.shadowColor = "rgba(0,0,0,.35)";
         ctx.shadowBlur  = 10;
-        ctx.fillText("SOLD", x + cellW / 2, imgY + cellH / 2);
+        ctx.fillText(
+          fitText(ctx, (style.sold_label || "SOLD"), cellW - 24),
+          x + cellW / 2,
+          imgY + effectiveCellH / 2
+        );
         ctx.shadowBlur = 0;
       }
     }
