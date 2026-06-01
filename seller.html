@@ -3,7 +3,7 @@
 ==============================================================================
   PUBLIC SELLER PAGE  (/seller.html, surfaced as /@handle via _redirects)
   ===========================================================================
-  Anyone can land here — the seller shares the URL with potential buyers.
+  Anyone can land here, the seller shares the URL with potential buyers.
 
   Privacy rules (opt-in publicness, since the seller is sharing this themselves):
     - Public for anyone:  display_name, @handle, listing counts, the grid of
@@ -20,7 +20,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Seller — CanvasCircle</title>
+  <title>Seller, CanvasCircle</title>
   <meta name="description" content="Browse this collector's listings on CanvasCircle." />
   <meta name="robots" content="index, follow" />
 
@@ -38,7 +38,7 @@
   <!-- Open Graph (filled in dynamically once we know the handle) -->
   <meta property="og:site_name"   content="CanvasCircle" />
   <meta property="og:type"        content="profile" />
-  <meta property="og:title"       content="Seller — CanvasCircle" />
+  <meta property="og:title"       content="Seller, CanvasCircle" />
   <meta property="og:description" content="Browse this collector's listings on CanvasCircle." />
   <meta property="og:image"       content="https://canvascircle.art/assets/og-image.png" />
 
@@ -60,7 +60,7 @@
       border-bottom: 1px solid var(--card-line);
       background: var(--surface-1);
       display: flex; align-items: center; justify-content: space-between;
-      /* Sticky header — see index.html. */
+      /* Sticky header, see index.html. */
       position: sticky; top: 0; z-index: 50;
       box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
     }
@@ -120,7 +120,7 @@
       margin: 0 0 10px;
     }
     .seller-header .contact-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    /* Both contact CTAs share the same blue single-hue gradient — Guy's
+    /* Both contact CTAs share the same blue single-hue gradient, Guy's
        call that they're equally-valid contact methods, no primary/
        secondary hierarchy. Visual order comes from layout, not styling. */
     .seller-header .contact-actions a.primary,
@@ -137,7 +137,7 @@
     }
     .seller-header .contact-actions a.primary:hover,
     .seller-header .contact-actions a.secondary:hover { filter: brightness(1.10); }
-    /* Follow Seller button — same pill pattern as the listing.html
+    /* Follow Seller button, same pill pattern as the listing.html
        Follow Artist button. Brand-gradient fill when active. */
     .follow-seller-btn {
       display: inline-flex;
@@ -162,7 +162,7 @@
       color: var(--text-inverse);
       border-color: transparent;
     }
-    /* Preferred-contact hint — small chip-style label shown before the
+    /* Preferred-contact hint, small chip-style label shown before the
        contact buttons when the seller has explicitly set their preference.
        Brand-accent tint so it reads as "helpful tip" not "status badge". */
     .seller-header .contact-actions .pref-contact-hint {
@@ -209,7 +209,7 @@
       margin-bottom: -1px;
     }
     .catalog-tab:hover { color: var(--fg); }
-    /* Brand-gradient underline on active tab — matches index.html catalog. */
+    /* Brand-gradient underline on active tab, matches index.html catalog. */
     .catalog-tab.is-active { color: var(--fg); border-bottom-color: transparent; border-image: var(--brand-gradient) 1; }
     .catalog-tab .count { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 4px; }
     @media (max-width: 540px) {
@@ -277,12 +277,12 @@
     .seller-toolbar .filter-row select:hover { border-color: var(--fg); }
     .seller-toolbar .filter-row select:focus { outline: none; border-color: var(--accent); }
     @media (min-width: 720px) {
-      /* On desktop, keep filters from getting absurdly wide — they cap at
+      /* On desktop, keep filters from getting absurdly wide, they cap at
          ~180px so the row stays scannable even with only 3 selects. */
       .seller-toolbar .filter-row select { flex: 0 1 180px; }
     }
 
-    /* "linklike" button — looks like a link but acts as a button. Reused
+    /* "linklike" button, looks like a link but acts as a button. Reused
        by the filter-empty Reset action. */
     .linklike {
       background: none; border: none; padding: 0;
@@ -313,7 +313,7 @@
       text-decoration: none;
       transition: transform .15s ease, box-shadow .15s ease;
     }
-    /* Brand conic-gradient hover — matches index.html catalog cards. */
+    /* Brand conic-gradient hover, matches index.html catalog cards. */
     .card:hover, .card:focus-visible {
       transform: translateY(-1px);
       box-shadow: 0 6px 18px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.30);
@@ -334,7 +334,7 @@
     .card .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
     /* Ownership-verified badge: small green check in the top-left corner of
        the card image. Signed-in viewers only. */
-    /* Brand-gradient corner badge — matches index.html catalog cards. */
+    /* Brand-gradient corner badge, matches index.html catalog cards. */
     .card .verified-corner {
       position: absolute;
       top: 8px; left: 8px;
@@ -349,7 +349,7 @@
       border: 2px solid var(--surface-1);
       z-index: 2;
     }
-    /* Open-to-Trade pill — bottom-left rounded-rect overlay. Matches the
+    /* Open-to-Trade pill, bottom-left rounded-rect overlay. Matches the
        catalog (index.html) card treatment exactly so users see the same
        signal across the seller page and the catalog grid. Distinct from
        the gradient-circle Verified glyph per [[trust-glyph-single-use]]. */
@@ -532,7 +532,7 @@
         <!-- Condensed from a longer paragraph (2026-05-28). Same legal
              load (direct transaction + no platform involvement + Terms
              link) in one tight line. Conspicuousness preserved by the
-             surrounding muted box — no warning glyph (initially had
+             surrounding muted box, no warning glyph (initially had
              a ⚠️; removed because users read it as "danger" when the
              intent is purely informational). -->
         <div class="transaction-disclaimer">
@@ -547,12 +547,12 @@
         <button type="button" class="catalog-tab" data-listing-type="iso" role="tab" aria-selected="false">In Search Of <span class="count" id="count-iso"></span></button>
       </div>
 
-      <!-- In-page filter toolbar — scoped to this seller's listings.
+      <!-- In-page filter toolbar, scoped to this seller's listings.
            Especially useful for sellers with large catalogs (50+ listings)
            where buyers need to sift down to the relevant subset without
            jumping over to the main catalog and losing the seller's bio +
            references context. Filtering is client-side over the already-
-           loaded listingsAll array (fast — no re-query).
+           loaded listingsAll array (fast, no re-query).
            Hidden until at least one listing loads; revealed by JS. -->
       <form id="seller-toolbar" class="seller-toolbar" autocomplete="off" hidden>
         <div class="toolbar-row search-row">
@@ -588,7 +588,7 @@
       </div>
       <!-- Distinct empty state when filters return zero matches but there
            ARE listings in this tab. Different copy + a Reset button so
-           users don't think the seller has no listings — just that the
+           users don't think the seller has no listings, just that the
            current filter combination doesn't match any. -->
       <div id="filter-empty" class="empty" hidden>
         <div class="empty-title">No listings match these filters</div>
@@ -614,11 +614,11 @@
     import { armReturnTrail } from "/lib/return-trail.js";
     import { mountWelcomeBanner } from "/lib/welcome-banner.js";
 
-    // See /lib/welcome-banner.js — renders the persistent "Continue to X"
+    // See /lib/welcome-banner.js, renders the persistent "Continue to X"
     // banner for newly-signed-up users who haven't dismissed it yet.
     mountWelcomeBanner();
 
-    // withTimeout — see notes in index.html. Hard-fails any hung Supabase
+    // withTimeout, see notes in index.html. Hard-fails any hung Supabase
     // query so the page can't sit on a permanent loading state.
     function withTimeout(promise, ms, label = "operation") {
       return Promise.race([
@@ -656,7 +656,7 @@
 
     // ----- Filter state (in-page toolbar) -----
     // Client-side filter applied over the already-loaded listingsAll arrays.
-    // No re-query needed — we hold every listing in memory at render time.
+    // No re-query needed, we hold every listing in memory at render time.
     // Filters reset on tab switch (each tab is its own context: "For Sale"
     // status doesn't mean anything in the ISO tab).
     //
@@ -676,11 +676,11 @@
     }
 
     // Parse the handle from the URL. Two forms are supported:
-    //   1) /@handle           — the canonical, shareable form. Cloudflare
+    //   1) /@handle          , the canonical, shareable form. Cloudflare
     //                            _redirects rewrites this to seller.html
     //                            (status 200, URL bar stays). We read the
     //                            handle out of window.location.pathname.
-    //   2) /seller.html?handle=X — fallback for direct/manual links.
+    //   2) /seller.html?handle=X, fallback for direct/manual links.
     function getHandleFromUrl() {
       // Try the pathname form first: /@handle
       const pathMatch = window.location.pathname.match(/^\/@([^\/\?#]+)/);
@@ -730,7 +730,7 @@
     // ----- Load -----
     // Auth-check timeout: on a cold PWA launch the network can be slow to
     // become ready and supabase.auth.getUser() can hang for 10-30s. We refuse
-    // to block the seller page render on that — anonymous viewers get a fully
+    // to block the seller page render on that, anonymous viewers get a fully
     // usable page (just without contact info). The real auth check keeps
     // running in the background and re-renders when it resolves.
     const AUTH_TIMEOUT_MS = 3500;
@@ -743,7 +743,7 @@
         return;
       }
 
-      // 1) Check sign-in state up front — we need it to decide whether to
+      // 1) Check sign-in state up front, we need it to decide whether to
       // render contact info / location. Race against a timeout so a cold
       // PWA launch can't hang here.
       const authLive = supabase.auth.getUser()
@@ -812,7 +812,7 @@
 
       // User-block gate. If the viewer has blocked this seller OR the seller
       // has blocked the viewer, hide the entire seller page with generic
-      // copy. The Block button itself lives lower on this page — but if
+      // copy. The Block button itself lives lower on this page, but if
       // either party has already blocked the other, neither sees the page.
       // See db/migrations/042_user_blocks.sql.
       try {
@@ -821,7 +821,7 @@
           showError("This account isn't available.");
           return;
         }
-      } catch (e) { /* anon viewer or RPC blip — fall through */ }
+      } catch (e) { /* anon viewer or RPC blip, fall through */ }
 
       sellerProfile = profile;
       setMeta(profile);
@@ -846,7 +846,7 @@
           // narrow to any of them client-side. Excludes 'delisted' (seller
           // explicitly hid the listing) which is a soft-delete signal.
           // The default filter is "active" (available + pending) so a
-          // first-time visit still hides sold by default — matches the
+          // first-time visit still hides sold by default, matches the
           // pattern used in the portal Your Listings tab + catalog.
           .in("status", ["available", "pending", "sold", "not_renewed"])
           .order("created_at", { ascending: false }),
@@ -916,7 +916,7 @@
         $joinedItem.hidden = false;
       }
 
-      // Established Member indicator — shown for accounts the admin has
+      // Established Member indicator, shown for accounts the admin has
       // marked is_trusted. Visible to anyone (signed in or not), since the
       // seller page is opt-in public.
       const $establishedRow = document.getElementById("seller-established-row");
@@ -934,13 +934,13 @@
         }
       }
 
-      // Location is gated — only visible to signed-in users.
+      // Location is gated, only visible to signed-in users.
       if (viewerSignedIn && profile.location) {
         $locationItem.textContent = `📍 ${profile.location}`;
         $locationItem.hidden = false;
       }
 
-      // Counts come after the listings load — defer.
+      // Counts come after the listings load, defer.
       // (renderHeader is called before the count is known; populate later
       // from applyTab() once the data arrives.)
 
@@ -949,7 +949,7 @@
         const fbUrl = fbProfileUrl(profile.facebook_profile_url);
         const parts = [];
 
-        // Preferred-contact-method hint — renders for all four states so
+        // Preferred-contact-method hint, renders for all four states so
         // first-time buyers always see a tip. Wording is specific to the
         // seller-page context (no single Email Seller button here —
         // contact happens via the buttons below or via a specific
@@ -965,9 +965,9 @@
           // Email Seller path on listings as an equally valid alternative,
           // so buyers without Facebook don't assume the seller is
           // unreachable and bounce.
-          parts.push(`<div class="pref-contact-hint">📱 <strong>Prefers Facebook Messenger</strong> — tap <strong>Message on Facebook</strong> below to reach them there. Don't have Facebook? Use the <strong>Email Seller</strong> form on any of their listings instead.</div>`);
+          parts.push(`<div class="pref-contact-hint">📱 <strong>Prefers Facebook Messenger</strong>, tap <strong>Message on Facebook</strong> below to reach them there. Don't have Facebook? Use the <strong>Email Seller</strong> form on any of their listings instead.</div>`);
         } else {
-          // Default ('either') OR 'facebook' without an FB URL set — fall
+          // Default ('either') OR 'facebook' without an FB URL set, fall
           // back to the open-to-either hint so the buyer always has a path.
           parts.push(`<div class="pref-contact-hint">✉️ or 📞 <strong>Open to either.</strong> When reaching out via one of their listings, you can include your phone number in the <strong>Email Seller</strong> form if you'd prefer a call or text.</div>`);
         }
@@ -986,7 +986,7 @@
         if (!fbUrl && !profile.contact_email) {
           parts.push(`<span style="color:var(--muted); font-size:14px;">This collector hasn't published contact info yet.</span>`);
         }
-        // Block link — small, low-emphasis, only shown when the viewer is
+        // Block link, small, low-emphasis, only shown when the viewer is
         // signed in AND not viewing their own seller page. Hooks the
         // confirm modal. Admin profiles cannot be blocked (the RPC enforces
         // this) so we hide the link client-side too for the admin target.
@@ -1021,7 +1021,7 @@
 
       $sellerHeader.hidden = false;
 
-      // Follow seller button — visible only for signed-in viewers who are
+      // Follow seller button, visible only for signed-in viewers who are
       // NOT this seller themselves (no self-follow). Initial state +
       // toggle handler are deferred to the next tick so we don't block
       // the header render.
@@ -1109,7 +1109,7 @@
         // and seller-page header; using a similar-looking but different
         // glyph here for a different concept (Established Member)
         // created a "what does this symbol mean?" friction. (2) The
-        // wording "Established" was redundant — only Established
+        // wording "Established" was redundant, only Established
         // Members are eligible to be References (enforced by the
         // request_reference RPC), so every name in this list is
         // already-by-definition Established. No need to repeat it
@@ -1149,7 +1149,7 @@
       const countsParts = [];
       if (saleN > 0) countsParts.push(`${saleN} for sale`);
       if (isoN  > 0) countsParts.push(`${isoN} In Search Of`);
-      // Verified-listings stat — signed-in viewers only (matches the card
+      // Verified-listings stat, signed-in viewers only (matches the card
       // badge rule). Counts both sale + ISO listings that have status='verified'.
       // Label is intentionally explicit (no abbreviations) so a casual visitor
       // immediately understands what the check means without prior context.
@@ -1169,7 +1169,7 @@
       const allRows = listingsAll[currentTab] || [];
       $grid.innerHTML = "";
 
-      // No listings AT ALL in this tab — show the "no listings yet" empty
+      // No listings AT ALL in this tab, show the "no listings yet" empty
       // state and hide the filter toolbar (nothing to filter).
       if (allRows.length === 0) {
         $grid.hidden = true;
@@ -1183,7 +1183,7 @@
       }
 
       // There ARE listings, so show the filter toolbar. Status filter is
-      // only meaningful on the For Sale tab — hide it on ISO where there's
+      // only meaningful on the For Sale tab, hide it on ISO where there's
       // a single "open" status that matches everything.
       if ($toolbar) {
         $toolbar.hidden = false;
@@ -1196,7 +1196,7 @@
       $empty.hidden = true;
 
       if (rows.length === 0) {
-        // Filters returned nothing — show the "no matches" empty state,
+        // Filters returned nothing, show the "no matches" empty state,
         // not the "no listings yet" one. Keeps the seller from looking
         // empty when they actually have plenty of listings.
         $grid.hidden = true;
@@ -1213,7 +1213,7 @@
 
     // -----------------------------------------------------------------
     // Apply the in-page filter toolbar's state to the loaded rows.
-    // All filtering is in-memory — no re-query — because the page loads
+    // All filtering is in-memory, no re-query, because the page loads
     // every listing for the seller upfront. Cheap even at 500 rows.
     // -----------------------------------------------------------------
     function getFilteredRows(rows) {
@@ -1232,7 +1232,7 @@
       if (cat) {
         out = out.filter(r => r.artwork_category === cat);
       }
-      // Status filter applies to sale tab only — ISO listings use status
+      // Status filter applies to sale tab only, ISO listings use status
       // semantically differently (see [[iso-status-semantics]] memory).
       // "active" is the default and means "still buyable" (available +
       // pending). Other values are strict status equality. Empty string
@@ -1256,7 +1256,7 @@
       } else if (sort === "price-desc") {
         out.sort((a, b) => priceForSort(b) - priceForSort(a));
       } else {
-        // newest — sort by created_at desc explicitly in case the source
+        // newest, sort by created_at desc explicitly in case the source
         // wasn't ordered (defensive).
         out.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       }
@@ -1303,7 +1303,7 @@
       if ($sfQ)        $sfQ.value        = "";
       if ($sfCategory) $sfCategory.value = "";
       // Status resets to the "active" default (hides sold), matching the
-      // initial-page-load state. NOT empty string — empty would show
+      // initial-page-load state. NOT empty string, empty would show
       // everything including sold, which isn't what users expect from
       // Clear / Reset.
       if ($sfStatus)   $sfStatus.value   = "active";
@@ -1317,7 +1317,7 @@
       btn.addEventListener("click", () => {
         if (btn.dataset.listingType !== currentTab) {
           currentTab = btn.dataset.listingType;
-          // Reset filters on tab switch — each tab is its own context
+          // Reset filters on tab switch, each tab is its own context
           // (a status filter from "For Sale" makes no sense in "In Search
           // Of", and a sale-side search may not apply to ISO requests).
           // resetSellerFilters() also calls applyTab() at the end, so
@@ -1339,7 +1339,7 @@
       // ISO 'sold' = "closed/found"; we filter those out at the query so don't paint the overlay anyway.
       card.className = "card" + (listing.status === "sold" && !isIso ? " is-sold" : "");
       card.href = `/listing.html?id=${listing.listing_id}`;
-      // Seller page card — same dimensions as the main catalog grid.
+      // Seller page card, same dimensions as the main catalog grid.
       const imgUrl = firstPath ? publicImageUrl(firstPath, { width: 600 }) : "";
       const catCls   = listing.artwork_category === "Unique/Original" ? " unique"
                      : listing.artwork_category === "Limited Edition" ? " edition" : "";
@@ -1348,7 +1348,7 @@
       const saveN    = Number(listing.save_count || 0);
 
       const imgInner = imgUrl
-        ? `<img src="${imgUrl}" alt="${escapeHtml(listing.artist_name || "")} — ${escapeHtml(listing.artwork_title || "")}" loading="lazy" decoding="async" />`
+        ? `<img src="${imgUrl}" alt="${escapeHtml(listing.artist_name || "")}, ${escapeHtml(listing.artwork_title || "")}" loading="lazy" decoding="async" />`
         : (isIso
             ? `<div class="iso-placeholder"><span class="glyph">🔍</span><span class="label">In Search Of</span></div>`
             : "");
@@ -1393,11 +1393,11 @@
           </div>`;
       }
 
-      // Verified badge — signed-in viewers only (matches the catalog rule).
+      // Verified badge, signed-in viewers only (matches the catalog rule).
       const verifiedBadge = (viewerSignedIn && listing.verification_status === "verified")
         ? `<div class="verified-corner" title="Ownership Verified">✓</div>`
         : "";
-      // Open-to-Trade pill — bottom-left overlay. Same treatment as the
+      // Open-to-Trade pill, bottom-left overlay. Same treatment as the
       // catalog card. Sale-only, visible to all viewers.
       const tradePill = (!isIso && listing.open_to_trade)
         ? `<div class="trade-pill" title="Seller is open to trade offers">⇄ Trade</div>`
@@ -1436,7 +1436,7 @@
       const id = wrap.dataset.listingId;
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        showAuthPrompt({ message: "Sign up to save listings. Same account also lets you sell pieces from your collection or post In Search Of requests — no commitment." });
+        showAuthPrompt({ message: "Sign up to save listings. Same account also lets you sell pieces from your collection or post In Search Of requests, no commitment." });
         return;
       }
       btn.disabled = true;
@@ -1459,7 +1459,7 @@
     });
 
     // ---------------------------------------------------------------------
-    // Freshness watchdog — re-runs load() when the page is restored from
+    // Freshness watchdog, re-runs load() when the page is restored from
     // bfcache or when the user returns to the tab/standalone-PWA after >20s
     // of being hidden. Mirrors the same pattern in index.html, listing.html,
     // and portal/index.html.
@@ -1499,7 +1499,7 @@
         `Block ${name}?\n\n`
         + `• You won't see their listings, page, or messages on CanvasCircle.\n`
         + `• They won't see yours either.\n`
-        + `• This will NOT block them from contacting you on Facebook, email, or by phone — only on CanvasCircle.\n\n`
+        + `• This will NOT block them from contacting you on Facebook, email, or by phone, only on CanvasCircle.\n\n`
         + `You can unblock anytime from My Account → Blocked users.`
       );
       if (!ok) return;
@@ -1509,7 +1509,7 @@
         const { error } = await supabase.rpc("block_user", { p_target_user_id: uid });
         if (error) throw error;
         clearBlockFilterCache();
-        // Redirect to home — the seller page will now read as blocked.
+        // Redirect to home, the seller page will now read as blocked.
         window.location.href = "/";
       } catch (e) {
         console.error("[block-user] failed:", e);

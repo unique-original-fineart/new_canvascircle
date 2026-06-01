@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Listing — CanvasCircle</title>
+  <title>Listing, CanvasCircle</title>
 
   <link rel="icon" type="image/x-icon" href="/assets/favicon.ico" />
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
@@ -37,7 +37,7 @@
       border-bottom: 1px solid var(--card-line);
       background: var(--surface-1);
       display: flex; align-items: center; justify-content: space-between;
-      /* Sticky header — see index.html for the full rationale. z-index:50
+      /* Sticky header, see index.html for the full rationale. z-index:50
          sits below modals so the contact-seller / lightbox overlays still
          cover the header when open. */
       position: sticky; top: 0; z-index: 50;
@@ -102,7 +102,7 @@
       display: inline-flex; align-items: center; gap: 6px;
       z-index: 2;
     }
-    /* Heart (Save) — white pill, image-overlay treatment unchanged. */
+    /* Heart (Save), white pill, image-overlay treatment unchanged. */
     .heart-btn {
       display: inline-flex; align-items: center; gap: 6px;
       background: rgba(255,255,255,.94);
@@ -121,7 +121,7 @@
     .heart-btn.is-saved .heart-glyph { color: var(--status-danger-strong); }
     .heart-btn[disabled] { opacity: .55; cursor: progress; }
 
-    /* Share — uses the same blue single-hue gradient + white text as the
+    /* Share, uses the same blue single-hue gradient + white text as the
        Email Seller / Message on Facebook CTAs (--action-* tokens). Reads
        as a brand-aligned primary action and is more eye-catching than the
        white-pill treatment when sitting on top of artwork. Same pill shape
@@ -148,7 +148,7 @@
     .share-btn .share-glyph svg { width: 100%; height: 100%; display: block; }
     .share-btn .share-label { font-size: 13px; }
 
-    /* Toast — one-shot confirmation after a successful clipboard fallback
+    /* Toast, one-shot confirmation after a successful clipboard fallback
        (so non-mobile users know the share button "worked"). Fades in
        quickly, hangs for ~2s, fades out. */
     .cc-toast {
@@ -187,7 +187,7 @@
     }
     .details .artist { font-size: 18px; font-weight: 600; }
 
-    /* Follow Artist button — small pill button that toggles between
+    /* Follow Artist button, small pill button that toggles between
        "+ Follow artist" and "✓ Following [Unfollow]" states. Uses brand-
        accent tokens. The button itself gets the gradient when in the
        "Following" state to read as an active toggle. */
@@ -236,7 +236,7 @@
     /* Open-to-Trade badge. Solid dark-navy pill with off-white text to set it
        apart from the lighter category badges; matches the catalog card pill
        so users see the same signal on the card and the detail view. Pill
-       shape (rounded but not full-circle) is deliberate — gradient circles
+       shape (rounded but not full-circle) is deliberate, gradient circles
        are reserved for the Ownership Verified trust glyph (see
        [[trust-glyph-single-use]]). */
     .badge.trade-badge {
@@ -247,7 +247,7 @@
     }
     /* Verified badge sits alongside the category/status pills. Click/tap
        opens a small inline popover explaining what verification means.
-       Phase 4: full brand gradient + NO border — borderless treatment
+       Phase 4: full brand gradient + NO border, borderless treatment
        reserved for trust badges so they feel premium and "lit from
        within" rather than outlined. */
     .badge.verified-badge {
@@ -331,7 +331,7 @@
     .seller-block .name { font-weight: 600; }
     .seller-block .loc  { color: var(--muted); font-size: 14px; margin-top: 2px; }
 
-    /* Report-this-listing link — intentionally low-contrast so it doesn't
+    /* Report-this-listing link, intentionally low-contrast so it doesn't
        distract from the listing or the contact buttons. */
     .report-link-row { margin-top: 18px; text-align: center; }
     .report-link {
@@ -345,7 +345,7 @@
     .seller-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
     /* Both contact CTAs (Message on Facebook + Email Seller) share the
        blue single-hue gradient. Visual hierarchy comes from positioning,
-       not from primary/secondary distinction — both are equally valid
+       not from primary/secondary distinction, both are equally valid
        ways to reach the seller. */
     .seller-actions a {
       display: inline-block; padding: 9px 14px; border-radius: 8px;
@@ -357,7 +357,7 @@
     }
     .seller-actions a:hover { filter: brightness(1.10); }
 
-    /* Preferred-contact hint — small chip-style label under the seller's
+    /* Preferred-contact hint, small chip-style label under the seller's
        location, visible only when the seller has set a preference (phone
        or email). Brand-accent tint so it reads as a "helpful note" and
        not a status badge. */
@@ -423,7 +423,7 @@
     .lightbox.open { display: flex; }
     .lightbox img  { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-    /* Contact-seller modal — used by the Email Seller button.
+    /* Contact-seller modal, used by the Email Seller button.
        Sits above the lightbox z-index because either can be the foreground.
        Backdrop click + Escape close. */
     .contact-overlay {
@@ -549,7 +549,7 @@
       <label for="contact-subject">Subject</label>
       <input type="text" id="contact-subject" maxlength="200" autocomplete="off" />
       <label for="contact-body">Message</label>
-      <textarea id="contact-body" maxlength="5000" placeholder="Hi — I'm interested in this piece. Could you tell me more about…"></textarea>
+      <textarea id="contact-body" maxlength="5000" placeholder="Hi, I'm interested in this piece. Could you tell me more about…"></textarea>
       <label for="contact-phone" style="margin-top: 12px;">Phone <span style="color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0;">(optional)</span></label>
       <input type="tel" id="contact-phone" maxlength="30" autocomplete="tel"
              placeholder="e.g. (555) 123-4567" />
@@ -583,11 +583,11 @@
     import { armReturnTrail } from "/lib/return-trail.js";
     import { mountWelcomeBanner } from "/lib/welcome-banner.js";
 
-    // See /lib/welcome-banner.js — renders the persistent "Continue to X"
+    // See /lib/welcome-banner.js, renders the persistent "Continue to X"
     // banner for newly-signed-up users who haven't dismissed it yet.
     mountWelcomeBanner();
 
-    // withTimeout — see notes in index.html. Hard-fails any hung Supabase
+    // withTimeout, see notes in index.html. Hard-fails any hung Supabase
     // query so the loading state can't sit indefinitely.
     function withTimeout(promise, ms, label = "operation") {
       return Promise.race([
@@ -609,7 +609,7 @@
       return params.get("id");
     }
 
-    // Smart back link — adapts based on where the user came from so the
+    // Smart back link, adapts based on where the user came from so the
     // "back" affordance returns them to that context instead of always
     // dumping them on the main catalog:
     //   - From /portal/ (own dashboard)        → "Back to your portal"
@@ -673,11 +673,11 @@
     }
 
     function fmtPrice(n) {
-      if (n == null || isNaN(Number(n))) return "—";
+      if (n == null || isNaN(Number(n))) return "-";
       return "$" + Number(n).toLocaleString();
     }
 
-    // Lightweight one-shot toast — used after a clipboard fallback so
+    // Lightweight one-shot toast, used after a clipboard fallback so
     // non-mobile users get visible confirmation the share button actually
     // did something. Pops in, hangs ~2s, fades out, then removes itself.
     // Only one toast at a time (existing toast gets replaced).
@@ -689,7 +689,7 @@
       document.body.appendChild($t);
       // Force a reflow so the .is-visible transition actually animates
       // (without this, adding both classes in the same tick skips the
-      // fade and the toast just snaps in — minor but uglier).
+      // fade and the toast just snaps in, minor but uglier).
       // eslint-disable-next-line no-unused-expressions
       $t.offsetHeight;
       $t.classList.add("is-visible");
@@ -741,10 +741,10 @@
       const isIso = listing.listing_type === "iso";
       const subjectArtist = listing.artist_name || "any artist";
       const subjectTitle  = listing.artwork_title || "";
-      const isoTitle = `In Search Of — ${subjectTitle ? `"${subjectTitle}"` : ""}${subjectTitle && listing.artist_name ? " by " : ""}${listing.artist_name || ""}`.replace(/\s+/g, " ").trim() || "In Search Of — buyer request";
-      const saleTitle = `${listing.artist_name || "Artwork"} — ${listing.artwork_title || ""}`.trim();
+      const isoTitle = `In Search Of, ${subjectTitle ? `"${subjectTitle}"` : ""}${subjectTitle && listing.artist_name ? " by " : ""}${listing.artist_name || ""}`.replace(/\s+/g, " ").trim() || "In Search Of, buyer request";
+      const saleTitle = `${listing.artist_name || "Artwork"}, ${listing.artwork_title || ""}`.trim();
       const title = isIso ? isoTitle : saleTitle;
-      document.title = title + " — CanvasCircle";
+      document.title = title + ", CanvasCircle";
       const setMeta = (prop, val) => {
         let el = document.querySelector(`meta[property="${prop}"]`);
         if (!el) {
@@ -756,7 +756,7 @@
       };
       setMeta("og:title", title);
       const defaultDesc = isIso
-        ? `A buyer on CanvasCircle is looking to acquire ${subjectArtist}${subjectTitle ? ` — "${subjectTitle}"` : ""}.`
+        ? `A buyer on CanvasCircle is looking to acquire ${subjectArtist}${subjectTitle ? `, "${subjectTitle}"` : ""}.`
         : "An original or resold artwork on CanvasCircle.";
       setMeta("og:description", listing.description || defaultDesc);
       if (imgUrl) setMeta("og:image", imgUrl);
@@ -765,7 +765,7 @@
 
     // Auth-check timeout: on a cold PWA launch the network can be slow to
     // become ready and supabase.auth.getUser() can hang for 10-30s. We refuse
-    // to block the listing render on that — anonymous viewers get a fully
+    // to block the listing render on that, anonymous viewers get a fully
     // usable listing page (just without contact info). The real auth check
     // keeps running in the background and re-renders when it resolves.
     const AUTH_TIMEOUT_MS = 3500;
@@ -870,7 +870,7 @@
 
       // User-block gate. If the viewer has blocked this seller OR the seller
       // has blocked the viewer, hide the listing the same way we'd hide an
-      // inactive-account listing. Generic copy preserves privacy — we don't
+      // inactive-account listing. Generic copy preserves privacy, we don't
       // tell either party "you've been blocked." See [[user-blocks]].
       try {
         const blockSet = await loadBlockFilter();
@@ -878,9 +878,9 @@
           $status.textContent = "This listing isn't available.";
           return;
         }
-      } catch (e) { /* anon viewer or RPC blip — fall through */ }
+      } catch (e) { /* anon viewer or RPC blip, fall through */ }
       // Anonymous viewers see the listing but not the seller's identity or
-      // contact info — they're prompted to sign in to reach out. (signedIn
+      // contact info, they're prompted to sign in to reach out. (signedIn
       // is the auth state we computed up top, before issuing the query.)
       render(data, userSaves, signedIn);
       logListingView(data);
@@ -892,7 +892,7 @@
         const title  = (data.artwork_title || "").trim();
         const artist = (data.artist_name || "").trim();
         let label = "the listing you were viewing";
-        if (artist && title)   label = `${artist} — ${title}`;
+        if (artist && title)   label = `${artist}, ${title}`;
         else if (artist)       label = `${artist}'s listing`;
         else if (title)        label = `"${title}"`;
         armReturnTrail(label);
@@ -939,7 +939,7 @@
       $anchor.parentNode.insertBefore(wrap, $anchor);
     }
 
-    // Log a single view of this listing — fire-and-forget, never blocks the
+    // Log a single view of this listing, fire-and-forget, never blocks the
     // render. Skip if the current user IS the seller (we don't count owner
     // views). Anonymous viewers are tracked with a null user id.
     async function logListingView(listing) {
@@ -951,7 +951,7 @@
           viewer_user_id: user?.id || null,
         });
       } catch (e) {
-        // Don't surface errors — view tracking is non-essential.
+        // Don't surface errors, view tracking is non-essential.
         console.warn("[view] log failed:", e);
       }
     }
@@ -1005,17 +1005,17 @@
                </div>`
             : "");
 
-      // ------ Header text (artist / title) — ISO can have one or the other ------
+      // ------ Header text (artist / title), ISO can have one or the other ------
       const artistLine = l.artist_name ? escapeHtml(l.artist_name)
                        : (isIso ? `<span style="color:var(--muted);font-style:italic;">Any artist</span>` : "Unknown artist");
       const titleLine  = l.artwork_title ? escapeHtml(l.artwork_title)
                        : (isIso ? `<span style="color:var(--muted);font-style:italic;">Title unspecified</span>` : "");
 
-      // Follow Artist button — only meaningful when (1) there's an actual
+      // Follow Artist button, only meaningful when (1) there's an actual
       // artist name (skip ISO "Any artist" wildcards) and (2) the viewer is
       // signed in (anon viewers see no Follow button; the auth-prompt
       // route fires on click instead). Initial state ("Follow" vs
-      // "✓ Following") is resolved asynchronously after render — we render
+      // "✓ Following") is resolved asynchronously after render, we render
       // the default "Follow" button now and update it once the follow-
       // status query returns.
       const showFollowArtistBtn = signedIn && !!l.artist_name;
@@ -1023,7 +1023,7 @@
         ? `<button type="button" class="follow-artist-btn" id="follow-artist-btn" data-artist-name="${escapeHtml(l.artist_name)}" aria-pressed="false">+ Follow artist</button>`
         : "";
 
-      // Verified badge — sits alongside the category/status pills. Anon
+      // Verified badge, sits alongside the category/status pills. Anon
       // viewers never see seller-related info, so the badge is gated on
       // sign-in. Click → popover with the meaning copy. Verified-at date
       // is shown in the popover, not on the badge itself, to keep the
@@ -1035,14 +1035,14 @@
       const verifiedBadge = (signedIn && l.verification_status === "verified")
         ? `<span class="badge verified-badge" data-verified-popover tabindex="0" role="button"
                  aria-controls="verified-popover" aria-expanded="false"
-                 aria-label="Ownership verified — tap to learn more">
+                 aria-label="Ownership verified, tap to learn more">
              <span class="vb-check">✓</span> Ownership Verified
              <span class="vb-chev" aria-hidden="true">▾</span>
            </span>
            <span class="verified-hint" id="verified-hint" tabindex="0" role="button" aria-label="What does Ownership Verified mean?">What's this?</span>`
         : "";
 
-      // Open-to-Trade badge for the detail view — sits in the badges row
+      // Open-to-Trade badge for the detail view, sits in the badges row
        // next to category/status/mood. Rounded-rect (not circle) per
        // [[trust-glyph-single-use]]. Public viewers see it too.
        const tradeBadge = (!isIso && l.open_to_trade)
@@ -1079,12 +1079,12 @@
             ${l.framed_size ? `<dt>Frame Size (Inches)</dt><dd>${escapeHtml(l.framed_size)}</dd>` : ""}
             ${l.medium    ? `<dt>Medium</dt><dd>${escapeHtml(l.medium)}</dd>` : ""}
             ${l.year_created ? `<dt>Year</dt><dd>${escapeHtml(l.year_created)}</dd>` : ""}
-            <dt>Shipping included</dt><dd>${escapeHtml(l.shipping_offered || "—")}</dd>
-            <dt>COA included</dt><dd>${escapeHtml(l.coa_included || "—")}</dd>
+            <dt>Shipping included</dt><dd>${escapeHtml(l.shipping_offered || "-")}</dd>
+            <dt>COA included</dt><dd>${escapeHtml(l.coa_included || "-")}</dd>
           </dl>
         </div>`;
 
-      // ------ Optional sections — Condition/Provenance hidden for ISO ------
+      // ------ Optional sections, Condition/Provenance hidden for ISO ------
       // Open-to-Trade block: only renders when the flag is on. If the seller
       // included looking-for text, we show it; otherwise a generic "reach
       // out with a proposal" line so buyers know the option is real.
@@ -1103,7 +1103,7 @@
       `;
 
       // ------ Counter-party block (seller for sale / buyer for ISO) ------
-      // Anonymous viewers don't see identity or contact info — they get a
+      // Anonymous viewers don't see identity or contact info, they get a
       // sign-in CTA instead. This keeps seller details private to actual
       // account holders and discourages drive-by browsing.
       const partyLabel    = isIso ? "Buyer"            : "Seller";
@@ -1113,8 +1113,8 @@
         ? `Re: your "In Search Of" listing on CanvasCircle`
         : `Inquiry about "${l.artwork_title || "your listing"}" on CanvasCircle`;
 
-      // "Established Member" indicator — only on accounts the admin has
-      // marked is_trusted. Gradient pill, text-only — the gradient itself
+      // "Established Member" indicator, only on accounts the admin has
+      // marked is_trusted. Gradient pill, text-only, the gradient itself
        // already signals "this is a credential", no extra checkmark needed.
       const establishedRow = seller.is_trusted ? `
           <div class="established-member" style="display:inline-flex; align-items:center; margin-top:4px; padding:3px 11px; border-radius:999px; background:var(--brand-gradient); color:var(--text-inverse); font-size:13px; font-weight:600;">
@@ -1136,7 +1136,7 @@
             <div id="about-text-panel" hidden style="margin-top:6px; padding:10px 12px; background:var(--surface-2); border:1px solid var(--card-line); border-radius:6px; font-size:13px; line-height:1.5; white-space:pre-line; color:var(--fg); text-align:left;">${escapeHtml(seller.about_text)}</div>
           </div>` : "";
 
-      // Preferred contact method — soft signal the seller set on their
+      // Preferred contact method, soft signal the seller set on their
       // profile. Renders a hint for all four states so first-time buyers
       // always see a contact tip. Each hint explicitly names the relevant
       // button (Email Seller / Message on Facebook) so buyers know exactly
@@ -1145,20 +1145,20 @@
       const prefContact = seller.preferred_contact || "either";
       let prefContactRow;
       if (prefContact === "phone") {
-        prefContactRow = `<div class="pref-contact-hint pref-phone">📞 <strong>Prefers phone.</strong> Tap <strong>Email Seller</strong> below and include your phone number — they'll call or text you back.</div>`;
+        prefContactRow = `<div class="pref-contact-hint pref-phone">📞 <strong>Prefers phone.</strong> Tap <strong>Email Seller</strong> below and include your phone number, they'll call or text you back.</div>`;
       } else if (prefContact === "email") {
-        prefContactRow = `<div class="pref-contact-hint pref-email">✉️ <strong>Prefers email.</strong> Tap <strong>Email Seller</strong> below — they'll reply to your email address.</div>`;
+        prefContactRow = `<div class="pref-contact-hint pref-email">✉️ <strong>Prefers email.</strong> Tap <strong>Email Seller</strong> below, they'll reply to your email address.</div>`;
       } else if (prefContact === "facebook") {
         // Only meaningful when the seller actually has an FB URL set.
         // If they prefer Facebook but didn't add a URL, fall back to the
         // "either" hint so the buyer isn't told to tap a button that
         // doesn't exist. When FB URL IS set, lead with the seller's
         // preference but immediately offer Email Seller as an equally
-        // valid path — buyers without Facebook should know they can
+        // valid path, buyers without Facebook should know they can
         // still reach this seller, not bounce because they assume the
         // seller is FB-only.
         prefContactRow = fbUrl
-          ? `<div class="pref-contact-hint pref-facebook">📱 <strong>Prefers Facebook Messenger</strong> — tap <strong>Message on Facebook</strong> below to reach them there. Don't have Facebook? Use <strong>Email Seller</strong> instead — they'll still get your message.</div>`
+          ? `<div class="pref-contact-hint pref-facebook">📱 <strong>Prefers Facebook Messenger</strong>, tap <strong>Message on Facebook</strong> below to reach them there. Don't have Facebook? Use <strong>Email Seller</strong> instead, they'll still get your message.</div>`
           : `<div class="pref-contact-hint pref-either">✉️ or 📞 <strong>Open to either.</strong> Tap <strong>Email Seller</strong> below; include your phone number if you'd prefer a call or text.</div>`;
       } else {
         prefContactRow = `<div class="pref-contact-hint pref-either">✉️ or 📞 <strong>Open to either.</strong> Tap <strong>Email Seller</strong> below; include your phone number if you'd prefer a call or text.</div>`;
@@ -1178,7 +1178,7 @@
           </div>
           ${(fbUrl || seller.contact_email) ? `
             <div class="buying-tips-nudge">
-              Before you reach out — <a href="/guidelines.html" target="_blank" rel="noopener">read the ${isIso ? "guidelines" : "buying tips"} ↗</a> for a smoother, safer conversation.
+              Before you reach out, <a href="/guidelines.html" target="_blank" rel="noopener">read the ${isIso ? "guidelines" : "buying tips"} ↗</a> for a smoother, safer conversation.
             </div>` : ""}
           ${(fbUrl || seller.contact_email) ? `
             <div class="transaction-disclaimer">
@@ -1214,7 +1214,7 @@
                    original; Share was added 2026-05-28 to give buyers a
                    one-tap path to forward listings via iMessage / WhatsApp
                    / SMS / etc. Phase A here just wires the Web Share API
-                   with clipboard fallback — the per-listing rich-preview
+                   with clipboard fallback, the per-listing rich-preview
                    meta tags that make shared links actually compelling
                    in iMessage are Phase B (Cloudflare Pages Function). -->
               <div class="img-actions">
@@ -1245,7 +1245,7 @@
             ${!isIso && l.status === "not_renewed" ? `
               <div class="not-renewed-warning">
                 <strong>This listing hasn't been renewed in 60+ days.</strong>
-                Availability is unknown — the seller may not respond promptly. Reach out to confirm the artwork is still for sale before committing.
+                Availability is unknown, the seller may not respond promptly. Reach out to confirm the artwork is still for sale before committing.
               </div>` : ""}
 
             ${priceBlock}
@@ -1254,7 +1254,7 @@
               <div class="verified-popover" id="verified-popover" hidden>
                 <div><strong>This listing has been ownership verified.</strong></div>
                 <div>The seller submitted a short video showing this artwork along with a handwritten card displaying their @handle and the date. CanvasCircle reviewed the video before adding this badge.</div>
-                <div style="margin-top:6px;">Verification confirms <strong>physical possession</strong> only — it does not confirm authenticity of the artwork.</div>
+                <div style="margin-top:6px;">Verification confirms <strong>physical possession</strong> only, it does not confirm authenticity of the artwork.</div>
                 ${verifiedAtStr ? `<div class="vp-when">Verified on ${escapeHtml(verifiedAtStr)}.</div>` : ""}
               </div>` : ""}
             ${metaBlock}
@@ -1309,7 +1309,7 @@
         });
       });
 
-      // Email Seller — opens the in-page contact modal. The actual send
+      // Email Seller, opens the in-page contact modal. The actual send
       // goes through the send-email edge function (mode=contact-seller),
       // which records an audit row + applies a per-hour rate limit + sets
       // Reply-To to the buyer's contact email so the seller's reply goes
@@ -1331,14 +1331,14 @@
       }
 
       // -----------------------------------------------------------------
-      // Share button — Web Share API where available (mobile), clipboard
+      // Share button, Web Share API where available (mobile), clipboard
       // fallback elsewhere (desktop). Pre-fills a short message that hints
       // at what's on the other side of the link; the rich-preview card
       // (Phase B: per-listing OG meta tags via Cloudflare Pages Function)
       // is what actually carries the artwork thumbnail + price in
       // iMessage/Slack/etc.
       //
-      // We deliberately keep the pre-filled `text` short — most messaging
+      // We deliberately keep the pre-filled `text` short, most messaging
       // apps prepend it directly to the URL, and a long blurb buries the
       // link. The OG preview is the real payload.
       // -----------------------------------------------------------------
@@ -1351,11 +1351,11 @@
           // is the simple "found this" lead-in.
           const artist = l.artist_name || "";
           const work   = l.artwork_title || "";
-          const piece  = [artist, work].filter(Boolean).join(" — ") || "this listing";
+          const piece  = [artist, work].filter(Boolean).join(", ") || "this listing";
           let shareTitle, shareText;
           if (isIso) {
             shareTitle = `In Search Of on CanvasCircle`;
-            shareText  = `A collector is looking for ${piece} — see if you have anything to offer:`;
+            shareText  = `A collector is looking for ${piece}, see if you have anything to offer:`;
           } else if (l.status === "sold") {
             shareTitle = `Sold on CanvasCircle`;
             shareText  = `Just sold on CanvasCircle: ${piece}.`;
@@ -1364,19 +1364,19 @@
             shareText  = `Found this on CanvasCircle: ${piece}.`;
           }
 
-          // Web Share API path — only on browsers + contexts that support
+          // Web Share API path, only on browsers + contexts that support
           // it (https + user gesture, both satisfied). iOS Safari, iOS PWA,
           // Android Chrome all qualify. Desktop Chrome/Edge support it
           // too but typically open a clunky "share to Email/Apps" dialog
-          // that adds little value — still better than nothing.
+          // that adds little value, still better than nothing.
           if (navigator.share) {
             try {
               await navigator.share({ title: shareTitle, text: shareText, url });
-              // No toast on success — the share sheet already provided
+              // No toast on success, the share sheet already provided
               // strong feedback ("Sent" / "Done" inside the OS UI).
               return;
             } catch (e) {
-              // User cancelled the share sheet — that's expected, not an
+              // User cancelled the share sheet, that's expected, not an
               // error. AbortError fires on cancel; only fall through to
               // clipboard if something genuinely failed.
               if (e?.name === "AbortError") return;
@@ -1385,14 +1385,14 @@
             }
           }
 
-          // Clipboard fallback — desktop browsers, or any UA where
+          // Clipboard fallback, desktop browsers, or any UA where
           // navigator.share is unavailable. Copy ONLY the URL (not the
           // pre-filled text) because most users paste into a context
           // where they're already going to type their own message; the
           // URL alone is the thing they actually need.
           try {
             await navigator.clipboard.writeText(url);
-            showShareToast("Link copied — paste it anywhere.");
+            showShareToast("Link copied, paste it anywhere.");
           } catch (e) {
             console.error("[share] clipboard write failed:", e);
             // Last-resort fallback: surface the URL in a prompt so the
@@ -1411,7 +1411,7 @@
           e.stopPropagation();
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) {
-            showAuthPrompt({ message: "Sign up to save listings. Same account also lets you sell — no commitment." });
+            showAuthPrompt({ message: "Sign up to save listings. Same account also lets you sell, no commitment." });
             return;
           }
           $heart.disabled = true;
@@ -1436,8 +1436,8 @@
         });
       }
 
-      // Report-this-listing button — minimal, low-contrast link near footer.
-      // Verified badge popover — tap the badge OR the "What's this?" hint to
+      // Report-this-listing button, minimal, low-contrast link near footer.
+      // Verified badge popover, tap the badge OR the "What's this?" hint to
       // expand the explanation. Chevron rotates and aria-expanded flips so
       // the badge looks like a real disclosure widget instead of a passive pill.
       const $verifiedBtn  = document.querySelector("[data-verified-popover]");
@@ -1481,7 +1481,7 @@
           }
           const reason = prompt(
             "Why does this listing violate the community rules?\n\n" +
-            "Be specific — counterfeit, misleading description, stock photo, prohibited content, etc. " +
+            "Be specific, counterfeit, misleading description, stock photo, prohibited content, etc. " +
             "The admin reviews every report.",
             ""
           );
@@ -1505,7 +1505,7 @@
               }
               throw error;
             }
-            alert("Thanks — the admin will review your report. You won't be notified individually but action (if any) happens directly on the listing.");
+            alert("Thanks, the admin will review your report. You won't be notified individually but action (if any) happens directly on the listing.");
           } catch (err) {
             console.error("[report-listing] failed:", err);
             alert("Could not submit the report: " + (err.message || err));
@@ -1515,14 +1515,14 @@
 
       setOgTags(l, heroUrl);
 
-      // Follow Artist button — initial state + toggle handler. Lazily
+      // Follow Artist button, initial state + toggle handler. Lazily
       // resolved after first paint so we don't block render. Auth-gated:
       // signed-out clicks trigger the auth-prompt instead of trying to
       // upsert (which would silently fail RLS).
       const $followBtn = document.getElementById("follow-artist-btn");
       if ($followBtn && signedIn && l.artist_name) {
         const artistName = l.artist_name;
-        // Sync initial state — query saved_searches for this user+artist.
+        // Sync initial state, query saved_searches for this user+artist.
         // ilike with no wildcards = case-insensitive equality. If found,
         // flip the button into the "Following" state.
         (async () => {
@@ -1554,7 +1554,7 @@
           }
           $followBtn.disabled = true;
           const wasFollowing = $followBtn.classList.contains("is-following");
-          // Optimistic flip — restore on failure.
+          // Optimistic flip, restore on failure.
           $followBtn.classList.toggle("is-following", !wasFollowing);
           $followBtn.setAttribute("aria-pressed", String(!wasFollowing));
           $followBtn.textContent = !wasFollowing ? "✓ Following" : "+ Follow artist";
@@ -1569,7 +1569,7 @@
                 .ilike("value", artistName);
               if (error) throw error;
             } else {
-              // Follow: upsert (idempotent — repeat clicks are no-ops via
+              // Follow: upsert (idempotent, repeat clicks are no-ops via
               // the unique constraint on user+kind+value).
               const { error } = await supabase
                 .from("saved_searches")
@@ -1607,7 +1607,7 @@
     // the buyer's message through the send-email edge function so the
     // seller actually gets a real "you have an inquiry" email (not a
     // tracking guess), and we get an audit row + rate limit on every
-    // send. The modal is auth-gated — if the user isn't signed in, we
+    // send. The modal is auth-gated, if the user isn't signed in, we
     // route them through the same auth prompt the heart button uses
     // (signing in returns them right here to finish sending).
     // -----------------------------------------------------------------
@@ -1658,8 +1658,8 @@
       $contactBody.value = "";
       if ($contactPhone) $contactPhone.value = "";
       $contactBody.placeholder = ctx.isIso
-        ? `Hi ${ctx.sellerName} — I saw your "In Search Of" listing and may have something that fits. Could we connect?`
-        : `Hi ${ctx.sellerName} — I'm interested in this piece. Could you tell me more about…`;
+        ? `Hi ${ctx.sellerName}, I saw your "In Search Of" listing and may have something that fits. Could we connect?`
+        : `Hi ${ctx.sellerName}, I'm interested in this piece. Could you tell me more about…`;
       $contactReply.textContent = `${ctx.partyLabel}'s reply will come to ${buyerEmail}.`;
       $contactErr.hidden = true;
       $contactErr.textContent = "";
@@ -1671,7 +1671,7 @@
 
       $contactOverlay.classList.add("open");
       $contactOverlay.setAttribute("aria-hidden", "false");
-      // Focus the body after a tick — focusing during the same frame
+      // Focus the body after a tick, focusing during the same frame
       // can fight with iOS's keyboard logic.
       setTimeout(() => $contactBody.focus(), 50);
     }
@@ -1710,7 +1710,7 @@
       $contactSend.disabled = true;
       $contactSend.textContent = "Sending…";
 
-      // Optional phone — buyer's choice to include. Sanitize to a max-30 char
+      // Optional phone, buyer's choice to include. Sanitize to a max-30 char
       // trimmed string; null if empty so the server side can store null
       // instead of an empty string (cleaner audit + makes "is phone present"
       // checks simple).
@@ -1741,7 +1741,7 @@
         }
         if (data?.error) throw new Error(data.error);
 
-        // Success state — replace the form with a friendly ack and
+        // Success state, replace the form with a friendly ack and
         // collapse the send button into a Close. Auto-dismiss after
         // a beat so the user isn't stuck.
         $contactOk.textContent = "Message sent. The " + __contactCtx.partyLabel.toLowerCase() + " will reply to your email directly.";
@@ -1759,7 +1759,7 @@
     });
 
     // ---------------------------------------------------------------------
-    // Freshness watchdog — re-runs loadListing() when the page is restored
+    // Freshness watchdog, re-runs loadListing() when the page is restored
     // from bfcache or when the user returns to the tab/standalone-PWA after
     // >20s of being hidden. Without this, iOS / Android home-screen "app"
     // mode can freeze the page in a stale state. Mirrors the same pattern
