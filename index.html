@@ -180,8 +180,12 @@
        Price: low to high render in full. Clear and More are auto-sized.
        On desktop (>=720px) both rows reflow into a single line via larger
        min-widths. */
+    /* Row A split favors Search 1.7:1 over Category — Category only needs
+       enough room for "Unique/Original" / "Limited Edition" (~110-120px at
+       the tightened 13px mobile font), while Search wants every pixel it
+       can get to show the full "Search artist, title, or seller…" hint. */
     .toolbar-row.primary-row-a {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1.7fr 1fr;
     }
     .toolbar-row.primary-row-b {
       grid-template-columns: 1fr auto auto;
