@@ -1188,9 +1188,18 @@
                </button>
              </div>`
           : "";
+        // Shipping-included suffix, matches the catalog card treatment in
+        // index.html so the detail-page price reads as a complete thought
+        // (price + whether shipping is on top). Hidden on sold/not_renewed
+        // listings where the past-tense state makes the suffix irrelevant.
+        const isSold        = l.status === "sold";
+        const isNotRenewed  = l.status === "not_renewed";
+        const shipSuffix    = (!isSold && !isNotRenewed)
+          ? (l.shipping_offered === "Yes" ? " shipped" : " + shipping")
+          : "";
         priceBlock = `
           <div class="price-row">
-            <span class="price">${fmtPrice(l.asking_price_usd)}</span>
+            <span class="price">${fmtPrice(l.asking_price_usd)}<span class="ship-suffix" style="font-size: 0.55em; font-weight: 500; color: var(--muted); margin-left: 4px; letter-spacing: .2px;">${shipSuffix}</span></span>
             ${priceDropped ? `<span class="prev-price">${fmtPrice(l.previous_price_usd)}</span><span class="price-drop">Price dropped</span>` : ""}
           </div>
           ${shipBtnBlock}`;
