@@ -169,15 +169,30 @@
     .toolbar-row.search-row {
       grid-template-columns: 1fr auto;
     }
-    /* PRIMARY ROW (always visible): search + category + sort + More-filters + Clear.
-       The three controls that 95% of catalog browsers use are surfaced here;
-       everything else lives in the collapsible Advanced panel below. */
+    /* PRIMARY ROW (always visible): search + category + sort + More + Clear.
+       On mobile (<720px), this fits onto exactly TWO rows via named grid areas:
+         Row 1: [   search   ][ Clear ]
+         Row 2: [ Category ][ Sort ][More]
+       The search input gets the whole first row up to Clear so the placeholder
+       ("Search artist, title, or seller…") never gets clipped. The "More"
+       button collapses to just the word "More" + chevron on mobile so it fits
+       snugly on the right of row 2 alongside the two select dropdowns.
+       On desktop (>=720px) the row condenses to a single line. */
     .toolbar-row.primary-row {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: 1fr 1fr auto;
+      grid-template-areas:
+        "q     q     clear"
+        "cat   sort  more";
     }
+    .toolbar-row.primary-row > #q             { grid-area: q; }
+    .toolbar-row.primary-row > #f-category    { grid-area: cat; }
+    .toolbar-row.primary-row > #f-sort        { grid-area: sort; }
+    .toolbar-row.primary-row > #more-filters-btn { grid-area: more; }
+    .toolbar-row.primary-row > #clear         { grid-area: clear; }
     @media (min-width: 720px) {
       .toolbar-row.primary-row {
-        grid-template-columns: 1.5fr 1fr 1fr auto auto;
+        grid-template-columns: minmax(220px, 2fr) minmax(140px, 1fr) minmax(140px, 1fr) auto auto;
+        grid-template-areas: "q cat sort more clear";
       }
     }
     /* ADVANCED PANEL (collapsed by default): status, seller, member-trust,
@@ -954,12 +969,13 @@
         </select>
         <select id="f-sort" title="Sort">
           <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
           <option value="price-asc">Price: low to high</option>
           <option value="price-desc">Price: high to low</option>
           <option value="shuffle">Shuffle (random)</option>
         </select>
-        <button type="button" class="more-filters-btn" id="more-filters-btn" aria-expanded="false" aria-controls="advanced-row">
-          More filters <span class="badge" id="more-filters-count" hidden>0</span> <span class="chev" aria-hidden="true">▾</span>
+        <button type="button" class="more-filters-btn" id="more-filters-btn" aria-expanded="false" aria-controls="advanced-row" title="Show advanced filters">
+          More <span class="badge" id="more-filters-count" hidden>0</span> <span class="chev" aria-hidden="true">▾</span>
         </button>
         <button type="button" class="clear-btn" id="clear">Clear</button>
       </div>
@@ -1424,6 +1440,7 @@
       const priceCol = tab === "iso" ? "budget_max_usd" : "asking_price_usd";
       if (filters.sort === "price-asc")       q = q.order(priceCol, { ascending: true,  nullsFirst: false });
       else if (filters.sort === "price-desc") q = q.order(priceCol, { ascending: false, nullsFirst: false });
+      else if (filters.sort === "oldest")     q = q.order("created_at", { ascending: true });
       else                                    q = q.order("created_at", { ascending: false });
 
       return q;
