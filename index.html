@@ -169,30 +169,29 @@
     .toolbar-row.search-row {
       grid-template-columns: 1fr auto;
     }
-    /* PRIMARY ROW (always visible): search + category + sort + More + Clear.
-       On mobile (<720px), this fits onto exactly TWO rows via named grid areas:
-         Row 1: [   search   ][ Clear ]
-         Row 2: [ Category ][ Sort ][More]
-       The search input gets the whole first row up to Clear so the placeholder
-       ("Search artist, title, or seller…") never gets clipped. The "More"
-       button collapses to just the word "More" + chevron on mobile so it fits
-       snugly on the right of row 2 alongside the two select dropdowns.
-       On desktop (>=720px) the row condenses to a single line. */
-    .toolbar-row.primary-row {
-      grid-template-columns: 1fr 1fr auto;
-      grid-template-areas:
-        "q     q     clear"
-        "cat   sort  more";
+    /* PRIMARY ROWS (always visible). Split into two row containers so each
+       can have its own column proportions — critical on mobile, where the
+       longer-named filters (Unique/Original, Limited Edition, Price: high
+       to low) need a wider track than the More/Clear buttons would need:
+         Row A: [    Search    ][   Category   ]     ← 1fr 1fr
+         Row B: [    Sort      ][Clear][ More ]      ← 1fr auto auto
+       Category sits in a ~half-row track that fits Unique/Original cleanly.
+       Sort gets the wide left flex track of Row B so Price: high to low /
+       Price: low to high render in full. Clear and More are auto-sized.
+       On desktop (>=720px) both rows reflow into a single line via larger
+       min-widths. */
+    .toolbar-row.primary-row-a {
+      grid-template-columns: 1fr 1fr;
     }
-    .toolbar-row.primary-row > #q             { grid-area: q; }
-    .toolbar-row.primary-row > #f-category    { grid-area: cat; }
-    .toolbar-row.primary-row > #f-sort        { grid-area: sort; }
-    .toolbar-row.primary-row > #more-filters-btn { grid-area: more; }
-    .toolbar-row.primary-row > #clear         { grid-area: clear; }
+    .toolbar-row.primary-row-b {
+      grid-template-columns: 1fr auto auto;
+    }
     @media (min-width: 720px) {
-      .toolbar-row.primary-row {
-        grid-template-columns: minmax(220px, 2fr) minmax(140px, 1fr) minmax(140px, 1fr) auto auto;
-        grid-template-areas: "q cat sort more clear";
+      .toolbar-row.primary-row-a {
+        grid-template-columns: minmax(220px, 3fr) minmax(160px, 1fr);
+      }
+      .toolbar-row.primary-row-b {
+        grid-template-columns: minmax(160px, 1fr) auto auto;
       }
     }
     /* ADVANCED PANEL (collapsed by default): status, seller, member-trust,
@@ -974,13 +973,21 @@
            users that the Established / Verified filters they care about
            ARE applied (even though they live in the Advanced panel). -->
     <form class="toolbar" id="toolbar" autocomplete="off">
-      <div class="toolbar-row primary-row">
+      <!-- Row A: Search + Category. Category gets half the row on mobile,
+           which is wide enough to display the longer values ("Unique/Original",
+           "Limited Edition") without clipping when selected. -->
+      <div class="toolbar-row primary-row-a">
         <input type="search" id="q" placeholder="Search artist, title, or seller&hellip;" />
         <select id="f-category" title="Category">
           <option value="">All</option>
           <option value="Unique/Original">Unique/Original</option>
           <option value="Limited Edition">Limited Edition</option>
         </select>
+      </div>
+      <!-- Row B: Sort + Clear + More. Sort gets the wide left flex track
+           so "Price: high to low" / "Price: low to high" render in full.
+           Clear and More are auto-sized to their content on the right. -->
+      <div class="toolbar-row primary-row-b">
         <select id="f-sort" title="Sort">
           <option value="newest">Newest</option>
           <option value="oldest">Oldest</option>
@@ -988,10 +995,10 @@
           <option value="price-desc">Price: high to low</option>
           <option value="shuffle">Shuffle</option>
         </select>
+        <button type="button" class="clear-btn" id="clear">Clear</button>
         <button type="button" class="more-filters-btn" id="more-filters-btn" aria-expanded="false" aria-controls="advanced-row" title="Show advanced filters">
           More <span class="badge" id="more-filters-count" hidden>0</span> <span class="chev" aria-hidden="true">▾</span>
         </button>
-        <button type="button" class="clear-btn" id="clear">Clear</button>
       </div>
       <div class="toolbar-row advanced-row" id="advanced-row" hidden>
         <select id="f-status" title="Status">
