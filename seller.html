@@ -889,13 +889,21 @@
         .filter(r => r.reference && r.reference.is_trusted && r.reference.account_status === "active");
       renderReferences(validRefs);
 
+      // "Active" = the still-buyable subset of sale listings (available + pending).
+      // The query fetches the full PUBLICLY-VISIBLE set so the in-page status
+      // dropdown can narrow to sold or not-renewed, but the header counts AND
+      // the tab label should only reflect what a buyer can actually act on now.
+      // ISO listings are queried with status='available' only, so their count
+      // is inherently active already.
+      const saleActiveN = listingsAll.sale.filter(l => l.status === "available" || l.status === "pending").length;
+
       // Counts in tab labels.
-      $countSale.textContent = listingsAll.sale.length ? `(${listingsAll.sale.length})` : "";
+      $countSale.textContent = saleActiveN ? `(${saleActiveN})` : "";
       $countIso.textContent  = listingsAll.iso.length  ? `(${listingsAll.iso.length})`  : "";
 
-      // If they have ISO requests but no sale listings, default to the ISO tab
-      // so the page isn't visually empty on first load.
-      if (listingsAll.sale.length === 0 && listingsAll.iso.length > 0) {
+      // If they have ISO requests but no ACTIVE sale listings, default to the
+      // ISO tab so the page isn't visually empty on first load.
+      if (saleActiveN === 0 && listingsAll.iso.length > 0) {
         currentTab = "iso";
       }
 
@@ -1143,8 +1151,11 @@
         btn.setAttribute("aria-selected", active ? "true" : "false");
       });
 
-      // Counts in header
-      const saleN = listingsAll.sale.length;
+      // Counts in header. Sale count reflects ACTIVE only (available + pending),
+      // matching the tab-label semantics, so a seller with 3 buyable + 10 sold
+      // pieces shows as "3 for sale" not "13 for sale". ISO is already
+      // active-only from the query.
+      const saleN = listingsAll.sale.filter(l => l.status === "available" || l.status === "pending").length;
       const isoN  = listingsAll.iso.length;
       const countsParts = [];
       if (saleN > 0) countsParts.push(`${saleN} for sale`);
