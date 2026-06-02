@@ -31,7 +31,7 @@
 
   <!-- Brand tokens. Single source of truth for colors across all pages.
        Loaded BEFORE the inline <style> block so vars are available. -->
-  <link rel="stylesheet" href="/assets/theme.css?v=9" />
+  <link rel="stylesheet" href="/assets/theme.css?v=10" />
   <meta name="robots" content="noindex" />
 
   <style>
@@ -3987,7 +3987,7 @@
             <div class="name-row">
               <span class="name" id="who-name">&nbsp;</span>
               <span class="who-handle" id="who-handle" hidden></span>
-              <span class="who-established" id="who-established" hidden title="You're an Established Member, see Guidelines for what this unlocks.">Established Member</span>
+              <span class="who-established" id="who-established" hidden title="You're an Established Member, see Guidelines for what this unlocks."><span class="cc-est-glyph" aria-hidden="true" style="background: var(--text-inverse);"></span>Established Member</span>
               <!-- Sign Out lives at the right end of the name-row (via
                    margin-left: auto) instead of in the action-cluster
                    below. Keeps the bottom row to "Selling Guidelines |
@@ -8158,7 +8158,7 @@
           ? `<a class="saver-handle" href="/seller?handle=${encodeURIComponent(handle)}" target="_blank" rel="noopener" title="View ${escapeHtml(name)}'s public page">@${escapeHtml(handle)}</a>`
           : "";
         const establishedHtml = isTrusted
-          ? `<span class="saver-established" title="Established Member, reviewed by the admin">Established Member</span>`
+          ? `<span class="saver-established" title="Established Member, reviewed by the admin"><span class="cc-est-glyph" aria-hidden="true" style="background: var(--text-inverse);"></span>Established Member</span>`
           : "";
 
         const fbBtnHtml = fb
@@ -8426,7 +8426,7 @@
 
       $banner.innerHTML = `
         <div class="ew-title">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--status-success-deep);color: var(--text-inverse);font-size:14px;font-weight:700;">✓</span>
+          <span class="cc-est-glyph-lg" aria-hidden="true"></span>
           You're now an Established Member!
         </div>
         <div>Either you've met the auto-criteria, <strong>4 Ownership Verified sale listings</strong> and <strong>3 accepted Sales References</strong>, or the CanvasCircle admin promoted your account directly based on existing trust. Either way, the status is the same. Here's what just unlocked:</div>

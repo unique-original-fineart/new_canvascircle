@@ -14,7 +14,7 @@
 
   <!-- Brand tokens. Single source of truth for colors across all pages.
        Loaded BEFORE the inline <style> block so vars are available. -->
-  <link rel="stylesheet" href="/assets/theme.css?v=9" />
+  <link rel="stylesheet" href="/assets/theme.css?v=10" />
 
   <!-- Default OG tags; populated dynamically below once data loads. -->
   <meta property="og:type"        content="article" />
@@ -1329,7 +1329,7 @@
        // already signals "this is a credential", no extra checkmark needed.
       const establishedRow = seller.is_trusted ? `
           <div class="established-member" style="display:inline-flex; align-items:center; margin-top:4px; padding:3px 11px; border-radius:999px; background:var(--brand-gradient); color:var(--text-inverse); font-size:13px; font-weight:600;">
-            <span title="Reviewed by the admin; listings post without moderation">Established Member</span>
+            <span title="Reviewed by the admin; listings post without moderation"><span class="cc-est-glyph" aria-hidden="true" style="background: var(--text-inverse);"></span>Established Member</span>
           </div>` : "";
 
       // About blurb (admin-approved). Renders only if the seller has set one.

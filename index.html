@@ -38,7 +38,7 @@
 
   <!-- Brand tokens. Single source of truth for colors across all pages.
        Loaded BEFORE the inline <style> block so vars are available. -->
-  <link rel="stylesheet" href="/assets/theme.css?v=9" />
+  <link rel="stylesheet" href="/assets/theme.css?v=10" />
 
   <!-- Performance: warm up the TLS + DNS to the Supabase storage host so the
        first image request lands on a ready connection. Shaves ~100ms off
@@ -169,16 +169,131 @@
     .toolbar-row.search-row {
       grid-template-columns: 1fr auto;
     }
+    /* PRIMARY ROW (always visible): search + category + sort + More-filters + Clear.
+       The three controls that 95% of catalog browsers use are surfaced here;
+       everything else lives in the collapsible Advanced panel below. */
+    .toolbar-row.primary-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    @media (min-width: 720px) {
+      .toolbar-row.primary-row {
+        grid-template-columns: 1.5fr 1fr 1fr auto auto;
+      }
+    }
+    /* ADVANCED PANEL (collapsed by default): status, seller, member-trust,
+       verification, price range. Open state slide-in is just `display: grid`
+       — keep CSS simple; the More-filters button is what users tap. */
+    .toolbar-row.advanced-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      padding-top: 4px;
+      border-top: 1px dashed var(--card-line);
+      margin-top: 4px;
+    }
+    .toolbar-row.advanced-row[hidden] { display: none; }
+    @media (min-width: 720px) {
+      .toolbar-row.advanced-row {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      }
+    }
+    /* Backwards-compat: any legacy .filter-row markup keeps the old grid so
+       intermediate cached HTML doesn't break before SW updates. */
     .toolbar-row.filter-row {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-    /* On wider screens, fit each filter at no less than 150px so labels don't
-       get clipped. The grid wraps to a second row if needed instead of
-       squeezing everything. */
     @media (min-width: 720px) {
       .toolbar-row.filter-row {
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       }
+    }
+    /* "More filters" toggle button. Same visual weight as the Clear button
+       (neutral surface), with an active-state when the panel is open + a
+       count badge when any advanced filters are set so users know there are
+       hidden criteria affecting their results. */
+    .toolbar .more-filters-btn {
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      background: var(--surface-1);
+      color: var(--fg);
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 600;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .toolbar .more-filters-btn:hover {
+      border-color: var(--border-strong);
+    }
+    .toolbar .more-filters-btn[aria-expanded="true"] {
+      background: var(--accent-tint);
+      border-color: var(--accent-soft);
+      color: var(--accent-deep);
+    }
+    .toolbar .more-filters-btn .chev {
+      font-size: 10px;
+      transition: transform .15s ease;
+    }
+    .toolbar .more-filters-btn[aria-expanded="true"] .chev {
+      transform: rotate(180deg);
+    }
+    .toolbar .more-filters-btn .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: var(--text-inverse);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .toolbar .more-filters-btn .badge[hidden] { display: none; }
+    /* Active-filter chip row, rendered below the toolbar when any filter is
+       non-default. Each chip shows the filter label + value with a × to
+       remove just that filter without touching the others. */
+    .active-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .active-chips[hidden] { display: none; }
+    .active-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px 4px 10px;
+      border-radius: 999px;
+      background: var(--accent-tint);
+      border: 1px solid var(--accent-soft);
+      color: var(--accent-deep);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
+    }
+    .active-chip .chip-x {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: rgba(0,0,0,.08);
+      color: var(--accent-deep);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      padding: 0;
+      line-height: 1;
+    }
+    .active-chip .chip-x:hover {
+      background: rgba(0,0,0,.18);
     }
     .price-pair {
       display: grid;
@@ -491,15 +606,16 @@
       outline: 3px solid rgba(45,127,255,.55);
       outline-offset: 2px;
     }
-    /* Open-to-Trade pill, rounded-rect overlay in the bottom-left corner of
-       the card image. Sale-only signal that the seller will consider trade
-       offers. Deliberately NOT circle-shaped to keep the gradient-circle
-       Ownership Verified glyph as a single-use trust mark (see
-       [[trust-glyph-single-use]]). Semi-transparent navy fill reads well over
-       any image; small but legible at the 2-up mobile grid width. */
+    /* Open-to-Trade pill, rounded-rect overlay in the bottom-RIGHT corner of
+       the card image. (Moved from bottom-left to make room for the Established
+       Member gradient star — see .established-corner below.) Sale-only signal
+       that the seller will consider trade offers. Deliberately NOT circle-shaped
+       to keep the gradient-circle Ownership Verified glyph as a single-use
+       trust mark (see [[trust-glyph-single-use]]). Semi-transparent navy fill
+       reads well over any image; small but legible at the 2-up mobile grid width. */
     .card .trade-pill {
       position: absolute;
-      bottom: 8px; left: 8px;
+      bottom: 8px; right: 8px;
       padding: 3px 8px;
       border-radius: 6px;
       background: rgba(10, 21, 56, .82);
@@ -516,7 +632,71 @@
     }
     @media (max-width: 540px) {
       /* Tighten a touch on mobile where every pixel counts. */
-      .card .trade-pill { padding: 2px 6px; font-size: 10.5px; bottom: 6px; left: 6px; }
+      .card .trade-pill { padding: 2px 6px; font-size: 10.5px; bottom: 6px; right: 6px; }
+    }
+    /* Established Member gradient-star overlay, bottom-LEFT corner of the
+       card image. Mirrors .verified-corner (top-left) so signed-in viewers
+       see a clean "trust column" down the left edge of every card:
+       Verified-circle (top) + Established-star (bottom) when both apply.
+       Per [[trust-glyph-single-use]] the gradient CIRCLE is reserved for
+       Ownership Verified, so this uses a gradient STAR shape (no circle).
+       Only rendered when viewer is signed in (matches Verified behavior). */
+    .card .established-corner {
+      position: absolute;
+      bottom: 8px; left: 8px;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2;
+      cursor: pointer;
+      pointer-events: auto;
+      background: none;
+      border: none;
+      padding: 0;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,.45));
+      -webkit-tap-highlight-color: rgba(45,127,255,.25);
+    }
+    .card .established-corner .cc-est-glyph {
+      width: 26px;
+      height: 26px;
+      margin: 0;
+      vertical-align: middle;
+    }
+    .card .established-corner:focus-visible {
+      outline: 3px solid rgba(45,127,255,.55);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+    @media (max-width: 540px) {
+      .card .established-corner { width: 24px; height: 24px; bottom: 6px; left: 6px; }
+      .card .established-corner .cc-est-glyph { width: 22px; height: 22px; }
+    }
+    /* Toast for Established-star tap, parallel to .verified-toast. Uses the
+       same dark surface treatment so both trust signals share a visual
+       vocabulary on tap; copy explains what the star means and links to the
+       Guidelines section for full criteria. */
+    .established-toast {
+      position: fixed;
+      left: 50%; bottom: 24px;
+      transform: translateX(-50%);
+      max-width: 340px;
+      width: calc(100% - 32px);
+      background: var(--status-success-deep);
+      color: var(--text-inverse);
+      padding: 12px 16px;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      font-size: 13px;
+      line-height: 1.45;
+      z-index: 9999;
+      text-align: center;
+    }
+    .established-toast[hidden] { display: none; }
+    .established-toast .et-title {
+      display: block; font-weight: 700; margin-bottom: 4px;
+    }
+    .established-toast a {
+      color: var(--text-inverse);
+      text-decoration: underline;
     }
     /* Floating toast shown when a card's verified check is tapped, gives
        mobile users (who can't see the title= tooltip) the same explanation
@@ -753,17 +933,37 @@
       <button type="button" class="catalog-tab" data-listing-type="iso" role="tab" aria-selected="false">In Search Of <span class="tab-hint">(buyer requests)</span></button>
     </div>
 
+    <!-- Toolbar layout (Option 1):
+         • Primary row: Search + Category + Sort + More-filters + Clear
+           — the controls 95% of catalog visitors actually touch.
+         • Advanced row (collapsible): Status, Seller, Member-trust,
+           Verification, Price range. Hidden by default; opens on tap of
+           the More-filters button. Open/closed state persists in
+           sessionStorage so re-renders don't snap it back closed.
+         • Active-filter chip row: rendered when any filter is non-default.
+           Each chip has × to remove just that one filter; tells signed-in
+           users that the Established / Verified filters they care about
+           ARE applied (even though they live in the Advanced panel). -->
     <form class="toolbar" id="toolbar" autocomplete="off">
-      <div class="toolbar-row search-row">
+      <div class="toolbar-row primary-row">
         <input type="search" id="q" placeholder="Search artist, title, or seller&hellip;" />
-        <button type="button" class="clear-btn" id="clear">Clear</button>
-      </div>
-      <div class="toolbar-row filter-row">
         <select id="f-category" title="Category">
           <option value="">All categories</option>
           <option value="Unique/Original">Unique/Original</option>
           <option value="Limited Edition">Limited Edition</option>
         </select>
+        <select id="f-sort" title="Sort">
+          <option value="newest">Newest first</option>
+          <option value="price-asc">Price: low to high</option>
+          <option value="price-desc">Price: high to low</option>
+          <option value="shuffle">Shuffle (random)</option>
+        </select>
+        <button type="button" class="more-filters-btn" id="more-filters-btn" aria-expanded="false" aria-controls="advanced-row">
+          More filters <span class="badge" id="more-filters-count" hidden>0</span> <span class="chev" aria-hidden="true">▾</span>
+        </button>
+        <button type="button" class="clear-btn" id="clear">Clear</button>
+      </div>
+      <div class="toolbar-row advanced-row" id="advanced-row" hidden>
         <select id="f-status" title="Status">
           <option value="active" selected>Active</option>
           <option value="available">Available</option>
@@ -773,12 +973,6 @@
         </select>
         <select id="f-seller" title="Seller">
           <option value="">All sellers</option>
-        </select>
-        <select id="f-sort" title="Sort">
-          <option value="newest">Newest first</option>
-          <option value="price-asc">Price: low to high</option>
-          <option value="price-desc">Price: high to low</option>
-          <option value="shuffle">Shuffle (random)</option>
         </select>
         <select id="f-trust-member" title="Member trust level" hidden>
           <option value="">All Member Trust Levels</option>
@@ -790,11 +984,12 @@
           <option value="verified">Verified Ownership</option>
           <option value="unverified">Unverified Ownership</option>
         </select>
-<div class="price-pair">
+        <div class="price-pair">
           <input type="number" id="f-min" placeholder="Min $" min="0" step="50" />
           <input type="number" id="f-max" placeholder="Max $" min="0" step="50" />
         </div>
       </div>
+      <div class="active-chips" id="active-chips" hidden></div>
     </form>
 
     <!-- "Save this search" affordance, only visible when at least one
@@ -1017,11 +1212,21 @@
       const verifiedBadge = (viewerSignedIn && listing.verification_status === "verified")
         ? `<div class="verified-corner" title="Ownership Verified, the seller submitted proof of possession">✓</div>`
         : "";
-      // Open-to-Trade pill, bottom-left overlay on the image. Sale-only +
-      // visible to all viewers (it's a public listing attribute, not a
-      // trust signal that needs to be gated). Deliberately a rounded
-      // rectangle (not a circle) so it stays visually distinct from the
-      // gradient-circle Ownership Verified glyph (see [[trust-glyph-single-use]]).
+      // Established Member gradient-star badge, bottom-left of image. Same
+      // signed-in gating as the Verified circle (Established status is a
+      // trust signal aimed at logged-in buyers evaluating a seller, anon
+      // viewers don't see seller info anywhere on the catalog). Clickable
+      // to open a toast explaining what the star means (mirrors the
+      // verified-corner click → toast pattern).
+      const establishedBadge = (viewerSignedIn && listing.profiles?.is_trusted)
+        ? `<button type="button" class="established-corner" title="Established Member"><span class="cc-est-glyph" aria-hidden="true"></span><span class="sr-only">Established Member</span></button>`
+        : "";
+      // Open-to-Trade pill, bottom-RIGHT overlay on the image (was bottom-left,
+      // moved to make room for the Established-star). Sale-only + visible to
+      // all viewers (it's a public listing attribute, not a trust signal that
+      // needs to be gated). Deliberately a rounded rectangle (not a circle)
+      // so it stays visually distinct from the gradient-circle Ownership
+      // Verified glyph (see [[trust-glyph-single-use]]).
       const tradePill = (!isIso && listing.open_to_trade)
         ? `<div class="trade-pill" title="Seller is open to trade offers">⇄ Trade</div>`
         : "";
@@ -1036,7 +1241,7 @@
       // pattern used by Etsy / eBay / Amazon. Saves one row of card
       // vertical real estate per card.
       card.innerHTML = `
-        <div class="img">${imgInner}${verifiedBadge}${tradePill}</div>
+        <div class="img">${imgInner}${verifiedBadge}${establishedBadge}${tradePill}</div>
         <div class="body">
           <div class="artist">${artistLine}</div>
           <div class="title">${titleLine}</div>
@@ -1747,6 +1952,17 @@
         e.preventDefault();
         e.stopPropagation();
         showVerifiedToast();
+        return;
+      }
+      // Established-star taps, same pattern — show a toast explaining
+      // the gradient star is the Established Member badge. (Established
+      // is a stronger membership signal than Verified, which is a per
+      // listing proof-of-possession check.)
+      const estCorner = e.target.closest(".established-corner");
+      if (estCorner) {
+        e.preventDefault();
+        e.stopPropagation();
+        showEstablishedToast();
       }
     });
 
@@ -1780,6 +1996,37 @@
       if (toast && !toast.hidden && !e.target.closest(".verified-corner") && !e.target.closest(".verified-toast")) {
         toast.hidden = true;
         clearTimeout(__verifiedToastTimer);
+      }
+    }, true);
+
+    // Established-Member toast, mirrors verified-toast above. Links to the
+    // Guidelines section so curious buyers can read the full criteria.
+    let __establishedToastTimer = null;
+    function showEstablishedToast() {
+      let toast = document.getElementById("established-toast");
+      if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "established-toast";
+        toast.className = "established-toast";
+        toast.setAttribute("role", "status");
+        toast.innerHTML =
+          `<span class="et-title"><span class="cc-est-glyph" aria-hidden="true"></span>Established Member</span>` +
+          `A trusted seller with a track record on CanvasCircle. ` +
+          `<a href="/guidelines.html#established">Learn what this means</a>.`;
+        document.body.appendChild(toast);
+      }
+      toast.hidden = false;
+      clearTimeout(__establishedToastTimer);
+      __establishedToastTimer = setTimeout(() => { toast.hidden = true; }, 4500);
+    }
+    document.addEventListener("click", (e) => {
+      const toast = document.getElementById("established-toast");
+      // Don't auto-dismiss when the user is interacting with the toast itself
+      // (e.g., tapping the Learn-more link); only dismiss when tapping
+      // elsewhere on the page.
+      if (toast && !toast.hidden && !e.target.closest(".established-corner") && !e.target.closest(".established-toast")) {
+        toast.hidden = true;
+        clearTimeout(__establishedToastTimer);
       }
     }, true);
 
@@ -1933,15 +2180,174 @@
     updateStatsBar = function() {
       _origUpdateStatsBar();
       updateSaveSearchBarVisibility();
+      updateActiveChipsRow();
+      updateMoreFiltersCount();
     };
     // Also recompute immediately after any filter-input change (even
     // before the debounced applyFilters fires) so the button reacts
     // snappily to the user's edits.
-    [$q, $min, $max].forEach(el => el.addEventListener("input", updateSaveSearchBarVisibility));
+    [$q, $min, $max].forEach(el => el.addEventListener("input", () => {
+      updateSaveSearchBarVisibility();
+      updateActiveChipsRow();
+      updateMoreFiltersCount();
+    }));
     [$cat, $statusF, $seller, $trustMember, $trustVerify].forEach(el => {
-      el.addEventListener("change", updateSaveSearchBarVisibility);
+      el.addEventListener("change", () => {
+        updateSaveSearchBarVisibility();
+        updateActiveChipsRow();
+        updateMoreFiltersCount();
+      });
     });
-    $clear.addEventListener("click", updateSaveSearchBarVisibility);
+    $clear.addEventListener("click", () => {
+      updateSaveSearchBarVisibility();
+      updateActiveChipsRow();
+      updateMoreFiltersCount();
+    });
+
+    // ========================================================================
+    // Option-1 toolbar: More-filters toggle + active-filter chips
+    // ========================================================================
+    //
+    // The toolbar is split into two rows: a primary row (search + category +
+    // sort) that 95% of catalog browsers actually use, and a collapsible
+    // advanced row (status, seller, trust filters, price range) for the rest.
+    // Active filters from EITHER row render as removable chips beneath the
+    // toolbar, so users always see exactly which filters are narrowing their
+    // results even when those filters live in the collapsed advanced panel.
+    //
+    // The Established / Verified filters live in the advanced panel; the
+    // chip row is the discoverability bridge that ensures signed-in buyers
+    // notice these trust signals are filterable.
+    // ========================================================================
+    const $moreBtn      = document.getElementById("more-filters-btn");
+    const $moreCount    = document.getElementById("more-filters-count");
+    const $advancedRow  = document.getElementById("advanced-row");
+    const $activeChips  = document.getElementById("active-chips");
+    const ADV_OPEN_KEY  = "cc.catalog.advancedOpen";
+
+    // Open/closed state persists in sessionStorage so the panel doesn't slam
+    // shut on tab-switches or filter changes. Default: closed (Option 1's
+    // whole point is a clean primary row).
+    function setAdvancedOpen(open, persist = true) {
+      if (!$advancedRow || !$moreBtn) return;
+      $advancedRow.hidden = !open;
+      $moreBtn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (persist) {
+        try { sessionStorage.setItem(ADV_OPEN_KEY, open ? "1" : "0"); } catch {}
+      }
+    }
+    function initAdvancedFromStorage() {
+      try {
+        const stored = sessionStorage.getItem(ADV_OPEN_KEY);
+        if (stored === "1") setAdvancedOpen(true, false);
+      } catch {}
+    }
+    $moreBtn?.addEventListener("click", () => {
+      const isOpen = $moreBtn.getAttribute("aria-expanded") === "true";
+      setAdvancedOpen(!isOpen);
+    });
+
+    // Count of "advanced" filters that differ from default. Drives the badge
+    // pill on the More-filters button so users know there are hidden active
+    // filters even when the panel is collapsed.
+    function countAdvancedFilters() {
+      let n = 0;
+      const s = snapshotFilters();
+      if (s.statusF && s.statusF !== "active") n++;
+      if (s.seller)            n++;
+      if (s.trustMember)       n++;
+      if (s.trustVerify)       n++;
+      if (s.min)               n++;
+      if (s.max)               n++;
+      return n;
+    }
+    function updateMoreFiltersCount() {
+      if (!$moreCount) return;
+      const n = countAdvancedFilters();
+      if (n > 0) {
+        $moreCount.textContent = String(n);
+        $moreCount.hidden = false;
+      } else {
+        $moreCount.hidden = true;
+      }
+    }
+
+    // Render the active-filter chip row. Each chip has × that clears just
+    // that filter; the others stay put. Differs from summarizeFilterChips()
+    // (used by the Save-Search modal) in that it omits the tab chip — the
+    // tab is already a separate tab strip above the toolbar.
+    function buildActiveChipDescriptors(s) {
+      const chips = [];
+      if ((s.q || "").trim())  chips.push({ key: "q",        label: `"${s.q.trim()}"` });
+      if (s.cat)               chips.push({ key: "cat",      label: s.cat });
+      if (s.statusF && s.statusF !== "active") {
+        const statusLabels = {
+          available: "Available only",
+          pending:   "Pending Sale",
+          sold:      s.tab === "iso" ? "Closed" : "Sold",
+          not_renewed: "Not renewed",
+        };
+        chips.push({ key: "status", label: statusLabels[s.statusF] || s.statusF });
+      }
+      if (s.seller) {
+        const opt = Array.from($seller.options).find(o => o.value === s.seller);
+        chips.push({ key: "seller", label: `Seller: ${opt?.textContent || "selected"}` });
+      }
+      if (s.trustMember === "established")     chips.push({ key: "trustMember", label: "Established Members" });
+      if (s.trustMember === "non-established") chips.push({ key: "trustMember", label: "Non-Established Members" });
+      if (s.trustVerify === "verified")        chips.push({ key: "trustVerify", label: "Verified ownership" });
+      if (s.trustVerify === "unverified")      chips.push({ key: "trustVerify", label: "Unverified ownership" });
+      if (s.openToTrade)                       chips.push({ key: "trade", label: "⇄ Open to Trade" });
+      if (s.min && s.max) chips.push({ key: "price", label: `$${Number(s.min).toLocaleString()}–$${Number(s.max).toLocaleString()}` });
+      else if (s.min)     chips.push({ key: "price", label: `From $${Number(s.min).toLocaleString()}` });
+      else if (s.max)     chips.push({ key: "price", label: `Up to $${Number(s.max).toLocaleString()}` });
+      return chips;
+    }
+    function updateActiveChipsRow() {
+      if (!$activeChips) return;
+      const s = snapshotFilters();
+      const chips = buildActiveChipDescriptors(s);
+      if (chips.length === 0) {
+        $activeChips.hidden = true;
+        $activeChips.innerHTML = "";
+        return;
+      }
+      $activeChips.hidden = false;
+      $activeChips.innerHTML = chips.map(c => `
+        <span class="active-chip">
+          ${c.label.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+          <button type="button" class="chip-x" data-chip-key="${c.key}" aria-label="Remove filter">×</button>
+        </span>
+      `).join("");
+    }
+    // Single delegated handler for chip × clicks; clears the corresponding
+    // filter, then re-runs the standard saveFilterState → applyFilters cycle
+    // so all sibling UI (save-search bar, count badge, chip row) refreshes.
+    $activeChips?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".chip-x");
+      if (!btn) return;
+      const key = btn.getAttribute("data-chip-key");
+      switch (key) {
+        case "q":           $q.value = ""; break;
+        case "cat":         $cat.value = ""; break;
+        case "status":      $statusF.value = "active"; break;
+        case "seller":      $seller.value = ""; break;
+        case "trustMember": $trustMember.value = ""; break;
+        case "trustVerify": $trustVerify.value = ""; break;
+        case "trade":       if ($trade) $trade.value = ""; break;
+        case "price":       $min.value = ""; $max.value = ""; break;
+      }
+      saveFilterState();
+      applyFilters();
+      updateActiveChipsRow();
+      updateMoreFiltersCount();
+      updateSaveSearchBarVisibility();
+    });
+
+    // Initial state: read stored open/closed pref, then refresh badge + chips.
+    initAdvancedFromStorage();
+    updateMoreFiltersCount();
+    updateActiveChipsRow();
 
     function openSaveSearchModal() {
       if (!$saveModal) return;
