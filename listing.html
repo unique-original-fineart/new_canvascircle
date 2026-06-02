@@ -537,6 +537,145 @@
     <img id="lightbox-img" src="" alt="" />
   </div>
 
+  <!-- Shipping calculator modal. Opens when buyer taps the Estimate shipping
+       button beside the price. Shows seller's box dims + ship-from ZIP, a
+       Copy values button to paste into Pirate Ship's rate calculator, plus
+       insurance + signature guidance. Listing price drives a conditional
+       branch at >$10K that warns about the Pirate Ship insurance ceiling.
+       See guidelines.html shipping section + memory file for full context. -->
+  <style>
+    .ship-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.55);
+      display: none; align-items: flex-start; justify-content: center;
+      z-index: 80;
+      padding: 24px 12px;
+      overflow-y: auto;
+    }
+    .ship-overlay.is-open { display: flex; }
+    .ship-dialog {
+      background: var(--surface-1);
+      color: var(--fg);
+      border-radius: 14px;
+      max-width: 560px; width: 100%;
+      padding: 22px 22px 18px;
+      box-shadow: 0 10px 36px rgba(0,0,0,.32);
+      border: 1px solid var(--card-line);
+    }
+    .ship-dialog h3 {
+      margin: 0 0 6px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 22px;
+      letter-spacing: -.02em;
+    }
+    .ship-dialog .ship-sub {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .ship-values {
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+    .ship-values dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
+    .ship-values dt { color: var(--muted); }
+    .ship-values dd { margin: 0; font-weight: 600; }
+    .ship-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+    .ship-btn-primary {
+      background: linear-gradient(135deg, var(--brand-magenta, #a8281f), var(--brand-orange, #d28b3e));
+      color: var(--text-inverse);
+      border: none; border-radius: 8px;
+      padding: 10px 14px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .ship-btn-secondary {
+      background: var(--surface-2);
+      color: var(--fg);
+      border: 1px solid var(--card-line);
+      border-radius: 8px;
+      padding: 10px 14px; font-size: 14px; font-weight: 500; cursor: pointer;
+    }
+    .ship-steps { margin: 8px 0 14px; padding-left: 22px; font-size: 14px; line-height: 1.55; }
+    .ship-steps li { margin-bottom: 4px; }
+    .ship-info {
+      background: var(--surface-2);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin: 0 0 12px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .ship-info.is-warning { border-left-color: #d28b3e; background: rgba(210, 139, 62, 0.08); }
+    .ship-signup {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .ship-close-row { display: flex; justify-content: flex-end; margin-top: 12px; }
+    .ship-copied-toast {
+      display: inline-block;
+      color: var(--accent);
+      font-size: 12px;
+      margin-left: 6px;
+      opacity: 0; transition: opacity .2s ease;
+    }
+    .ship-copied-toast.is-visible { opacity: 1; }
+  </style>
+
+  <div class="ship-overlay" id="ship-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="ship-title">
+    <div class="ship-dialog" role="document">
+      <h3 id="ship-title">📦 Estimate shipping</h3>
+      <p class="ship-sub">Get an exact rate at Pirate Ship before messaging the seller. Pirate Ship is free to sign up, and rates are 50&ndash;70% cheaper than retail USPS or UPS.</p>
+
+      <div class="ship-values">
+        <dl>
+          <dt>Box (L &times; W &times; H):</dt><dd id="ship-box-dim">–</dd>
+          <dt>Packed weight:</dt><dd id="ship-box-wt">–</dd>
+          <dt>Ships from ZIP:</dt><dd id="ship-from-zip">–</dd>
+        </dl>
+      </div>
+
+      <div class="ship-actions">
+        <button type="button" class="ship-btn-primary" id="ship-copy-btn">Copy values to clipboard</button>
+        <a class="ship-btn-secondary" id="ship-open-pirate" href="https://pirateship.com/" target="_blank" rel="noopener">Open Pirate Ship &nearr;</a>
+        <span class="ship-copied-toast" id="ship-copied-toast">Copied ✓</span>
+      </div>
+
+      <div style="font-weight:600; font-size:13px; margin: 6px 0 4px;">How to look up the rate</div>
+      <ol class="ship-steps">
+        <li>Sign in to Pirate Ship (or sign up free).</li>
+        <li>Click <strong>Single</strong> at the top, then enter your delivery ZIP in the <em>Ship To</em> field.</li>
+        <li>Paste the values above into <em>Package Type → Box or Rigid Packaging</em> and the dimensions + weight fields.</li>
+        <li>Compare rates: USPS Ground Advantage and UPS Ground are the typical choices for art.</li>
+        <li>Add insurance and signature confirmation as needed (see below).</li>
+      </ol>
+
+      <div class="ship-info" id="ship-insurance-info">
+        <strong>Insurance.</strong> Add it during checkout on Pirate Ship. Roughly $1 per $100 of declared value. <strong>Recommended for every shipment.</strong> Pirate Ship's built-in insurance covers up to $10,000 per package.
+      </div>
+
+      <div class="ship-info" id="ship-highvalue-warning" style="display:none;">
+        <strong>⚠ This piece exceeds the $10,000 Pirate Ship insurance limit.</strong>
+        For full coverage at higher values, options include UPS or FedEx declared-value coverage purchased directly through the carrier, a specialty fine-art shipper (Crozier, Atelier 4, FedEx Custom Critical Art Transport), or a standalone fine-art insurance rider. Message the seller to discuss the shipping path before paying.
+      </div>
+
+      <div class="ship-info">
+        <strong>Signature confirmation.</strong> ~$4 flat through USPS. Strongly recommended for any piece over $500. Reduces weather and theft risk.
+      </div>
+
+      <p class="ship-signup">
+        New to Pirate Ship? Sign up free at <a href="https://pirateship.com/" target="_blank" rel="noopener">pirateship.com</a>. Setup takes about 2 minutes and you'll use it any time you ship art.
+      </p>
+
+      <div class="ship-close-row">
+        <button type="button" class="ship-btn-secondary" id="ship-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Contact-seller modal. Populated and opened by the Email Seller button.
        Replaces the previous mailto: launcher so the message actually flows
        through our edge function (and the audit table), and so the seller
@@ -804,8 +943,8 @@
         }).catch(() => {});
       }
       const profileCols = signedIn
-        ? "display_name, handle, location, facebook_profile_url, contact_email, account_status, is_trusted, about_text, preferred_contact"
-        : "display_name, handle, account_status";
+        ? "display_name, handle, location, shipping_zip, facebook_profile_url, contact_email, account_status, is_trusted, about_text, preferred_contact"
+        : "display_name, handle, shipping_zip, account_status";
 
       let listingResp, savesResp;
       try {
@@ -823,6 +962,7 @@
                 seller_mood, last_renewed_at, created_at, seller_id, save_count,
                 verification_status, verified_at,
                 open_to_trade, trade_looking_for,
+                pack_box_length_in, pack_box_width_in, pack_box_height_in, pack_weight_lbs,
                 listing_images ( storage_path, position ),
                 profiles!listings_seller_id_fkey ( ${profileCols} )
               `)
@@ -882,6 +1022,10 @@
       // Anonymous viewers see the listing but not the seller's identity or
       // contact info, they're prompted to sign in to reach out. (signedIn
       // is the auth state we computed up top, before issuing the query.)
+      // Stash the loaded listing so the shipping-calc modal handler can
+      // read pack dims / ZIP / price without needing a re-fetch. Refreshed
+      // on every render so revisits via the freshness watchdog stay accurate.
+      window.__currentListing = data;
       render(data, userSaves, signedIn);
       logListingView(data);
 
@@ -987,11 +1131,37 @@
           </div>`;
       } else {
         const priceDropped = l.previous_price_usd && Number(l.previous_price_usd) > Number(l.asking_price_usd);
+        // Shipping calculator button. Only shown when the seller has populated
+        // BOTH their profile shipping_zip AND all 4 per-listing pack-box fields.
+        // Without that data we can't seed a useful Pirate Ship lookup so we
+        // hide the affordance entirely (cleaner than showing a disabled button).
+        // See db/migrations/044_shipping_calculator.sql and the modal HTML
+        // near the bottom of this file.
+        const shipZip = l.profiles?.shipping_zip;
+        const packReady = shipZip
+          && Number(l.pack_box_length_in) > 0
+          && Number(l.pack_box_width_in)  > 0
+          && Number(l.pack_box_height_in) > 0
+          && Number(l.pack_weight_lbs)    > 0;
+        const shipBtnBlock = packReady
+          ? `<div class="ship-calc-row" style="margin-top:6px;">
+               <button type="button" id="ship-calc-open-btn" class="ship-calc-btn"
+                       style="background: linear-gradient(135deg, var(--brand-magenta, #a8281f), var(--brand-orange, #d28b3e));
+                              color: var(--text-inverse);
+                              border: none; border-radius: 999px;
+                              padding: 7px 14px; font-size: 13px; font-weight: 600;
+                              cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+                              box-shadow: 0 2px 6px rgba(0,0,0,.18);">
+                 📦 Estimate shipping
+               </button>
+             </div>`
+          : "";
         priceBlock = `
           <div class="price-row">
             <span class="price">${fmtPrice(l.asking_price_usd)}</span>
             ${priceDropped ? `<span class="prev-price">${fmtPrice(l.previous_price_usd)}</span><span class="price-drop">Price dropped</span>` : ""}
-          </div>`;
+          </div>
+          ${shipBtnBlock}`;
       }
 
       // ------ Hero image: ISO without an image gets a placeholder card ------
@@ -1780,6 +1950,77 @@
     });
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") refreshListingIfStale(false);
+    });
+
+    // =========================================================================
+    // Shipping calculator modal — opened by the "Estimate shipping" button
+    // that renders next to the price when seller pack data is complete.
+    // See db/migrations/044_shipping_calculator.sql.
+    //
+    // We pull live values from window.__currentListing at open-time rather
+    // than baking them into the button's DOM, so price drops or pack-data
+    // edits picked up by the freshness watchdog reflect immediately.
+    // =========================================================================
+    const SHIP_INSURANCE_CAP = 10000;
+    function openShippingCalcModal() {
+      const l = window.__currentListing;
+      if (!l) return;
+      const $dim   = document.getElementById("ship-box-dim");
+      const $wt    = document.getElementById("ship-box-wt");
+      const $zip   = document.getElementById("ship-from-zip");
+      const $hi    = document.getElementById("ship-highvalue-warning");
+      const $ins   = document.getElementById("ship-insurance-info");
+      if ($dim) $dim.textContent = `${l.pack_box_length_in} × ${l.pack_box_width_in} × ${l.pack_box_height_in} in`;
+      if ($wt)  $wt.textContent  = `${l.pack_weight_lbs} lbs`;
+      if ($zip) $zip.textContent = l.profiles?.shipping_zip || "—";
+      // Conditional copy: if listing price exceeds Pirate Ship's $10K
+      // insurance ceiling, swap the standard insurance info card for the
+      // high-value warning. Buyer is steered toward specialty shipping.
+      const price = Number(l.asking_price_usd || 0);
+      if (price > SHIP_INSURANCE_CAP) {
+        if ($hi)  $hi.style.display  = "";
+        if ($ins) $ins.style.display = "none";
+      } else {
+        if ($hi)  $hi.style.display  = "none";
+        if ($ins) $ins.style.display = "";
+      }
+      const $ov = document.getElementById("ship-overlay");
+      if ($ov) { $ov.classList.add("is-open"); $ov.setAttribute("aria-hidden", "false"); }
+    }
+    function closeShippingCalcModal() {
+      const $ov = document.getElementById("ship-overlay");
+      if ($ov) { $ov.classList.remove("is-open"); $ov.setAttribute("aria-hidden", "true"); }
+    }
+    // Event delegation on the document body — the "Estimate shipping" button
+    // is rendered inside the price block via innerHTML and gets replaced on
+    // each loadListing() call. Delegation avoids re-binding after every render.
+    document.addEventListener("click", (ev) => {
+      if (ev.target.closest && ev.target.closest("#ship-calc-open-btn")) {
+        ev.preventDefault();
+        openShippingCalcModal();
+      }
+    });
+    document.getElementById("ship-close-btn")?.addEventListener("click", closeShippingCalcModal);
+    document.getElementById("ship-overlay")?.addEventListener("click", (ev) => {
+      if (ev.target.id === "ship-overlay") closeShippingCalcModal();
+    });
+    document.getElementById("ship-copy-btn")?.addEventListener("click", async () => {
+      const l = window.__currentListing;
+      if (!l) return;
+      const text = `${l.pack_box_length_in}L × ${l.pack_box_width_in}W × ${l.pack_box_height_in}H inches, ${l.pack_weight_lbs} lbs, from ${l.profiles?.shipping_zip || "ZIP unknown"}`;
+      try {
+        await navigator.clipboard.writeText(text);
+        const $toast = document.getElementById("ship-copied-toast");
+        if ($toast) {
+          $toast.classList.add("is-visible");
+          setTimeout(() => $toast.classList.remove("is-visible"), 1600);
+        }
+      } catch (e) {
+        console.warn("[ship-copy] clipboard write failed:", e);
+        // Fallback: tap to select. iOS Safari without HTTPS sometimes blocks
+        // the Clipboard API; selectable text + manual copy still works.
+        prompt("Copy these values into Pirate Ship:", text);
+      }
     });
 
     (async () => { await loadListing(); __lastLoadAt = Date.now(); })();

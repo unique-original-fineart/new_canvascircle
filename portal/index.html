@@ -4242,6 +4242,26 @@
               </details>
             </div>
 
+            <!-- Shipping ZIP, per-field inline edit/save/cancel. Separate from
+                 the Location field above so the public Location can stay
+                 vague ("Central NJ") while the ZIP feeds the shipping
+                 calculator that buyers use to look up exact Pirate Ship rates.
+                 See db/migrations/044_shipping_calculator.sql. -->
+            <div class="field">
+              <label for="prof-shipping-zip">Shipping origin ZIP</label>
+              <input type="text" id="prof-shipping-zip" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" placeholder="e.g. 08852" disabled />
+              <div class="field-actions">
+                <button type="button" id="prof-shipping-zip-edit-btn"   class="linklike">Edit</button>
+                <button type="button" id="prof-shipping-zip-save-btn"   class="btn-primary"   hidden>Save</button>
+                <button type="button" id="prof-shipping-zip-cancel-btn" class="btn-secondary" hidden>Cancel</button>
+                <span id="prof-shipping-zip-status" class="small field-status"></span>
+              </div>
+              <details class="field-explainer">
+                <summary>What is this for?</summary>
+                <p>Your 5-digit US ZIP code. Used only by the shipping calculator on your listings, lets buyers look up exact shipping costs at Pirate Ship without messaging you first. Visible on each listing's shipping-estimate widget; combined with your per-listing box dimensions, buyers get an accurate quote. Fill this in to enable the calculator across all your sale listings.</p>
+              </details>
+            </div>
+
             <!-- Preferred contact method, soft signal shown on listings so
                  buyers know whether to include their phone number with their
                  inquiry. Does NOT expose any phone number. Default 'either'.
@@ -4923,6 +4943,35 @@
                 <option value="No">No</option>
               </select>
             </div>
+
+            <!-- ===== Packed shipping details (sale-only, all optional) =====
+                 Powers the buyer-side "Estimate shipping" widget on the public
+                 listing page, which seeds a Pirate Ship rate lookup. All four
+                 fields must be filled for the widget to show; partial entries
+                 hide it. See db/migrations/044_shipping_calculator.sql. -->
+            <div class="span-2" data-nl-show-on="sale" style="border-top: 1px solid var(--card-line); padding-top: 14px; margin-top: 4px;">
+              <div style="font-weight:600; margin-bottom:4px;">Packed shipping details <span style="color:var(--muted); font-weight:400; font-size:13px;">(optional)</span></div>
+              <p class="small" style="margin: 0 0 8px; color: var(--muted);">
+                Filling these in lets buyers look up exact shipping cost on Pirate Ship before they message you. Most sellers add these once they know which box they'll pack with (Park West originals typically ship in a 42 x 38 x 6 or 45 x 37 x 5 box).
+              </p>
+            </div>
+            <div data-nl-show-on="sale">
+              <label for="nl-pack-l">Box length (inches)</label>
+              <input type="text" inputmode="decimal" id="nl-pack-l" placeholder="e.g. 42" />
+            </div>
+            <div data-nl-show-on="sale">
+              <label for="nl-pack-w">Box width (inches)</label>
+              <input type="text" inputmode="decimal" id="nl-pack-w" placeholder="e.g. 38" />
+            </div>
+            <div data-nl-show-on="sale">
+              <label for="nl-pack-h">Box height (inches)</label>
+              <input type="text" inputmode="decimal" id="nl-pack-h" placeholder="e.g. 6" />
+            </div>
+            <div data-nl-show-on="sale">
+              <label for="nl-pack-wt">Packed weight (lbs)</label>
+              <input type="text" inputmode="decimal" id="nl-pack-wt" placeholder="e.g. 10" />
+            </div>
+
             <div class="span-2">
               <label for="nl-description"><span data-nl-label-sale>Seller notes / Description</span><span data-nl-label-iso hidden>Describe what you're looking for</span></label>
               <textarea id="nl-description" rows="4" placeholder="Condition, provenance, why you're selling, anything buyers should know."></textarea>
@@ -7701,6 +7750,26 @@
               <option value="Yes" ${l.coa_included === "Yes" ? "selected" : ""}>Yes</option>
               <option value="No"  ${l.coa_included === "No"  ? "selected" : ""}>No</option>
             </select>
+          </div>
+          <div class="span-2" style="border-top: 1px solid var(--card-line); padding-top: 10px; margin-top: 2px;">
+            <div style="font-weight:600; margin-bottom:2px;">Packed shipping details <span style="color:var(--muted); font-weight:400; font-size:12px;">(optional)</span></div>
+            <p class="small" style="margin: 0 0 6px; color: var(--muted);">Fill these in to enable the buyer-side shipping calculator on your listing. Add or update once you know what box you'll pack with.</p>
+          </div>
+          <div>
+            <label>Box length (in)</label>
+            <input type="text" inputmode="decimal" data-field="pack_box_length_in" value="${l.pack_box_length_in ?? ""}" placeholder="e.g. 42" />
+          </div>
+          <div>
+            <label>Box width (in)</label>
+            <input type="text" inputmode="decimal" data-field="pack_box_width_in" value="${l.pack_box_width_in ?? ""}" placeholder="e.g. 38" />
+          </div>
+          <div>
+            <label>Box height (in)</label>
+            <input type="text" inputmode="decimal" data-field="pack_box_height_in" value="${l.pack_box_height_in ?? ""}" placeholder="e.g. 6" />
+          </div>
+          <div>
+            <label>Packed weight (lbs)</label>
+            <input type="text" inputmode="decimal" data-field="pack_weight_lbs" value="${l.pack_weight_lbs ?? ""}" placeholder="e.g. 10" />
           </div>`}
           ${isIso ? `
           <div>
@@ -8485,6 +8554,16 @@
       const lookingFor  = card.querySelector('[data-field="trade_looking_for"]')?.value.trim() || "";
       payload.open_to_trade     = openToTrade;
       payload.trade_looking_for = (openToTrade && lookingFor) ? lookingFor : null;
+      // Packed shipping details (sale-only, all optional). Empty/invalid →
+      // null, so partial entries don't silently get half-saved.
+      const parsePos = (s) => {
+        const n = parseFloat(String(s || "").trim());
+        return (Number.isFinite(n) && n > 0) ? n : null;
+      };
+      payload.pack_box_length_in = parsePos(get("pack_box_length_in"));
+      payload.pack_box_width_in  = parsePos(get("pack_box_width_in"));
+      payload.pack_box_height_in = parsePos(get("pack_box_height_in"));
+      payload.pack_weight_lbs    = parsePos(get("pack_weight_lbs"));
       return payload;
     }
 
@@ -8973,6 +9052,7 @@
               save_count, view_count,
               verification_status, verified_at,
               open_to_trade, trade_looking_for,
+              pack_box_length_in, pack_box_width_in, pack_box_height_in, pack_weight_lbs,
               listing_images ( storage_path, position ),
               listing_verifications ( id, status, review_notes, submitted_at, reviewed_at, revoked_at, revoke_reason )
             `)
@@ -11332,7 +11412,7 @@
     const $profStatus   = document.getElementById("profile-status");
 
     // Snapshot of last-saved values so per-field Cancel can revert.
-    let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", about_text: "", contact_email: "", preferred_contact: "either" };
+    let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", shipping_zip: "", about_text: "", contact_email: "", preferred_contact: "either" };
 
     // -----------------------------------------------------------------------
     // setProfileEditMode, kept as a thin compatibility shim for the
@@ -11457,6 +11537,31 @@
       column: "location",
     });
 
+    // Wire Shipping ZIP. Optional 5-digit US ZIP. Powers the buyer-facing
+    // shipping calculator on listing.html (combined with per-listing box
+    // dimensions). Empty save clears the value; invalid format blocks save.
+    // See db/migrations/044_shipping_calculator.sql.
+    wirePerFieldEdit({
+      inputId: "prof-shipping-zip",
+      editBtnId: "prof-shipping-zip-edit-btn",
+      saveBtnId: "prof-shipping-zip-save-btn",
+      cancelBtnId: "prof-shipping-zip-cancel-btn",
+      statusId: "prof-shipping-zip-status",
+      snapshotKey: "shipping_zip",
+      column: "shipping_zip",
+      validate: (val) => {
+        const v = String(val || "").trim();
+        if (!v) return;            // empty = clear, allowed
+        if (!/^\d{5}$/.test(v)) {
+          throw new Error("Shipping ZIP must be exactly 5 digits (no extension).");
+        }
+      },
+      transform: (val) => {
+        const v = String(val || "").trim();
+        return v || null;
+      },
+    });
+
     // Wire Preferred contact method, dropdown of email / phone / facebook
     // / either, soft signal shown on listings. transform: pass-through but
     // enforce the enum (DB has a check constraint, but we'd rather show a
@@ -11503,6 +11608,8 @@
       $profHandle.value = profileSnapshot.handle               || "";
       $profFb.value     = profileSnapshot.facebook_profile_url || "";
       $profLoc.value    = profileSnapshot.location             || "";
+      const $profShipZip = document.getElementById("prof-shipping-zip");
+      if ($profShipZip) $profShipZip.value = profileSnapshot.shipping_zip || "";
       $profAbout.value  = profileSnapshot.about_text           || "";
       $profEmail.value  = profileSnapshot.contact_email        || "";
       const $profPrefContact = document.getElementById("prof-preferred-contact");
@@ -11767,6 +11874,7 @@
         handle:               profile.handle               || "",
         facebook_profile_url: profile.facebook_profile_url || "",
         location:             profile.location             || "",
+        shipping_zip:         profile.shipping_zip         || "",
         about_text:           profile.about_text           || "",
         contact_email:        profile.contact_email        || "",
         preferred_contact:    profile.preferred_contact    || "either",
@@ -15963,6 +16071,17 @@
       const maxStr    = document.getElementById("nl-budget-max")?.value.trim() || "";
       const shipping  = document.getElementById("nl-shipping")?.value || "";
       const coa       = document.getElementById("nl-coa")?.value || "";
+      // Packed shipping details (sale-only, all optional). All four must
+      // parse as positive numbers to be saved; missing/invalid drop to null.
+      // See db/migrations/044_shipping_calculator.sql.
+      const pParseNum = (s) => {
+        const n = parseFloat(String(s || "").trim());
+        return (Number.isFinite(n) && n > 0) ? n : null;
+      };
+      const packL  = pParseNum(document.getElementById("nl-pack-l")?.value);
+      const packW  = pParseNum(document.getElementById("nl-pack-w")?.value);
+      const packH  = pParseNum(document.getElementById("nl-pack-h")?.value);
+      const packWt = pParseNum(document.getElementById("nl-pack-wt")?.value);
       const desc      = document.getElementById("nl-description").value.trim();
       // Open-to-Trade fields (sale-only; ignored on ISO inserts).
       const openToTrade  = !!document.getElementById("nl-open-to-trade")?.checked;
@@ -16062,6 +16181,10 @@
           // when open_to_trade=true; if seller leaves it blank we still null it.
           open_to_trade:     openToTrade,
           trade_looking_for: (openToTrade && tradeLooking) ? tradeLooking : null,
+          pack_box_length_in: packL,
+          pack_box_width_in:  packW,
+          pack_box_height_in: packH,
+          pack_weight_lbs:    packWt,
           status:           status,
           moderation_status: moderation_status,
         };
