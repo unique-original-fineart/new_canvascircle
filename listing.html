@@ -561,13 +561,31 @@
       padding: 22px 22px 18px;
       box-shadow: 0 10px 36px rgba(0,0,0,.32);
       border: 1px solid var(--card-line);
+      position: relative;
     }
     .ship-dialog h3 {
       margin: 0 0 6px;
       font-family: Georgia, "Times New Roman", serif;
       font-size: 22px;
       letter-spacing: -.02em;
+      padding-right: 36px;     /* breathing room for the corner X */
     }
+    /* Corner X close affordance. Always visible at the top-right of the
+       modal so closing the dialog is never unclear, especially on long
+       content where the bottom Close button can scroll off-screen. */
+    .ship-x-close {
+      position: absolute;
+      top: 10px; right: 12px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      width: 32px; height: 32px;
+      font-size: 22px; line-height: 1;
+      cursor: pointer;
+      border-radius: 8px;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .ship-x-close:hover { color: var(--fg); background: var(--surface-2); }
     .ship-dialog .ship-sub {
       margin: 0 0 14px;
       color: var(--muted);
@@ -627,6 +645,7 @@
 
   <div class="ship-overlay" id="ship-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="ship-title">
     <div class="ship-dialog" role="document">
+      <button type="button" class="ship-x-close" id="ship-x-close-btn" aria-label="Close">&times;</button>
       <h3 id="ship-title">📦 Estimate shipping</h3>
       <p class="ship-sub">Get an exact rate at Pirate Ship before messaging the seller. Pirate Ship is free to sign up, and rates are 50&ndash;70% cheaper than retail USPS or UPS.</p>
 
@@ -646,24 +665,29 @@
 
       <div style="font-weight:600; font-size:13px; margin: 6px 0 4px;">How to look up the rate</div>
       <ol class="ship-steps">
-        <li>Sign in to Pirate Ship (or sign up free).</li>
-        <li>Click <strong>Single</strong> at the top, then enter your delivery ZIP in the <em>Ship To</em> field.</li>
-        <li>Paste the values above into <em>Package Type → Box or Rigid Packaging</em> and the dimensions + weight fields.</li>
-        <li>Compare rates: USPS Ground Advantage and UPS Ground are the typical choices for art.</li>
-        <li>Add insurance and signature confirmation as needed (see below).</li>
+        <li>Click <strong>Create a Single Label</strong> at the top, then enter the seller's ship-from ZIP in the <em>Ship From</em> field and your address in the <em>Ship To</em> field.</li>
+        <li>Paste the values above into <em>Type of Packaging &rarr; Box or Rigid Packaging</em> and the dimensions + weight fields.</li>
+        <li>Click the checkbox for <strong>Insurance</strong> and put in the <em>Declared Package Value ($)</em> as the amount you'll pay for the artwork total.</li>
+        <li>If you want signature confirmation, click <strong>Extra Services</strong> and then <em>Signature Confirmation</em>.</li>
+        <li>Scroll down and click <strong>Get Rates</strong> and compare UPS and USPS for the best shipping rate option available.</li>
       </ol>
+
+      <div class="ship-info" style="background: rgba(45, 127, 255, 0.06); border-left-color: var(--accent);">
+        <strong>ℹ A note on Pirate Ship's address fields.</strong>
+        Pirate Ship requires a full address (name + street) to generate a rate, even when you're just comparing prices. The ZIP code is what actually drives the rate. For the <em>Ship From</em> entry, use any placeholder name and street (e.g. "Seller, 1 Main St") with the seller's ZIP above; the city + state will auto-populate. For <em>Ship To</em>, use your real delivery address. You're only pulling a rate quote, you're not buying a label yet.
+      </div>
 
       <div class="ship-info" id="ship-insurance-info">
         <strong>Insurance.</strong> Add it during checkout on Pirate Ship. Roughly $1 per $100 of declared value. <strong>Recommended for every shipment.</strong> Pirate Ship's built-in insurance covers up to $10,000 per package.
       </div>
 
-      <div class="ship-info" id="ship-highvalue-warning" style="display:none;">
+      <div class="ship-info is-warning" id="ship-highvalue-warning" style="display:none;">
         <strong>⚠ This piece exceeds the $10,000 Pirate Ship insurance limit.</strong>
         For full coverage at higher values, options include UPS or FedEx declared-value coverage purchased directly through the carrier, a specialty fine-art shipper (Crozier, Atelier 4, FedEx Custom Critical Art Transport), or a standalone fine-art insurance rider. Message the seller to discuss the shipping path before paying.
       </div>
 
       <div class="ship-info">
-        <strong>Signature confirmation.</strong> ~$4 flat through USPS. Strongly recommended for any piece over $500. Reduces weather and theft risk.
+        <strong>Signature confirmation.</strong> A flat fee added at checkout. Currently <strong>$3.95</strong> via USPS and <strong>$6.25</strong> via UPS. Strongly recommended for any piece over $500. Reduces weather and theft risk.
       </div>
 
       <p class="ship-signup">
@@ -1131,10 +1155,11 @@
           </div>`;
       } else {
         const priceDropped = l.previous_price_usd && Number(l.previous_price_usd) > Number(l.asking_price_usd);
-        // Shipping calculator button. Only shown when the seller has populated
-        // BOTH their profile shipping_zip AND all 4 per-listing pack-box fields.
-        // Without that data we can't seed a useful Pirate Ship lookup so we
-        // hide the affordance entirely (cleaner than showing a disabled button).
+        // Shipping calculator button. Shown only when:
+        //   1. Seller has BOTH shipping_zip on profile AND all 4 pack-box fields
+        //      on the listing (without those the lookup is useless)
+        //   2. shipping_offered != "Yes" (when seller covers shipping, the
+        //      buyer has nothing to estimate, hiding it removes confusion)
         // See db/migrations/044_shipping_calculator.sql and the modal HTML
         // near the bottom of this file.
         const shipZip = l.profiles?.shipping_zip;
@@ -1143,15 +1168,22 @@
           && Number(l.pack_box_width_in)  > 0
           && Number(l.pack_box_height_in) > 0
           && Number(l.pack_weight_lbs)    > 0;
-        const shipBtnBlock = packReady
-          ? `<div class="ship-calc-row" style="margin-top:6px;">
+        const shippingIncluded = (l.shipping_offered === "Yes");
+        const showShipBtn = packReady && !shippingIncluded;
+        // Rendered on its own line below the price+badges row so it never
+        // collides with the artwork-category pill or the Ownership Verified
+        // chip on narrow mobile widths. The wrapper has its own bottom margin
+        // for breathing room before the next section.
+        const shipBtnBlock = showShipBtn
+          ? `<div class="ship-calc-row" style="display:block; margin: 8px 0 4px;">
                <button type="button" id="ship-calc-open-btn" class="ship-calc-btn"
                        style="background: linear-gradient(135deg, var(--brand-magenta, #a8281f), var(--brand-orange, #d28b3e));
                               color: var(--text-inverse);
                               border: none; border-radius: 999px;
                               padding: 7px 14px; font-size: 13px; font-weight: 600;
                               cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-                              box-shadow: 0 2px 6px rgba(0,0,0,.18);">
+                              box-shadow: 0 2px 6px rgba(0,0,0,.18);
+                              max-width: 100%;">
                  📦 Estimate shipping
                </button>
              </div>`
@@ -2001,8 +2033,15 @@
       }
     });
     document.getElementById("ship-close-btn")?.addEventListener("click", closeShippingCalcModal);
+    document.getElementById("ship-x-close-btn")?.addEventListener("click", closeShippingCalcModal);
     document.getElementById("ship-overlay")?.addEventListener("click", (ev) => {
       if (ev.target.id === "ship-overlay") closeShippingCalcModal();
+    });
+    // Esc key as well — standard modal expectation.
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Escape") return;
+      const $ov = document.getElementById("ship-overlay");
+      if ($ov && $ov.classList.contains("is-open")) closeShippingCalcModal();
     });
     document.getElementById("ship-copy-btn")?.addEventListener("click", async () => {
       const l = window.__currentListing;
