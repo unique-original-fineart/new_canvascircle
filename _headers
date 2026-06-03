@@ -1,0 +1,33 @@
+# =============================================================================
+# Cloudflare Pages security headers for CanvasCircle.
+# =============================================================================
+#
+# Format: each path block is "/path\n  Header-Name: value" (two-space indent).
+# Order matters: more specific paths should come BEFORE generic /* matches.
+# See https://developers.cloudflare.com/pages/configuration/headers/
+#
+# Phase 1 (cc-v161+): broad CSP that still allows current CDN imports so
+# nothing breaks. esm.sh + cdn.jsdelivr.net are explicitly listed in
+# script-src until we finish self-hosting those libraries (Phase 2 will
+# delete them from this allowlist).
+#
+# Other headers below the CSP are defense-in-depth that work regardless of
+# the CSP being permissive or strict.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://esm.sh https://cdn.jsdelivr.net; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; object-src 'none'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()
+  X-Permitted-Cross-Domain-Policies: none
+  Cross-Origin-Opener-Policy: same-origin
+
+# Service worker should never be cached aggressively at the edge — it controls
+# update propagation for the whole PWA. The Service-Worker-Allowed header
+# lets the SW claim full origin scope even if served from a different path
+# (defense in depth; today /sw.js lives at root anyway).
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
