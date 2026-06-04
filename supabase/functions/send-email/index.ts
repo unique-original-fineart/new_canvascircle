@@ -37,12 +37,55 @@ const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") ?? "onboarding@resen
 const ADMIN_EMAIL       = Deno.env.get("ADMIN_EMAIL") ?? "admin@canvascircle.art";
 const SUPABASE_URL      = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+// IP_SALT seeds the SHA-256 we use to hash client IPs before storing them
+// in edge_fn_rate_events. The salt means a leaked rate-events table can't
+// be rainbow-tabled back to the original IPs. Set this once via Supabase
+// dashboard → Project Settings → Edge Functions → Secrets. Any random
+// 32+ character string works; once set, never rotate (rotating would
+// invalidate existing rate-limit windows since hashes wouldn't match).
+const IP_SALT           = Deno.env.get("IP_SALT") ?? "";
 
 // Max buyer→seller contact-form sends from one sender per rolling hour.
 // 5 is generous enough that a legitimate buyer pinging multiple sellers
 // won't hit it, but cheap enough that a compromised account or naive
 // scraper gets shut down fast. Bump if real users start complaining.
 const CONTACT_SELLER_RATE_LIMIT_PER_HOUR = 5;
+
+// Per-IP cap on contact-seller. Set 4x the per-user limit so up to 4 users
+// behind one NAT can each hit their own ceiling before the IP ceiling
+// triggers. Defends against the "many accounts behind one IP" attack the
+// per-user limit alone can't catch.
+const CONTACT_SELLER_IP_LIMIT_PER_HOUR = 20;
+
+// contact-admin previously had NO rate limit. A signed-in user could spam
+// the admin inbox indefinitely. Tighter limits because the admin inbox
+// matters more than a single seller's.
+const CONTACT_ADMIN_USER_LIMIT_PER_HOUR = 3;
+const CONTACT_ADMIN_IP_LIMIT_PER_HOUR   = 10;
+
+// -----------------------------------------------------------------------
+// Client IP extraction + hashing for the rate limiter.
+// -----------------------------------------------------------------------
+// Supabase's edge runtime puts the real client IP in x-forwarded-for
+// (comma-separated, first entry is the original client). x-real-ip is a
+// fallback when present. We hash before storing so the rate-events table
+// never holds raw IPs.
+function getClientIp(req: Request): string | null {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const first = xff.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const xri = req.headers.get("x-real-ip");
+  if (xri) return xri.trim();
+  return null;
+}
+async function hashIp(ip: string | null): Promise<string | null> {
+  if (!ip || !IP_SALT) return null;
+  const data = new TextEncoder().encode(IP_SALT + "|" + ip);
+  const buf  = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -108,6 +151,69 @@ serve(async (req) => {
     });
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) return json(401, { error: "Invalid session" });
+
+    // Service-role client used for: (a) the rate-limit RPC, which is
+    // service_role-only by grant, (b) admin-bypass queries later in the
+    // file. This is the SAME pattern already used inside contact-seller
+    // (it creates its own adminClient there) — hoisted up so contact-admin
+    // can reuse for the rate-limiter call without instantiating twice.
+    const svc = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    // Rate-limit helper. Calls check_rate_limit twice when both keys
+    // apply (once for the user, once for the hashed IP). Returns:
+    //   { ok: true }                    — under limit, request may proceed
+    //   { ok: false, message: string }  — over limit, caller should 429
+    // Each layer enforces independently so a heavy IP doesn't penalize
+    // light users on the same NAT.
+    async function checkRateLimits(
+      action: string,
+      userId: string | null,
+      ipHash: string | null,
+      userLimit: number,
+      ipLimit: number,
+      windowSec = 3600,
+    ): Promise<{ ok: true } | { ok: false; message: string }> {
+      if (userId) {
+        const { data, error } = await svc.rpc("check_rate_limit", {
+          p_fn: "send-email", p_action: action,
+          p_user: userId, p_ip_hash: null,
+          p_limit: userLimit, p_window_sec: windowSec,
+        });
+        if (error) {
+          // Fail open if the RPC is broken — don't block real users on
+          // counter outages. Log loudly so we notice.
+          console.error(`[rate-limit] user check failed for ${action}:`, error);
+        } else if (data === false) {
+          return { ok: false, message: "You've reached your hourly limit for this action. Please try again later." };
+        }
+      }
+      if (ipHash) {
+        const { data, error } = await svc.rpc("check_rate_limit", {
+          p_fn: "send-email", p_action: action,
+          p_user: null, p_ip_hash: ipHash,
+          p_limit: ipLimit, p_window_sec: windowSec,
+        });
+        if (error) {
+          console.error(`[rate-limit] ip check failed for ${action}:`, error);
+        } else if (data === false) {
+          // Generic message — don't tell scammers we caught them.
+          return { ok: false, message: "Too many requests from your network. Please try again later." };
+        }
+      }
+      return { ok: true };
+    }
+
+    // Compute the IP hash once per request so each mode that needs it
+    // doesn't pay the SHA-256 cost twice. Falls back to null if either
+    // IP_SALT isn't configured OR we can't extract a client IP — in those
+    // cases the IP-layer of the rate limiter no-ops, leaving only the
+    // user-layer. (Surface IP_SALT misconfig in the warning so it's hard
+    // to miss after deploy.)
+    if (!IP_SALT) {
+      console.warn("[rate-limit] IP_SALT env var not set — IP-layer rate limits disabled");
+    }
+    const clientIp     = getClientIp(req);
+    const clientIpHash = await hashIp(clientIp);
 
     // Caller's profile (for is_admin checks + display name).
     const { data: callerProfile } = await supabase
@@ -210,6 +316,18 @@ serve(async (req) => {
     if (mode === "contact-admin") {
       const { subject, text } = body;
       if (!subject || !text) return json(400, { error: "subject + text required" });
+
+      // Rate-limit BEFORE expensive work. Per-user + per-IP layers caught
+      // earlier in the file are independent so a heavy NAT doesn't penalize
+      // light users. contact-admin previously had no limits at all, which
+      // meant any signed-in user could flood the admin inbox.
+      const rl = await checkRateLimits(
+        "contact-admin", user.id, clientIpHash,
+        CONTACT_ADMIN_USER_LIMIT_PER_HOUR,
+        CONTACT_ADMIN_IP_LIMIT_PER_HOUR,
+      );
+      if (!rl.ok) return json(429, { error: rl.message });
+
       const callerName = callerProfile?.display_name || user.email;
       const callerMail = callerProfile?.contact_email || user.email;
       const fullSubject = `[CanvasCircle] ${subject} — from ${callerName}`;
@@ -312,7 +430,14 @@ serve(async (req) => {
         }
       }
 
-      // Rate-limit check.
+      // Rate-limit check, two layers:
+      //   1. Per-user via contact_messages count (existing, audit-table-based).
+      //   2. Per-IP via check_rate_limit RPC (new in cc-v165 via migration
+      //      046). Catches the "many accounts behind one IP" pattern the
+      //      per-user count can't see, since each fake account stays under
+      //      its own 5/hr ceiling. IP limit is 4x the user limit so up to
+      //      four legitimate users on one NAT can each hit theirs before
+      //      the IP layer triggers.
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const { count: recentCount, error: countErr } = await adminClient
         .from("contact_messages")
@@ -327,6 +452,24 @@ serve(async (req) => {
         return json(429, {
           error: `You've sent ${recentCount} messages in the last hour. Please wait a bit before sending more — this limit protects sellers from spam.`,
         });
+      }
+      // IP-layer check. Skip per-user layer here (handled above by the
+      // contact_messages count). Pass null for p_user so the IP-only path
+      // runs without double-recording the user.
+      if (clientIpHash) {
+        const { data: ipOk, error: ipErr } = await svc.rpc("check_rate_limit", {
+          p_fn: "send-email", p_action: "contact-seller",
+          p_user: null, p_ip_hash: clientIpHash,
+          p_limit: CONTACT_SELLER_IP_LIMIT_PER_HOUR, p_window_sec: 3600,
+        });
+        if (ipErr) {
+          console.error("[contact-seller] IP rate-limit RPC failed:", ipErr);
+          // Fail open.
+        } else if (ipOk === false) {
+          return json(429, {
+            error: "Too many contact-seller requests from your network. Please try again later.",
+          });
+        }
       }
 
       // Insert the audit row. We use the user-scoped client (with the
