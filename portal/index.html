@@ -3819,6 +3819,12 @@
       padding-right: 32px;
     }
   </style>
+  <!-- Cloudflare Turnstile API. Loaded async + defer so it doesn't block
+       initial render. Renders no UI until JS calls turnstile.render() with
+       a configured site key (see signup wiring further down). If
+       TURNSTILE_SITE_KEY in lib/config.js is empty, this script still loads
+       (~12KB) but no widget appears and signups proceed without a token. -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
 <body>
 
@@ -3922,6 +3928,12 @@
                 verify artwork authenticity, or mediate disputes between users.</span>
             </label>
           </div>
+          <!-- Cloudflare Turnstile widget mount point. Rendered explicitly via
+               JS (see lib/config.js TURNSTILE_SITE_KEY + the render call in
+               the signup wiring below) so it only appears once the site key
+               is configured. Until then this div stays empty and signups go
+               through as before. -->
+          <div id="signup-turnstile" class="field turnstile-field" hidden></div>
           <button type="submit" class="primary" id="signup-btn">Create account</button>
         </form>
 
@@ -5392,6 +5404,7 @@
 
   <script type="module">
     import { supabase, currentProfile, publicImageUrl, compressImage, clearBlockFilterCache } from "/lib/supabase.js?v=3";
+    import { TURNSTILE_SITE_KEY } from "/lib/config.js";
     import { getSavedListings, toggleSave, clearSavesCache } from "/lib/saves.js";
     import { readReturnTrail } from "/lib/return-trail.js";
     import { mountWelcomeBanner } from "/lib/welcome-banner.js";
@@ -5597,6 +5610,69 @@
     const $signupHandle = document.getElementById("signup-handle");
     const $signupHandleHint = document.getElementById("signup-handle-hint");
 
+    // ---------------------------------------------------------------------
+    // Cloudflare Turnstile — bot-signup defense.
+    // ---------------------------------------------------------------------
+    // Renders an invisible-or-managed challenge widget in #signup-turnstile.
+    // The widget calls back with a captcha token, which we then pass to
+    // supabase.auth.signUp via options.captchaToken. Supabase Auth verifies
+    // the token against Cloudflare's siteverify API (using the SECRET KEY
+    // configured in Supabase dashboard → Auth → CAPTCHA Provider) and
+    // refuses the signup if the token is invalid or replayed.
+    //
+    // If TURNSTILE_SITE_KEY is empty (initial state before Guy finishes the
+    // Cloudflare + Supabase dashboard setup), this entire system no-ops:
+    // the widget mount div stays hidden, no token is collected, and signups
+    // go through without one. Once the site key is set, the widget appears
+    // and the signup flow requires a passing token.
+    let __turnstileToken   = null;     // current valid token (single-use)
+    let __turnstileWidgetId = null;    // returned by turnstile.render()
+    function resetTurnstile() {
+      __turnstileToken = null;
+      if (__turnstileWidgetId !== null && window.turnstile) {
+        try { window.turnstile.reset(__turnstileWidgetId); } catch {}
+      }
+    }
+    // Poll briefly until the Turnstile global is loaded (the api.js script
+    // is async/defer so it may not be ready when this module runs). Render
+    // once, then cache the widget id for future resets.
+    function maybeRenderTurnstile() {
+      if (!TURNSTILE_SITE_KEY) return;
+      const $mount = document.getElementById("signup-turnstile");
+      if (!$mount) return;
+      if (__turnstileWidgetId !== null) return; // already rendered
+      if (!window.turnstile) {
+        // api.js still loading — retry in 200ms, bail after 5s.
+        const start = Date.now();
+        const poll = setInterval(() => {
+          if (window.turnstile) {
+            clearInterval(poll);
+            maybeRenderTurnstile();
+          } else if (Date.now() - start > 5000) {
+            clearInterval(poll);
+            console.warn("[turnstile] api.js never loaded — signups will proceed without captcha token (Supabase Auth will reject if it requires one)");
+          }
+        }, 200);
+        return;
+      }
+      $mount.hidden = false;
+      __turnstileWidgetId = window.turnstile.render("#signup-turnstile", {
+        sitekey:  TURNSTILE_SITE_KEY,
+        callback: (token) => { __turnstileToken = token; },
+        "error-callback":   () => { __turnstileToken = null; },
+        "expired-callback": () => { __turnstileToken = null; },
+        // "Managed" theme = Cloudflare auto-decides between invisible vs
+        // interactive based on signal. Lower friction for legitimate users
+        // than always-visible "I'm not a robot" checkbox.
+        theme: "auto",
+      });
+    }
+    // Fire on every view switch so the widget is ready the first time the
+    // user sees the signup form. showView("signup") triggers this through
+    // an onShow hook below; here we just kick it off once at boot in case
+    // the page loads directly on the signup view.
+    maybeRenderTurnstile();
+
     // ----- Handle validation + auto-suggest helpers -----
     const HANDLE_RE = /^[A-Za-z][A-Za-z0-9_]{2,19}$/;
 
@@ -5721,6 +5797,17 @@
         if (__trail && __trail.url) {
           __emailRedirectTo += "?returnTo=" + encodeURIComponent(__trail.url);
         }
+        // Gate: if Turnstile is configured (site key non-empty) and we
+        // don't have a valid token yet, refuse to proceed. The challenge
+        // widget might still be loading or the user might have ignored it.
+        // Reset and surface a clear error so they can re-engage.
+        if (TURNSTILE_SITE_KEY && !__turnstileToken) {
+          setBanner("signup", "Please complete the verification challenge before creating your account. Click 'I'm not a robot' (if shown) and try again.", "error");
+          maybeRenderTurnstile();
+          $signupBtn.disabled = false; $signupBtn.textContent = "Create account";
+          return;
+        }
+
         // Wrap signUp in authMinDelay so the "already exists" path (which
         // returns fast) can't be distinguished from a real signup via timing.
         // See anti-enumeration comment near authMinDelay declaration.
@@ -5735,10 +5822,23 @@
                 tos_version: tosVersion,
               },
               emailRedirectTo: __emailRedirectTo,
+              // captchaToken is consumed server-side by Supabase Auth
+              // against the secret key configured in dashboard. If the
+              // token is invalid/replayed/missing-when-required, Supabase
+              // returns an error and we fall through to the catch block.
+              // Pass undefined when no token so the field is omitted
+              // entirely (Supabase tolerates absence when the dashboard
+              // setting is OFF, which is the case during the migration
+              // period before Guy finishes the dashboard setup).
+              captchaToken: __turnstileToken || undefined,
             },
           }),
           1500
         );
+        // Turnstile tokens are single-use. Reset after every signUp attempt
+        // (success or failure) so a retry triggers a fresh challenge instead
+        // of replaying the same token.
+        resetTurnstile();
         if (error) throw error;
         // Welcome content now lives inside the Supabase "Confirm signup"
         // template, so we don't fire a separate welcome email anymore.
