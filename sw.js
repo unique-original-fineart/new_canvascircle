@@ -19,7 +19,7 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
-const CACHE_VERSION = 'cc-v167-turnstile-on-signin-and-forgot-too';
+const CACHE_VERSION = 'cc-v168-storage-quotas-and-video-mime-cap';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. Their URLs
