@@ -10202,6 +10202,16 @@
           })
           .eq("id", verification.id);
         if (error) throw error;
+        // Audit log — admin approved a verification video.
+        supabase.rpc("log_admin_action", {
+          p_action:       "approve_verification",
+          p_target_type:  "verification",
+          p_target_id:    String(verification.id),
+          p_target_label: verification.listings?.artwork_title || null,
+          p_after:        { status: "approved" },
+        }).then(({ error: logErr }) => {
+          if (logErr) console.warn("[audit] log_admin_action failed (non-fatal):", logErr);
+        });
         row.remove();
         await loadVerificationModQueue();  // re-render queue + count
         setAdminBanner(`Approved verification for "${verification.listings?.artwork_title || "listing"}".`, "success");
@@ -10234,6 +10244,18 @@
           })
           .eq("id", verification.id);
         if (error) throw error;
+        // Audit log — admin rejected a verification video. Notes capture
+        // the rejection reason shown to the seller.
+        supabase.rpc("log_admin_action", {
+          p_action:       "reject_verification",
+          p_target_type:  "verification",
+          p_target_id:    String(verification.id),
+          p_target_label: verification.listings?.artwork_title || null,
+          p_after:        { status: "rejected" },
+          p_notes:        trimmed || null,
+        }).then(({ error: logErr }) => {
+          if (logErr) console.warn("[audit] log_admin_action failed (non-fatal):", logErr);
+        });
         row.remove();
         await loadVerificationModQueue();
         setAdminBanner(`Rejected verification for "${verification.listings?.artwork_title || "listing"}".`, "success");
@@ -10352,6 +10374,18 @@
           p_reason:     trimmed,
         });
         if (error) throw error;
+        // Audit log — admin manually revoked an Ownership Verified badge.
+        // Reason is captured in notes (also persisted in the existing
+        // verification audit fields, but we mirror here for unified history).
+        supabase.rpc("log_admin_action", {
+          p_action:       "revoke_verification",
+          p_target_type:  "listing",
+          p_target_id:    String(listing.listing_id),
+          p_target_label: `${listing.artist_name || ""} — ${listing.artwork_title || ""}`.trim().replace(/^—\s*/, ""),
+          p_notes:        trimmed,
+        }).then(({ error: logErr }) => {
+          if (logErr) console.warn("[audit] log_admin_action failed (non-fatal):", logErr);
+        });
         row.remove();
         // Refresh the count + list, if no other verified listings exist,
         // the empty state surfaces correctly.
@@ -10947,6 +10981,21 @@
           .update(payload)
           .eq("listing_id", id);
         if (error) throw error;
+        // Audit log — append-only, admin-only readable. Fire-and-forget so
+        // a logging failure can't unwind an action that already committed.
+        // See migration 048 + [[security-hardening-checklist]] for the
+        // append-only-audit pattern. Same pattern in every admin action below.
+        supabase.rpc("log_admin_action", {
+          p_action:       decision === "approve" ? "approve_listing" : "reject_listing",
+          p_target_type:  "listing",
+          p_target_id:    String(id),
+          p_target_label: `${listing.artist_name || ""} — ${listing.artwork_title || ""}`.trim().replace(/^—\s*/, ""),
+          p_before:       { moderation_status: listing.moderation_status || null, status: listing.status || null },
+          p_after:        payload,
+          p_notes:        decision === "approve" ? null : (payload.moderation_reason || null),
+        }).then(({ error: logErr }) => {
+          if (logErr) console.warn("[audit] log_admin_action failed (non-fatal):", logErr);
+        });
         // On approve, fan out follow-notifications to anyone who follows
         // this seller or this artist. Fire-and-forget, failure must not
         // block the moderation UI. Skipped for reject paths.
@@ -11275,6 +11324,18 @@
           status_changed_at: new Date().toISOString(),
         }).eq("user_id", profile.user_id);
         if (error) throw error;
+        // Audit log — account status change is the most legally-significant
+        // admin action and must always be logged.
+        supabase.rpc("log_admin_action", {
+          p_action:       "suspend_account",
+          p_target_type:  "profile",
+          p_target_id:    String(profile.user_id),
+          p_target_label: profile.display_name || profile.handle || null,
+          p_before:       { account_status: profile.account_status || null },
+          p_after:        { account_status: "suspended" },
+        }).then(({ error: logErr }) => {
+          if (logErr) console.warn("[audit] log_admin_action failed (non-fatal):", logErr);
+        });
         setAdminBanner(`${profile.display_name || "Seller"} has been suspended.`, "success");
         await loadSellers();
       } catch (err) {
@@ -11321,6 +11382,20 @@
           status_changed_at: new Date().toISOString(),
         }).eq("user_id", profile.user_id);
         if (pErr) throw pErr;
+
+        // Audit log — ban is irreversible (in the listings-deleted sense),
+        // legally significant, and must always be in the audit trail.
+        // after_value notes how many listings were destroyed in the action.
+        supabase.rpc("log_admin_action", {
+          p_action:       "ban_account",
+          p_target_type:  "profile",
+          p_target_id:    String(profile.user_id),
+          p_target_label: profile.display_name || profile.handle || null,
+          p_before:       { account_status: profile.account_status || null, is_trusted: profile.is_trusted || false },
+          p_after:        { account_status: "banned", is_trusted: false, listings_deleted: ls?.length || 0 },
+        }).then(({ error: logErr }) => {
+          if (logErr) console.warn("[audit] log_admin_action failed (non-fatal):", logErr);
+        });
 
         setAdminBanner(`${profile.display_name || "Seller"} has been banned and all their listings removed.`, "success");
         await loadSellers();
@@ -11538,6 +11613,18 @@
           status_changed_at: new Date().toISOString(),
         }).eq("user_id", profile.user_id);
         if (error) throw error;
+        // Audit log — reinstate is the inverse of suspend/ban. Keep the
+        // log so the full account-status timeline is reconstructible.
+        supabase.rpc("log_admin_action", {
+          p_action:       "reinstate_account",
+          p_target_type:  "profile",
+          p_target_id:    String(profile.user_id),
+          p_target_label: profile.display_name || profile.handle || null,
+          p_before:       { account_status: profile.account_status || null },
+          p_after:        { account_status: "active" },
+        }).then(({ error: logErr }) => {
+          if (logErr) console.warn("[audit] log_admin_action failed (non-fatal):", logErr);
+        });
         setAdminBanner(`${profile.display_name || "Seller"} has been reinstated.`, "success");
         await loadSellers();
       } catch (err) {
@@ -11560,6 +11647,20 @@
           .update({ is_trusted: newValue, is_trusted_locked: true })
           .eq("user_id", profile.user_id);
         if (error) throw error;
+        // Audit log — manual is_trusted toggle is the direct-promotion
+        // path to Established Member status. Captured separately from the
+        // auto-promotion-trigger flips so the timeline distinguishes admin
+        // intervention from criteria-met auto-promotions.
+        supabase.rpc("log_admin_action", {
+          p_action:       newValue ? "grant_established" : "revoke_established",
+          p_target_type:  "profile",
+          p_target_id:    String(profile.user_id),
+          p_target_label: profile.display_name || profile.handle || null,
+          p_before:       { is_trusted: profile.is_trusted || false, is_trusted_locked: profile.is_trusted_locked || false },
+          p_after:        { is_trusted: newValue, is_trusted_locked: true },
+        }).then(({ error: logErr }) => {
+          if (logErr) console.warn("[audit] log_admin_action failed (non-fatal):", logErr);
+        });
         profile.is_trusted = newValue;
         profile.is_trusted_locked = true;
         setAdminBanner(
@@ -11595,6 +11696,19 @@
           p_user_id: profile.user_id,
         });
         if (error) throw error;
+        // Audit log — releasing the trusted lock lets the auto-promotion
+        // trigger reevaluate. Capture what the post-reset state ended up
+        // being in after_value (data is the trigger's new is_trusted value).
+        supabase.rpc("log_admin_action", {
+          p_action:       "reset_trusted_lock",
+          p_target_type:  "profile",
+          p_target_id:    String(profile.user_id),
+          p_target_label: profile.display_name || profile.handle || null,
+          p_before:       { is_trusted_locked: true },
+          p_after:        { is_trusted_locked: false, is_trusted: !!data },
+        }).then(({ error: logErr }) => {
+          if (logErr) console.warn("[audit] log_admin_action failed (non-fatal):", logErr);
+        });
         profile.is_trusted_locked = false;
         profile.is_trusted = !!data;
         setAdminBanner(
