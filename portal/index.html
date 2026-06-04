@@ -5527,6 +5527,16 @@
       window.location.reload();
     });
 
+    // Anti-enumeration: keep auth-failure responses uniform AND not faster than
+    // ~1.2s. A timing side-channel (fast-fail vs slow-success) is otherwise a
+    // weaker but still real way to probe whether an email is registered.
+    // Wraps a promise so it never resolves before the floor elapses.
+    async function authMinDelay(promise, floorMs = 1200) {
+      const floor = new Promise((r) => setTimeout(r, floorMs));
+      const [result] = await Promise.all([promise, floor]);
+      return result;
+    }
+
     $signinForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       clearBanner("signin");
@@ -5542,10 +5552,12 @@
       );
 
       try {
-        const result = await Promise.race([
-          supabase.auth.signInWithPassword({ email, password }),
-          timeout,
-        ]);
+        const result = await authMinDelay(
+          Promise.race([
+            supabase.auth.signInWithPassword({ email, password }),
+            timeout,
+          ])
+        );
         console.log("[signin] result:", result);
         if (result?.error) throw result.error;
         // onAuthStateChange will flip to the account view.
@@ -5559,7 +5571,17 @@
           );
           $signinResetBtn.hidden = false;
         } else {
-          setBanner("signin", err.message || "Could not sign in.", "error");
+          // ANTI-ENUMERATION: always surface the same generic message regardless
+          // of whether the email exists, the password is wrong, or some other
+          // auth failure happened. Supabase already returns the same error
+          // string for invalid-email vs invalid-password (so this is mostly
+          // belt-and-suspenders), but locking it in here means any future
+          // Supabase error variations won't leak account existence either.
+          setBanner(
+            "signin",
+            "The email or password you entered didn't match. Try again, or use 'Forgot your password?' if you don't remember it.",
+            "error"
+          );
         }
       } finally {
         $signinBtn.disabled = false; $signinBtn.textContent = "Sign in";
@@ -5699,18 +5721,24 @@
         if (__trail && __trail.url) {
           __emailRedirectTo += "?returnTo=" + encodeURIComponent(__trail.url);
         }
-        const { data, error } = await supabase.auth.signUp({
-          email, password,
-          options: {
-            data: {
-              display_name: name,
-              handle: handle,
-              tos_accepted_at: tosAcceptedAt,
-              tos_version: tosVersion,
+        // Wrap signUp in authMinDelay so the "already exists" path (which
+        // returns fast) can't be distinguished from a real signup via timing.
+        // See anti-enumeration comment near authMinDelay declaration.
+        const { data, error } = await authMinDelay(
+          supabase.auth.signUp({
+            email, password,
+            options: {
+              data: {
+                display_name: name,
+                handle: handle,
+                tos_accepted_at: tosAcceptedAt,
+                tos_version: tosVersion,
+              },
+              emailRedirectTo: __emailRedirectTo,
             },
-            emailRedirectTo: __emailRedirectTo,
-          },
-        });
+          }),
+          1500
+        );
         if (error) throw error;
         // Welcome content now lives inside the Supabase "Confirm signup"
         // template, so we don't fire a separate welcome email anymore.
@@ -5730,16 +5758,41 @@
           showView("signin");
           setBanner(
             "signin",
-            "Almost done, check your email and click the confirmation link to finish creating your account. Then sign in here.",
+            "Almost done. If that email isn't already registered, we sent a confirmation link. Click it, then sign in here. If you've signed up before, use 'Forgot your password?' below.",
             "success"
           );
         }
       } catch (err) {
         console.error(err);
         const msg = (err.message || "").toLowerCase();
+        // ANTI-ENUMERATION: existing-account is the classic email-enumeration
+        // leak vector ("Try signing in or reset your password" tells an
+        // attacker the email IS registered). Show the SAME generic banner
+        // we'd show a successful signup. The legit user who's already
+        // registered will check their email, find nothing new, and either
+        // try sign-in or forgot-password (the wording hints at both paths
+        // without confirming the account exists). The form gets reset and
+        // the view switches to sign-in either way, so the visible behavior
+        // is identical to a real signup. Future improvement: trigger a
+        // "you already have an account on CC" reminder email via send-email
+        // edge fn for the existing-account case so legit users still get
+        // useful guidance via email without leaking the signal in the UI.
         if (msg.includes("already registered") || msg.includes("user already")) {
-          setBanner("signup", "An account with this email already exists. Try signing in or reset your password.", "error");
+          $signupForm.reset();
+          clearBanner("signup");
+          showView("signin");
+          setBanner(
+            "signin",
+            "Almost done. If that email isn't already registered, we sent a confirmation link. Click it, then sign in here. If you've signed up before, use 'Forgot your password?' below.",
+            "success"
+          );
         } else {
+          // Other errors (network, banned-credential check, validation): keep
+          // surfacing the actual message. Banned-credentials specifically does
+          // tell the user "this email cannot be used" which is a small
+          // enumeration vector against the denylist, but the denylist is
+          // small + targeted + low-volume, so the trade-off favors clarity
+          // for the legit affected user. Revisit if denylist grows.
           setBanner("signup", err.message || "Could not create the account.", "error");
         }
       } finally {
@@ -5757,20 +5810,33 @@
       clearBanner("forgot");
       const email = document.getElementById("forgot-email").value.trim();
       $forgotBtn.disabled = true; $forgotBtn.textContent = "Sending…";
+      // ANTI-ENUMERATION: always show the same "if registered, check your
+      // email" message regardless of whether the email exists or what error
+      // came back. Supabase's resetPasswordForEmail doesn't reveal existence
+      // by default (it returns success either way), so the upstream behavior
+      // is already enumeration-safe, but we lock the UI behavior in too so
+      // any future SDK error variations (rate limit hit, malformed email,
+      // etc.) can't leak the signal either. Log errors to console only.
+      // authMinDelay floor keeps the response time uniform.
       try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin + "/portal/",
-        });
-        if (error) throw error;
+        const { error } = await authMinDelay(
+          supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + "/portal/",
+          })
+        );
+        if (error) console.warn("[forgot] error (silenced):", error);
+      } catch (err) {
+        console.warn("[forgot] error (silenced):", err);
+      } finally {
+        // Same banner whether the call succeeded, failed, or the email
+        // doesn't match any account. Use generic copy: "if this email is
+        // registered" so the legit user gets correct guidance without
+        // confirming registration to an attacker.
         setBanner(
           "forgot",
-          "Check your email for a link to set your password. After clicking it, you'll come back here to choose a new one.",
+          "If that email is registered on CanvasCircle, a password-reset link is on its way. Check your inbox (and spam folder). After clicking the link you'll come back here to choose a new password.",
           "success"
         );
-      } catch (err) {
-        console.error(err);
-        setBanner("forgot", err.message || "Could not send the reset link.", "error");
-      } finally {
         $forgotBtn.disabled = false; $forgotBtn.textContent = "Send reset link";
       }
     });
