@@ -3865,6 +3865,10 @@
               <button type="button" class="pw-toggle" data-target="signin-password">Show</button>
             </div>
           </div>
+          <!-- Cloudflare Turnstile mount. Supabase's CAPTCHA toggle applies
+               to signInWithPassword (not just signUp), so signin needs its
+               own widget + token. Hidden until JS renders it. -->
+          <div id="signin-turnstile" class="field turnstile-field" hidden></div>
           <button type="submit" class="primary" id="signin-btn">Sign in</button>
         </form>
 
@@ -3956,6 +3960,9 @@
             <label for="forgot-email">Email</label>
             <input type="email" id="forgot-email" required autocomplete="email" />
           </div>
+          <!-- Cloudflare Turnstile mount. Supabase's CAPTCHA toggle covers
+               resetPasswordForEmail too, so forgot needs its own widget. -->
+          <div id="forgot-turnstile" class="field turnstile-field" hidden></div>
           <button type="submit" class="primary" id="forgot-btn">Send reset link</button>
         </form>
 
@@ -5564,13 +5571,29 @@
         setTimeout(() => reject(new Error("TIMEOUT")), TIMEOUT_MS)
       );
 
+      // Gate: same Turnstile pattern as signup. Supabase's CAPTCHA toggle
+      // covers signInWithPassword too, so we need a token here when the
+      // dashboard setting is on.
+      if (TURNSTILE_SITE_KEY && !turnstileTokenFor("signin")) {
+        setBanner("signin", "Please complete the verification challenge before signing in. Click 'I'm not a robot' (if shown) and try again.", "error");
+        renderTurnstileFor("signin");
+        $signinBtn.disabled = false; $signinBtn.textContent = "Sign in";
+        return;
+      }
+
       try {
         const result = await authMinDelay(
           Promise.race([
-            supabase.auth.signInWithPassword({ email, password }),
+            supabase.auth.signInWithPassword({
+              email, password,
+              options: { captchaToken: turnstileTokenFor("signin") || undefined },
+            }),
             timeout,
           ])
         );
+        // Turnstile tokens are single-use. Reset after every signin attempt
+        // so a retry (wrong-password case) triggers a fresh challenge.
+        resetTurnstile("signin");
         console.log("[signin] result:", result);
         if (result?.error) throw result.error;
         // onAuthStateChange will flip to the account view.
@@ -5611,67 +5634,75 @@
     const $signupHandleHint = document.getElementById("signup-handle-hint");
 
     // ---------------------------------------------------------------------
-    // Cloudflare Turnstile — bot-signup defense.
+    // Cloudflare Turnstile — bot defense on signup, signin, and forgot.
     // ---------------------------------------------------------------------
-    // Renders an invisible-or-managed challenge widget in #signup-turnstile.
-    // The widget calls back with a captcha token, which we then pass to
-    // supabase.auth.signUp via options.captchaToken. Supabase Auth verifies
-    // the token against Cloudflare's siteverify API (using the SECRET KEY
-    // configured in Supabase dashboard → Auth → CAPTCHA Provider) and
-    // refuses the signup if the token is invalid or replayed.
+    // Supabase's "Enable CAPTCHA Protection" toggle applies to ALL auth
+    // endpoints, not just signUp: signInWithPassword, resetPasswordForEmail,
+    // signInWithOtp, and verifyOtp all require a captchaToken when the
+    // setting is on. So we need a Turnstile widget on every form that hits
+    // one of those endpoints, otherwise that flow breaks the moment the
+    // dashboard toggle is enabled.
     //
-    // If TURNSTILE_SITE_KEY is empty (initial state before Guy finishes the
-    // Cloudflare + Supabase dashboard setup), this entire system no-ops:
-    // the widget mount div stays hidden, no token is collected, and signups
-    // go through without one. Once the site key is set, the widget appears
-    // and the signup flow requires a passing token.
-    let __turnstileToken   = null;     // current valid token (single-use)
-    let __turnstileWidgetId = null;    // returned by turnstile.render()
-    function resetTurnstile() {
-      __turnstileToken = null;
-      if (__turnstileWidgetId !== null && window.turnstile) {
-        try { window.turnstile.reset(__turnstileWidgetId); } catch {}
+    // Architecture: three independent widgets keyed by form name. Each form
+    // has its own mount div, captures its own token, resets independently
+    // after each submit (tokens are single-use). The same TURNSTILE_SITE_KEY
+    // is used for all three — Supabase doesn't care which form issued the
+    // token, it just verifies the token is valid against the secret key.
+    //
+    // If TURNSTILE_SITE_KEY is empty, the entire system no-ops: no widgets
+    // render, no tokens collected, and the auth calls pass undefined for
+    // captchaToken (Supabase tolerates absence when the dashboard toggle
+    // is OFF). Useful for the migration period before the dashboard side
+    // is configured.
+    const TURNSTILE_FORMS = {
+      signin: { mount: "#signin-turnstile", token: null, widgetId: null },
+      signup: { mount: "#signup-turnstile", token: null, widgetId: null },
+      forgot: { mount: "#forgot-turnstile", token: null, widgetId: null },
+    };
+    function turnstileTokenFor(form) {
+      return TURNSTILE_FORMS[form]?.token ?? null;
+    }
+    function resetTurnstile(form) {
+      const entry = TURNSTILE_FORMS[form];
+      if (!entry) return;
+      entry.token = null;
+      if (entry.widgetId !== null && window.turnstile) {
+        try { window.turnstile.reset(entry.widgetId); } catch {}
       }
     }
-    // Poll briefly until the Turnstile global is loaded (the api.js script
-    // is async/defer so it may not be ready when this module runs). Render
-    // once, then cache the widget id for future resets.
-    function maybeRenderTurnstile() {
+    function renderTurnstileFor(form) {
       if (!TURNSTILE_SITE_KEY) return;
-      const $mount = document.getElementById("signup-turnstile");
+      const entry = TURNSTILE_FORMS[form];
+      if (!entry) return;
+      const $mount = document.querySelector(entry.mount);
       if (!$mount) return;
-      if (__turnstileWidgetId !== null) return; // already rendered
+      if (entry.widgetId !== null) return; // already rendered
       if (!window.turnstile) {
         // api.js still loading — retry in 200ms, bail after 5s.
         const start = Date.now();
         const poll = setInterval(() => {
           if (window.turnstile) {
             clearInterval(poll);
-            maybeRenderTurnstile();
+            renderTurnstileFor(form);
           } else if (Date.now() - start > 5000) {
             clearInterval(poll);
-            console.warn("[turnstile] api.js never loaded — signups will proceed without captcha token (Supabase Auth will reject if it requires one)");
+            console.warn(`[turnstile] api.js never loaded — ${form} will proceed without captcha token (Supabase Auth will reject if it requires one)`);
           }
         }, 200);
         return;
       }
       $mount.hidden = false;
-      __turnstileWidgetId = window.turnstile.render("#signup-turnstile", {
+      entry.widgetId = window.turnstile.render(entry.mount, {
         sitekey:  TURNSTILE_SITE_KEY,
-        callback: (token) => { __turnstileToken = token; },
-        "error-callback":   () => { __turnstileToken = null; },
-        "expired-callback": () => { __turnstileToken = null; },
-        // "Managed" theme = Cloudflare auto-decides between invisible vs
-        // interactive based on signal. Lower friction for legitimate users
-        // than always-visible "I'm not a robot" checkbox.
+        callback: (token) => { entry.token = token; },
+        "error-callback":   () => { entry.token = null; },
+        "expired-callback": () => { entry.token = null; },
         theme: "auto",
       });
     }
-    // Fire on every view switch so the widget is ready the first time the
-    // user sees the signup form. showView("signup") triggers this through
-    // an onShow hook below; here we just kick it off once at boot in case
-    // the page loads directly on the signup view.
-    maybeRenderTurnstile();
+    // Render all three at boot so the widgets are ready regardless of
+    // which view the user lands on first.
+    ["signin", "signup", "forgot"].forEach(renderTurnstileFor);
 
     // ----- Handle validation + auto-suggest helpers -----
     const HANDLE_RE = /^[A-Za-z][A-Za-z0-9_]{2,19}$/;
@@ -5801,9 +5832,9 @@
         // don't have a valid token yet, refuse to proceed. The challenge
         // widget might still be loading or the user might have ignored it.
         // Reset and surface a clear error so they can re-engage.
-        if (TURNSTILE_SITE_KEY && !__turnstileToken) {
+        if (TURNSTILE_SITE_KEY && !turnstileTokenFor("signup")) {
           setBanner("signup", "Please complete the verification challenge before creating your account. Click 'I'm not a robot' (if shown) and try again.", "error");
-          maybeRenderTurnstile();
+          renderTurnstileFor("signup");
           $signupBtn.disabled = false; $signupBtn.textContent = "Create account";
           return;
         }
@@ -5830,7 +5861,7 @@
               // entirely (Supabase tolerates absence when the dashboard
               // setting is OFF, which is the case during the migration
               // period before Guy finishes the dashboard setup).
-              captchaToken: __turnstileToken || undefined,
+              captchaToken: turnstileTokenFor("signup") || undefined,
             },
           }),
           1500
@@ -5838,7 +5869,7 @@
         // Turnstile tokens are single-use. Reset after every signUp attempt
         // (success or failure) so a retry triggers a fresh challenge instead
         // of replaying the same token.
-        resetTurnstile();
+        resetTurnstile("signup");
         if (error) throw error;
         // Welcome content now lives inside the Supabase "Confirm signup"
         // template, so we don't fire a separate welcome email anymore.
@@ -5918,16 +5949,28 @@
       // any future SDK error variations (rate limit hit, malformed email,
       // etc.) can't leak the signal either. Log errors to console only.
       // authMinDelay floor keeps the response time uniform.
+      // Gate: same Turnstile pattern as signup/signin. Supabase's CAPTCHA
+      // toggle covers resetPasswordForEmail too.
+      if (TURNSTILE_SITE_KEY && !turnstileTokenFor("forgot")) {
+        setBanner("forgot", "Please complete the verification challenge before requesting a reset link. Click 'I'm not a robot' (if shown) and try again.", "error");
+        renderTurnstileFor("forgot");
+        $forgotBtn.disabled = false; $forgotBtn.textContent = "Send reset link";
+        return;
+      }
       try {
         const { error } = await authMinDelay(
           supabase.auth.resetPasswordForEmail(email, {
             redirectTo: window.location.origin + "/portal/",
+            captchaToken: turnstileTokenFor("forgot") || undefined,
           })
         );
         if (error) console.warn("[forgot] error (silenced):", error);
       } catch (err) {
         console.warn("[forgot] error (silenced):", err);
       } finally {
+        // Always reset the forgot Turnstile token regardless of outcome
+        // (consistent with anti-enumeration: same behavior every time).
+        resetTurnstile("forgot");
         // Same banner whether the call succeeded, failed, or the email
         // doesn't match any account. Use generic copy: "if this email is
         // registered" so the legit user gets correct guidance without
