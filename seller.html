@@ -690,7 +690,7 @@
   </footer>
 
   <script type="module">
-    import { supabase, publicImageUrl, loadBlockFilter, isBlockedUid, clearBlockFilterCache, currentUser } from "/lib/supabase.js?v=3";
+    import { supabase, publicImageUrl, loadBlockFilter, isBlockedUid, clearBlockFilterCache, currentUser, getMyContactEmail } from "/lib/supabase.js?v=4";
     import { getCurrentUserSaves, toggleSave } from "/lib/saves.js";
     import { showAuthPrompt } from "/lib/auth-prompt.js";
     import { armReturnTrail } from "/lib/return-trail.js";
@@ -1673,11 +1673,12 @@
       $cSend.disabled = false; $cSend.textContent = "Send";
 
       // Load buyer's contact email for the Reply-To attribution note.
+      // As of migration 050 the column is revoked from authenticated;
+      // route through the SECURITY DEFINER helper RPC for owner-self-read.
       let buyerEmail = user.email || "";
       try {
-        const { data: prof } = await supabase
-          .from("profiles").select("contact_email").eq("user_id", user.id).single();
-        if (prof?.contact_email) buyerEmail = prof.contact_email;
+        const fromRpc = await getMyContactEmail();
+        if (fromRpc) buyerEmail = fromRpc;
       } catch {}
       $cReply.textContent = `${displayName}'s reply will come to ${buyerEmail}.`;
 

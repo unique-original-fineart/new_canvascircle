@@ -5410,7 +5410,7 @@
   </footer>
 
   <script type="module">
-    import { supabase, currentProfile, publicImageUrl, compressImage, clearBlockFilterCache } from "/lib/supabase.js?v=3";
+    import { supabase, currentProfile, publicImageUrl, compressImage, clearBlockFilterCache, getMyContactEmail, getContactEmailsAsAdmin } from "/lib/supabase.js?v=4";
     import { TURNSTILE_SITE_KEY } from "/lib/config.js";
     import { getSavedListings, toggleSave, clearSavesCache } from "/lib/saves.js";
     import { readReturnTrail } from "/lib/return-trail.js";
@@ -8341,7 +8341,12 @@
       const userIds = [...new Set(rows.map(r => r.user_id))];
       const { data: profs, error: profErr } = await supabase
         .from("profiles")
-        .select("user_id, display_name, handle, contact_email, facebook_profile_url, is_trusted")
+        // ANTI-SCRAPING: contact_email is REVOKED at the column level
+        // (migration 050). We now use has_contact_email to know whether
+        // to show the Email affordance. The actual email never reaches
+        // the client — sellers wanting to email a saver navigate to the
+        // saver's seller page and use the in-platform contact modal there.
+        .select("user_id, display_name, handle, has_contact_email, facebook_profile_url, is_trusted")
         .in("user_id", userIds);
 
       if (profErr) {
@@ -8351,13 +8356,12 @@
       }
       const profByUser = Object.fromEntries((profs || []).map(p => [p.user_id, p]));
 
-      const subj = encodeURIComponent(`CanvasCircle, ${listing.artist_name || "your saved listing"}`);
       const items = rows.map(r => {
-        const p      = profByUser[r.user_id] || {};
-        const name   = p.display_name || "Someone";
-        const handle = p.handle || "";
-        const email  = p.contact_email || "";
-        const fb     = p.facebook_profile_url || "";
+        const p          = profByUser[r.user_id] || {};
+        const name       = p.display_name || "Someone";
+        const handle     = p.handle || "";
+        const hasEmail   = !!p.has_contact_email;
+        const fb         = p.facebook_profile_url || "";
         const isTrusted = !!p.is_trusted;
         const date   = r.created_at
           ? new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
@@ -8373,8 +8377,12 @@
         const fbBtnHtml = fb
           ? `<a class="saver-action" href="${escapeHtml(fb)}" target="_blank" rel="noopener">Message on Facebook</a>`
           : `<span class="saver-action disabled" title="This collector hasn't shared a Facebook URL.">No Facebook</span>`;
-        const emailBtnHtml = email
-          ? `<a class="saver-action" href="mailto:${escapeHtml(email)}?subject=${subj}">Email</a>`
+        // ANTI-SCRAPING (cc-v173): the Email action used to be a mailto:
+        // link with the saver's address embedded. Now it points to their
+        // public seller page where the in-platform contact modal lives
+        // (Email this collector). The email never reaches the client.
+        const emailBtnHtml = (hasEmail && handle)
+          ? `<a class="saver-action" href="/seller?handle=${encodeURIComponent(handle)}" target="_blank" rel="noopener" title="Open this collector's page to message them">Email</a>`
           : `<span class="saver-action disabled" title="This collector hasn't shared a contact email.">No email</span>`;
 
         return `
@@ -8435,14 +8443,14 @@
       }
 
       // 2) profiles for those user_ids (in one batch). Sellers see the
-      // saver's display name + contact email + Facebook profile URL so they
-      // can reach out directly, similar to how Facebook reveals "who liked
-      // your post." Buyers' account email and password are still private —
-      // contact_email is the public-facing field they chose to publish.
+      // saver's display name + Facebook link + a link to their public seller
+      // page. The actual email is no longer transmitted to the client (cc-v173
+      // / migration 050); sellers wanting to email a saver navigate to that
+      // person's seller page and use the in-platform contact modal there.
       const userIds = [...new Set(rows.map(r => r.user_id))];
       const { data: profs, error: profErr } = await supabase
         .from("profiles")
-        .select("user_id, display_name, contact_email, facebook_profile_url")
+        .select("user_id, display_name, handle, has_contact_email, facebook_profile_url")
         .in("user_id", userIds);
       if (profErr) {
         setContent(`<span class="small">Couldn't load: ${escapeHtml(profErr.message || profErr)}</span>`);
@@ -8451,17 +8459,17 @@
       const profByUser = Object.fromEntries((profs || []).map(p => [p.user_id, p]));
 
       const items = rows.map(r => {
-        const p     = profByUser[r.user_id] || {};
-        const name  = p.display_name || "Someone";
-        const email = p.contact_email || "";
-        const fb    = p.facebook_profile_url || "";
+        const p        = profByUser[r.user_id] || {};
+        const name     = p.display_name || "Someone";
+        const handle   = p.handle || "";
+        const hasEmail = !!p.has_contact_email;
+        const fb       = p.facebook_profile_url || "";
         const date  = r.created_at
           ? new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
           : "";
         const links = [];
-        if (email) {
-          const subj = encodeURIComponent(`CanvasCircle, ${listing.artist_name || "your saved listing"}`);
-          links.push(`<a href="mailto:${escapeHtml(email)}?subject=${subj}" class="saver-link">Email</a>`);
+        if (hasEmail && handle) {
+          links.push(`<a href="/seller?handle=${encodeURIComponent(handle)}" target="_blank" rel="noopener" class="saver-link" title="Open this collector's page to message them">Email</a>`);
         }
         if (fb) {
           links.push(`<a href="${escapeHtml(fb)}" target="_blank" rel="noopener" class="saver-link">Facebook</a>`);
@@ -9947,13 +9955,24 @@
       }
       $empty.hidden = true;
 
-      // 2) Reporter display names (one batch query).
+      // 2) Reporter display names (one batch query). Emails come from a
+      // separate admin RPC because contact_email is column-revoked from
+      // authenticated as of migration 050. Admin gets access via
+      // admin_get_contact_emails (gated by public.is_admin()).
       const reporterIds = [...new Set(rows.map(r => r.reporter_id))];
       const { data: reporterProfiles } = await supabase
         .from("profiles")
-        .select("user_id, display_name, contact_email")
+        .select("user_id, display_name")
         .in("user_id", reporterIds);
       const reporterByUser = Object.fromEntries((reporterProfiles || []).map(p => [p.user_id, p]));
+
+      // Batch-fetch emails for the admin queue. If the helper returns
+      // empty (RPC error, network blip), the rows just render without
+      // emails — degraded UX but not broken.
+      const emailMap = await getContactEmailsAsAdmin(reporterIds);
+      for (const r of reporterProfiles || []) {
+        if (emailMap.has(r.user_id)) r.contact_email = emailMap.get(r.user_id);
+      }
 
       const frag = document.createDocumentFragment();
       rows.forEach(r => frag.appendChild(renderReportRow(r, reporterByUser[r.reporter_id])));
@@ -10104,7 +10123,7 @@
           listings (
             listing_id, artist_name, artwork_title, artwork_category,
             listing_images ( storage_path, position ),
-            profiles!listings_seller_id_fkey ( user_id, display_name, handle, contact_email )
+            profiles!listings_seller_id_fkey ( user_id, display_name, handle )
           )
         `)
         .eq("status", "pending")
@@ -10118,6 +10137,16 @@
       const rows = data || [];
       $vermodCount.textContent = rows.length ? `(${rows.length})` : "";
       if (!rows.length) { $vermodEmpty.hidden = false; return; }
+
+      // Batch-load seller emails for the admin queue via the SECURITY
+      // DEFINER helper (admin_get_contact_emails) since contact_email
+      // is column-revoked at the DB level as of migration 050.
+      const sellerIds = [...new Set(rows.map(r => r.listings?.profiles?.user_id).filter(Boolean))];
+      const emailMap = await getContactEmailsAsAdmin(sellerIds);
+      for (const r of rows) {
+        const sp = r.listings?.profiles;
+        if (sp && emailMap.has(sp.user_id)) sp.contact_email = emailMap.get(sp.user_id);
+      }
 
       const frag = document.createDocumentFragment();
       for (const r of rows) frag.appendChild(renderVerificationModRow(r));
@@ -10573,7 +10602,7 @@
         .select(`
           listing_id, artist_name, artwork_title, status, last_renewed_at, created_at,
           listing_images ( storage_path, position ),
-          profiles!listings_seller_id_fkey ( display_name, contact_email )
+          profiles!listings_seller_id_fkey ( user_id, display_name )
         `)
         .or(`status.eq.not_renewed,and(status.eq.available,last_renewed_at.lt.${warnSinceISO})`)
         .order("last_renewed_at", { ascending: true });
@@ -10585,6 +10614,13 @@
       const rows = data || [];
       $expiringCount.textContent = rows.length ? `(${rows.length})` : "";
       if (!rows.length) { $expiringEmpty.hidden = false; return; }
+      // Batch-load seller emails for the admin queue (migration 050).
+      const sellerIds = [...new Set(rows.map(r => r.profiles?.user_id).filter(Boolean))];
+      const emailMap = await getContactEmailsAsAdmin(sellerIds);
+      for (const r of rows) {
+        const sp = r.profiles;
+        if (sp && emailMap.has(sp.user_id)) sp.contact_email = emailMap.get(sp.user_id);
+      }
       const frag = document.createDocumentFragment();
       for (const l of rows) frag.appendChild(renderExpiringRow(l));
       $expiringList.appendChild(frag);
@@ -10702,7 +10738,7 @@
           open_to_trade, trade_looking_for,
           listing_images ( storage_path, position ),
           listing_verifications ( id, status, submitted_at ),
-          profiles!listings_seller_id_fkey ( display_name, handle, contact_email, is_trusted )
+          profiles!listings_seller_id_fkey ( user_id, display_name, handle, is_trusted )
         `)
         .eq("moderation_status", "pending")
         .order("created_at", { ascending: true });
@@ -10710,6 +10746,13 @@
       if (error) {
         setAdminBanner("Could not load moderation queue: " + (error.message || error), "error");
         return;
+      }
+      // Batch-load seller emails for the moderation queue (migration 050).
+      const __modSellerIds = [...new Set((data || []).map(r => r.profiles?.user_id).filter(Boolean))];
+      const __modEmailMap = await getContactEmailsAsAdmin(__modSellerIds);
+      for (const r of (data || [])) {
+        const sp = r.profiles;
+        if (sp && __modEmailMap.has(sp.user_id)) sp.contact_email = __modEmailMap.get(sp.user_id);
       }
       const rows = data || [];
       $modCount.textContent = rows.length ? `(${rows.length})` : "";
@@ -11033,7 +11076,7 @@
       const { data, error } = await supabase
         .from("profiles")
         .select(`
-          user_id, display_name, handle, contact_email, location,
+          user_id, display_name, handle, has_contact_email, location,
           is_trusted, is_trusted_locked, is_admin, account_status, created_at,
           facebook_profile_url, about_text,
           pending_display_name, pending_display_name_at,
@@ -11054,6 +11097,13 @@
           .eq("seller_id", p.user_id)
           .then(r => r.count || 0)
       ));
+      // Batch-load contact emails for the admin sellers list (migration
+      // 050 revoked the column from authenticated, admin reads them via
+      // the SECURITY DEFINER helper).
+      const __sellersEmailMap = await getContactEmailsAsAdmin(rows.map(p => p.user_id));
+      for (const p of rows) {
+        if (__sellersEmailMap.has(p.user_id)) p.contact_email = __sellersEmailMap.get(p.user_id);
+      }
       const frag = document.createDocumentFragment();
       rows.forEach((p, i) => frag.appendChild(renderSellerRow(p, counts[i])));
       $sellersList.appendChild(frag);
@@ -12194,6 +12244,11 @@
         return;
       }
       if (!profile) return;
+      // Owner's own contact_email lives on the snapshot. As of migration
+      // 050 the column is REVOKED at the database level, so the direct
+      // SELECT in currentProfile() now returns null/undefined for this
+      // field. Read it via the SECURITY DEFINER helper instead.
+      const myEmail = await getMyContactEmail();
       profileSnapshot = {
         display_name:         profile.display_name         || "",
         handle:               profile.handle               || "",
@@ -12201,7 +12256,7 @@
         location:             profile.location             || "",
         shipping_zip:         profile.shipping_zip         || "",
         about_text:           profile.about_text           || "",
-        contact_email:        profile.contact_email        || "",
+        contact_email:        myEmail                      || "",
         preferred_contact:    profile.preferred_contact    || "either",
       };
       fillProfileFromSnapshot();
