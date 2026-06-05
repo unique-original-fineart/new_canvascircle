@@ -19,21 +19,17 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
-const CACHE_VERSION = 'cc-v169-admin-audit-log';
+const CACHE_VERSION = 'cc-v170-self-hosted-vendor-libs';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
-// Cross-origin hostnames whose responses we cache aggressively. Their URLs
-// are version-pinned (e.g. esm.sh/@supabase/supabase-js@2) so the response
-// at a given URL never changes meaningfully. Caching them eliminates the
-// #1 cold-start hang: when iOS launches the PWA on weak cell signal, the
-// supabase-js library import would otherwise block ALL JavaScript on the
-// page until that network fetch completed. Cache-first means the second
-// (and every subsequent) cold start serves the library instantly.
+// Cross-origin hostnames whose responses we cache aggressively. As of
+// cc-v170 the only cross-origin script we load is Cloudflare Turnstile's
+// challenge widget (challenges.cloudflare.com); the JS libraries that
+// were previously imported from esm.sh + cdn.jsdelivr.net are now
+// self-hosted under /vendor/ for supply-chain safety. See lib/supabase.js
+// header for the rationale.
 const CROSS_ORIGIN_CACHE_HOSTS = new Set([
-  'esm.sh',
-  'cdn.jsdelivr.net',
-  'cdnjs.cloudflare.com',
-  'unpkg.com',
+  'challenges.cloudflare.com',
 ]);
 const SHELL_ASSETS = [
   '/',
@@ -65,27 +61,25 @@ const SHELL_ASSETS = [
   '/lib/install-prompt.js',
   '/lib/nav-auth.js?v=13',
   '/lib/video-compression.js',
+  // Self-hosted third-party libs (as of cc-v170). See lib/supabase.js
+  // header comment for the supply-chain rationale. ?v=1 cache-bust
+  // string must match the importers in lib/supabase.js + portal/index.html.
+  '/vendor/supabase-js-v2.esm.js?v=1',
+  '/vendor/chart-4.4.0.umd.min.js?v=1',
+  '/vendor/sortable-1.15.2.min.js?v=1',
+  '/vendor/jszip-3.10.1.min.js?v=1',
 ];
-
-const SUPABASE_LIB_URL = 'https://esm.sh/@supabase/supabase-js@2?bundle';
-const CHARTJS_LIB_URL  = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then((cache) =>
-      Promise.all([
-        ...SHELL_ASSETS.map((url) =>
+      Promise.all(
+        SHELL_ASSETS.map((url) =>
           fetch(new Request(url, { cache: 'reload' }))
             .then((res) => (res.ok ? cache.put(url, res) : null))
             .catch(() => null)
-        ),
-        fetch(SUPABASE_LIB_URL, { mode: 'cors' })
-          .then((res) => (res && res.ok ? cache.put(SUPABASE_LIB_URL, res) : null))
-          .catch(() => null),
-        fetch(CHARTJS_LIB_URL, { mode: 'cors' })
-          .then((res) => (res && res.ok ? cache.put(CHARTJS_LIB_URL, res) : null))
-          .catch(() => null),
-      ])
+        )
+      )
     )
   );
   self.skipWaiting();

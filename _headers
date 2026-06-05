@@ -6,16 +6,20 @@
 # Order matters: more specific paths should come BEFORE generic /* matches.
 # See https://developers.cloudflare.com/pages/configuration/headers/
 #
-# Phase 1 (cc-v161+): broad CSP that still allows current CDN imports so
-# nothing breaks. esm.sh + cdn.jsdelivr.net are explicitly listed in
-# script-src until we finish self-hosting those libraries (Phase 2 will
-# delete them from this allowlist).
+# Phase 2 (cc-v170): tight CSP. supabase-js, Chart.js, JSZip, and
+# SortableJS are now self-hosted under /vendor/, so the previous esm.sh +
+# cdn.jsdelivr.net allowance is GONE from script-src. The only third-party
+# origin in any directive now is challenges.cloudflare.com (the Turnstile
+# bot-defense widget). 'unsafe-inline' on script-src + style-src is still
+# present because CC's architecture uses heavy inline <script type="module">
+# and <style> blocks per page; tightening that further would require nonce
+# generation via Pages Functions on every page (deferred future work).
 #
 # Other headers below the CSP are defense-in-depth that work regardless of
 # the CSP being permissive or strict.
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh https://cdn.jsdelivr.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://esm.sh https://cdn.jsdelivr.net https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; object-src 'none'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; object-src 'none'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload

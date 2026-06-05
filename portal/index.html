@@ -9452,7 +9452,9 @@
       __statsChartJsPromise = new Promise((resolve, reject) => {
         if (window.Chart) return resolve(window.Chart);
         const s = document.createElement("script");
-        s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js";
+        // Self-hosted as of cc-v170 (was cdn.jsdelivr.net). See lib/supabase.js
+        // header comment for the supply-chain rationale.
+        s.src = "/vendor/chart-4.4.0.umd.min.js?v=1";
         s.async = true;
         s.onload  = () => resolve(window.Chart);
         s.onerror = (e) => reject(new Error("Chart.js failed to load"));
@@ -14891,7 +14893,7 @@
     function loadSortableJS() {
       if (window.Sortable) return Promise.resolve(window.Sortable);
       if (__sortableLoading) return __sortableLoading;
-      const SORTABLE_URL = "https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js";
+      const SORTABLE_URL = "/vendor/sortable-1.15.2.min.js?v=1";
       __sortableLoading = new Promise((resolve, reject) => {
         const s = document.createElement("script");
         s.src = SORTABLE_URL;
@@ -16125,7 +16127,7 @@
 
     // ---- JSZip lazy-loader. Loaded on first batch-zip-download click so
     // the library doesn't cost anything for users who never tap the button. ----
-    const JSZIP_URL = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
+    const JSZIP_URL = "/vendor/jszip-3.10.1.min.js?v=1";
     let __jszipPromise = null;
     function loadJSZip() {
       if (window.JSZip) return Promise.resolve(window.JSZip);
