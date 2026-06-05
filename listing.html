@@ -966,8 +966,14 @@
           }
         }).catch(() => {});
       }
+      // ANTI-SCRAPING (cc-v172, migration 049): we no longer SELECT
+      // contact_email from the public listing page. Instead we select
+      // has_contact_email — a generated boolean that tells the client
+      // whether to show the "Email Seller" button without exposing the
+      // address. The actual email is resolved server-side in the
+      // contact-seller edge function when the buyer submits the form.
       const profileCols = signedIn
-        ? "display_name, handle, location, shipping_zip, facebook_profile_url, contact_email, account_status, is_trusted, about_text, preferred_contact"
+        ? "display_name, handle, location, shipping_zip, facebook_profile_url, has_contact_email, account_status, is_trusted, about_text, preferred_contact"
         : "display_name, handle, shipping_zip, account_status";
 
       let listingResp, savesResp;
@@ -1385,13 +1391,13 @@
           ${prefContactRow}
           <div class="seller-actions">
             ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">${primaryCta}</a>` : ""}
-            ${seller.contact_email ? `<a id="email-seller-link" href="#" role="button">${secondaryCta}</a>` : ""}
+            ${seller.has_contact_email ? `<a id="email-seller-link" href="#" role="button">${secondaryCta}</a>` : ""}
           </div>
-          ${(fbUrl || seller.contact_email) ? `
+          ${(fbUrl || seller.has_contact_email) ? `
             <div class="buying-tips-nudge">
               Before you reach out, <a href="/guidelines.html" target="_blank" rel="noopener">read the ${isIso ? "guidelines" : "buying tips"} ↗</a> for a smoother, safer conversation.
             </div>` : ""}
-          ${(fbUrl || seller.contact_email) ? `
+          ${(fbUrl || seller.has_contact_email) ? `
             <div class="transaction-disclaimer">
               <!-- Condensed from a longer paragraph (2026-05-28). The
                    tight one-liner still carries the load-bearing legal
@@ -1526,7 +1532,7 @@
       // Reply-To to the buyer's contact email so the seller's reply goes
       // straight back to them. Replaces the previous mailto: launcher.
       const $emailLink = document.getElementById("email-seller-link");
-      if ($emailLink && seller.contact_email) {
+      if ($emailLink && seller.has_contact_email) {
         $emailLink.addEventListener("click", (e) => {
           e.preventDefault();
           openContactModal({

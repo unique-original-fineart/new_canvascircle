@@ -473,6 +473,59 @@
       background: var(--surface-1);
     }
     footer a { color: inherit; }
+
+    /* Contact modal — used by the "Email this collector" button. Same
+       visual treatment as listing.html's contact modal so the UX feels
+       consistent between the two surfaces. Hidden by default; opened
+       by JS adding `.open` to the overlay. */
+    .contact-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.55);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 9999;
+      padding: 16px;
+    }
+    .contact-overlay.open { display: flex; }
+    .contact-dialog {
+      background: var(--surface-1);
+      color: var(--fg);
+      border-radius: 12px;
+      max-width: 520px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 20px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.55);
+    }
+    .contact-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .contact-head h2 { margin: 0; font-size: 18px; }
+    .contact-close {
+      background: none; border: none; cursor: pointer;
+      font-size: 28px; line-height: 1; color: var(--muted);
+      padding: 4px 8px;
+    }
+    .contact-close:hover { color: var(--fg); }
+    .contact-label {
+      display: block; margin-top: 10px; margin-bottom: 4px;
+      font-size: 13px; font-weight: 600; color: var(--muted);
+    }
+    .contact-dialog input[type="text"],
+    .contact-dialog input[type="tel"],
+    .contact-dialog textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      background: var(--surface-2);
+      color: var(--fg);
+      font: inherit;
+      box-sizing: border-box;
+    }
+    .contact-dialog textarea { resize: vertical; min-height: 100px; }
   </style>
 </head>
 <body>
@@ -593,6 +646,35 @@
       <div id="filter-empty" class="empty" hidden>
         <div class="empty-title">No listings match these filters</div>
         <div>Try clearing some filters above, or <button type="button" id="filter-reset-link" class="linklike">reset to defaults</button>.</div>
+      </div>
+    </div>
+
+    <!-- In-platform contact modal for "Email this collector" (cc-v172).
+         Replaces the previous mailto: link so the seller's email never
+         ships to the client. Submits to the contact-seller-general
+         edge fn mode, which resolves the email server-side. Same modal
+         pattern as listing.html (lightly trimmed since there's no
+         per-listing context here). -->
+    <div id="contact-overlay" class="contact-overlay" aria-hidden="true">
+      <div class="contact-dialog" role="dialog" aria-modal="true" aria-labelledby="contact-title">
+        <div class="contact-head">
+          <h2 id="contact-title">Email this collector</h2>
+          <button type="button" id="contact-close" class="contact-close" aria-label="Close">×</button>
+        </div>
+        <p id="contact-ctx" class="contact-ctx" style="margin: 0 0 12px; color: var(--muted); font-size: 14px;"></p>
+        <label for="contact-subject" class="contact-label">Subject</label>
+        <input type="text" id="contact-subject" maxlength="200" placeholder="Inquiry about your CanvasCircle listings" />
+        <label for="contact-body" class="contact-label">Your message</label>
+        <textarea id="contact-body" rows="6" maxlength="5000" placeholder="Hi, I saw your seller page on CanvasCircle and wanted to reach out about…"></textarea>
+        <label for="contact-phone" class="contact-label">Phone (optional)</label>
+        <input type="tel" id="contact-phone" maxlength="30" placeholder="If you'd prefer a call or text" />
+        <p id="contact-reply" class="contact-reply" style="margin: 8px 0 0; color: var(--muted); font-size: 12px;"></p>
+        <p id="contact-err" class="contact-err" hidden style="margin: 8px 0 0; color: var(--status-danger-deep); font-size: 13px;"></p>
+        <p id="contact-ok"  class="contact-ok"  hidden style="margin: 8px 0 0; color: var(--status-success-deep); font-size: 13px;"></p>
+        <div class="contact-actions" style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+          <button type="button" id="contact-cancel" class="secondary">Cancel</button>
+          <button type="button" id="contact-send" class="primary">Send</button>
+        </div>
       </div>
     </div>
   </main>
@@ -778,8 +860,16 @@
       // The contact block UI already hides location/email/FB URL for anon
       // viewers, so the only difference for them is they never even see the
       // data come back over the wire.
+      // ANTI-SCRAPING (cc-v172, migration 049): contact_email is NOT
+      // selected on the public seller page anymore. We use the generated
+      // has_contact_email boolean to know whether to show the "Email
+      // this collector" button. The actual email is resolved server-side
+      // in the contact-seller-general edge fn mode when the visitor
+      // submits the in-platform contact modal. Previously the email was
+      // rendered into a mailto: href, which any HTML scraper could grab
+      // in one pass.
       const profileCols = viewerSignedIn
-        ? "user_id, display_name, handle, location, facebook_profile_url, contact_email, account_status, created_at, is_trusted, is_admin, about_text, preferred_contact"
+        ? "user_id, display_name, handle, location, facebook_profile_url, has_contact_email, account_status, created_at, is_trusted, is_admin, about_text, preferred_contact"
         : "user_id, display_name, handle, account_status, created_at, is_trusted, about_text";
       let profileRows, profileErr;
       try {
@@ -983,15 +1073,15 @@
         if (fbUrl) {
           parts.push(`<a class="primary" href="${escapeHtml(fbUrl)}" target="_blank" rel="noopener">Message on Facebook</a>`);
         }
-        if (profile.contact_email) {
-          const subject = `Inquiry about your listings on CanvasCircle`;
-          const body = `Hi ${profile.display_name || ""},\n\nI came across your seller page on CanvasCircle (${window.location.href}) and wanted to reach out.\n\n[Your message here]\n\nThanks!`;
-          const mailto = "mailto:" + encodeURIComponent(profile.contact_email)
-            + "?subject=" + encodeURIComponent(subject)
-            + "&body="    + encodeURIComponent(body);
-          parts.push(`<a class="secondary" href="${mailto}">Email this collector</a>`);
+        if (profile.has_contact_email) {
+          // ANTI-SCRAPING: button no longer carries the email in a mailto:
+          // href. Clicking opens the in-platform contact modal further
+          // down, which submits to the contact-seller-general edge fn
+          // mode. The actual email lives only on the server. See
+          // cc-v172 / migration 049.
+          parts.push(`<a class="secondary" id="email-collector-link" href="#" role="button">Email this collector</a>`);
         }
-        if (!fbUrl && !profile.contact_email) {
+        if (!fbUrl && !profile.has_contact_email) {
           parts.push(`<span style="color:var(--muted); font-size:14px;">This collector hasn't published contact info yet.</span>`);
         }
         // Block link, small, low-emphasis, only shown when the viewer is
@@ -1014,6 +1104,16 @@
         $contactSignedIn.innerHTML = parts.join("");
         $contactSignedIn.hidden = false;
         $contactSignedOut.hidden = true;
+
+        // Wire the in-platform contact modal trigger (cc-v172). Replaces
+        // the old mailto: link so the email never ships to the client.
+        const $emailCollectorLink = document.getElementById("email-collector-link");
+        if ($emailCollectorLink) {
+          $emailCollectorLink.addEventListener("click", (e) => {
+            e.preventDefault();
+            openCollectorContactModal(profile);
+          });
+        }
       } else {
         $contactSignedIn.hidden = true;
         $contactSignedOut.hidden = false;
@@ -1531,6 +1631,108 @@
     });
 
     (async () => { await load(); __lastLoadAt = Date.now(); })();
+
+    // ---------------------------------------------------------------------
+    // In-platform contact modal for the seller.html "Email this collector"
+    // button. Replaces the previous mailto: pattern so contact_email never
+    // ships in the public-page JSON payload. Submits to the new
+    // contact-seller-general mode on the send-email edge function, which
+    // resolves the recipient's email server-side. Same UX shape as
+    // listing.html's contact modal, lightly trimmed (no per-listing context).
+    // ---------------------------------------------------------------------
+    const $cOverlay = document.getElementById("contact-overlay");
+    const $cClose   = document.getElementById("contact-close");
+    const $cCancel  = document.getElementById("contact-cancel");
+    const $cSend    = document.getElementById("contact-send");
+    const $cCtx     = document.getElementById("contact-ctx");
+    const $cSubj    = document.getElementById("contact-subject");
+    const $cBody    = document.getElementById("contact-body");
+    const $cPhone   = document.getElementById("contact-phone");
+    const $cReply   = document.getElementById("contact-reply");
+    const $cErr     = document.getElementById("contact-err");
+    const $cOk      = document.getElementById("contact-ok");
+    let __collectorTarget = null;
+
+    async function openCollectorContactModal(profile) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        // Should not happen — the button is only rendered for signed-in
+        // viewers — but defense-in-depth.
+        alert("Sign in to message this collector.");
+        return;
+      }
+      __collectorTarget = profile;
+      const displayName = profile.display_name || `@${profile.handle}`;
+      $cCtx.textContent = `Sending to ${displayName}.`;
+      $cSubj.value = `Inquiry from CanvasCircle`;
+      $cBody.value = "";
+      $cBody.placeholder = `Hi ${displayName.split(/\s+/)[0] || "there"}, I came across your seller page on CanvasCircle and wanted to reach out about…`;
+      $cPhone.value = "";
+      $cErr.hidden = true; $cErr.textContent = "";
+      $cOk.hidden  = true; $cOk.textContent  = "";
+      $cSend.disabled = false; $cSend.textContent = "Send";
+
+      // Load buyer's contact email for the Reply-To attribution note.
+      let buyerEmail = user.email || "";
+      try {
+        const { data: prof } = await supabase
+          .from("profiles").select("contact_email").eq("user_id", user.id).single();
+        if (prof?.contact_email) buyerEmail = prof.contact_email;
+      } catch {}
+      $cReply.textContent = `${displayName}'s reply will come to ${buyerEmail}.`;
+
+      $cOverlay.classList.add("open");
+      $cOverlay.setAttribute("aria-hidden", "false");
+      setTimeout(() => $cBody.focus(), 50);
+    }
+
+    function closeCollectorContactModal() {
+      $cOverlay.classList.remove("open");
+      $cOverlay.setAttribute("aria-hidden", "true");
+      __collectorTarget = null;
+    }
+
+    $cClose?.addEventListener("click", closeCollectorContactModal);
+    $cCancel?.addEventListener("click", closeCollectorContactModal);
+    $cOverlay?.addEventListener("click", (e) => {
+      // Backdrop click closes; clicks inside the dialog don't.
+      if (e.target === $cOverlay) closeCollectorContactModal();
+    });
+
+    $cSend?.addEventListener("click", async () => {
+      if (!__collectorTarget) return;
+      const subject = ($cSubj.value || "").trim();
+      const text    = ($cBody.value || "").trim();
+      const phone   = ($cPhone.value || "").trim();
+      $cErr.hidden = true; $cErr.textContent = "";
+      $cOk.hidden  = true; $cOk.textContent  = "";
+      if (!subject || !text) {
+        $cErr.textContent = "Subject and message are required.";
+        $cErr.hidden = false;
+        return;
+      }
+      $cSend.disabled = true; $cSend.textContent = "Sending…";
+      try {
+        const { data, error } = await supabase.functions.invoke("send-email", {
+          body: {
+            mode: "contact-seller-general",
+            seller_id: __collectorTarget.user_id,
+            subject,
+            text,
+            sender_phone: phone || undefined,
+          },
+        });
+        if (error || data?.error) throw new Error(error?.message || data?.error || "Send failed");
+        $cOk.textContent = "Message sent. Their reply will come to your registered email.";
+        $cOk.hidden = false;
+        setTimeout(closeCollectorContactModal, 1800);
+      } catch (err) {
+        console.error("[seller-contact] send failed:", err);
+        $cErr.textContent = err.message || "Could not send. Please try again.";
+        $cErr.hidden = false;
+        $cSend.disabled = false; $cSend.textContent = "Send";
+      }
+    });
   </script>
 </body>
 </html>

@@ -569,6 +569,166 @@ serve(async (req) => {
     }
 
     // ------------------------------------------------------------------
+    // contact-seller-general: same as contact-seller, but for messages
+    // sent from the seller.html public page (not tied to a specific
+    // listing). Takes seller_id (not listing_id). Used by the in-platform
+    // contact modal that replaced the mailto: link on seller pages, so
+    // seller emails don't have to ship in the public-page JSON payload
+    // for the button to function. See cc-v172 / migration 049 for the
+    // anti-scraping rationale.
+    //
+    // Inherits the same defenses as contact-seller: signed-in only,
+    // self-message rejected, block-check both directions, per-user
+    // rate-limit via contact_messages count + per-IP via the rate
+    // limiter from migration 046. Audit row inserted with listing_id
+    // = null (the column already allows null per migration 028).
+    // ------------------------------------------------------------------
+    if (mode === "contact-seller-general") {
+      const { seller_id, subject, text } = body;
+      if (!seller_id || !subject || !text) {
+        return json(400, { error: "seller_id + subject + text required" });
+      }
+      const trimmedSubject = String(subject).trim().slice(0, 200);
+      const trimmedText    = String(text).trim().slice(0, 5000);
+      if (!trimmedSubject || !trimmedText) {
+        return json(400, { error: "Subject and message cannot be empty." });
+      }
+
+      const phoneRaw = body.sender_phone;
+      const senderPhone = (typeof phoneRaw === "string" && phoneRaw.trim())
+        ? phoneRaw.trim().slice(0, 30)
+        : null;
+
+      const buyerMail = callerProfile?.contact_email || user.email;
+      if (!buyerMail) {
+        return json(400, { error: "Your account has no contact email on file. Add one in your profile before messaging." });
+      }
+      const buyerName = callerProfile?.display_name || (user.email ? user.email.split("@")[0] : "A user");
+
+      // No self-message.
+      if (seller_id === user.id) {
+        return json(400, { error: "You can't message yourself." });
+      }
+
+      const adminClient = createClient(SUPABASE_URL, SERVICE_KEY);
+      const { data: seller, error: sellerErr } = await adminClient
+        .from("profiles")
+        .select("user_id, display_name, contact_email, account_status")
+        .eq("user_id", seller_id)
+        .single();
+      if (sellerErr || !seller?.contact_email) {
+        return json(400, { error: "This collector has no contact email on file." });
+      }
+      if (seller.account_status && seller.account_status !== "active") {
+        return json(400, { error: "This collector's account is no longer active." });
+      }
+
+      // Block check, same semantics as contact-seller.
+      {
+        const { data: blocked, error: blockErr } = await adminClient
+          .rpc("is_blocked_between", { p_user_a: user.id, p_user_b: seller.user_id });
+        if (blockErr) {
+          console.error("[contact-seller-general] block check failed:", blockErr);
+          return json(503, { error: "Couldn't send right now. Try again in a moment." });
+        }
+        if (blocked === true) {
+          return json(403, { error: "This message can't be delivered." });
+        }
+      }
+
+      // Rate limits: per-user via contact_messages count + per-IP via the
+      // generic check_rate_limit RPC. Same caps as contact-seller for
+      // consistency since the abuse vectors are identical.
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count: recentCount, error: countErr } = await adminClient
+        .from("contact_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("sender_id", user.id)
+        .gte("sent_at", oneHourAgo);
+      if (countErr) {
+        console.error("[contact-seller-general] rate-limit query failed:", countErr);
+      } else if ((recentCount ?? 0) >= CONTACT_SELLER_RATE_LIMIT_PER_HOUR) {
+        return json(429, {
+          error: `You've sent ${recentCount} messages in the last hour. Please wait a bit before sending more.`,
+        });
+      }
+      if (clientIpHash) {
+        const { data: ipOk, error: ipErr } = await svc.rpc("check_rate_limit", {
+          p_fn: "send-email", p_action: "contact-seller",
+          p_user: null, p_ip_hash: clientIpHash,
+          p_limit: CONTACT_SELLER_IP_LIMIT_PER_HOUR, p_window_sec: 3600,
+        });
+        if (ipErr) {
+          console.error("[contact-seller-general] IP rate-limit RPC failed:", ipErr);
+        } else if (ipOk === false) {
+          return json(429, { error: "Too many contact-seller requests from your network. Please try again later." });
+        }
+      }
+
+      // Audit row with listing_id = null (allowed by the schema since
+      // migration 028 set the FK to on delete set null, no NOT NULL).
+      const { error: insertErr } = await supabase
+        .from("contact_messages")
+        .insert({
+          sender_id:    user.id,
+          recipient_id: seller.user_id,
+          listing_id:   null,
+          subject:      trimmedSubject,
+          body:         trimmedText,
+          reply_to:     buyerMail,
+          sender_phone: senderPhone,
+        });
+      if (insertErr) {
+        console.error("[contact-seller-general] insert failed:", insertErr);
+        return json(500, { error: "Could not record your message. Please try again." });
+      }
+
+      const sellerFirst = (seller.display_name || "").split(/\s+/)[0] || "there";
+      const fullSubject = `[CanvasCircle] ${trimmedSubject}`;
+      const phoneBlock = senderPhone
+        ? `\n\n📞 Phone (optional, shared by ${buyerName}): ${senderPhone}\n` +
+          `If you'd like to call or text instead of replying by email, ${buyerName} explicitly opted in by including this number. ` +
+          `Lead with: "Hi, this is ${sellerFirst} from CanvasCircle, responding to your inquiry." ` +
+          `(They won't have your number saved, so an unknown-number text/call will look like spam otherwise.)\n`
+        : "";
+
+      const fullBody =
+        `Hi ${sellerFirst},\n\n` +
+        `${buyerName} sent you a message via your CanvasCircle seller page:\n\n` +
+        `------------------------------\n` +
+        `${trimmedText}\n` +
+        `------------------------------\n` +
+        phoneBlock +
+        `\nReply to this email and your response will go directly to ${buyerName} at ${buyerMail}.`;
+
+      try {
+        await sendOne(seller.contact_email, fullSubject, wrapHtml(fullBody), buyerMail);
+      } catch (sendErr) {
+        console.error("[contact-seller-general] Resend send failed:", sendErr);
+        return json(502, { error: "Email service is having trouble. Please try again in a minute." });
+      }
+
+      // Fire-and-forget push notification to seller (same as contact-seller).
+      try {
+        fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+          method: "POST",
+          headers: { "apikey": SERVICE_KEY, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: seller.user_id,
+            title:   `New inquiry from ${buyerName}`,
+            body:    `From your seller page`,
+            url:     "/portal/",
+            tag:     `inquiry-${Date.now()}`,
+          }),
+        }).catch((e) => console.error("[contact-seller-general] push dispatch failed:", e));
+      } catch (e) {
+        console.error("[contact-seller-general] push dispatch crashed:", e);
+      }
+
+      return json(200, { sent: 1 });
+    }
+
+    // ------------------------------------------------------------------
     // trigger-listing-fanout: browser-callable proxy that kicks off the
     // saved-search-fanout edge function. The fanout itself requires the
     // service-role key (it sends pushes + writes to the dedup log via
