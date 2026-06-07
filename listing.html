@@ -2134,6 +2134,17 @@
           // "this listing is not currently available", etc.).
           throw new Error(error.message || "Could not submit the offer.");
         }
+        // Fan out push notifications: seller push + saver-nudge to anyone
+        // who has saved this listing. Fire-and-forget — a notification
+        // delivery hiccup must NOT cause the offer submit to look failed
+        // to the buyer. The offer row is already inserted in the DB.
+        // offer-fanout is a no-op for auto_declined offers (silent floor
+        // rejection) so we can call it unconditionally.
+        if (data) {
+          supabase.functions.invoke("offer-fanout", {
+            body: { offer_id: data },
+          }).catch((e) => console.warn("[offer-fanout] dispatch failed (non-fatal):", e));
+        }
         // Success — same generic message whether the offer landed as
         // pending or was silently auto-declined by the seller's floor.
         // The auto-reject signal is asymmetric on purpose.

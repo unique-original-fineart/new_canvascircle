@@ -4281,6 +4281,27 @@
               </details>
             </div>
 
+            <!-- Private auto-reject floor for the Make-an-Offer feature.
+                 Offers strictly below this amount are silently declined
+                 without notifying the seller; buyers receive no signal
+                 that the floor exists or fired (per
+                 [[preserve-seller-pricing-power]]). Empty = no floor,
+                 every offer reaches the seller for manual review. -->
+            <div class="field">
+              <label for="prof-offer-floor">Auto-reject offers below (USD)</label>
+              <input type="number" id="prof-offer-floor" inputmode="numeric" min="0" step="1" placeholder="e.g. 2000 (leave blank to review every offer)" disabled />
+              <div class="field-actions">
+                <button type="button" id="prof-offer-floor-edit-btn"   class="linklike">Edit</button>
+                <button type="button" id="prof-offer-floor-save-btn"   class="btn-primary"   hidden>Save</button>
+                <button type="button" id="prof-offer-floor-cancel-btn" class="btn-secondary" hidden>Cancel</button>
+                <span id="prof-offer-floor-status" class="small field-status"></span>
+              </div>
+              <details class="field-explainer">
+                <summary>What is this for?</summary>
+                <p>Optional. Sets a private minimum offer amount for the "Make an offer" feature. Offers strictly below this number are silently declined; you won't get a push notification or email about them, and the buyer is never told that a floor exists or that it fired. Useful if you're happy to wait for the right price and don't want low-balls cluttering your inbox. Leave blank to review every offer manually. Visible only to you, never shown to buyers. You can change or remove it at any time.</p>
+              </details>
+            </div>
+
             <!-- Preferred contact method, soft signal shown on listings so
                  buyers know whether to include their phone number with their
                  inquiry. Does NOT expose any phone number. Default 'either'.
@@ -4695,6 +4716,35 @@
              dashboard load) so the unread badge clears exactly when the
              seller actually reads the messages. -->
         <div class="tab-panel" data-tab-panel="inquiries">
+          <!-- Offers section. Lives in the Inquiries tab because conceptually
+               "Inquiries" = "buyer-initiated communications about my listings",
+               and an offer IS one of those. Two sub-lists: Incoming (offers
+               on my listings waiting for me to decide) and Sent (offers I've
+               made on other sellers' listings, waiting for them). Each row
+               is action-oriented: accept / counter / decline for incoming
+               pendings, withdraw for outgoing pendings, status pill only for
+               terminal states.
+               See migration 052 + [[make-an-offer-idea]] memory. -->
+          <section class="offers-section" id="offers-section" hidden style="margin-bottom: 24px;">
+            <h2 style="margin: 0 0 8px;">Offers <span class="count" id="offers-count"></span></h2>
+            <p class="help" style="margin: -4px 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5;">
+              Offers are non-binding negotiations. Accepting moves things off-platform between you and the other party. Configure a private auto-reject floor on your Profile to filter low-balls.
+            </p>
+            <div id="offers-loading" class="empty-state" hidden>Loading offers…</div>
+            <div id="offers-empty" class="empty-state" hidden>
+              <strong>No offers yet.</strong><br>
+              Offers buyers send you (and offers you send other sellers) will show up here. You'll also get a push notification.
+            </div>
+            <div id="offers-incoming-wrap" hidden>
+              <h3 style="margin: 14px 0 8px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px;">Incoming</h3>
+              <div id="offers-incoming-list" class="offers-list"></div>
+            </div>
+            <div id="offers-outgoing-wrap" hidden>
+              <h3 style="margin: 14px 0 8px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px;">Sent</h3>
+              <div id="offers-outgoing-list" class="offers-list"></div>
+            </div>
+          </section>
+
           <div class="dash-head">
             <h2>Inquiries <span class="count" id="inq-count"></span></h2>
           </div>
@@ -5321,6 +5371,32 @@
        the textarea pre-fills with the canned text but stays editable so
        admin can append context. Seller sees the final text on their
        listings dashboard as the rejection reason. -->
+  <!-- Make-an-Offer counter modal. Opens when the seller (or buyer-on-counter)
+       clicks Counter on an offer row. Captures the new amount + optional note,
+       then submits via the respond_to_offer or respond_to_counter RPC. The
+       caller side decides which RPC to invoke based on whether the offer
+       being countered has a parent_offer_id. -->
+  <div class="edit-modal-overlay" id="offer-counter-overlay" role="dialog" aria-modal="true" hidden>
+    <div class="edit-modal" style="max-width: 480px;">
+      <div class="edit-modal-header">
+        <h2>Counter-offer</h2>
+        <button type="button" class="em-close" id="offer-counter-close" aria-label="Close">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <p class="small" id="offer-counter-ctx" style="color: var(--muted); margin: 0 0 12px;"></p>
+        <label for="offer-counter-amount" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Your counter amount (USD)</label>
+        <input type="number" id="offer-counter-amount" min="1" step="1" inputmode="numeric" style="width:100%; margin-bottom:10px;" placeholder="e.g. 2750" />
+        <label for="offer-counter-note" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Note (optional, no links)</label>
+        <textarea id="offer-counter-note" rows="3" maxlength="500" style="width:100%;" placeholder="Anything the other party should know about your counter."></textarea>
+        <p id="offer-counter-err" hidden style="margin: 8px 0 0; color: var(--status-danger-deep); font-size: 13px;"></p>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px; flex-wrap: wrap;">
+          <button type="button" class="btn-secondary" id="offer-counter-cancel">Cancel</button>
+          <button type="button" class="btn-primary" id="offer-counter-confirm">Send counter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="edit-modal-overlay" id="mod-reject-overlay" role="dialog" aria-modal="true" hidden>
     <div class="edit-modal" style="max-width: 560px;">
       <div class="edit-modal-header">
@@ -6151,6 +6227,10 @@
       // user actually clicks the Inquiries tab, which is the honest "I
       // read them" signal.
       loadInquiriesPanel(session.user.id, { markSeen: false });
+      // Offers panel — same tab as inquiries. Loaded in parallel on
+      // dashboard refresh so the seller sees pending offers without
+      // having to click into the Inquiries tab first.
+      loadOffersPanel(session.user.id);
       // Push-opt banner at dashboard level (was originally mounted inside
       // loadInquiriesPanel back when push only covered inquiries; promoted
       // 2026-05-27 once push grew to cover follow alerts + price drops
@@ -6681,6 +6761,308 @@
         console.warn("[inquiries] mark_inquiries_seen failed (non-fatal):", e);
       }
     }
+
+    // =====================================================================
+    // OFFERS PANEL — Make-an-Offer feature (migration 052, cc-v181).
+    // =====================================================================
+    // Lives inside the Inquiries tab. Two sub-lists: Incoming (offers where
+    // I'm the responder — pending decisions on my listings, or seller's
+    // counters on offers I sent) and Sent (offers I proposed). Status
+    // pills + action buttons drive the negotiation state machine via the
+    // respond_to_offer / respond_to_counter / withdraw_offer RPCs.
+    // =====================================================================
+    let offersData = { incoming: [], outgoing: [] };
+
+    function fmtOfferAmount(n) {
+      const num = Number(n);
+      if (!Number.isFinite(num)) return "$?";
+      return "$" + Math.round(num).toLocaleString("en-US");
+    }
+
+    function offerStatusLabel(status, isCounter) {
+      // Human-readable labels for the offer state machine. Counters and
+      // non-counters share most statuses but the terminal labels differ.
+      switch (status) {
+        case "pending":           return "Awaiting response";
+        case "accepted":          return "Accepted";
+        case "accepted_counter":  return "Counter accepted";
+        case "declined":          return "Declined";
+        case "declined_counter":  return "Counter declined";
+        case "countered":         return "Countered (see new row)";
+        case "auto_declined":     return "Auto-declined";
+        case "withdrawn":         return "Withdrawn";
+        case "withdrawn_counter": return "Counter withdrawn";
+        case "expired":           return "Expired";
+        default:                  return status;
+      }
+    }
+
+    async function loadOffersPanel(userId) {
+      const $section  = document.getElementById("offers-section");
+      const $loading  = document.getElementById("offers-loading");
+      const $empty    = document.getElementById("offers-empty");
+      const $inWrap   = document.getElementById("offers-incoming-wrap");
+      const $outWrap  = document.getElementById("offers-outgoing-wrap");
+      if (!$section) return;
+
+      $section.hidden = false;
+      $loading.hidden = false;
+      $empty.hidden = true;
+      $inWrap.hidden = true;
+      $outWrap.hidden = true;
+
+      try {
+        // Pull both halves in parallel. Each half pulls listing context
+        // (artist, title) via the FK embed so the row renders self-contained.
+        const [incomingResp, outgoingResp] = await Promise.all([
+          supabase.from("offers")
+            .select(`id, listing_id, proposer_id, responder_id, amount_usd, note, status, parent_offer_id, created_at, decided_at, decision_note,
+                     listings ( listing_id, artist_name, artwork_title )`)
+            .eq("responder_id", userId)
+            .neq("status", "auto_declined") // silent floor rejects never surface
+            .order("created_at", { ascending: false })
+            .limit(50),
+          supabase.from("offers")
+            .select(`id, listing_id, proposer_id, responder_id, amount_usd, note, status, parent_offer_id, created_at, decided_at, decision_note,
+                     listings ( listing_id, artist_name, artwork_title )`)
+            .eq("proposer_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(50),
+        ]);
+        if (incomingResp.error) throw incomingResp.error;
+        if (outgoingResp.error) throw outgoingResp.error;
+
+        offersData = {
+          incoming: incomingResp.data || [],
+          outgoing: outgoingResp.data || [],
+        };
+      } catch (err) {
+        console.error("[offers] load failed:", err);
+        offersData = { incoming: [], outgoing: [] };
+      }
+
+      $loading.hidden = true;
+      renderOffersPanel();
+    }
+
+    function renderOffersPanel() {
+      const $section = document.getElementById("offers-section");
+      const $count   = document.getElementById("offers-count");
+      const $empty   = document.getElementById("offers-empty");
+      const $inWrap  = document.getElementById("offers-incoming-wrap");
+      const $outWrap = document.getElementById("offers-outgoing-wrap");
+      const $inList  = document.getElementById("offers-incoming-list");
+      const $outList = document.getElementById("offers-outgoing-list");
+      if (!$section) return;
+
+      const total = offersData.incoming.length + offersData.outgoing.length;
+      // Only count pending offers in the badge — terminal states are
+      // historical clutter, not action-required.
+      const pendingCount = offersData.incoming.filter(o => o.status === "pending").length;
+      $count.textContent = pendingCount > 0 ? `(${pendingCount})` : "";
+
+      if (total === 0) {
+        $empty.hidden = false;
+        $inWrap.hidden = true;
+        $outWrap.hidden = true;
+        return;
+      }
+      $empty.hidden = true;
+
+      $inWrap.hidden = offersData.incoming.length === 0;
+      $outWrap.hidden = offersData.outgoing.length === 0;
+
+      $inList.innerHTML  = offersData.incoming.map(o => renderOfferRow(o, "incoming")).join("");
+      $outList.innerHTML = offersData.outgoing.map(o => renderOfferRow(o, "outgoing")).join("");
+
+      // Wire up action buttons via event delegation (one listener per list).
+      $inList.onclick  = handleOfferAction;
+      $outList.onclick = handleOfferAction;
+    }
+
+    function renderOfferRow(o, dir) {
+      const listing = o.listings || {};
+      const artwork = listing.artwork_title || "(untitled)";
+      const artist  = listing.artist_name || "";
+      const label   = artist ? `${artist} — ${artwork}` : artwork;
+      const isCounter = !!o.parent_offer_id;
+      const statusLabel = offerStatusLabel(o.status, isCounter);
+      const created = o.created_at ? new Date(o.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+
+      // Action buttons by direction + status.
+      let actions = "";
+      if (o.status === "pending") {
+        if (dir === "incoming") {
+          // I am the responder — accept / counter / decline.
+          actions = `
+            <button class="btn-primary"   data-offer-action="accept"  data-offer-id="${o.id}" data-is-counter="${isCounter}">Accept</button>
+            <button class="btn-secondary" data-offer-action="counter" data-offer-id="${o.id}" data-is-counter="${isCounter}" data-amount="${o.amount_usd}" data-artwork="${escapeHtml(label)}">Counter</button>
+            <button class="btn-danger"    data-offer-action="decline" data-offer-id="${o.id}" data-is-counter="${isCounter}">Decline</button>`;
+        } else {
+          // I am the proposer — withdraw.
+          actions = `<button class="btn-secondary" data-offer-action="withdraw" data-offer-id="${o.id}">Withdraw</button>`;
+        }
+      }
+
+      const noteHtml = o.note ? `<div class="offer-note" style="margin-top: 4px; font-size: 13px; color: var(--muted); font-style: italic;">"${escapeHtml(o.note)}"</div>` : "";
+      const decisionHtml = o.decision_note ? `<div class="offer-decision-note" style="margin-top: 4px; font-size: 13px; color: var(--muted);">Note: ${escapeHtml(o.decision_note)}</div>` : "";
+      const counterTag = isCounter ? `<span style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-left: 6px;">counter</span>` : "";
+
+      return `
+        <div class="offer-row" style="border: 1px solid var(--card-line); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; background: var(--surface-2);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 220px;">
+              <div style="font-weight: 600;">${escapeHtml(label)}${counterTag}</div>
+              <div style="margin-top: 4px;">
+                <span style="font-size: 18px; font-weight: 700;">${fmtOfferAmount(o.amount_usd)}</span>
+                <span style="margin-left: 10px; font-size: 13px; color: var(--muted);">${escapeHtml(statusLabel)}</span>
+                ${created ? `<span style="margin-left: 10px; font-size: 12px; color: var(--muted);">${escapeHtml(created)}</span>` : ""}
+              </div>
+              ${noteHtml}
+              ${decisionHtml}
+            </div>
+            ${actions ? `<div class="offer-actions" style="display: flex; gap: 6px; flex-wrap: wrap;">${actions}</div>` : ""}
+          </div>
+        </div>`;
+    }
+
+    async function handleOfferAction(e) {
+      const $btn = e.target.closest("[data-offer-action]");
+      if (!$btn) return;
+      const action     = $btn.dataset.offerAction;
+      const offerId    = $btn.dataset.offerId;
+      const isCounter  = $btn.dataset.isCounter === "true";
+
+      // Confirm destructive actions. Counter opens the modal (handled below).
+      // Accept/decline/withdraw are one-tap with confirm() guards.
+      if (action === "counter") {
+        openOfferCounterModal({
+          offerId,
+          isCounter,
+          currentAmount: Number($btn.dataset.amount || 0),
+          artwork: $btn.dataset.artwork || "this listing",
+        });
+        return;
+      }
+
+      let confirmMsg, rpcName, rpcArgs;
+      if (action === "accept") {
+        confirmMsg = isCounter
+          ? "Accept this counter? You'll need to complete the transaction off-platform with the other party."
+          : "Accept this offer? You'll need to complete the transaction off-platform with the buyer.";
+        rpcName = isCounter ? "respond_to_counter" : "respond_to_offer";
+        rpcArgs = isCounter
+          ? { p_offer_id: offerId, p_decision: "accept_counter" }
+          : { p_offer_id: offerId, p_decision: "accept" };
+      } else if (action === "decline") {
+        confirmMsg = isCounter
+          ? "Walk away from this counter? The negotiation will end."
+          : "Decline this offer? The buyer will see it was declined.";
+        rpcName = isCounter ? "respond_to_counter" : "respond_to_offer";
+        rpcArgs = isCounter
+          ? { p_offer_id: offerId, p_decision: "walk_away" }
+          : { p_offer_id: offerId, p_decision: "decline" };
+      } else if (action === "withdraw") {
+        confirmMsg = "Withdraw this offer? The other party will see it as withdrawn.";
+        rpcName = "withdraw_offer";
+        rpcArgs = { p_offer_id: offerId };
+      } else {
+        return;
+      }
+
+      if (!confirm(confirmMsg)) return;
+      $btn.disabled = true;
+      try {
+        const { error } = await supabase.rpc(rpcName, rpcArgs);
+        if (error) throw error;
+        if (currentUserId) await loadOffersPanel(currentUserId);
+      } catch (err) {
+        console.error("[offers] action failed:", action, err);
+        alert("Could not " + action + ": " + (err.message || err));
+        $btn.disabled = false;
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // Counter-offer modal wiring
+    // ---------------------------------------------------------------------
+    let __counterCtx = null;
+    function openOfferCounterModal(ctx) {
+      __counterCtx = ctx;
+      const $overlay = document.getElementById("offer-counter-overlay");
+      const $ctx     = document.getElementById("offer-counter-ctx");
+      const $amount  = document.getElementById("offer-counter-amount");
+      const $note    = document.getElementById("offer-counter-note");
+      const $err     = document.getElementById("offer-counter-err");
+      $ctx.textContent = `Their offer on ${ctx.artwork}: ${fmtOfferAmount(ctx.currentAmount)}. Enter your counter amount.`;
+      $amount.value = "";
+      $note.value   = "";
+      $err.hidden = true; $err.textContent = "";
+      $overlay.hidden = false;
+      setTimeout(() => $amount.focus(), 30);
+    }
+    function closeOfferCounterModal() {
+      const $overlay = document.getElementById("offer-counter-overlay");
+      if ($overlay) $overlay.hidden = true;
+      __counterCtx = null;
+    }
+    document.getElementById("offer-counter-close")?.addEventListener("click", closeOfferCounterModal);
+    document.getElementById("offer-counter-cancel")?.addEventListener("click", closeOfferCounterModal);
+    document.getElementById("offer-counter-overlay")?.addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) closeOfferCounterModal();
+    });
+    document.getElementById("offer-counter-confirm")?.addEventListener("click", async () => {
+      if (!__counterCtx) return;
+      const $amount = document.getElementById("offer-counter-amount");
+      const $note   = document.getElementById("offer-counter-note");
+      const $err    = document.getElementById("offer-counter-err");
+      const $btn    = document.getElementById("offer-counter-confirm");
+      $err.hidden = true; $err.textContent = "";
+
+      const raw = ($amount.value || "").trim();
+      const amount = Number(raw);
+      if (!raw || !Number.isFinite(amount) || amount <= 0) {
+        $err.textContent = "Enter a counter amount in whole dollars.";
+        $err.hidden = false;
+        return;
+      }
+      const note = ($note.value || "").trim();
+      if (note.length > 500) {
+        $err.textContent = "Note must be 500 characters or fewer.";
+        $err.hidden = false;
+        return;
+      }
+      if (/(https?:\/\/|www\.)/i.test(note)) {
+        $err.textContent = "Links are not allowed in the note.";
+        $err.hidden = false;
+        return;
+      }
+
+      $btn.disabled = true;
+      const rpcName = __counterCtx.isCounter ? "respond_to_counter" : "respond_to_offer";
+      const rpcArgs = __counterCtx.isCounter
+        ? { p_offer_id: __counterCtx.offerId, p_decision: "counter_back", p_counter_back_amount: amount, p_decision_note: note || null }
+        : { p_offer_id: __counterCtx.offerId, p_decision: "counter", p_counter_amount: amount, p_decision_note: note || null };
+      try {
+        const { data, error } = await supabase.rpc(rpcName, rpcArgs);
+        if (error) throw error;
+        // Fan out a notification to the other party about the counter.
+        // Fire-and-forget — non-blocking. data here is the new offer id
+        // (the counter row); offer-fanout will push to that row's responder.
+        if (data) {
+          supabase.functions.invoke("offer-fanout", {
+            body: { offer_id: data },
+          }).catch((e) => console.warn("[offer-fanout] dispatch failed (non-fatal):", e));
+        }
+        closeOfferCounterModal();
+        if (currentUserId) await loadOffersPanel(currentUserId);
+      } catch (err) {
+        console.error("[offers] counter submit failed:", err);
+        $err.textContent = err.message || String(err);
+        $err.hidden = false;
+        $btn.disabled = false;
+      }
+    });
 
     // Decorate the My Account nav link with the unread inquiries count.
     // Same .cc-auth-link selector that nav-auth.js uses, so it works on
@@ -9825,7 +10207,10 @@
         // Re-fetch so dismissed-in-another-tab rows fall out. Mark-as-seen
         // fires from inside loadInquiriesPanel, opening the tab IS the
         // "I read them" signal, replacing the old 2.5s timer.
-        if (currentUserId) loadInquiriesPanel(currentUserId, { markSeen: true });
+        if (currentUserId) {
+          loadInquiriesPanel(currentUserId, { markSeen: true });
+          loadOffersPanel(currentUserId);
+        }
       }
     }
     $tabBtns.forEach(b => b.addEventListener("click", () => activateTab(b.dataset.tab)));
@@ -11787,7 +12172,7 @@
     const $profStatus   = document.getElementById("profile-status");
 
     // Snapshot of last-saved values so per-field Cancel can revert.
-    let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", shipping_zip: "", about_text: "", contact_email: "", preferred_contact: "either" };
+    let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", shipping_zip: "", about_text: "", contact_email: "", preferred_contact: "either", auto_reject_floor_usd: null };
 
     // -----------------------------------------------------------------------
     // setProfileEditMode, kept as a thin compatibility shim for the
@@ -11937,6 +12322,35 @@
       },
     });
 
+    // Make-an-Offer auto-reject floor (migration 052). Empty input = no
+    // floor (null in DB). Positive integers only. The transform coerces
+    // empty string to null so a cleared field actually removes the floor
+    // rather than persisting an empty string.
+    wirePerFieldEdit({
+      inputId: "prof-offer-floor",
+      editBtnId: "prof-offer-floor-edit-btn",
+      saveBtnId: "prof-offer-floor-save-btn",
+      cancelBtnId: "prof-offer-floor-cancel-btn",
+      statusId: "prof-offer-floor-status",
+      snapshotKey: "auto_reject_floor_usd",
+      column: "auto_reject_floor_usd",
+      validate: (val) => {
+        const v = String(val || "").trim();
+        if (!v) return;            // empty = clear, allowed
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < 0) {
+          throw new Error("Auto-reject floor must be a positive whole number, or blank.");
+        }
+        if (!/^\d+$/.test(v)) {
+          throw new Error("Enter whole dollars only (no decimal places).");
+        }
+      },
+      transform: (val) => {
+        const v = String(val || "").trim();
+        return v ? Number(v) : null;
+      },
+    });
+
     // Wire Preferred contact method, dropdown of email / phone / facebook
     // / either, soft signal shown on listings. transform: pass-through but
     // enforce the enum (DB has a check constraint, but we'd rather show a
@@ -11989,6 +12403,13 @@
       $profEmail.value  = profileSnapshot.contact_email        || "";
       const $profPrefContact = document.getElementById("prof-preferred-contact");
       if ($profPrefContact) $profPrefContact.value = profileSnapshot.preferred_contact || "either";
+      // Make-an-Offer auto-reject floor. Null means "no floor" — render
+      // as empty string so the placeholder shows.
+      const $profOfferFloor = document.getElementById("prof-offer-floor");
+      if ($profOfferFloor) {
+        $profOfferFloor.value = (profileSnapshot.auto_reject_floor_usd != null)
+          ? String(profileSnapshot.auto_reject_floor_usd) : "";
+      }
       // Sync the FB-preference warning visibility with the just-loaded
       // value. Without this, the warning would only refresh on user
       // interaction, leaving stale state after a snapshot reload.
@@ -12258,6 +12679,7 @@
         about_text:           profile.about_text           || "",
         contact_email:        myEmail                      || "",
         preferred_contact:    profile.preferred_contact    || "either",
+        auto_reject_floor_usd: profile.auto_reject_floor_usd ?? null,
       };
       fillProfileFromSnapshot();
       $profStatus.textContent = "";
