@@ -4708,20 +4708,26 @@
           <section class="offers-section" id="offers-section" hidden style="margin-bottom: 24px;">
             <h2 style="margin: 0 0 8px;">Offers <span class="count" id="offers-count"></span></h2>
             <p class="help" style="margin: -4px 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5;">
-              Offers are non-binding negotiations. Accepting moves things off-platform between you and the other party. Configure a private auto-reject floor on your Profile to filter low-balls.
+              Offers are non-binding negotiations grouped by artwork. Set a per-listing auto-reject floor when you edit a listing. Sellers can also send offers to anyone who saved a listing (look for the Send offer button on the savers list).
             </p>
             <div id="offers-loading" class="empty-state" hidden>Loading offers…</div>
             <div id="offers-empty" class="empty-state" hidden>
               <strong>No offers yet.</strong><br>
-              Offers buyers send you (and offers you send other sellers) will show up here. You'll also get a push notification.
+              Offers will show up here grouped by artwork. You'll also get a push notification when one comes in.
             </div>
-            <div id="offers-incoming-wrap" hidden>
-              <h3 style="margin: 14px 0 8px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px;">Incoming</h3>
-              <div id="offers-incoming-list" class="offers-list"></div>
-            </div>
-            <div id="offers-outgoing-wrap" hidden>
-              <h3 style="margin: 14px 0 8px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px;">Sent</h3>
-              <div id="offers-outgoing-list" class="offers-list"></div>
+            <div id="offers-groups-wrap" hidden>
+              <div id="offers-active-wrap">
+                <h3 style="margin: 14px 0 8px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px;">Active negotiations</h3>
+                <div id="offers-active-list" class="offers-list"></div>
+              </div>
+              <div id="offers-concluded-wrap" hidden style="margin-top: 18px;">
+                <details>
+                  <summary style="cursor: pointer; font-size: 13px; color: var(--muted); padding: 6px 0;">
+                    Show concluded offers (last 30 days)
+                  </summary>
+                  <div id="offers-concluded-list" class="offers-list" style="margin-top: 8px;"></div>
+                </details>
+              </div>
             </div>
           </section>
 
@@ -5377,6 +5383,33 @@
         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px; flex-wrap: wrap;">
           <button type="button" class="btn-secondary" id="offer-counter-cancel">Cancel</button>
           <button type="button" class="btn-primary" id="offer-counter-confirm">Send counter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seller-initiated offer modal (migration 055). Opens from the savers
+       list on a seller's own listing: "Send offer to this collector."
+       Captures the seller's price + optional note, submits via
+       insert_seller_offer RPC. Visibility uses .is-open class (see the
+       counter modal's note on the .edit-modal-overlay display:none quirk). -->
+  <div class="edit-modal-overlay" id="seller-offer-overlay" role="dialog" aria-modal="true">
+    <div class="edit-modal" style="max-width: 480px;">
+      <div class="edit-modal-header">
+        <h2>Send offer to collector</h2>
+        <button type="button" class="em-close" id="seller-offer-close" aria-label="Close">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <p class="small" id="seller-offer-ctx" style="color: var(--muted); margin: 0 0 12px;"></p>
+        <label for="seller-offer-amount" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Your offer amount (USD)</label>
+        <input type="number" id="seller-offer-amount" min="1" step="1" inputmode="numeric" style="width:100%; margin-bottom:10px;" placeholder="e.g. 2750" />
+        <label for="seller-offer-note" style="display:block; font-size:12px; color:var(--muted); margin-bottom:4px;">Note (optional, no links)</label>
+        <textarea id="seller-offer-note" rows="3" maxlength="500" style="width:100%;" placeholder="A short note for the collector about why you're reaching out."></textarea>
+        <p id="seller-offer-err" hidden style="margin: 8px 0 0; color: var(--status-danger-deep); font-size: 13px;"></p>
+        <p class="small" style="margin: 10px 0 0; color: var(--muted); line-height: 1.4;">The collector will get a push notification and can accept, counter, or decline. If anyone accepts (you or them), this listing flips to Pending Sale and other open negotiations close out.</p>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px; flex-wrap: wrap;">
+          <button type="button" class="btn-secondary" id="seller-offer-cancel">Cancel</button>
+          <button type="button" class="btn-primary" id="seller-offer-confirm">Send offer</button>
         </div>
       </div>
     </div>
@@ -6748,15 +6781,23 @@
     }
 
     // =====================================================================
-    // OFFERS PANEL — Make-an-Offer feature (migration 052, cc-v181).
+    // OFFERS PANEL — Make-an-Offer feature (migrations 052/054/055).
     // =====================================================================
-    // Lives inside the Inquiries tab. Two sub-lists: Incoming (offers where
-    // I'm the responder — pending decisions on my listings, or seller's
-    // counters on offers I sent) and Sent (offers I proposed). Status
-    // pills + action buttons drive the negotiation state machine via the
-    // respond_to_offer / respond_to_counter / withdraw_offer RPCs.
+    // Lives inside the Inquiries tab. Grouped by listing (artwork) since a
+    // single listing can have multiple parallel buyer negotiations once
+    // sellers start sending offers to savers. Each listing-group expands
+    // to show per-buyer threads with display name + @handle + amount +
+    // status + actions. Active vs Concluded sections; concluded folds into
+    // a <details> to keep the active set scannable.
+    //
+    // Data source: get_offer_threads_for_user RPC (migration 055) returns
+    // offers + listing + other-party profile context in one query.
+    //
+    // State machine writes still flow through respond_to_offer /
+    // respond_to_counter / withdraw_offer RPCs. Race-to-accept handled by
+    // _finalize_listing_acceptance() inside the accept paths.
     // =====================================================================
-    let offersData = { incoming: [], outgoing: [] };
+    let offersData = { rows: [] };
 
     function fmtOfferAmount(n) {
       const num = Number(n);
@@ -6768,62 +6809,54 @@
       // Human-readable labels for the offer state machine. Counters and
       // non-counters share most statuses but the terminal labels differ.
       switch (status) {
-        case "pending":           return "Awaiting response";
-        case "accepted":          return "Accepted";
-        case "accepted_counter":  return "Counter accepted";
-        case "declined":          return "Declined";
-        case "declined_counter":  return "Counter declined";
-        case "countered":         return "Countered (see new row)";
-        case "auto_declined":     return "Auto-declined";
-        case "withdrawn":         return "Withdrawn";
-        case "withdrawn_counter": return "Counter withdrawn";
-        case "expired":           return "Expired";
-        default:                  return status;
+        case "pending":                      return "Awaiting response";
+        case "accepted":                     return "Accepted";
+        case "accepted_counter":             return "Counter accepted";
+        case "declined":                     return "Declined";
+        case "declined_counter":             return "Counter declined";
+        case "countered":                    return "Countered";
+        case "auto_declined":                return "Auto-declined";
+        case "withdrawn":                    return "Withdrawn";
+        case "withdrawn_counter":            return "Counter withdrawn";
+        case "expired":                      return "Expired";
+        case "declined_listing_unavailable": return "Closed (sold to another buyer)";
+        default:                             return status;
       }
+    }
+
+    // A status is "terminal" when no further action can be taken on it.
+    // Used to split active vs concluded threads and to decide whether the
+    // buyer/seller still has buttons to push.
+    function isTerminalOfferStatus(status) {
+      return status !== "pending" && status !== "countered";
     }
 
     async function loadOffersPanel(userId) {
       const $section  = document.getElementById("offers-section");
       const $loading  = document.getElementById("offers-loading");
       const $empty    = document.getElementById("offers-empty");
-      const $inWrap   = document.getElementById("offers-incoming-wrap");
-      const $outWrap  = document.getElementById("offers-outgoing-wrap");
+      const $grpWrap  = document.getElementById("offers-groups-wrap");
       if (!$section) return;
 
       $section.hidden = false;
       $loading.hidden = false;
       $empty.hidden = true;
-      $inWrap.hidden = true;
-      $outWrap.hidden = true;
+      $grpWrap.hidden = true;
 
       try {
-        // Pull both halves in parallel. Each half pulls listing context
-        // (artist, title) via the FK embed so the row renders self-contained.
-        const [incomingResp, outgoingResp] = await Promise.all([
-          supabase.from("offers")
-            .select(`id, listing_id, proposer_id, responder_id, amount_usd, note, status, parent_offer_id, created_at, decided_at, decision_note,
-                     listings ( listing_id, artist_name, artwork_title )`)
-            .eq("responder_id", userId)
-            .neq("status", "auto_declined") // silent floor rejects never surface
-            .order("created_at", { ascending: false })
-            .limit(50),
-          supabase.from("offers")
-            .select(`id, listing_id, proposer_id, responder_id, amount_usd, note, status, parent_offer_id, created_at, decided_at, decision_note,
-                     listings ( listing_id, artist_name, artwork_title )`)
-            .eq("proposer_id", userId)
-            .order("created_at", { ascending: false })
-            .limit(50),
-        ]);
-        if (incomingResp.error) throw incomingResp.error;
-        if (outgoingResp.error) throw outgoingResp.error;
-
-        offersData = {
-          incoming: incomingResp.data || [],
-          outgoing: outgoingResp.data || [],
-        };
+        // Single SECURITY DEFINER RPC pulls offers + listing context +
+        // other-party profile (display_name, handle) in one shot.
+        // See migration 055 get_offer_threads_for_user.
+        const resp = await withTimeout(
+          supabase.rpc("get_offer_threads_for_user", { p_user_id: userId }),
+          12000,
+          "offers query"
+        );
+        if (resp.error) throw resp.error;
+        offersData = { rows: resp.data || [] };
       } catch (err) {
         console.error("[offers] load failed:", err);
-        offersData = { incoming: [], outgoing: [] };
+        offersData = { rows: [] };
       }
 
       $loading.hidden = true;
@@ -6831,80 +6864,202 @@
     }
 
     function renderOffersPanel() {
-      const $section = document.getElementById("offers-section");
-      const $count   = document.getElementById("offers-count");
-      const $empty   = document.getElementById("offers-empty");
-      const $inWrap  = document.getElementById("offers-incoming-wrap");
-      const $outWrap = document.getElementById("offers-outgoing-wrap");
-      const $inList  = document.getElementById("offers-incoming-list");
-      const $outList = document.getElementById("offers-outgoing-list");
+      const $section    = document.getElementById("offers-section");
+      const $count      = document.getElementById("offers-count");
+      const $empty      = document.getElementById("offers-empty");
+      const $grpWrap    = document.getElementById("offers-groups-wrap");
+      const $activeWrap = document.getElementById("offers-active-wrap");
+      const $activeList = document.getElementById("offers-active-list");
+      const $conclWrap  = document.getElementById("offers-concluded-wrap");
+      const $conclList  = document.getElementById("offers-concluded-list");
       if (!$section) return;
 
-      const total = offersData.incoming.length + offersData.outgoing.length;
-      // Only count pending offers in the badge — terminal states are
-      // historical clutter, not action-required.
-      const pendingCount = offersData.incoming.filter(o => o.status === "pending").length;
-      $count.textContent = pendingCount > 0 ? `(${pendingCount})` : "";
-
-      if (total === 0) {
+      const rows = offersData.rows || [];
+      if (rows.length === 0) {
         $empty.hidden = false;
-        $inWrap.hidden = true;
-        $outWrap.hidden = true;
+        $grpWrap.hidden = true;
+        $count.textContent = "";
         return;
       }
       $empty.hidden = true;
+      $grpWrap.hidden = false;
 
-      $inWrap.hidden = offersData.incoming.length === 0;
-      $outWrap.hidden = offersData.outgoing.length === 0;
+      // Group rows by listing_id, then within each listing group rows by
+      // "thread" (= a (this listing, the other party) pair). A thread can
+      // span multiple counter rows (the original + each counter row); we
+      // render the LATEST row of each thread as the headline and offer the
+      // earlier rows as expandable history.
+      const listings = new Map(); // listing_id -> { listing meta, threads: Map(other_id -> [rows newest-first]) }
+      for (const r of rows) {
+        if (!listings.has(r.listing_id)) {
+          listings.set(r.listing_id, {
+            listing_id:    r.listing_id,
+            artist_name:   r.artist_name,
+            artwork_title: r.artwork_title,
+            listing_status: r.listing_status,
+            seller_id:     r.listing_seller_id,
+            threads:       new Map(),
+          });
+        }
+        const grp = listings.get(r.listing_id);
+        const key = r.other_party_id;
+        if (!grp.threads.has(key)) grp.threads.set(key, []);
+        grp.threads.get(key).push(r);
+      }
 
-      $inList.innerHTML  = offersData.incoming.map(o => renderOfferRow(o, "incoming")).join("");
-      $outList.innerHTML = offersData.outgoing.map(o => renderOfferRow(o, "outgoing")).join("");
+      // Sort threads inside each listing by their most recent activity
+      // (latest decided_at OR created_at among the thread's rows).
+      const threadTime = (rows) => {
+        let max = 0;
+        for (const r of rows) {
+          const t = Math.max(
+            r.decided_at ? new Date(r.decided_at).getTime() : 0,
+            r.created_at ? new Date(r.created_at).getTime() : 0
+          );
+          if (t > max) max = t;
+        }
+        return max;
+      };
 
-      // Wire up action buttons via event delegation (one listener per list).
-      $inList.onclick  = handleOfferAction;
-      $outList.onclick = handleOfferAction;
+      // Active = at least one row in the listing has status='pending'.
+      // Concluded = ALL rows are terminal. This keeps "I'm mid-negotiation"
+      // visible at the top and historical chatter folded away.
+      const activeListings = [];
+      const conclListings  = [];
+      for (const grp of listings.values()) {
+        const hasPending = [...grp.threads.values()].some(rows =>
+          rows.some(r => !isTerminalOfferStatus(r.status))
+        );
+        // Sort the listing's threads by recency, newest first.
+        grp.sortedThreads = [...grp.threads.entries()]
+          .sort(([, a], [, b]) => threadTime(b) - threadTime(a));
+        if (hasPending) activeListings.push(grp); else conclListings.push(grp);
+      }
+      // Sort the listings themselves by their newest activity, newest first.
+      const grpTime = (grp) => Math.max(...[...grp.threads.values()].map(threadTime));
+      activeListings.sort((a, b) => grpTime(b) - grpTime(a));
+      conclListings.sort((a, b) => grpTime(b) - grpTime(a));
+
+      // Pending count badge: count distinct active THREADS, not rows. One
+      // thread with 3 counters is still "one negotiation to attend to."
+      let pendingCount = 0;
+      for (const grp of activeListings) {
+        for (const [, threadRows] of grp.sortedThreads) {
+          if (threadRows.some(r => !isTerminalOfferStatus(r.status))) pendingCount++;
+        }
+      }
+      $count.textContent = pendingCount > 0 ? `(${pendingCount})` : "";
+
+      $activeWrap.hidden = activeListings.length === 0;
+      $conclWrap.hidden  = conclListings.length === 0;
+      $activeList.innerHTML = activeListings.map(renderListingGroup).join("");
+      $conclList.innerHTML  = conclListings.map(renderListingGroup).join("");
+
+      // Event delegation for the action buttons inside groups.
+      $activeList.onclick = handleOfferAction;
+      $conclList.onclick  = handleOfferAction;
     }
 
-    function renderOfferRow(o, dir) {
-      const listing = o.listings || {};
-      const artwork = listing.artwork_title || "(untitled)";
-      const artist  = listing.artist_name || "";
-      const label   = artist ? `${artist} — ${artwork}` : artwork;
-      const isCounter = !!o.parent_offer_id;
-      const statusLabel = offerStatusLabel(o.status, isCounter);
-      const created = o.created_at ? new Date(o.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+    // Render one listing group: header (artwork + link) + one row per
+    // distinct negotiation thread (one per other-party).
+    function renderListingGroup(grp) {
+      const artist  = grp.artist_name  || "";
+      const title   = grp.artwork_title || "(untitled)";
+      const label   = artist ? `${artist}, ${title}` : title;
+      const link    = `/listing.html?id=${grp.listing_id}`;
+      const listingStatusBadge = grp.listing_status && grp.listing_status !== "available"
+        ? `<span class="pill status-${escapeHtml(grp.listing_status)}" style="font-size:11px; margin-left:8px;">${escapeHtml(statusLabel(grp.listing_status))}</span>`
+        : "";
 
-      // Action buttons by direction + status.
+      const threadsHtml = grp.sortedThreads.map(([otherId, threadRows]) => {
+        return renderThread(grp, otherId, threadRows);
+      }).join("");
+
+      return `
+        <div class="offer-group" style="border: 1px solid var(--card-line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; background: var(--surface-2);">
+          <div class="offer-group-head" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid var(--card-line); margin-bottom: 10px;">
+            <div>
+              <a href="${link}" target="_blank" rel="noopener" style="font-weight: 600; color: var(--fg); text-decoration: none;">${escapeHtml(label)} <span style="font-size: 12px; color: var(--accent); margin-left: 4px;">View listing →</span></a>
+              ${listingStatusBadge}
+            </div>
+          </div>
+          ${threadsHtml}
+        </div>`;
+    }
+
+    // Render a single negotiation thread within a listing group. The
+    // newest row in the thread is the "headline" with action buttons;
+    // older rows render as a compact history footer.
+    function renderThread(grp, otherId, threadRows) {
+      // Newest first (RPC returns rows in this order already, but defensive).
+      const sorted = [...threadRows].sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      const headline = sorted[0];
+      const history  = sorted.slice(1);
+
+      const name   = headline.other_party_display_name || "Someone";
+      const handle = headline.other_party_handle || "";
+      const handleHtml = handle
+        ? `<a href="/seller?handle=${encodeURIComponent(handle)}" target="_blank" rel="noopener" style="color: var(--accent); text-decoration: none; font-size: 13px;">@${escapeHtml(handle)}</a>`
+        : "";
+
+      // Action buttons depend on headline row's direction + status. Counter
+      // logic: a counter row has parent_offer_id set; respond_to_counter
+      // is used to act on it (so isCounter flag goes to the buttons).
+      const isCounter = !!headline.parent_offer_id;
+      const isOpen    = !isTerminalOfferStatus(headline.status);
       let actions = "";
-      if (o.status === "pending") {
-        if (dir === "incoming") {
-          // I am the responder — accept / counter / decline.
+      if (isOpen) {
+        if (headline.direction === "incoming") {
           actions = `
-            <button class="btn-primary"   data-offer-action="accept"  data-offer-id="${o.id}" data-is-counter="${isCounter}">Accept</button>
-            <button class="btn-secondary" data-offer-action="counter" data-offer-id="${o.id}" data-is-counter="${isCounter}" data-amount="${o.amount_usd}" data-artwork="${escapeHtml(label)}">Counter</button>
-            <button class="btn-danger"    data-offer-action="decline" data-offer-id="${o.id}" data-is-counter="${isCounter}">Decline</button>`;
+            <button class="btn-primary"   data-offer-action="accept"  data-offer-id="${headline.id}" data-is-counter="${isCounter}">Accept</button>
+            <button class="btn-secondary" data-offer-action="counter" data-offer-id="${headline.id}" data-is-counter="${isCounter}" data-amount="${headline.amount_usd}" data-artwork="${escapeHtml(grp.artwork_title || "")}">Counter</button>
+            <button class="btn-danger"    data-offer-action="decline" data-offer-id="${headline.id}" data-is-counter="${isCounter}">Decline</button>`;
         } else {
-          // I am the proposer — withdraw.
-          actions = `<button class="btn-secondary" data-offer-action="withdraw" data-offer-id="${o.id}">Withdraw</button>`;
+          actions = `<button class="btn-secondary" data-offer-action="withdraw" data-offer-id="${headline.id}">Withdraw</button>`;
         }
       }
 
-      const noteHtml = o.note ? `<div class="offer-note" style="margin-top: 4px; font-size: 13px; color: var(--muted); font-style: italic;">"${escapeHtml(o.note)}"</div>` : "";
-      const decisionHtml = o.decision_note ? `<div class="offer-decision-note" style="margin-top: 4px; font-size: 13px; color: var(--muted);">Note: ${escapeHtml(o.decision_note)}</div>` : "";
-      const counterTag = isCounter ? `<span style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-left: 6px;">counter</span>` : "";
+      const headlineNote = headline.note
+        ? `<div style="margin-top: 4px; font-size: 13px; color: var(--muted); font-style: italic;">"${escapeHtml(headline.note)}"</div>` : "";
+      const headlineDec = headline.decision_note
+        ? `<div style="margin-top: 4px; font-size: 13px; color: var(--muted);">Decision note: ${escapeHtml(headline.decision_note)}</div>` : "";
+
+      // History: condensed list of past rows in this thread.
+      const historyHtml = history.length
+        ? `<details style="margin-top: 8px;">
+             <summary style="cursor: pointer; font-size: 12px; color: var(--muted);">Show ${history.length} earlier ${history.length === 1 ? "exchange" : "exchanges"}</summary>
+             <div style="margin-top: 6px; padding-left: 12px; border-left: 2px solid var(--card-line);">
+               ${history.map(h => `
+                 <div style="font-size: 12px; color: var(--muted); margin: 4px 0;">
+                   ${h.direction === "incoming" ? "They" : "You"} offered <strong>${fmtOfferAmount(h.amount_usd)}</strong>
+                   · <em>${escapeHtml(offerStatusLabel(h.status, !!h.parent_offer_id))}</em>
+                   ${h.note ? `<div style="margin-top: 2px; font-style: italic;">"${escapeHtml(h.note)}"</div>` : ""}
+                 </div>
+               `).join("")}
+             </div>
+           </details>`
+        : "";
+
+      const dir = headline.direction === "incoming" ? "Offer from" : "Offer to";
+      const created = headline.created_at
+        ? new Date(headline.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+        : "";
 
       return `
-        <div class="offer-row" style="border: 1px solid var(--card-line); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; background: var(--surface-2);">
+        <div class="offer-thread" style="padding: 10px 0; border-bottom: 1px dashed var(--card-line);">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 220px;">
-              <div style="font-weight: 600;">${escapeHtml(label)}${counterTag}</div>
+              <div style="font-size: 13px; color: var(--muted); margin-bottom: 2px;">${dir} <strong style="color: var(--fg);">${escapeHtml(name)}</strong> ${handleHtml}</div>
               <div style="margin-top: 4px;">
-                <span style="font-size: 18px; font-weight: 700;">${fmtOfferAmount(o.amount_usd)}</span>
-                <span style="margin-left: 10px; font-size: 13px; color: var(--muted);">${escapeHtml(statusLabel)}</span>
+                <span style="font-size: 18px; font-weight: 700;">${fmtOfferAmount(headline.amount_usd)}</span>
+                <span style="margin-left: 10px; font-size: 13px; color: var(--muted);">${escapeHtml(offerStatusLabel(headline.status, isCounter))}</span>
                 ${created ? `<span style="margin-left: 10px; font-size: 12px; color: var(--muted);">${escapeHtml(created)}</span>` : ""}
               </div>
-              ${noteHtml}
-              ${decisionHtml}
+              ${headlineNote}
+              ${headlineDec}
+              ${historyHtml}
             </div>
             ${actions ? `<div class="offer-actions" style="display: flex; gap: 6px; flex-wrap: wrap;">${actions}</div>` : ""}
           </div>
@@ -6960,7 +7115,22 @@
       try {
         const { error } = await supabase.rpc(rpcName, rpcArgs);
         if (error) throw error;
+        // Notify the OTHER party about the decision (accept/decline only —
+        // counter has its own fan-out path from the counter modal). For
+        // accept, offer-fanout also handles the race-to-accept fan-out
+        // to other buyers whose negotiations just got closed out.
+        if ((action === "accept" || action === "decline") && offerId) {
+          supabase.functions.invoke("offer-fanout", {
+            body: { offer_id: offerId, mode: "decision" },
+          }).catch((e) => console.warn("[offer-fanout] decision dispatch failed (non-fatal):", e));
+        }
         if (currentUserId) await loadOffersPanel(currentUserId);
+        // Race-to-accept flips the listing's status to 'pending' (Pending
+        // Sale). Reload the dashboard listings panel too so the seller's
+        // own card reflects the new status without a manual refresh.
+        if (action === "accept" && currentUserId) {
+          loadDashboardListings(currentUserId).catch(() => {});
+        }
       } catch (err) {
         console.error("[offers] action failed:", action, err);
         alert("Could not " + action + ": " + (err.message || err));
@@ -7040,13 +7210,102 @@
         // (the counter row); offer-fanout will push to that row's responder.
         if (data) {
           supabase.functions.invoke("offer-fanout", {
-            body: { offer_id: data },
+            body: { offer_id: data, mode: "create" },
           }).catch((e) => console.warn("[offer-fanout] dispatch failed (non-fatal):", e));
         }
         closeOfferCounterModal();
         if (currentUserId) await loadOffersPanel(currentUserId);
       } catch (err) {
         console.error("[offers] counter submit failed:", err);
+        $err.textContent = err.message || String(err);
+        $err.hidden = false;
+        $btn.disabled = false;
+      }
+    });
+
+    // ---------------------------------------------------------------------
+    // Seller-initiated offer modal wiring (migration 055)
+    // ---------------------------------------------------------------------
+    // Opens from the savers list on the seller's own listing edit card.
+    // Captures the seller's offer amount + optional note, submits via
+    // insert_seller_offer RPC. Buyer (the saver) gets a push notification
+    // and can accept / counter / decline through their portal.
+    let __sellerOfferCtx = null;
+    function openSellerOfferModal(ctx) {
+      __sellerOfferCtx = ctx;
+      const $overlay = document.getElementById("seller-offer-overlay");
+      const $ctxEl   = document.getElementById("seller-offer-ctx");
+      const $amount  = document.getElementById("seller-offer-amount");
+      const $note    = document.getElementById("seller-offer-note");
+      const $err     = document.getElementById("seller-offer-err");
+      const buyerLabel = ctx.buyerHandle ? `@${ctx.buyerHandle}` : ctx.buyerName;
+      $ctxEl.textContent = `Send an offer to ${buyerLabel} for ${ctx.artwork}.`;
+      $amount.value = "";
+      $note.value   = "";
+      $err.hidden = true; $err.textContent = "";
+      $overlay.classList.add("is-open");
+      setTimeout(() => $amount.focus(), 30);
+    }
+    function closeSellerOfferModal() {
+      const $overlay = document.getElementById("seller-offer-overlay");
+      if ($overlay) $overlay.classList.remove("is-open");
+      __sellerOfferCtx = null;
+    }
+    document.getElementById("seller-offer-close")?.addEventListener("click", closeSellerOfferModal);
+    document.getElementById("seller-offer-cancel")?.addEventListener("click", closeSellerOfferModal);
+    document.getElementById("seller-offer-overlay")?.addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) closeSellerOfferModal();
+    });
+    document.getElementById("seller-offer-confirm")?.addEventListener("click", async () => {
+      if (!__sellerOfferCtx) return;
+      const $amount = document.getElementById("seller-offer-amount");
+      const $note   = document.getElementById("seller-offer-note");
+      const $err    = document.getElementById("seller-offer-err");
+      const $btn    = document.getElementById("seller-offer-confirm");
+      $err.hidden = true; $err.textContent = "";
+
+      const raw = ($amount.value || "").trim();
+      const amount = Number(raw);
+      if (!raw || !Number.isFinite(amount) || amount <= 0) {
+        $err.textContent = "Enter an offer amount in whole dollars.";
+        $err.hidden = false;
+        return;
+      }
+      const note = ($note.value || "").trim();
+      if (note.length > 500) {
+        $err.textContent = "Note must be 500 characters or fewer.";
+        $err.hidden = false;
+        return;
+      }
+      if (/(https?:\/\/|www\.)/i.test(note)) {
+        $err.textContent = "Links are not allowed in the note.";
+        $err.hidden = false;
+        return;
+      }
+
+      $btn.disabled = true;
+      try {
+        const { data, error } = await supabase.rpc("insert_seller_offer", {
+          p_listing_id: __sellerOfferCtx.listingId,
+          p_buyer_id:   __sellerOfferCtx.buyerId,
+          p_amount_usd: amount,
+          p_note:       note || null,
+        });
+        if (error) throw error;
+        // Push the buyer + saver-nudge fan-out via offer-fanout. Counter
+        // path NOT used here — this is an initial offer.
+        if (data) {
+          supabase.functions.invoke("offer-fanout", {
+            body: { offer_id: data, mode: "create" },
+          }).catch((e) => console.warn("[offer-fanout] seller-offer dispatch failed (non-fatal):", e));
+        }
+        closeSellerOfferModal();
+        if (currentUserId) await loadOffersPanel(currentUserId);
+        // Confirmation flash. Light-weight, no banner since the seller is
+        // already in a modal flow + the offer appears in the Offers tab.
+        alert("Offer sent. The collector will get a push and can respond from their portal.");
+      } catch (err) {
+        console.error("[offers] seller-offer submit failed:", err);
         $err.textContent = err.message || String(err);
         $err.hidden = false;
         $btn.disabled = false;
@@ -8761,6 +9020,17 @@
           ? `<a class="saver-action" href="/seller?handle=${encodeURIComponent(handle)}" target="_blank" rel="noopener" title="Open this collector's page to message them">Email</a>`
           : `<span class="saver-action disabled" title="This collector hasn't shared a contact email.">No email</span>`;
 
+        // Seller-initiated offer button (migration 055). Only shown when
+        // the listing is currently 'available' — once a sale closes or
+        // the listing is delisted, sending more offers makes no sense.
+        // Button is wired via data attributes + a click delegate below.
+        const canSendOffer = (listing.status === "available")
+          && (listing.listing_type !== "iso")
+          && (listing.moderation_status === "approved");
+        const offerBtnHtml = canSendOffer
+          ? `<button type="button" class="saver-action" data-action="send-seller-offer" data-listing-id="${escapeHtml(listing.listing_id)}" data-buyer-id="${escapeHtml(r.user_id)}" data-buyer-name="${escapeHtml(name)}" data-buyer-handle="${escapeHtml(handle)}" data-artwork="${escapeHtml((listing.artist_name || "") + ", " + (listing.artwork_title || ""))}" style="background: var(--brand-gradient); color: var(--text-inverse); border: none; font-weight: 600;">Send offer</button>`
+          : "";
+
         return `
           <div class="saver-row">
             <div class="saver-head">
@@ -8770,6 +9040,7 @@
               <span class="saver-date">${escapeHtml(date)}</span>
             </div>
             <div class="saver-actions">
+              ${offerBtnHtml}
               ${fbBtnHtml}
               ${emailBtnHtml}
             </div>
@@ -8778,6 +9049,20 @@
       }).join("");
 
       $savesModalBody.innerHTML = summaryHtml + items;
+
+      // Event delegation for the Send Offer button on each saver row.
+      // Single listener on the modal body, dispatch by data-action.
+      $savesModalBody.onclick = (e) => {
+        const $btn = e.target.closest('[data-action="send-seller-offer"]');
+        if (!$btn) return;
+        openSellerOfferModal({
+          listingId:   $btn.dataset.listingId,
+          buyerId:     $btn.dataset.buyerId,
+          buyerName:   $btn.dataset.buyerName,
+          buyerHandle: $btn.dataset.buyerHandle,
+          artwork:     $btn.dataset.artwork,
+        });
+      };
     }
 
     async function toggleSaversList(card, listing) {
