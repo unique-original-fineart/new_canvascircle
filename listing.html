@@ -2138,16 +2138,18 @@
         // who has saved this listing. Fire-and-forget — a notification
         // delivery hiccup must NOT cause the offer submit to look failed
         // to the buyer. The offer row is already inserted in the DB.
-        // offer-fanout is a no-op for auto_declined offers (silent floor
-        // rejection) so we can call it unconditionally.
+        // (Floor-rejected offers don't reach this branch — they throw on
+        // the RPC and land in the catch block below with a clear message,
+        // see migration 054.)
         if (data) {
           supabase.functions.invoke("offer-fanout", {
             body: { offer_id: data },
           }).catch((e) => console.warn("[offer-fanout] dispatch failed (non-fatal):", e));
         }
-        // Success — same generic message whether the offer landed as
-        // pending or was silently auto-declined by the seller's floor.
-        // The auto-reject signal is asymmetric on purpose.
+        // Success — offer was inserted as pending and the seller will
+        // see it in their portal Offers tab. Floor-rejected offers throw
+        // before reaching this point so the buyer gets the "below seller's
+        // minimum" error from the catch branch instead.
         $offerOk.textContent = "Offer submitted. You'll be notified here when the seller responds.";
         $offerOk.hidden = false;
         $offerSend.textContent = "Sent ✓";

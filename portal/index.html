@@ -4281,26 +4281,6 @@
               </details>
             </div>
 
-            <!-- Private auto-reject floor for the Make-an-Offer feature.
-                 Offers strictly below this amount are silently declined
-                 without notifying the seller; buyers receive no signal
-                 that the floor exists or fired (per
-                 [[preserve-seller-pricing-power]]). Empty = no floor,
-                 every offer reaches the seller for manual review. -->
-            <div class="field">
-              <label for="prof-offer-floor">Auto-reject offers below (USD)</label>
-              <input type="number" id="prof-offer-floor" inputmode="numeric" min="0" step="1" placeholder="e.g. 2000 (leave blank to review every offer)" disabled />
-              <div class="field-actions">
-                <button type="button" id="prof-offer-floor-edit-btn"   class="linklike">Edit</button>
-                <button type="button" id="prof-offer-floor-save-btn"   class="btn-primary"   hidden>Save</button>
-                <button type="button" id="prof-offer-floor-cancel-btn" class="btn-secondary" hidden>Cancel</button>
-                <span id="prof-offer-floor-status" class="small field-status"></span>
-              </div>
-              <details class="field-explainer">
-                <summary>What is this for?</summary>
-                <p>Optional. Sets a private minimum offer amount for the "Make an offer" feature. Offers strictly below this number are silently declined; you won't get a push notification or email about them, and the buyer is never told that a floor exists or that it fired. Useful if you're happy to wait for the right price and don't want low-balls cluttering your inbox. Leave blank to review every offer manually. Visible only to you, never shown to buyers. You can change or remove it at any time.</p>
-              </details>
-            </div>
 
             <!-- Preferred contact method, soft signal shown on listings so
                  buyers know whether to include their phone number with their
@@ -4987,6 +4967,11 @@
             <div data-nl-show-on="sale">
               <label for="nl-price">Price (USD)<span class="required">*</span></label>
               <input type="text" inputmode="decimal" id="nl-price" placeholder="e.g. 1200" />
+            </div>
+            <div data-nl-show-on="sale">
+              <label for="nl-offer-floor">Auto-reject offers below (USD) <span class="small" style="color:var(--muted); font-weight:normal;">(optional)</span></label>
+              <input type="text" inputmode="decimal" id="nl-offer-floor" placeholder="e.g. 800" />
+              <p class="small" style="margin:4px 0 0;color:var(--muted);">Offers below this amount auto-reject. Buyers see "below seller's minimum" without seeing your number.</p>
             </div>
             <div data-nl-show-on="iso" hidden>
               <label for="nl-budget-min">Min budget (USD, optional)</label>
@@ -8327,6 +8312,11 @@
             <input type="text" inputmode="decimal" data-field="asking_price_usd" value="${l.asking_price_usd ?? ""}" placeholder="e.g. 1200" />
           </div>
           <div>
+            <label>Auto-reject offers below (USD) <span class="small" style="color:var(--muted); font-weight:normal;">(optional)</span></label>
+            <input type="text" inputmode="decimal" data-field="auto_reject_floor_usd" value="${l.auto_reject_floor_usd ?? ""}" placeholder="e.g. 800" />
+            <p class="small" style="margin:4px 0 0; color:var(--muted);">Offers below this amount are rejected on the spot. Buyers see "below seller's minimum" without seeing the number.</p>
+          </div>
+          <div>
             <label>Shipping included?</label>
             <select data-field="shipping_offered" required>
               <option value="" disabled ${!l.shipping_offered ? "selected" : ""}>Choose…</option>
@@ -9146,6 +9136,15 @@
       payload.depth_in  = d;
       const price = parsePrice(get("asking_price_usd"));
       payload.asking_price_usd = price;
+      // Per-listing Make-an-Offer auto-reject floor (migration 054). Empty
+      // input = no floor (null). Negative/invalid values get clamped to
+      // null too so we never accidentally persist a malformed value. The
+      // RPC reads this column on insert_offer to gate sub-floor bids with
+      // a transparent error to the buyer.
+      const floorStr = get("auto_reject_floor_usd");
+      const floorNum = floorStr ? parsePrice(floorStr) : null;
+      payload.auto_reject_floor_usd =
+        (floorNum != null && Number.isFinite(floorNum) && floorNum > 0) ? floorNum : null;
       // Open-to-Trade. Checkbox state + textarea content. If the checkbox is
       // off we null trade_looking_for so the DB never carries orphan text from
       // a deselected flag, keeps the data crisp for the catalog filter query.
@@ -9232,6 +9231,16 @@
         errs.push("Pick Yes or No for COA Included.");
       if (p.asking_price_usd == null || Number.isNaN(p.asking_price_usd) || p.asking_price_usd < 0)
         errs.push("Price must be a number, no words or other characters.");
+      // Per-listing auto-reject floor sanity: must be a positive number and
+      // can't be set higher than the asking price (no point auto-rejecting
+      // every offer below your list price; that's just turning off offers).
+      if (p.auto_reject_floor_usd != null) {
+        if (Number.isNaN(p.auto_reject_floor_usd) || p.auto_reject_floor_usd <= 0) {
+          errs.push("Auto-reject floor must be a positive number, or leave it blank.");
+        } else if (p.asking_price_usd != null && p.auto_reject_floor_usd >= p.asking_price_usd) {
+          errs.push("Auto-reject floor should be lower than your asking price.");
+        }
+      }
       return errs;
     }
 
@@ -9652,6 +9661,7 @@
               verification_status, verified_at,
               open_to_trade, trade_looking_for,
               pack_box_length_in, pack_box_width_in, pack_box_height_in, pack_weight_lbs,
+              auto_reject_floor_usd,
               listing_images ( storage_path, position ),
               listing_verifications ( id, status, review_notes, submitted_at, reviewed_at, revoked_at, revoke_reason )
             `)
@@ -12172,7 +12182,7 @@
     const $profStatus   = document.getElementById("profile-status");
 
     // Snapshot of last-saved values so per-field Cancel can revert.
-    let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", shipping_zip: "", about_text: "", contact_email: "", preferred_contact: "either", auto_reject_floor_usd: null };
+    let profileSnapshot = { display_name: "", handle: "", facebook_profile_url: "", location: "", shipping_zip: "", about_text: "", contact_email: "", preferred_contact: "either" };
 
     // -----------------------------------------------------------------------
     // setProfileEditMode, kept as a thin compatibility shim for the
@@ -12322,34 +12332,9 @@
       },
     });
 
-    // Make-an-Offer auto-reject floor (migration 052). Empty input = no
-    // floor (null in DB). Positive integers only. The transform coerces
-    // empty string to null so a cleared field actually removes the floor
-    // rather than persisting an empty string.
-    wirePerFieldEdit({
-      inputId: "prof-offer-floor",
-      editBtnId: "prof-offer-floor-edit-btn",
-      saveBtnId: "prof-offer-floor-save-btn",
-      cancelBtnId: "prof-offer-floor-cancel-btn",
-      statusId: "prof-offer-floor-status",
-      snapshotKey: "auto_reject_floor_usd",
-      column: "auto_reject_floor_usd",
-      validate: (val) => {
-        const v = String(val || "").trim();
-        if (!v) return;            // empty = clear, allowed
-        const n = Number(v);
-        if (!Number.isFinite(n) || n < 0) {
-          throw new Error("Auto-reject floor must be a positive whole number, or blank.");
-        }
-        if (!/^\d+$/.test(v)) {
-          throw new Error("Enter whole dollars only (no decimal places).");
-        }
-      },
-      transform: (val) => {
-        const v = String(val || "").trim();
-        return v ? Number(v) : null;
-      },
-    });
+    // (Auto-reject floor wire-up removed in cc-v183 — moved from per-seller
+    // to per-listing per migration 054. Floor now lives on the listing
+    // edit modal, not the Profile tab.)
 
     // Wire Preferred contact method, dropdown of email / phone / facebook
     // / either, soft signal shown on listings. transform: pass-through but
@@ -12403,13 +12388,6 @@
       $profEmail.value  = profileSnapshot.contact_email        || "";
       const $profPrefContact = document.getElementById("prof-preferred-contact");
       if ($profPrefContact) $profPrefContact.value = profileSnapshot.preferred_contact || "either";
-      // Make-an-Offer auto-reject floor. Null means "no floor" — render
-      // as empty string so the placeholder shows.
-      const $profOfferFloor = document.getElementById("prof-offer-floor");
-      if ($profOfferFloor) {
-        $profOfferFloor.value = (profileSnapshot.auto_reject_floor_usd != null)
-          ? String(profileSnapshot.auto_reject_floor_usd) : "";
-      }
       // Sync the FB-preference warning visibility with the just-loaded
       // value. Without this, the warning would only refresh on user
       // interaction, leaving stale state after a snapshot reload.
@@ -12679,7 +12657,6 @@
         about_text:           profile.about_text           || "",
         contact_email:        myEmail                      || "",
         preferred_contact:    profile.preferred_contact    || "either",
-        auto_reject_floor_usd: profile.auto_reject_floor_usd ?? null,
       };
       fillProfileFromSnapshot();
       $profStatus.textContent = "";
@@ -16869,6 +16846,7 @@
       const sizeStr   = document.getElementById("nl-size").value.trim();
       const framed    = document.getElementById("nl-framed")?.value.trim() || "";
       const priceStr  = document.getElementById("nl-price")?.value.trim() || "";
+      const floorStr  = document.getElementById("nl-offer-floor")?.value.trim() || "";
       const minStr    = document.getElementById("nl-budget-min")?.value.trim() || "";
       const maxStr    = document.getElementById("nl-budget-max")?.value.trim() || "";
       const shipping  = document.getElementById("nl-shipping")?.value || "";
@@ -16929,6 +16907,17 @@
           errs.push("Pick Yes or No for COA Included.");
         if (!nlSelectedFile)
           errs.push("Upload one image of the artwork.");
+        // Per-listing offer floor validation. Must be positive and lower
+        // than the asking price (otherwise it's just "no offers allowed",
+        // which is what blank-floor already means).
+        if (floorStr) {
+          const f = parsePrice(floorStr);
+          if (f == null || Number.isNaN(f) || f <= 0) {
+            errs.push("Auto-reject floor must be a positive number, or leave it blank.");
+          } else if (price != null && !Number.isNaN(price) && f >= price) {
+            errs.push("Auto-reject floor should be lower than your asking price.");
+          }
+        }
       }
 
       if (errs.length) {
@@ -16975,6 +16964,10 @@
           depth_in:         d,
           framed_size:      framed || null,
           asking_price_usd: parsePrice(priceStr),
+          // Per-listing Make-an-Offer auto-reject floor (migration 054). Blank
+          // input persists as null = no floor; offers any size go through to
+          // pending. Validated above to be positive and below asking_price.
+          auto_reject_floor_usd: floorStr ? parsePrice(floorStr) : null,
           shipping_offered: shipping,
           coa_included:     coa,
           description:      desc || null,
