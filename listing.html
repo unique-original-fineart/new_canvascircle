@@ -2053,11 +2053,10 @@
     const $offerSend    = document.getElementById("offer-send");
     let __offerCtx = null;
 
-    function fmtPrice(n) {
-      return typeof n === "number" && Number.isFinite(n)
-        ? "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 })
-        : "";
-    }
+    // Note: fmtPrice() is declared earlier in this module (around line 875) —
+    // reusing it here rather than redeclaring. The earlier version is what
+    // the catalog/listing price displays use, so the offer modal stays
+    // consistent with the rest of the page's price formatting.
 
     function openOfferModal(ctx) {
       __offerCtx = ctx;
