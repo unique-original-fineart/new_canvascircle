@@ -1093,7 +1093,7 @@
       // read pack dims / ZIP / price without needing a re-fetch. Refreshed
       // on every render so revisits via the freshness watchdog stay accurate.
       window.__currentListing = data;
-      render(data, userSaves, signedIn);
+      render(data, userSaves, signedIn, viewer?.id || null);
       logListingView(data);
 
       // For unsigned viewers: arm the return-trail so the Sign in / Create
@@ -1167,7 +1167,7 @@
       }
     }
 
-    function render(l, userSaves, signedIn) {
+    function render(l, userSaves, signedIn, viewerUserId) {
       const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a, b) => a.position - b.position);
       const imgUrls = images.map(i => publicImageUrl(i.storage_path)).filter(Boolean);
@@ -1427,7 +1427,7 @@
           ${seller.location ? `<div class="loc">${escapeHtml(seller.location)}</div>` : ""}
           ${prefContactRow}
           <div class="seller-actions">
-            ${(!isIso && viewer && l.seller_id !== viewer.id && l.status === "available")
+            ${(!isIso && viewerUserId && l.seller_id !== viewerUserId && l.status === "available")
               ? `<a class="offer-cta" id="make-offer-link" href="#" role="button">💸 Make an offer</a>`
               : ""}
             ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">${primaryCta}</a>` : ""}
