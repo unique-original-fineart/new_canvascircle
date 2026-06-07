@@ -356,6 +356,16 @@
       transition: filter .15s ease;
     }
     .seller-actions a:hover { filter: brightness(1.10); }
+    /* Make-an-Offer CTA gets the brand-gradient treatment to mark it as the
+       highest-intent action on the listing page. Contact buttons (FB, Email)
+       are alternatives for asking questions; the Offer button is the direct
+       "I want this at $X" path, so it deserves the visual prominence. */
+    .seller-actions a.offer-cta {
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      border-color: transparent;
+    }
+    .seller-actions a.offer-cta:hover { filter: brightness(1.08); }
 
     /* Preferred-contact hint, small chip-style label under the seller's
        location, visible only when the seller has set a preference (phone
@@ -725,6 +735,33 @@
       <div class="actions">
         <button type="button" id="contact-cancel">Cancel</button>
         <button type="button" id="contact-send" class="primary">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Offer modal — invoked from the Offer button in the seller-actions
+       row (sale-only, signed-in, viewer is not the seller). Reuses the
+       same overlay + dialog CSS as the contact modal so the visual
+       treatment is consistent. See migration 052 (insert_offer RPC) for
+       the server-side state machine. -->
+  <div class="contact-overlay" id="offer-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="offer-title">
+    <div class="contact-dialog" role="document">
+      <h3 id="offer-title">Make an offer</h3>
+      <p class="ctx" id="offer-ctx"></p>
+      <label for="offer-amount">Your offer (USD)</label>
+      <input type="number" id="offer-amount" min="1" step="1" inputmode="numeric"
+             autocomplete="off" placeholder="e.g. 2500" />
+      <label for="offer-note" style="margin-top: 12px;">Note <span style="color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0;">(optional)</span></label>
+      <textarea id="offer-note" maxlength="500" placeholder="Anything the seller should know about your offer (no links, no contact info)."></textarea>
+      <div class="reply-note" id="offer-help" style="margin-top: 6px;">
+        Offers are non-binding. The seller can accept, counter, or decline.
+        You'll be notified here when they respond.
+      </div>
+      <div class="err" id="offer-err" hidden></div>
+      <div class="ok"  id="offer-ok"  hidden></div>
+      <div class="actions">
+        <button type="button" id="offer-cancel">Cancel</button>
+        <button type="button" id="offer-send" class="primary">Send offer</button>
       </div>
     </div>
   </div>
@@ -1390,6 +1427,9 @@
           ${seller.location ? `<div class="loc">${escapeHtml(seller.location)}</div>` : ""}
           ${prefContactRow}
           <div class="seller-actions">
+            ${(!isIso && viewer && l.seller_id !== viewer.id && l.status === "available")
+              ? `<a class="offer-cta" id="make-offer-link" href="#" role="button">💸 Make an offer</a>`
+              : ""}
             ${fbUrl ? `<a class="primary" href="${fbUrl}" target="_blank" rel="noopener">${primaryCta}</a>` : ""}
             ${seller.has_contact_email ? `<a id="email-seller-link" href="#" role="button">${secondaryCta}</a>` : ""}
           </div>
@@ -1543,6 +1583,24 @@
             isIso,
             partyLabel,
             inquirySubject: render._inquirySubject,
+          });
+        });
+      }
+
+      // Make-an-Offer wire-up. Button only renders for signed-in non-owners
+      // on an available sale listing (gated in the seller-actions template
+      // above). Clicking opens the offer modal pre-populated with listing
+      // context so the buyer knows what they're offering on.
+      const $offerLink = document.getElementById("make-offer-link");
+      if ($offerLink) {
+        $offerLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          openOfferModal({
+            listingId:    l.listing_id,
+            sellerName:   seller.display_name || "the seller",
+            artworkTitle: l.artwork_title,
+            artistName:   l.artist_name,
+            askingPrice:  l.asking_price_usd,
           });
         });
       }
@@ -1972,6 +2030,125 @@
         $contactErr.hidden = false;
         $contactSend.disabled = false;
         $contactSend.textContent = "Send";
+      }
+    });
+
+    // ---------------------------------------------------------------------
+    // Make-an-Offer modal (cc-v178). Buyer clicks "Make an offer", inputs
+    // an amount + optional note, submits via the insert_offer RPC. The RPC
+    // gates on listing availability, block-status, self-offer-prevention,
+    // and (silently) applies the seller's auto_reject_floor_usd. We never
+    // reveal to the buyer whether their offer was auto-declined vs landed
+    // pending — same generic "submitted, you'll hear back" confirmation
+    // either way. See migration 052 + [[preserve-seller-pricing-power]]
+    // for the asymmetric-info design rationale.
+    // ---------------------------------------------------------------------
+    const $offerOverlay = document.getElementById("offer-overlay");
+    const $offerCtx     = document.getElementById("offer-ctx");
+    const $offerAmount  = document.getElementById("offer-amount");
+    const $offerNote    = document.getElementById("offer-note");
+    const $offerErr     = document.getElementById("offer-err");
+    const $offerOk      = document.getElementById("offer-ok");
+    const $offerCancel  = document.getElementById("offer-cancel");
+    const $offerSend    = document.getElementById("offer-send");
+    let __offerCtx = null;
+
+    function fmtPrice(n) {
+      return typeof n === "number" && Number.isFinite(n)
+        ? "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 })
+        : "";
+    }
+
+    function openOfferModal(ctx) {
+      __offerCtx = ctx;
+      const artwork = ctx.artworkTitle
+        ? `<strong>${escapeHtml(ctx.artworkTitle)}</strong>${ctx.artistName ? " by " + escapeHtml(ctx.artistName) : ""}`
+        : "this listing";
+      const askingLine = ctx.askingPrice
+        ? `Asking: <strong>${fmtPrice(ctx.askingPrice)}</strong>. `
+        : "";
+      $offerCtx.innerHTML = `${askingLine}Send a price to ${escapeHtml(ctx.sellerName)} for ${artwork}.`;
+      $offerAmount.value = "";
+      $offerNote.value   = "";
+      $offerErr.hidden = true;  $offerErr.textContent = "";
+      $offerOk.hidden  = true;  $offerOk.textContent  = "";
+      $offerSend.disabled = false;
+      $offerSend.textContent = "Send offer";
+      $offerCancel.textContent = "Cancel";
+      $offerOverlay.classList.add("open");
+      $offerOverlay.setAttribute("aria-hidden", "false");
+      setTimeout(() => $offerAmount.focus(), 30);
+    }
+
+    function closeOfferModal() {
+      $offerOverlay.classList.remove("open");
+      $offerOverlay.setAttribute("aria-hidden", "true");
+      __offerCtx = null;
+    }
+
+    $offerCancel?.addEventListener("click", closeOfferModal);
+    $offerOverlay?.addEventListener("click", (e) => {
+      // Backdrop click closes; inner clicks bubble + don't close.
+      if (e.target === $offerOverlay) closeOfferModal();
+    });
+
+    $offerSend?.addEventListener("click", async () => {
+      if (!__offerCtx) return;
+      $offerErr.hidden = true; $offerErr.textContent = "";
+      $offerOk.hidden  = true; $offerOk.textContent  = "";
+
+      const rawAmount = ($offerAmount.value || "").trim();
+      const amount = Number(rawAmount);
+      if (!rawAmount || !Number.isFinite(amount) || amount <= 0) {
+        $offerErr.textContent = "Enter an offer amount in whole dollars.";
+        $offerErr.hidden = false;
+        return;
+      }
+
+      // Client-side mirrors of the server-side rules. Server enforces these
+      // anyway via the insert_offer RPC, but failing fast saves a round-trip
+      // and gives clearer error feedback than the generic RPC reject.
+      const rawNote = ($offerNote.value || "").trim();
+      if (rawNote.length > 500) {
+        $offerErr.textContent = "Note must be 500 characters or fewer.";
+        $offerErr.hidden = false;
+        return;
+      }
+      if (/(https?:\/\/|www\.)/i.test(rawNote)) {
+        $offerErr.textContent = "Links are not allowed in the offer note.";
+        $offerErr.hidden = false;
+        return;
+      }
+
+      $offerSend.disabled = true;
+      $offerSend.textContent = "Sending…";
+
+      try {
+        const { data, error } = await supabase.rpc("insert_offer", {
+          p_listing_id: __offerCtx.listingId,
+          p_amount_usd: amount,
+          p_note:       rawNote || null,
+        });
+        if (error) {
+          // Surface the server-side message verbatim — the RPC throws with
+          // user-friendly messages ("you cannot offer on your own listing",
+          // "this listing is not currently available", etc.).
+          throw new Error(error.message || "Could not submit the offer.");
+        }
+        // Success — same generic message whether the offer landed as
+        // pending or was silently auto-declined by the seller's floor.
+        // The auto-reject signal is asymmetric on purpose.
+        $offerOk.textContent = "Offer submitted. You'll be notified here when the seller responds.";
+        $offerOk.hidden = false;
+        $offerSend.textContent = "Sent ✓";
+        $offerCancel.textContent = "Close";
+        setTimeout(closeOfferModal, 2200);
+      } catch (err) {
+        console.error("[insert_offer] failed:", err);
+        $offerErr.textContent = err.message || String(err);
+        $offerErr.hidden = false;
+        $offerSend.disabled = false;
+        $offerSend.textContent = "Send offer";
       }
     });
 

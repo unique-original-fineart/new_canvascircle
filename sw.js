@@ -19,7 +19,7 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
-const CACHE_VERSION = 'cc-v177-make-an-offer-chunk-a-migration-and-legal';
+const CACHE_VERSION = 'cc-v178-make-an-offer-chunk-b-listing-offer-modal';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. As of
