@@ -5361,7 +5361,7 @@
        then submits via the respond_to_offer or respond_to_counter RPC. The
        caller side decides which RPC to invoke based on whether the offer
        being countered has a parent_offer_id. -->
-  <div class="edit-modal-overlay" id="offer-counter-overlay" role="dialog" aria-modal="true" hidden>
+  <div class="edit-modal-overlay" id="offer-counter-overlay" role="dialog" aria-modal="true">
     <div class="edit-modal" style="max-width: 480px;">
       <div class="edit-modal-header">
         <h2>Counter-offer</h2>
@@ -6983,12 +6983,16 @@
       $amount.value = "";
       $note.value   = "";
       $err.hidden = true; $err.textContent = "";
-      $overlay.hidden = false;
+      // Show the modal. The .edit-modal-overlay base CSS sets display:none,
+      // so toggling the [hidden] attribute alone is a no-op — must use the
+      // .is-open class to actually flip to display:flex. (Same convention
+      // used by every other modal in this file.)
+      $overlay.classList.add("is-open");
       setTimeout(() => $amount.focus(), 30);
     }
     function closeOfferCounterModal() {
       const $overlay = document.getElementById("offer-counter-overlay");
-      if ($overlay) $overlay.hidden = true;
+      if ($overlay) $overlay.classList.remove("is-open");
       __counterCtx = null;
     }
     document.getElementById("offer-counter-close")?.addEventListener("click", closeOfferCounterModal);
