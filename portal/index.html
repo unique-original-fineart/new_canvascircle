@@ -6820,6 +6820,7 @@
         case "withdrawn_counter":            return "Counter withdrawn";
         case "expired":                      return "Expired";
         case "declined_listing_unavailable": return "Closed (sold to another buyer)";
+        case "fell_through":                 return "Voided (sale fell through)";
         default:                             return status;
       }
     }
@@ -7047,6 +7048,39 @@
         ? new Date(headline.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
         : "";
 
+      // Countdown: pending rows show "Expires in 6d 14h" instead of the
+      // static creation date. Anchor is created_at OR last_revived_at —
+      // when a fell-through revives an offer, the 7-day window resets.
+      // The data-offer-anchor attribute lets a setInterval re-compute
+      // the text + color tier every minute without re-rendering the
+      // whole panel (see startCountdownTicker below).
+      let timingHtml = "";
+      if (headline.status === "pending") {
+        const anchorMs = Math.max(
+          headline.created_at ? new Date(headline.created_at).getTime() : 0,
+          headline.last_revived_at ? new Date(headline.last_revived_at).getTime() : 0
+        );
+        const cd = computeOfferCountdown(anchorMs);
+        timingHtml = `<span class="offer-countdown" data-offer-anchor="${anchorMs}" style="margin-left: 10px; font-size: 12px; color: ${cd.color}; font-weight: 600;">${escapeHtml(cd.label)}</span>`;
+      } else if (created) {
+        timingHtml = `<span style="margin-left: 10px; font-size: 12px; color: var(--muted);">${escapeHtml(created)}</span>`;
+      }
+
+      // Seller-only buttons on accepted offers: Mark sale completed +
+      // Mark fell through (migration 056). Visible only when the current
+      // user IS the listing seller, regardless of which side proposed
+      // the offer (counters flip proposer/responder roles).
+      let acceptedActions = "";
+      const isAccepted = headline.status === "accepted" || headline.status === "accepted_counter";
+      const callerIsSeller = headline.listing_seller_id === currentUserId;
+      if (isAccepted && callerIsSeller) {
+        acceptedActions = `
+          <button class="btn-primary" data-offer-action="sale-complete" data-offer-id="${headline.id}" data-artwork="${escapeHtml(grp.artwork_title || "")}">Mark sale completed</button>
+          <button class="btn-danger" data-offer-action="fell-through" data-offer-id="${headline.id}" data-artwork="${escapeHtml(grp.artwork_title || "")}">Mark fell through</button>`;
+      }
+
+      const allActions = actions + acceptedActions;
+
       return `
         <div class="offer-thread" style="padding: 10px 0; border-bottom: 1px dashed var(--card-line);">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
@@ -7055,15 +7089,63 @@
               <div style="margin-top: 4px;">
                 <span style="font-size: 18px; font-weight: 700;">${fmtOfferAmount(headline.amount_usd)}</span>
                 <span style="margin-left: 10px; font-size: 13px; color: var(--muted);">${escapeHtml(offerStatusLabel(headline.status, isCounter))}</span>
-                ${created ? `<span style="margin-left: 10px; font-size: 12px; color: var(--muted);">${escapeHtml(created)}</span>` : ""}
+                ${timingHtml}
               </div>
               ${headlineNote}
               ${headlineDec}
               ${historyHtml}
             </div>
-            ${actions ? `<div class="offer-actions" style="display: flex; gap: 6px; flex-wrap: wrap;">${actions}</div>` : ""}
+            ${allActions ? `<div class="offer-actions" style="display: flex; gap: 6px; flex-wrap: wrap;">${allActions}</div>` : ""}
           </div>
         </div>`;
+    }
+
+    // -------- Offer expiration countdown helpers ---------------------------
+    // Offers expire 7 days after their anchor (created_at or last_revived_at,
+    // whichever is more recent). pg_cron flips status='expired' on the hour;
+    // this client-side countdown gives buyers + sellers a visible ticking
+    // clock so they don't sit on negotiations until they vaporize.
+    const OFFER_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+    function computeOfferCountdown(anchorMs) {
+      const remaining = anchorMs + OFFER_EXPIRY_MS - Date.now();
+      if (remaining <= 0) {
+        return { label: "Expiring soon", color: "var(--status-danger-deep)" };
+      }
+      const days    = Math.floor(remaining / (24 * 60 * 60 * 1000));
+      const hours   = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+      const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+      let label;
+      if (days > 0)         label = `${days}d ${hours}h left`;
+      else if (hours > 0)   label = `${hours}h ${minutes}m left`;
+      else                  label = `${Math.max(1, minutes)} min left`;
+      // Tiered color: green/muted by default, accent under 24h, danger under 6h.
+      let color;
+      if (remaining < 6 * 60 * 60 * 1000)  color = "var(--status-danger-deep)";
+      else if (remaining < 24 * 60 * 60 * 1000) color = "var(--accent)";
+      else color = "var(--muted)";
+      return { label, color };
+    }
+    // Refresh all on-screen countdown elements every minute. Cheap DOM op —
+    // we don't re-render the whole panel, just patch text + inline color.
+    let _offerCountdownTimer = null;
+    function startOfferCountdownTicker() {
+      if (_offerCountdownTimer) return;
+      _offerCountdownTimer = setInterval(() => {
+        const els = document.querySelectorAll(".offer-countdown");
+        els.forEach((el) => {
+          const anchor = Number(el.dataset.offerAnchor || 0);
+          if (!anchor) return;
+          const cd = computeOfferCountdown(anchor);
+          el.textContent = cd.label;
+          el.style.color = cd.color;
+        });
+      }, 60 * 1000);
+    }
+    // Kick the ticker once the page is interactive.
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", startOfferCountdownTicker);
+    } else {
+      startOfferCountdownTicker();
     }
 
     async function handleOfferAction(e) {
@@ -7082,6 +7164,53 @@
           currentAmount: Number($btn.dataset.amount || 0),
           artwork: $btn.dataset.artwork || "this listing",
         });
+        return;
+      }
+
+      // Seller-side post-accept affordances. Both are guarded by a confirm()
+      // since they flip the listing's status (sold or back to available).
+      if (action === "sale-complete") {
+        const artwork = $btn.dataset.artwork || "this listing";
+        if (!confirm(`Mark the sale of ${artwork} as completed? The listing will be marked Sold.`)) return;
+        $btn.disabled = true;
+        try {
+          const { error } = await supabase.rpc("mark_offer_sale_complete", { p_offer_id: offerId });
+          if (error) throw error;
+          // Notify the buyer with a thank-you push.
+          supabase.functions.invoke("offer-fanout", {
+            body: { offer_id: offerId, mode: "sale_complete" },
+          }).catch((e) => console.warn("[offer-fanout] sale_complete dispatch failed (non-fatal):", e));
+          if (currentUserId) {
+            await loadOffersPanel(currentUserId);
+            loadDashboardListings(currentUserId).catch(() => {});
+          }
+        } catch (err) {
+          console.error("[offers] sale-complete failed:", err);
+          alert("Could not mark complete: " + (err.message || err));
+          $btn.disabled = false;
+        }
+        return;
+      }
+      if (action === "fell-through") {
+        const artwork = $btn.dataset.artwork || "this listing";
+        if (!confirm(`Mark the sale of ${artwork} as fell through? The listing will return to Available, and any offers that were closed when you accepted will be reactivated for those buyers.`)) return;
+        $btn.disabled = true;
+        try {
+          const { data: revivedIds, error } = await supabase.rpc("mark_offer_fell_through", { p_offer_id: offerId });
+          if (error) throw error;
+          // Fan out two pushes: ghoster + each revived buyer.
+          supabase.functions.invoke("offer-fanout", {
+            body: { offer_id: offerId, mode: "fell_through", revived_offer_ids: revivedIds || [] },
+          }).catch((e) => console.warn("[offer-fanout] fell_through dispatch failed (non-fatal):", e));
+          if (currentUserId) {
+            await loadOffersPanel(currentUserId);
+            loadDashboardListings(currentUserId).catch(() => {});
+          }
+        } catch (err) {
+          console.error("[offers] fell-through failed:", err);
+          alert("Could not mark fell-through: " + (err.message || err));
+          $btn.disabled = false;
+        }
         return;
       }
 

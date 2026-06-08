@@ -8,7 +8,7 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //
 // Called by the listing.html offer modal + the portal Offers tab. Routes
-// to one of two modes:
+// to one of four modes:
 //
 //   mode='create' (default) — fired after an offer or counter is INSERTED
 //     * Caller MUST be the offer's proposer (forge defense)
@@ -27,10 +27,21 @@
 //       "another buyer accepted, this listing is no longer available"
 //       to each loser's proposer (the displaced buyer)
 //
-// Request body:
-//   { offer_id: uuid, mode?: 'create' | 'decision' }
+//   mode='fell_through' — fired after mark_offer_fell_through RPC
+//     * Caller MUST be the listing's seller (mirrors the RPC's auth check)
+//     * Push the ghoster (proposer of the now-fell_through offer)
+//     * Push each revived buyer ("your offer is back in play") — IDs
+//       come from `revived_offer_ids` in the body, returned by the RPC.
 //
-// Response: { sent: number, saver_nudges?: number, race_losers?: number }
+//   mode='sale_complete' — fired after mark_offer_sale_complete RPC
+//     * Caller MUST be the listing's seller
+//     * Push the buyer ("seller marked the sale complete, thanks!")
+//
+// Request body:
+//   { offer_id: uuid, mode?: 'create' | 'decision' | 'fell_through' | 'sale_complete',
+//     revived_offer_ids?: uuid[] }
+//
+// Response: { sent: number, saver_nudges?: number, race_losers?: number, revived?: number }
 // =============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -96,6 +107,7 @@ serve(async (req) => {
     const body = await req.json();
     const offer_id: string | undefined = body?.offer_id;
     const mode: string = body?.mode || "create";
+    const revivedIds: string[] = Array.isArray(body?.revived_offer_ids) ? body.revived_offer_ids : [];
     if (!offer_id) return json(400, { error: "offer_id required" });
 
     // Load the offer + listing.
@@ -240,6 +252,93 @@ serve(async (req) => {
       }
 
       return json(200, { sent, race_losers: raceLosers });
+    }
+
+    // -------------------------------------------------------------------
+    // MODE: fell_through — caller is the listing's seller, push the
+    // ghoster (proposer of the voided offer) + push each revived buyer.
+    // -------------------------------------------------------------------
+    if (mode === "fell_through") {
+      // Caller validation: must be the listing's seller.
+      const { data: listing } = await adminClient
+        .from("listings")
+        .select("seller_id")
+        .eq("listing_id", offer.listing_id)
+        .single();
+      if (!listing || listing.seller_id !== user.id) {
+        return json(403, { error: "Only the listing seller can fan out fell-through" });
+      }
+
+      // The "ghoster" is the buyer of this thread — the participant who is
+      // NOT the seller. They originally proposed (or accepted via counter)
+      // and then didn't follow through off-platform.
+      const ghosterId = offer.proposer_id === listing.seller_id ? offer.responder_id : offer.proposer_id;
+
+      let sent = 0;
+      if (ghosterId) {
+        if (await sendPush(
+          adminClient, ghosterId,
+          "Sale marked as fell through",
+          `The seller voided your accepted offer on ${artworkLabel}. The listing is back on the market.`,
+          `/listing.html?id=${offer.listing_id}`,
+          `offer-fell-through-${offer.id}`
+        )) sent++;
+      }
+
+      // Revived buyers: each got the "sold to another buyer" push when
+      // this offer accepted. Now they get a "back in play" push so they
+      // know to come check their portal.
+      let revived = 0;
+      if (revivedIds.length > 0) {
+        const { data: revivedRows } = await adminClient
+          .from("offers")
+          .select("id, proposer_id, responder_id")
+          .in("id", revivedIds);
+        const seen = new Set<string>();
+        for (const r of (revivedRows || []) as any[]) {
+          // Identify each revived offer's buyer (the non-seller participant).
+          const buyerId = r.proposer_id === listing.seller_id ? r.responder_id : r.proposer_id;
+          if (!buyerId || seen.has(buyerId)) continue;
+          seen.add(buyerId);
+          if (await sendPush(
+            adminClient, buyerId,
+            "Your offer is back in play",
+            `The sale on ${artworkLabel} fell through. Your offer is open again. Check your portal to act.`,
+            `/portal/`,
+            `offer-revived-${offer.id}-${r.id}`
+          )) revived++;
+        }
+      }
+
+      return json(200, { sent, revived });
+    }
+
+    // -------------------------------------------------------------------
+    // MODE: sale_complete — caller is the listing's seller, push the
+    // buyer to confirm the off-platform deal closed.
+    // -------------------------------------------------------------------
+    if (mode === "sale_complete") {
+      const { data: listing } = await adminClient
+        .from("listings")
+        .select("seller_id")
+        .eq("listing_id", offer.listing_id)
+        .single();
+      if (!listing || listing.seller_id !== user.id) {
+        return json(403, { error: "Only the listing seller can fan out sale-complete" });
+      }
+
+      const buyerId = offer.proposer_id === listing.seller_id ? offer.responder_id : offer.proposer_id;
+      let sent = 0;
+      if (buyerId) {
+        if (await sendPush(
+          adminClient, buyerId,
+          "Sale marked complete",
+          `The seller marked the sale of ${artworkLabel} as complete. Thanks for buying!`,
+          `/portal/`,
+          `offer-complete-${offer.id}`
+        )) sent++;
+      }
+      return json(200, { sent });
     }
 
     return json(400, { error: `Unknown mode: ${mode}` });
