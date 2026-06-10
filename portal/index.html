@@ -4060,6 +4060,14 @@
             <div class="email" id="who-email">&nbsp;</div>
           </div>
           <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+            <!-- Profile link (cc-v188). Moved out of the tab strip because
+                 with Listings + Saved + Inquiries + Collection + Admin
+                 already in the strip, Profile was getting cut off on
+                 iPhone-width screens (users couldn't find it without
+                 horizontal scrolling). Profile is a settings-style page
+                 visited rarely, so it belongs as a utility link, not
+                 alongside daily-use content tabs. -->
+            <button type="button" id="open-profile-link" style="color: var(--accent); font-weight: 600; text-decoration: underline; font-size: 14px; background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;">⚙️ Profile</button>
             <a href="/guidelines.html#selling" target="_blank" rel="noopener" style="color: var(--accent); font-weight: 600; text-decoration: underline; font-size: 14px;">Selling Guidelines</a>
             <a href="#" id="contact-admin-top" style="color: var(--accent); font-weight: 600; text-decoration: underline; font-size: 14px;">Contact Admin</a>
           </div>
@@ -4135,9 +4143,12 @@
           <button type="button" class="tab-btn" data-tab="collection" role="tab">
             <span class="tab-label">Collection</span>
           </button>
-          <button type="button" class="tab-btn" data-tab="profile" role="tab">
-            <span class="tab-label">Profile</span>
-          </button>
+          <!-- Profile tab button removed cc-v188; reachable via "⚙️ Profile"
+               link in the dashboard header utility row. Keeps the tab strip
+               focused on daily-use content (Listings / Saved / Inquiries /
+               Collection / Admin) so Profile doesn't push tabs off-screen
+               on iPhone-width viewports. The tab-panel itself stays in
+               place and activateTab("profile") still works. -->
           <button type="button" class="tab-btn" data-tab="admin" role="tab" id="admin-tab-btn" hidden>
             <span class="tab-label">Admin</span> <span id="admin-pending-badge" class="count" style="margin-left:4px;"></span>
           </button>
@@ -13045,6 +13056,14 @@
     document.getElementById("contact-admin-top")?.addEventListener("click", (e) => {
       e.preventDefault();
       openContactAdminModal();
+    });
+
+    // Profile link in the header utility row (cc-v188). Routes through the
+    // same activateTab path the tab strip used to use, so the tab panel's
+    // loadProfileForm() side-effect still fires identically.
+    document.getElementById("open-profile-link")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      activateTab("profile");
     });
 
     $bcSendBtn?.addEventListener("click", async () => {
