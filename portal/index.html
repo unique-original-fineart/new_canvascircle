@@ -469,6 +469,47 @@
       margin-top: 8px;
     }
     @media (min-width: 720px) { .listing-list { gap: 14px; } }
+    /* Collection grid (migration 057). Slightly tighter than the
+       listing grid since Collection items have less metadata to show. */
+    .collection-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 8px;
+    }
+    @media (min-width: 720px) {
+      .collection-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    }
+    .collection-card {
+      background: var(--surface-1);
+      border: 1px solid var(--card-line);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform .15s ease, border-color .15s ease;
+    }
+    .collection-card:hover { transform: translateY(-1px); border-color: var(--accent-soft); }
+    .collection-card .cc-thumb {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: var(--surface-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .collection-card .cc-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .collection-card .cc-meta { padding: 10px 12px 12px; }
+    .collection-card .cc-artist { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+    .collection-card .cc-title { font-size: 14px; font-weight: 600; line-height: 1.3; }
+    .collection-card .cc-private-flag {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      color: var(--muted);
+    }
     .listing-row {
       display: grid;
       grid-template-columns: 72px 1fr auto;
@@ -4091,6 +4132,9 @@
           <button type="button" class="tab-btn" data-tab="inquiries" role="tab" id="inquiries-tab-btn">
             <span class="tab-label">Inquiries</span> <span id="inq-tab-badge" class="count" style="margin-left:4px;" hidden>0</span>
           </button>
+          <button type="button" class="tab-btn" data-tab="collection" role="tab">
+            <span class="tab-label">Collection</span>
+          </button>
           <button type="button" class="tab-btn" data-tab="profile" role="tab">
             <span class="tab-label">Profile</span>
           </button>
@@ -4150,6 +4194,55 @@
             No listings match your filters.
           </div>
           <div id="listings-list" class="listing-list" hidden></div>
+        </div>
+
+        <!-- Tab: Collection (migration 057, cc-v187).
+             A personal catalog of pieces the user owns. Distinct from
+             listings: Collection items are "what I own" while listings
+             are "what I'm selling". A user's Collection is private by
+             default; only Established Members can flip it public, in
+             which case it renders on their public seller page as a
+             Collection tab (Chunk B). Per-item private fields (notes,
+             appraised value, paid value) are NEVER visible to anyone
+             but the owner. -->
+        <div class="tab-panel" data-tab-panel="collection">
+          <div class="dash-head" style="align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2>Your Collection <span class="count" id="collection-count"></span></h2>
+              <p class="small" style="color: var(--muted); margin: 4px 0 0; max-width: 600px;">
+                A personal catalog of pieces you own. Add provenance, photos, and a Story. Private by default. Established Members can make it public, and it will show on your seller page.
+              </p>
+            </div>
+            <button type="button" class="btn-primary" id="collection-add-btn">+ Add piece</button>
+          </div>
+
+          <!-- Visibility toggle + About row. Compact UI; the toggle is
+               a labeled checkbox + status text + a "save" button when
+               the About text is being edited. -->
+          <div id="collection-controls" class="collection-controls" style="margin: 14px 0; padding: 12px 14px; border: 1px solid var(--card-line); border-radius: 10px; background: var(--surface-2); display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="collection-public-toggle" />
+                <span><strong>Make my Collection public</strong></span>
+              </label>
+              <span id="collection-public-status" class="small" style="color: var(--muted);"></span>
+            </div>
+            <div>
+              <label for="collection-about" style="display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px;">About my Collection (public, optional)</label>
+              <textarea id="collection-about" rows="2" maxlength="1000" placeholder="A short intro: how you got into collecting, what you focus on, etc. No prices, no sales, no links." style="width: 100%;"></textarea>
+              <div style="display: flex; gap: 8px; align-items: center; margin-top: 6px;">
+                <button type="button" class="btn-secondary" id="collection-about-save-btn">Save About</button>
+                <span id="collection-about-status" class="small" style="color: var(--muted);"></span>
+              </div>
+            </div>
+          </div>
+
+          <div id="collection-loading" class="empty-state" hidden>Loading your Collection&hellip;</div>
+          <div id="collection-error" class="banner error" hidden></div>
+          <div id="collection-empty" class="empty-state" hidden>
+            No pieces in your Collection yet. Tap "+ Add piece" to start cataloging what you own.
+          </div>
+          <div id="collection-grid" class="collection-grid" hidden></div>
         </div>
 
         <!-- Tab: Profile -->
@@ -5415,6 +5508,122 @@
     </div>
   </div>
 
+  <!-- Collection item modal (migration 057). Add OR edit a piece in
+       the user's Collection. The form is divided into a PUBLIC section
+       (visible on the user's public Collection if they've opted in) and
+       a PRIVATE section (owner-only, never displayed anywhere else).
+       The labels make the privacy boundary explicit; data attribute
+       `data-mode` on the modal toggles between "add" and "edit" so the
+       same form serves both flows. -->
+  <div class="edit-modal-overlay" id="ci-modal-overlay" role="dialog" aria-modal="true">
+    <div class="edit-modal" style="max-width: 640px;">
+      <div class="edit-modal-header">
+        <h2 id="ci-modal-title">Add piece</h2>
+        <button type="button" class="em-close" id="ci-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <div id="ci-banner" class="banner" hidden style="margin-bottom: 12px;"></div>
+
+        <!-- Image upload zone. Reuses the same compression pipeline as
+             new-listing (lib/image-compression and Supabase Storage).
+             For edits, the existing image renders here with a Replace
+             affordance. -->
+        <label class="nl-image-zone" id="ci-image-zone" style="margin-bottom: 14px;">
+          <input type="file" id="ci-image-input" accept="image/*" />
+          <div class="placeholder" id="ci-image-placeholder">
+            <strong>Upload your own photo of the artwork</strong>
+            <span>One image per piece. We'll compress it for you.</span>
+          </div>
+          <div class="nl-preview-wrap" id="ci-image-preview-wrap" hidden>
+            <img id="ci-image-preview" alt="Selected artwork preview" />
+            <button type="button" class="nl-replace-btn" id="ci-image-replace-btn">Replace</button>
+          </div>
+        </label>
+
+        <!-- Public section. The light visual separator + the "(Public)"
+             tag in the section heading makes the privacy boundary clear. -->
+        <div style="margin-bottom: 10px;">
+          <h3 style="margin: 0 0 4px; font-size: 14px; color: var(--accent); text-transform: uppercase; letter-spacing: .4px;">Public details</h3>
+          <p class="small" style="color: var(--muted); margin: 0 0 10px;">These fields show on your public Collection page if you've opted in.</p>
+        </div>
+
+        <div class="nl-form-grid">
+          <div>
+            <label for="ci-artist">Artist name<span class="required">*</span></label>
+            <input type="text" id="ci-artist" />
+          </div>
+          <div>
+            <label for="ci-title">Artwork title<span class="required">*</span></label>
+            <input type="text" id="ci-title" />
+          </div>
+          <div>
+            <label for="ci-medium">Medium / Type<span class="required">*</span></label>
+            <input type="text" id="ci-medium" placeholder="e.g. Acrylic on canvas" />
+          </div>
+          <div>
+            <label for="ci-category">Unique/Original or Limited Edition<span class="required">*</span></label>
+            <select id="ci-category">
+              <option value="" disabled selected>Choose&hellip;</option>
+              <option value="Unique/Original">Unique/Original</option>
+              <option value="Limited Edition">Limited Edition</option>
+            </select>
+          </div>
+          <div>
+            <label for="ci-size">Artwork size (inches)</label>
+            <input type="text" id="ci-size" placeholder="e.g. 20 x 20 (optional)" />
+          </div>
+          <div>
+            <label for="ci-framed">Frame size (inches)</label>
+            <input type="text" id="ci-framed" placeholder="e.g. 24 x 24 (optional)" />
+          </div>
+          <div>
+            <label for="ci-coa">Certificate of Authenticity included?</label>
+            <select id="ci-coa">
+              <option value="">Not specified</option>
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
+            </select>
+          </div>
+          <div class="span-2">
+            <label for="ci-story">Story (optional, public)</label>
+            <textarea id="ci-story" rows="3" maxlength="500" placeholder="How did you acquire this piece? Any story behind it? No prices, no sales, no links."></textarea>
+            <p class="small" style="margin: 4px 0 0; color: var(--muted);">Max 500 chars. Dollar amounts, sale offers, links, and phone numbers are blocked.</p>
+          </div>
+        </div>
+
+        <!-- Private section. Stronger visual break so users don't
+             accidentally type sensitive info into the public Story. -->
+        <div style="margin: 22px 0 10px; padding-top: 14px; border-top: 2px solid var(--card-line);">
+          <h3 style="margin: 0 0 4px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px;">Just for you (private)</h3>
+          <p class="small" style="color: var(--muted); margin: 0 0 10px;">These fields are owner-only. They never appear on your public Collection or anywhere else on the site.</p>
+        </div>
+
+        <div class="nl-form-grid">
+          <div>
+            <label for="ci-appraised">Appraised value (USD)</label>
+            <input type="number" id="ci-appraised" min="0" step="1" inputmode="numeric" placeholder="e.g. 3500" />
+          </div>
+          <div>
+            <label for="ci-paid">What you paid (USD)</label>
+            <input type="number" id="ci-paid" min="0" step="1" inputmode="numeric" placeholder="e.g. 1800" />
+          </div>
+          <div class="span-2">
+            <label for="ci-notes">Private notes</label>
+            <textarea id="ci-notes" rows="3" placeholder="Personal records: where you bought it, year, condition, etc."></textarea>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:space-between; margin-top:18px; flex-wrap: wrap;">
+          <button type="button" class="btn-danger" id="ci-delete-btn" hidden>Delete piece</button>
+          <div style="display:flex; gap:10px; flex-wrap: wrap; margin-left: auto;">
+            <button type="button" class="btn-secondary" id="ci-cancel-btn">Cancel</button>
+            <button type="button" class="btn-primary" id="ci-save-btn">Save piece</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="edit-modal-overlay" id="mod-reject-overlay" role="dialog" aria-modal="true" hidden>
     <div class="edit-modal" style="max-width: 560px;">
       <div class="edit-modal-header">
@@ -5504,7 +5713,7 @@
   </footer>
 
   <script type="module">
-    import { supabase, currentProfile, publicImageUrl, compressImage, clearBlockFilterCache, getMyContactEmail, getContactEmailsAsAdmin } from "/lib/supabase.js?v=4";
+    import { supabase, currentProfile, publicImageUrl, compressImage, clearBlockFilterCache, getMyContactEmail, getContactEmailsAsAdmin } from "/lib/supabase.js?v=5";
     import { TURNSTILE_SITE_KEY } from "/lib/config.js";
     import { getSavedListings, toggleSave, clearSavesCache } from "/lib/saves.js";
     import { readReturnTrail } from "/lib/return-trail.js";
@@ -7440,6 +7649,427 @@
         $btn.disabled = false;
       }
     });
+
+    // =====================================================================
+    // COLLECTION TAB — migration 057, cc-v187.
+    // =====================================================================
+    // A user's personal catalog of pieces they own. Distinct from listings:
+    // Collection items are "what I own", listings are "what I'm selling."
+    // Per-item private fields (notes, appraised value, paid value) never
+    // appear publicly. Visibility is owner-controlled with an Established
+    // Member gate on the "public" flag.
+    //
+    // State machine: items are loaded fresh from get_my_collection RPC on
+    // every tab activation. Add/edit happens in a single modal (ci-modal-*).
+    // Image upload uses Supabase Storage 'collection-images' bucket with
+    // path {user_id}/{item_id}/image.{ext}.
+    // =====================================================================
+    let collectionData = { items: [] };
+    let collectionItemSelected = null;  // when editing: the item row
+    let collectionImagePending = null;  // when add/edit: { blob, mime, ext } from compressImage
+
+    // Local image URL helper for the collection-images bucket. publicImageUrl
+    // from lib/supabase.js is hardcoded to the listings bucket; rather than
+    // bump the lib API (sweep risk per [[versioned-module-imports]]) we
+    // build the URL inline. Uses Supabase's image-transform endpoint with
+    // the same width/quality defaults as publicImageUrl.
+    function collectionImageUrl(storagePath, opts = {}) {
+      if (!storagePath) return "";
+      const transform = opts.width
+        ? { transform: { width: opts.width, quality: opts.quality || 75, resize: "contain", format: "webp" } }
+        : undefined;
+      const { data } = supabase.storage.from("collection-images").getPublicUrl(storagePath, transform);
+      return data?.publicUrl || "";
+    }
+
+    async function loadCollection() {
+      const $loading = document.getElementById("collection-loading");
+      const $empty   = document.getElementById("collection-empty");
+      const $grid    = document.getElementById("collection-grid");
+      const $err     = document.getElementById("collection-error");
+      const $count   = document.getElementById("collection-count");
+      if (!$grid) return;
+
+      $loading.hidden = false;
+      $empty.hidden = true;
+      $grid.hidden = true;
+      $err.hidden = true;
+
+      try {
+        const resp = await withTimeout(
+          supabase.rpc("get_my_collection"),
+          12000,
+          "collection query"
+        );
+        if (resp.error) throw resp.error;
+        collectionData = { items: resp.data || [] };
+      } catch (err) {
+        console.error("[collection] load failed:", err);
+        collectionData = { items: [] };
+        $loading.hidden = true;
+        $err.textContent = "Couldn't load your Collection: " + (err.message || err);
+        $err.hidden = false;
+        $count.textContent = "";
+        return;
+      }
+
+      $loading.hidden = true;
+      const items = collectionData.items;
+      $count.textContent = items.length > 0 ? `(${items.length})` : "";
+      if (items.length === 0) {
+        $empty.hidden = false;
+        $grid.hidden = true;
+      } else {
+        $empty.hidden = true;
+        $grid.hidden = false;
+        $grid.innerHTML = items.map(renderCollectionCard).join("");
+        $grid.onclick = (e) => {
+          const $card = e.target.closest("[data-ci-id]");
+          if (!$card) return;
+          const id = $card.dataset.ciId;
+          const item = collectionData.items.find(x => x.id === id);
+          if (item) openCollectionItemModal({ mode: "edit", item });
+        };
+      }
+
+      // Also refresh the controls (visibility toggle + about text) on
+      // every Collection load, so they reflect the latest profile state.
+      await loadCollectionControls();
+    }
+
+    function renderCollectionCard(it) {
+      // Owner-side card. Shows public-side fields; "private fields stored"
+      // tag if any of the private numeric fields have a value (subtle hint
+      // to the owner that they have private data on this piece, without
+      // revealing what).
+      const url = it.image_path ? collectionImageUrl(it.image_path, { width: 500 }) : "";
+      const hasPriv = (it.appraised_value_usd != null) || (it.paid_value_usd != null) || (it.private_notes && it.private_notes.length > 0);
+      return `
+        <div class="collection-card" data-ci-id="${it.id}">
+          <div class="cc-thumb">${url ? `<img src="${url}" alt="" loading="lazy" />` : `<span style="color: var(--muted); font-size: 12px;">no image</span>`}</div>
+          <div class="cc-meta">
+            <div class="cc-artist">${escapeHtml(it.artist_name || "")}</div>
+            <div class="cc-title">${escapeHtml(it.artwork_title || "")}</div>
+            ${hasPriv ? `<span class="cc-private-flag">Private notes stored</span>` : ""}
+          </div>
+        </div>`;
+    }
+
+    // -------- Collection controls (visibility + About) ---------------------
+    async function loadCollectionControls() {
+      const $toggle = document.getElementById("collection-public-toggle");
+      const $status = document.getElementById("collection-public-status");
+      const $about  = document.getElementById("collection-about");
+      if (!$toggle || !$about) return;
+      // Pull current state from the user's profile.
+      const profile = await currentProfile();
+      const isPublic  = !!profile?.collection_is_public;
+      const isTrusted = !!profile?.is_trusted;
+      $toggle.checked = isPublic;
+      $toggle.disabled = !isTrusted && !isPublic;
+      if (!isTrusted) {
+        $status.textContent = isPublic
+          ? "Your account is no longer Established. Your Collection is effectively private until you reach Established again."
+          : "Become an Established Member to make your Collection public.";
+        $status.style.color = "var(--muted)";
+      } else {
+        $status.textContent = isPublic
+          ? "Live on your seller page."
+          : "Private. Only you can see it.";
+        $status.style.color = isPublic ? "var(--accent)" : "var(--muted)";
+      }
+      $about.value = profile?.collection_about_text || "";
+    }
+
+    document.getElementById("collection-public-toggle")?.addEventListener("change", async (e) => {
+      const $toggle = e.target;
+      const newVal = !!$toggle.checked;
+      const $status = document.getElementById("collection-public-status");
+      $toggle.disabled = true;
+      try {
+        const { error } = await supabase.rpc("set_collection_visibility", { p_is_public: newVal });
+        if (error) throw error;
+        // Re-pull controls so the status text reflects the truth (and if the
+        // gate failed silently, the toggle gets flipped back).
+        await loadCollectionControls();
+      } catch (err) {
+        console.error("[collection] visibility change failed:", err);
+        $status.textContent = err.message || String(err);
+        $status.style.color = "var(--status-danger-deep)";
+        $toggle.checked = !newVal;  // revert UI
+      } finally {
+        $toggle.disabled = false;
+      }
+    });
+
+    document.getElementById("collection-about-save-btn")?.addEventListener("click", async () => {
+      const $about = document.getElementById("collection-about");
+      const $status = document.getElementById("collection-about-status");
+      const text = ($about.value || "").trim();
+      $status.textContent = "Saving…";
+      $status.style.color = "var(--muted)";
+      try {
+        const { error } = await supabase.rpc("set_collection_about", { p_text: text || null });
+        if (error) throw error;
+        $status.textContent = "Saved.";
+        $status.style.color = "var(--accent)";
+        setTimeout(() => { $status.textContent = ""; }, 2500);
+      } catch (err) {
+        console.error("[collection] about save failed:", err);
+        $status.textContent = err.message || String(err);
+        $status.style.color = "var(--status-danger-deep)";
+      }
+    });
+
+    // -------- Collection item modal ----------------------------------------
+    function openCollectionItemModal(ctx) {
+      const $overlay = document.getElementById("ci-modal-overlay");
+      const $title   = document.getElementById("ci-modal-title");
+      const $banner  = document.getElementById("ci-banner");
+      const $delete  = document.getElementById("ci-delete-btn");
+      collectionItemSelected = ctx.mode === "edit" ? ctx.item : null;
+      collectionImagePending = null;
+      $banner.hidden = true; $banner.textContent = "";
+      $title.textContent = ctx.mode === "edit" ? "Edit piece" : "Add piece";
+      $delete.hidden = ctx.mode !== "edit";
+
+      // Populate (or clear) all fields.
+      const it = collectionItemSelected || {};
+      document.getElementById("ci-artist").value    = it.artist_name || "";
+      document.getElementById("ci-title").value     = it.artwork_title || "";
+      document.getElementById("ci-medium").value    = it.medium || "";
+      document.getElementById("ci-category").value  = it.artwork_category || "";
+      document.getElementById("ci-size").value      = fmtArtworkSize(it.height_in, it.width_in, it.depth_in) || "";
+      document.getElementById("ci-framed").value    = it.framed_size || "";
+      document.getElementById("ci-coa").value       = it.coa_included || "";
+      document.getElementById("ci-story").value     = it.public_story || "";
+      document.getElementById("ci-notes").value     = it.private_notes || "";
+      document.getElementById("ci-appraised").value = it.appraised_value_usd != null ? String(it.appraised_value_usd) : "";
+      document.getElementById("ci-paid").value      = it.paid_value_usd != null ? String(it.paid_value_usd) : "";
+
+      // Image: render existing or show placeholder.
+      const $imgPreview = document.getElementById("ci-image-preview");
+      const $imgPreviewWrap = document.getElementById("ci-image-preview-wrap");
+      const $imgPlaceholder = document.getElementById("ci-image-placeholder");
+      const $imgInput = document.getElementById("ci-image-input");
+      $imgInput.value = "";
+      if (it.image_path) {
+        $imgPreview.src = collectionImageUrl(it.image_path, { width: 500 });
+        $imgPreviewWrap.hidden = false;
+        $imgPlaceholder.hidden = true;
+      } else {
+        $imgPreviewWrap.hidden = true;
+        $imgPlaceholder.hidden = false;
+      }
+
+      $overlay.classList.add("is-open");
+      setTimeout(() => document.getElementById("ci-artist").focus(), 30);
+    }
+    function closeCollectionItemModal() {
+      document.getElementById("ci-modal-overlay").classList.remove("is-open");
+      collectionItemSelected = null;
+      collectionImagePending = null;
+    }
+    document.getElementById("ci-modal-close")?.addEventListener("click", closeCollectionItemModal);
+    document.getElementById("ci-cancel-btn")?.addEventListener("click", closeCollectionItemModal);
+    document.getElementById("ci-modal-overlay")?.addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) closeCollectionItemModal();
+    });
+    document.getElementById("collection-add-btn")?.addEventListener("click", () => {
+      openCollectionItemModal({ mode: "add" });
+    });
+
+    // Image picker. Compresses on selection so the preview reflects what
+    // will actually be uploaded. Compression failures fall through so the
+    // user still sees a preview from the raw file blob.
+    document.getElementById("ci-image-input")?.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const $banner = document.getElementById("ci-banner");
+      $banner.hidden = true;
+      try {
+        const compressed = await compressImage(file);
+        collectionImagePending = compressed;
+        const url = URL.createObjectURL(compressed.blob);
+        document.getElementById("ci-image-preview").src = url;
+        document.getElementById("ci-image-preview-wrap").hidden = false;
+        document.getElementById("ci-image-placeholder").hidden = true;
+      } catch (err) {
+        console.error("[collection] image compression failed:", err);
+        $banner.textContent = "Image processing failed: " + (err.message || err);
+        $banner.className = "banner error";
+        $banner.hidden = false;
+      }
+    });
+    document.getElementById("ci-image-replace-btn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      document.getElementById("ci-image-input").click();
+    });
+
+    // Save handler. New items require an image; edits keep the existing
+    // image if no new file was picked.
+    document.getElementById("ci-save-btn")?.addEventListener("click", async () => {
+      const $btn = document.getElementById("ci-save-btn");
+      const $banner = document.getElementById("ci-banner");
+      $banner.hidden = true;
+
+      const isEdit = !!collectionItemSelected;
+      const artist   = document.getElementById("ci-artist").value.trim();
+      const title    = document.getElementById("ci-title").value.trim();
+      const medium   = document.getElementById("ci-medium").value.trim();
+      const category = document.getElementById("ci-category").value;
+      const sizeStr  = document.getElementById("ci-size").value.trim();
+      const framed   = document.getElementById("ci-framed").value.trim();
+      const coa      = document.getElementById("ci-coa").value;
+      const story    = document.getElementById("ci-story").value.trim();
+      const notes    = document.getElementById("ci-notes").value.trim();
+      const appraised = document.getElementById("ci-appraised").value.trim();
+      const paid     = document.getElementById("ci-paid").value.trim();
+
+      // Validation. Required: artist, title, medium, category, image (for new).
+      const errs = [];
+      if (!artist)   errs.push("Artist name is required.");
+      if (!title)    errs.push("Artwork title is required.");
+      if (!medium)   errs.push("Medium / Type is required.");
+      if (category !== "Unique/Original" && category !== "Limited Edition") errs.push("Pick Unique/Original or Limited Edition.");
+      if (!isEdit && !collectionImagePending) errs.push("Upload a photo of the artwork.");
+      if (errs.length) {
+        $banner.textContent = errs.join("\n");
+        $banner.className = "banner error";
+        $banner.style.whiteSpace = "pre-line";
+        $banner.hidden = false;
+        return;
+      }
+
+      const [h, w, d] = sizeStr ? parseArtworkSize(sizeStr) : [null, null, null];
+      const apprNum = appraised ? Number(appraised) : null;
+      const paidNum = paid ? Number(paid) : null;
+
+      $btn.disabled = true;
+      $btn.textContent = "Saving…";
+      try {
+        // Image upload happens BEFORE the RPC for adds (need image_path
+        // to insert), and AFTER for edits if a new file was selected
+        // (need item id to write to {user_id}/{item_id}/...).
+        let imagePath = collectionItemSelected?.image_path || null;
+        if (collectionImagePending && !isEdit) {
+          // We don't know the item ID yet — use a UUID for the folder
+          // and pass that path to insert_collection_item.
+          const itemFolder = crypto.randomUUID();
+          imagePath = await uploadCollectionImage(itemFolder, collectionImagePending);
+        }
+
+        let itemId = collectionItemSelected?.id || null;
+        if (isEdit) {
+          // Edit: update the row first, then upload new image if needed.
+          if (collectionImagePending) {
+            imagePath = await uploadCollectionImage(itemId, collectionImagePending);
+          }
+          const { error } = await supabase.rpc("update_collection_item", {
+            p_item_id: itemId,
+            p_artist_name: artist,
+            p_artwork_title: title,
+            p_medium: medium,
+            p_artwork_category: category,
+            p_image_path: imagePath,
+            p_height_in: h,
+            p_width_in: w,
+            p_depth_in: d,
+            p_framed_size: framed || null,
+            p_coa_included: coa || null,
+            p_public_story: story || null,
+            p_private_notes: notes || null,
+            p_appraised_value_usd: (apprNum != null && Number.isFinite(apprNum)) ? apprNum : null,
+            p_paid_value_usd: (paidNum != null && Number.isFinite(paidNum)) ? paidNum : null,
+            // Clear-flags: if the user emptied a field, explicitly tell
+            // the RPC to null it (otherwise coalesce keeps the old value).
+            p_clear_framed_size: !framed && !!collectionItemSelected?.framed_size,
+            p_clear_coa: !coa && !!collectionItemSelected?.coa_included,
+            p_clear_public_story: !story && !!collectionItemSelected?.public_story,
+            p_clear_private_notes: !notes && !!collectionItemSelected?.private_notes,
+            p_clear_appraised_value: !appraised && collectionItemSelected?.appraised_value_usd != null,
+            p_clear_paid_value: !paid && collectionItemSelected?.paid_value_usd != null,
+            p_clear_dimensions: !sizeStr && (collectionItemSelected?.height_in != null || collectionItemSelected?.width_in != null),
+          });
+          if (error) throw error;
+        } else {
+          const { data, error } = await supabase.rpc("insert_collection_item", {
+            p_artist_name: artist,
+            p_artwork_title: title,
+            p_medium: medium,
+            p_artwork_category: category,
+            p_image_path: imagePath,
+            p_height_in: h,
+            p_width_in: w,
+            p_depth_in: d,
+            p_framed_size: framed || null,
+            p_coa_included: coa || null,
+            p_public_story: story || null,
+            p_private_notes: notes || null,
+            p_appraised_value_usd: (apprNum != null && Number.isFinite(apprNum)) ? apprNum : null,
+            p_paid_value_usd: (paidNum != null && Number.isFinite(paidNum)) ? paidNum : null,
+            p_source_listing_id: null,
+          });
+          if (error) throw error;
+          itemId = data;
+        }
+
+        closeCollectionItemModal();
+        if (currentUserId) await loadCollection();
+      } catch (err) {
+        console.error("[collection] save failed:", err);
+        $banner.textContent = err.message || String(err);
+        $banner.className = "banner error";
+        $banner.style.whiteSpace = "pre-line";
+        $banner.hidden = false;
+      } finally {
+        $btn.disabled = false;
+        $btn.textContent = "Save piece";
+      }
+    });
+
+    // Delete handler.
+    document.getElementById("ci-delete-btn")?.addEventListener("click", async () => {
+      if (!collectionItemSelected) return;
+      if (!confirm(`Delete "${collectionItemSelected.artwork_title}" from your Collection? This can't be undone.`)) return;
+      const $btn = document.getElementById("ci-delete-btn");
+      $btn.disabled = true;
+      try {
+        const itemId = collectionItemSelected.id;
+        const oldImagePath = collectionItemSelected.image_path;
+        const { error } = await supabase.rpc("delete_collection_item", { p_item_id: itemId });
+        if (error) throw error;
+        // Best-effort image cleanup. Folder is {user_id}/{item_id}/...
+        if (oldImagePath) {
+          supabase.storage.from("collection-images").remove([oldImagePath]).catch(() => {});
+        }
+        closeCollectionItemModal();
+        if (currentUserId) await loadCollection();
+      } catch (err) {
+        console.error("[collection] delete failed:", err);
+        const $banner = document.getElementById("ci-banner");
+        $banner.textContent = err.message || String(err);
+        $banner.className = "banner error";
+        $banner.hidden = false;
+        $btn.disabled = false;
+      }
+    });
+
+    // Helper: upload the compressed image to the collection-images bucket.
+    // Path is {user_id}/{item_id_or_folder}/image.{ext}. Reuses the
+    // ArrayBuffer-conversion pattern from listing image upload to dodge
+    // the WebKit boundary bug in multipart Blob uploads
+    // (see [[image-upload-pipeline]]).
+    async function uploadCollectionImage(folderId, compressed) {
+      const { blob, mime, ext } = compressed;
+      const path = `${currentUserId}/${folderId}/image.${ext}`;
+      const arrayBuffer = await blob.arrayBuffer();
+      const { error } = await supabase.storage
+        .from("collection-images")
+        .upload(path, arrayBuffer, { contentType: mime, upsert: true });
+      if (error) throw error;
+      return path;
+    }
 
     // Decorate the My Account nav link with the unread inquiries count.
     // Same .cc-auth-link selector that nav-auth.js uses, so it works on
@@ -10630,6 +11260,7 @@
         if (currentUserId) loadFollowingPanel(currentUserId);
       }
       if (name === "profile")        loadProfileForm();
+      if (name === "collection")     { if (currentUserId) loadCollection(); }
       if (name === "admin")          loadAdminTab();
       if (name === "inquiries") {
         // Re-fetch so dismissed-in-another-tab rows fall out. Mark-as-seen

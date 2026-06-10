@@ -19,7 +19,7 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
-const CACHE_VERSION = 'cc-v186-countdown-fell-through-sale-complete';
+const CACHE_VERSION = 'cc-v187-collections-chunk-a';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. As of
@@ -51,7 +51,7 @@ const SHELL_ASSETS = [
   // Pre-caching costs ~50KB at install time but eliminates that waterfall.
   // URLs must match the exact import strings used by HTML / other modules
   // — including the ?v=N cache-bust query string (see [[versioned-module-imports]]).
-  '/lib/supabase.js?v=4',
+  '/lib/supabase.js?v=5',
   '/lib/config.js',
   '/lib/saves.js',
   '/lib/welcome-banner.js',
