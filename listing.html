@@ -315,6 +315,33 @@
     .section h3 { font-size: 14px; margin: 18px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
     .section p  { margin: 0; white-space: pre-line; }
 
+    /* ISO community-match section (migration 059, cc-v192). Two lines:
+       a public count of Established collectors who own a matching piece
+       (no identities shown), and a personal banner shown only to a
+       collector whose Collection contains a match. */
+    .iso-match-section {
+      margin-top: 18px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: var(--accent-tint);
+      border: 1px solid var(--accent-soft);
+      color: var(--accent-deep);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .iso-match-section .ims-count { font-weight: 600; }
+    .iso-match-section .ims-collector-banner {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--accent-soft);
+      font-size: 13px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .iso-match-section .ims-collector-banner strong { font-weight: 700; }
+
     .seller-block {
       background: var(--card-bg);
       border: 1px solid var(--card-line);
@@ -1167,6 +1194,43 @@
       }
     }
 
+    // ISO community-match section populator (Chunk C, migration 059).
+    // Two RPCs in parallel: aggregate count (always callable) +
+    // viewer's own-collection match (auth-only). Populates the
+    // #iso-match-section placeholder; reveals only if there's something
+    // to show. Failing silently is fine — the rest of the listing page
+    // is unaffected.
+    async function populateIsoMatchSection(listingId, signedIn) {
+      const $section = document.getElementById("iso-match-section");
+      if (!$section) return;
+      const [countResp, selfResp] = await Promise.all([
+        supabase.rpc("get_iso_match_count", { p_iso_listing_id: listingId }),
+        signedIn
+          ? supabase.rpc("viewer_has_collection_match", { p_iso_listing_id: listingId })
+          : Promise.resolve({ data: false }),
+      ]);
+      const count = Number(countResp?.data || 0);
+      const viewerHasMatch = !!selfResp?.data;
+      if (!count && !viewerHasMatch) {
+        $section.hidden = true;
+        return;
+      }
+      // Aggregate count line (only shown if count > 0). Plural-aware copy.
+      const countLine = count > 0
+        ? `<div class="ims-count">${count} ${count === 1 ? "collector" : "collectors"} in the CanvasCircle community own${count === 1 ? "s" : ""} a matching piece.</div>`
+        : "";
+      // Collector self-banner. Brand-gradient framing — this is the
+      // "you might have what they're looking for" warm intro nudge.
+      const selfBanner = viewerHasMatch
+        ? `<div class="ims-collector-banner">
+             <strong>You have this piece in your Collection.</strong>
+             <span>The buyer is looking. Use the contact options below to reach out if you're open to selling.</span>
+           </div>`
+        : "";
+      $section.innerHTML = countLine + selfBanner;
+      $section.hidden = false;
+    }
+
     function render(l, userSaves, signedIn, viewerUserId) {
       const isIso = l.listing_type === "iso";
       const images = (l.listing_images || []).slice().sort((a, b) => a.position - b.position);
@@ -1515,6 +1579,13 @@
                 ${verifiedAtStr ? `<div class="vp-when">Verified on ${escapeHtml(verifiedAtStr)}.</div>` : ""}
               </div>` : ""}
             ${metaBlock}
+            <!-- ISO community-match placeholder (Chunk C, migration 059).
+                 Populated async after the page renders: count of
+                 Established collectors who own a matching piece + a
+                 personal banner for the viewer if they own one too.
+                 Only shown on live ISO listings (sale listings + closed
+                 ISOs are gated on the JS side). -->
+            ${isIso && l.status === "available" ? `<div id="iso-match-section" class="iso-match-section" hidden></div>` : ""}
             ${optionalSections}
             ${counterpartyBlock}
 
@@ -1533,6 +1604,18 @@
 
       $status.hidden = true;
       $content.hidden = false;
+
+      // ISO community-match section (Chunk C, migration 059). Async
+      // populate after the main page renders so a slow Collections
+      // query never blocks the listing display. Two RPCs in parallel:
+      // get_iso_match_count (public, returns aggregate count for the
+      // "N collectors own this" line) + viewer_has_collection_match
+      // (auth-only, returns boolean for the collector self-banner).
+      if (isIso && l.status === "available") {
+        populateIsoMatchSection(l.listing_id, signedIn).catch((err) => {
+          console.warn("[iso-match] section populate failed (non-fatal):", err);
+        });
+      }
 
       // Wire the "About this seller" expand/collapse toggle.
       const $aboutToggle = document.getElementById("about-toggle");

@@ -12682,6 +12682,16 @@
           supabase.functions.invoke("send-email", {
             body: { mode: "trigger-listing-fanout", listing_id: id },
           }).catch((e) => console.warn("[moderate-approve] fanout dispatch failed (non-fatal):", e));
+          // ISO match fanout (Chunk C, migration 059). For ISO listings
+          // approved through this admin queue, push Established
+          // collectors whose Collection contains a matching piece. The
+          // edge fn self-gates on listing_type=='iso' so calling for a
+          // sale listing here is a safe no-op (saves a branch).
+          if (listing.listing_type === "iso") {
+            supabase.functions.invoke("iso-match-fanout", {
+              body: { iso_listing_id: id },
+            }).catch((e) => console.warn("[moderate-approve] iso-match-fanout dispatch failed (non-fatal):", e));
+          }
         }
         // Remove the row from the queue UI; refresh badge count.
         item.remove();
@@ -18274,6 +18284,15 @@
           supabase.functions.invoke("send-email", {
             body: { mode: "trigger-listing-fanout", listing_id: newId },
           }).catch((e) => console.warn("[new-listing] fanout dispatch failed (non-fatal):", e));
+          // ISO match fanout (Chunk C, migration 059). For ISO listings,
+          // push Established collectors whose Collection contains a
+          // matching piece. Fire-and-forget; the edge fn self-gates so
+          // calling for a non-ISO listing is a safe no-op.
+          if (isIso) {
+            supabase.functions.invoke("iso-match-fanout", {
+              body: { iso_listing_id: newId },
+            }).catch((e) => console.warn("[new-listing] iso-match-fanout dispatch failed (non-fatal):", e));
+          }
         } else {
           // Non-Established listing → goes to admin queue with
           // moderation_status='pending'. Ping the admin so they don't
