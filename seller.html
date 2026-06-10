@@ -372,16 +372,21 @@
     }
     .coll-detail-img img { width: 100%; height: auto; max-height: 50vh; object-fit: contain; display: block; }
     .coll-detail-body { padding: 18px 22px 22px; }
-    .coll-detail-artist { font-size: 13px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .4px; }
-    .coll-detail-title { margin: 0 0 10px; font-size: 22px; font-weight: 700; line-height: 1.25; }
+    /* Artist + title typography mirrors listing.html's .details .artist
+       / .details .title rules exactly: artist is the bold primary line,
+       title is the smaller muted secondary line below it. */
+    .coll-detail-artist { font-size: 18px; font-weight: 600; color: var(--fg); margin-bottom: 2px; }
+    .coll-detail-title  { margin: 0 0 12px; font-size: 16px; font-weight: 400; color: var(--muted); line-height: 1.3; }
     .coll-detail-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
-    .coll-detail-pills .cat {
-      font-size: 11px; padding: 3px 8px; border-radius: 999px;
-      background: var(--surface-2); color: var(--text-soft);
-      border: 1px solid var(--card-line);
+    /* Category badge uses the SAME .badge.cat-unique / .badge.cat-edition
+       tokens as listing.html so the visual is identical. Token values
+       come from the brand variable system. */
+    .coll-detail-pills .badge {
+      display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px;
+      font-weight: 600; background: var(--accent-soft); color: var(--accent-deep); border: 1px solid var(--accent-soft);
     }
-    .coll-detail-pills .cat.unique  { background: var(--accent-tint); color: var(--accent-deep); border-color: var(--accent-soft); }
-    .coll-detail-pills .cat.edition { background: var(--surface-2); }
+    .coll-detail-pills .badge.cat-unique  { background: var(--badge-unique-bg);  color: var(--badge-unique-fg);  border-color: var(--badge-unique-border); }
+    .coll-detail-pills .badge.cat-edition { background: var(--badge-limited-bg); color: var(--badge-limited-fg); border-color: var(--badge-limited-border); }
     .coll-detail-specs {
       display: grid;
       grid-template-columns: auto 1fr;
@@ -799,16 +804,18 @@
          Collection card is clicked. Shows the full public details of
          the piece (image, artist, title, category pill, medium, size,
          frame, COA, public story). No price, no contact, no actions —
-         pure display. -->
+         pure display. Artist is the bold primary line, title is the
+         muted secondary line below — matches listing.html's .details
+         .artist / .title typography. -->
     <div id="coll-detail-overlay" class="coll-detail-overlay" aria-hidden="true">
-      <div class="coll-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="coll-detail-title">
+      <div class="coll-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="coll-detail-artist">
         <button type="button" id="coll-detail-close" class="coll-detail-close" aria-label="Close">×</button>
         <div class="coll-detail-img">
           <img id="coll-detail-img-el" alt="" />
         </div>
         <div class="coll-detail-body">
-          <div class="coll-detail-artist" id="coll-detail-artist"></div>
-          <h2 class="coll-detail-title" id="coll-detail-title"></h2>
+          <h2 class="coll-detail-artist" id="coll-detail-artist"></h2>
+          <div class="coll-detail-title" id="coll-detail-title"></div>
           <div class="coll-detail-pills" id="coll-detail-pills"></div>
           <dl class="coll-detail-specs" id="coll-detail-specs"></dl>
           <div class="coll-detail-story" id="coll-detail-story" hidden></div>
@@ -1742,15 +1749,21 @@
     // Story) but lives as a modal because Collection items don't have
     // their own URL surface.
     function openCollectionDetailModal(it) {
-      document.getElementById("coll-detail-artist").textContent = it.artist_name || "";
+      // Artist is the bold primary line; title is the muted secondary
+      // (matches listing.html). Fall back to "Unknown" / "Untitled" only
+      // for the field that's actually missing so the heading hierarchy
+      // stays consistent.
+      document.getElementById("coll-detail-artist").textContent = it.artist_name || "Unknown artist";
       document.getElementById("coll-detail-title").textContent  = it.artwork_title || "Untitled";
 
-      // Category pill — matches the card's pill styling.
+      // Category badge — uses .badge.cat-unique / .badge.cat-edition, same
+      // exact tokens as listing.html's For Sale detail page (see
+      // [[brand-visual-system]] — badge colors live in CSS variables).
       const cats = [];
       if (it.artwork_category) {
-        const cls = it.artwork_category === "Unique/Original" ? "unique"
-                  : it.artwork_category === "Limited Edition" ? "edition" : "";
-        cats.push(`<span class="cat ${cls}">${escapeHtml(it.artwork_category)}</span>`);
+        const cls = it.artwork_category === "Unique/Original" ? "cat-unique"
+                  : it.artwork_category === "Limited Edition" ? "cat-edition" : "";
+        cats.push(`<span class="badge ${cls}">${escapeHtml(it.artwork_category)}</span>`);
       }
       document.getElementById("coll-detail-pills").innerHTML = cats.join("");
 
