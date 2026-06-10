@@ -1560,6 +1560,33 @@
     .incoming-refs-banner .small { font-size: 13px; color: var(--status-success-mid); margin-top: 2px; }
     .incoming-refs-banner button { white-space: nowrap; }
 
+    /* Buyer post-sale Collection prompt (migration 058). One row per
+       sale-completed offer that hasn't been added to the buyer's
+       Collection or dismissed yet. Brand-gradient strip so it reads as
+       a celebratory action, not a warning. */
+    .collection-prompt-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      margin: 4px 0 16px;
+      background: var(--accent-tint);
+      border: 1px solid var(--accent-soft);
+      border-radius: 10px;
+      color: var(--accent-deep);
+    }
+    .collection-prompt-banner[hidden] { display: none; }
+    .collection-prompt-banner .cpb-thumb {
+      width: 56px; height: 56px; border-radius: 8px; overflow: hidden;
+      background: var(--surface-2); flex-shrink: 0;
+    }
+    .collection-prompt-banner .cpb-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .collection-prompt-banner .cpb-text { flex: 1; min-width: 0; }
+    .collection-prompt-banner .cpb-text strong { font-size: 15px; font-weight: 700; display: block; }
+    .collection-prompt-banner .cpb-text .small { font-size: 13px; color: var(--accent-mid); margin-top: 2px; }
+    .collection-prompt-banner .cpb-actions { display: flex; gap: 8px; flex-wrap: wrap; white-space: nowrap; }
+    .collection-prompt-banner .cpb-actions button { white-space: nowrap; }
+
     /* -----------------------------------------------------------------
        Inquiries tab, buyer-to-seller messages received via the in-listing
        Email Seller form. Each row is a compact card with optional
@@ -4124,6 +4151,12 @@
              value on desktop and the install-prompt is mobile-only too). -->
         <div id="push-opt-banner" class="push-opt-banner" hidden></div>
 
+        <!-- Collection prompt banners (Chunk B, migration 058). Renders one
+             row per sale-completed offer the buyer hasn't yet logged into
+             their Collection or dismissed. Visible across all tabs since it
+             lives outside the tab-strip. -->
+        <div id="collection-prompts-wrap"></div>
+
 
         <!-- Tabs, dual-label pattern: full label shows on desktop, short
              label shows on mobile so all 4 (or 5 for admin) tabs fit
@@ -6469,6 +6502,10 @@
       // dashboard refresh so the seller sees pending offers without
       // having to click into the Inquiries tab first.
       loadOffersPanel(session.user.id);
+      // Collection prompts: any sale-completed offers the buyer hasn't
+      // added to Collection or dismissed yet. Banners render outside the
+      // tab strip so they're visible across all tabs.
+      loadCollectionPrompts().catch(() => {});
       // Push-opt banner at dashboard level (was originally mounted inside
       // loadInquiriesPanel back when push only covered inquiries; promoted
       // 2026-05-27 once push grew to cover follow alerts + price drops
@@ -7880,6 +7917,7 @@
       document.getElementById("ci-modal-overlay").classList.remove("is-open");
       collectionItemSelected = null;
       collectionImagePending = null;
+      __pendingBoughtPiece = null;
     }
     document.getElementById("ci-modal-close")?.addEventListener("click", closeCollectionItemModal);
     document.getElementById("ci-cancel-btn")?.addEventListener("click", closeCollectionItemModal);
@@ -8019,14 +8057,25 @@
             p_private_notes: notes || null,
             p_appraised_value_usd: (apprNum != null && Number.isFinite(apprNum)) ? apprNum : null,
             p_paid_value_usd: (paidNum != null && Number.isFinite(paidNum)) ? paidNum : null,
-            p_source_listing_id: null,
+            // Source listing pin: set when the user added this piece via
+            // the bought-piece prompt banner. Lets us hide that banner on
+            // future loads (the join in get_pending_collection_prompts
+            // suppresses rows that already have a matching collection_item).
+            p_source_listing_id: __pendingBoughtPiece?.source_listing_id || null,
           });
           if (error) throw error;
           itemId = data;
         }
 
         closeCollectionItemModal();
-        if (currentUserId) await loadCollection();
+        // Clear the bought-piece pin so a subsequent direct "+ Add piece"
+        // doesn't accidentally attribute itself to the wrong listing.
+        __pendingBoughtPiece = null;
+        if (currentUserId) {
+          await loadCollection();
+          // Re-load the prompt banners since one may have just been resolved.
+          loadCollectionPrompts().catch(() => {});
+        }
       } catch (err) {
         console.error("[collection] save failed:", err);
         $banner.textContent = err.message || String(err);
@@ -8081,6 +8130,136 @@
       if (error) throw error;
       return path;
     }
+
+    // ---------------------------------------------------------------------
+    // Buyer post-sale "Add to Collection" prompt banner (Chunk B, migration 058)
+    // ---------------------------------------------------------------------
+    // Renders 0..N banners at the top of the dashboard, one per sale-
+    // completed offer the buyer hasn't acted on yet. Clicking "Add to
+    // Collection" opens the existing Collection item modal pre-filled
+    // from the listing data (image is preloaded from the listing-images
+    // bucket and re-uploaded into collection-images on save). Clicking
+    // "Not now" dismisses the prompt permanently for that offer.
+    async function loadCollectionPrompts() {
+      const $wrap = document.getElementById("collection-prompts-wrap");
+      if (!$wrap || !currentUserId) return;
+      try {
+        const resp = await withTimeout(
+          supabase.rpc("get_pending_collection_prompts"),
+          8000,
+          "collection prompts"
+        );
+        if (resp.error) throw resp.error;
+        const prompts = resp.data || [];
+        $wrap.innerHTML = prompts.map(renderCollectionPromptBanner).join("");
+        // Wire button clicks via delegation.
+        $wrap.onclick = (e) => {
+          const $add = e.target.closest('[data-action="add-to-collection"]');
+          if ($add) {
+            const offerId = $add.dataset.offerId;
+            const p = prompts.find(x => x.offer_id === offerId);
+            if (p) openAddBoughtPieceModal(p);
+            return;
+          }
+          const $dismiss = e.target.closest('[data-action="dismiss-collection-prompt"]');
+          if ($dismiss) {
+            const offerId = $dismiss.dataset.offerId;
+            dismissCollectionPrompt(offerId, $dismiss.closest(".collection-prompt-banner"));
+          }
+        };
+      } catch (err) {
+        console.warn("[collection-prompts] load failed (non-fatal):", err);
+      }
+    }
+
+    function renderCollectionPromptBanner(p) {
+      const artist = p.artist_name || "Unknown artist";
+      const title  = p.artwork_title || "Untitled";
+      const imgUrl = p.image_path ? publicImageUrl(p.image_path, { width: 200 }) : "";
+      const thumb = imgUrl
+        ? `<div class="cpb-thumb"><img src="${imgUrl}" alt="" loading="lazy" /></div>`
+        : "";
+      return `
+        <div class="collection-prompt-banner" data-offer-id="${p.offer_id}">
+          ${thumb}
+          <div class="cpb-text">
+            <strong>You bought "${escapeHtml(title)}" by ${escapeHtml(artist)}</strong>
+            <div class="small">Add it to your Collection to track what you own.</div>
+          </div>
+          <div class="cpb-actions">
+            <button type="button" class="btn-primary" data-action="add-to-collection" data-offer-id="${p.offer_id}">Add to Collection</button>
+            <button type="button" class="btn-secondary" data-action="dismiss-collection-prompt" data-offer-id="${p.offer_id}">Not now</button>
+          </div>
+        </div>`;
+    }
+
+    async function dismissCollectionPrompt(offerId, $bannerEl) {
+      try {
+        const { error } = await supabase.rpc("dismiss_collection_prompt", { p_offer_id: offerId });
+        if (error) throw error;
+        if ($bannerEl) $bannerEl.remove();
+      } catch (err) {
+        console.error("[collection-prompts] dismiss failed:", err);
+        alert("Couldn't dismiss: " + (err.message || err));
+      }
+    }
+
+    // Opens the Collection item modal with fields pre-filled from a
+    // listing the user just bought. Image is fetched from listing-images
+    // and queued as collectionImagePending so the standard save flow
+    // uploads it to collection-images (the buyer can replace before save
+    // if they have their own photo, or after the fact via edit).
+    async function openAddBoughtPieceModal(p) {
+      // Build a synthetic "selected item" shape that openCollectionItemModal
+      // knows how to consume, BUT in add-mode so the RPC is insert not update.
+      // openCollectionItemModal uses ctx.item only for prefill; ctx.mode
+      // governs the RPC choice.
+      const prefill = {
+        artist_name:      p.artist_name || "",
+        artwork_title:    p.artwork_title || "",
+        medium:           p.medium || "",
+        artwork_category: p.artwork_category || "",
+        image_path:       null, // intentionally blank — image is loaded fresh via fetch below
+        height_in:        p.height_in,
+        width_in:         p.width_in,
+        depth_in:         p.depth_in,
+        framed_size:      p.framed_size || "",
+        coa_included:     p.coa_included || "",
+        public_story:     "",
+        private_notes:    "",
+        appraised_value_usd: null,
+        paid_value_usd:   null,
+      };
+      // Stash the source_listing_id + image path so the save flow can use them.
+      __pendingBoughtPiece = { source_listing_id: p.listing_id, listing_image_path: p.image_path };
+      openCollectionItemModal({ mode: "add", item: prefill });
+      // Try to preload the listing's image as the pending upload so the
+      // preview shows it immediately and saving doesn't require the
+      // buyer to re-photograph. Best-effort; if it fails we just leave
+      // the image field blank and the buyer will need to upload one.
+      if (p.image_path) {
+        try {
+          const url = publicImageUrl(p.image_path, { width: 1200 });
+          const resp = await fetch(url);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const mime = blob.type || "image/webp";
+            const ext = mime.includes("jpeg") || mime.includes("jpg") ? "jpg"
+                      : mime.includes("png") ? "png" : "webp";
+            collectionImagePending = { blob, mime, ext };
+            const previewUrl = URL.createObjectURL(blob);
+            document.getElementById("ci-image-preview").src = previewUrl;
+            document.getElementById("ci-image-preview-wrap").hidden = false;
+            document.getElementById("ci-image-placeholder").hidden = true;
+          }
+        } catch (e) {
+          console.warn("[collection-prompts] image preload failed (non-fatal):", e);
+        }
+      }
+    }
+    // Tracks the source_listing_id when the modal was opened from a
+    // bought-piece prompt. Cleared on close.
+    let __pendingBoughtPiece = null;
 
     // Decorate the My Account nav link with the unread inquiries count.
     // Same .cc-auth-link selector that nav-auth.js uses, so it works on

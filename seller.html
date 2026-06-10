@@ -302,6 +302,51 @@
     @media (min-width: 720px)  { .grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
     @media (min-width: 1000px) { .grid { grid-template-columns: repeat(4, 1fr); } }
 
+    /* Public Collection grid (Chunk B, mirrors the portal-side card
+       styling but lives on seller.html). Collection items use a 1:1
+       thumbnail since artwork is typically displayed square + visitors
+       are scanning to recognize titles. */
+    .collection-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    @media (min-width: 720px)  { .collection-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+    @media (min-width: 1000px) { .collection-grid { grid-template-columns: repeat(4, 1fr); } }
+    .coll-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column;
+    }
+    .coll-card .coll-thumb {
+      width: 100%; aspect-ratio: 1 / 1;
+      background: var(--surface-2);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    .coll-card .coll-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .coll-card .coll-meta { padding: 10px 12px 12px; }
+    .coll-card .coll-artist { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+    .coll-card .coll-title { font-size: 14px; font-weight: 600; line-height: 1.3; margin-bottom: 4px; }
+    .coll-card .coll-meta-line { font-size: 12px; color: var(--muted); line-height: 1.35; }
+    .coll-card .coll-story {
+      font-size: 13px; color: var(--text-soft);
+      margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--card-line);
+      line-height: 1.4;
+    }
+    .collection-about {
+      margin: 4px 0 14px;
+      font-size: 14px; color: var(--text-soft);
+      line-height: 1.5;
+      padding: 12px 14px;
+      background: var(--surface-2);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+    }
+
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-line);
@@ -598,6 +643,11 @@
       <div class="catalog-tabs" role="tablist">
         <button type="button" class="catalog-tab is-active" data-listing-type="sale" role="tab" aria-selected="true">For Sale <span class="count" id="count-sale"></span></button>
         <button type="button" class="catalog-tab" data-listing-type="iso" role="tab" aria-selected="false">In Search Of <span class="count" id="count-iso"></span></button>
+        <!-- Collection tab (migration 057/058, Chunk B). Shown only when
+             the owner has flipped collection_is_public=true AND is_trusted=true.
+             Activating this tab swaps the listings grid + toolbar for the
+             Collection grid + About blurb. -->
+        <button type="button" class="catalog-tab" data-section="collection" role="tab" aria-selected="false" id="tab-collection" hidden>Collection <span class="count" id="count-collection"></span></button>
       </div>
 
       <!-- In-page filter toolbar, scoped to this seller's listings.
@@ -647,6 +697,19 @@
         <div class="empty-title">No listings match these filters</div>
         <div>Try clearing some filters above, or <button type="button" id="filter-reset-link" class="linklike">reset to defaults</button>.</div>
       </div>
+
+      <!-- Public Collection section (Chunk B, migration 057). Lives as a
+           sibling of the listings grid; toggled visible when the user
+           clicks the Collection tab. Contains an optional About blurb
+           and the grid of public items returned by get_public_collection. -->
+      <section id="collection-section" hidden>
+        <p id="collection-about-text" class="collection-about" hidden></p>
+        <div id="collection-grid" class="collection-grid"></div>
+        <div id="collection-empty" class="empty" hidden>
+          <div class="empty-title">No pieces yet</div>
+          <div>This collector hasn't added any pieces to their public Collection.</div>
+        </div>
+      </section>
     </div>
 
     <!-- In-platform contact modal for "Email this collector" (cc-v172).
@@ -869,8 +932,8 @@
       // rendered into a mailto: href, which any HTML scraper could grab
       // in one pass.
       const profileCols = viewerSignedIn
-        ? "user_id, display_name, handle, location, facebook_profile_url, has_contact_email, account_status, created_at, is_trusted, is_admin, about_text, preferred_contact"
-        : "user_id, display_name, handle, account_status, created_at, is_trusted, about_text";
+        ? "user_id, display_name, handle, location, facebook_profile_url, has_contact_email, account_status, created_at, is_trusted, is_admin, about_text, preferred_contact, collection_is_public, collection_about_text"
+        : "user_id, display_name, handle, account_status, created_at, is_trusted, about_text, collection_is_public, collection_about_text";
       let profileRows, profileErr;
       try {
         const resp = await withTimeout(
@@ -995,6 +1058,14 @@
       // ISO tab so the page isn't visually empty on first load.
       if (saleActiveN === 0 && listingsAll.iso.length > 0) {
         currentTab = "iso";
+      }
+
+      // Public Collection: fire-and-forget query. Only fetch if the
+      // seller has flipped collection_is_public AND is Established. The
+      // RPC double-checks both gates server-side; this client check
+      // avoids the round trip when we already know it's off.
+      if (profile.collection_is_public && profile.is_trusted) {
+        loadPublicCollection(profile.user_id).catch(() => {});
       }
 
       $status.hidden = true;
@@ -1426,7 +1497,15 @@
 
     document.querySelectorAll(".catalog-tab").forEach(btn => {
       btn.addEventListener("click", () => {
-        if (btn.dataset.listingType !== currentTab) {
+        // Three tab branches: sale, iso, or collection (Chunk B).
+        // Collection lives on a different data axis (collection_items
+        // table, not listings) so it gets its own render path.
+        if (btn.dataset.section === "collection") {
+          activateCollectionTab(btn);
+          return;
+        }
+        if (btn.dataset.listingType && btn.dataset.listingType !== currentTab) {
+          deactivateCollectionTab();
           currentTab = btn.dataset.listingType;
           // Reset filters on tab switch, each tab is its own context
           // (a status filter from "For Sale" makes no sense in "In Search
@@ -1434,9 +1513,147 @@
           // resetSellerFilters() also calls applyTab() at the end, so
           // we don't need to call applyTab() ourselves here.
           resetSellerFilters();
+        } else if (btn.dataset.listingType === currentTab) {
+          // Re-clicking the active listings tab: if Collection was
+          // showing, swap back to listings view.
+          deactivateCollectionTab();
         }
       });
     });
+
+    // -----------------------------------------------------------------
+    // Public Collection tab (Chunk B, migration 057/058)
+    // -----------------------------------------------------------------
+    // Activation/deactivation is independent from the sale/iso tab pair
+    // because Collection swaps out the entire listings grid + toolbar
+    // for a different content surface. The is-active styling on
+    // sale/iso tabs is preserved while Collection is showing — the
+    // user's "where am I" cue comes from the highlighted Collection tab.
+    function activateCollectionTab($btn) {
+      // Toggle active styling.
+      document.querySelectorAll(".catalog-tab").forEach(b => {
+        b.classList.toggle("is-active", b === $btn);
+        b.setAttribute("aria-selected", b === $btn ? "true" : "false");
+      });
+      // Hide listings surfaces.
+      const $grid    = document.getElementById("grid");
+      const $empty   = document.getElementById("empty");
+      const $fEmpty  = document.getElementById("filter-empty");
+      const $tool    = document.getElementById("seller-toolbar");
+      if ($grid)   $grid.hidden = true;
+      if ($empty)  $empty.hidden = true;
+      if ($fEmpty) $fEmpty.hidden = true;
+      if ($tool)   $tool.hidden = true;
+      // Show collection surface.
+      const $section = document.getElementById("collection-section");
+      if ($section) $section.hidden = false;
+      // Render the data (already loaded by loadPublicCollection during
+      // the page bootstrap).
+      renderPublicCollection();
+    }
+    function deactivateCollectionTab() {
+      const $section = document.getElementById("collection-section");
+      if ($section) $section.hidden = true;
+      const $tool = document.getElementById("seller-toolbar");
+      // Only un-hide the toolbar if listings exist for the current tab —
+      // applyTab() / renderTab() handle the empty-state visibility
+      // separately, this just ensures it's not stuck hidden from the
+      // Collection-mode toggle.
+      if ($tool && (listingsAll[currentTab] || []).length > 0) $tool.hidden = false;
+      // Restore Collection-tab to inactive; sale/iso tab active styling
+      // will be re-applied by applyTab() / renderTab().
+      const $collTab = document.getElementById("tab-collection");
+      if ($collTab) {
+        $collTab.classList.remove("is-active");
+        $collTab.setAttribute("aria-selected", "false");
+      }
+      // Re-render the listings view in case the active styling needs a refresh.
+      try { applyTab(); } catch {}
+    }
+
+    // Cached Collection data. Populated once at page bootstrap (alongside
+    // the listings queries) so the user gets instant content when they
+    // click the Collection tab.
+    let publicCollectionItems = [];
+
+    async function loadPublicCollection(ownerId) {
+      // Only call when the seller's profile has flipped Collection public.
+      try {
+        const resp = await supabase.rpc("get_public_collection", { p_owner_id: ownerId });
+        if (resp.error) throw resp.error;
+        publicCollectionItems = resp.data || [];
+        const $countEl = document.getElementById("count-collection");
+        if ($countEl) $countEl.textContent = publicCollectionItems.length
+          ? `(${publicCollectionItems.length})` : "";
+        // Reveal the Collection tab now that we know there's something
+        // to show (or, more accurately, that the seller has opted in —
+        // even an empty collection is intentional). Empty-state copy on
+        // the section itself handles the zero-item case.
+        const $tab = document.getElementById("tab-collection");
+        if ($tab) $tab.hidden = false;
+      } catch (err) {
+        console.warn("[seller-collection] load failed:", err);
+      }
+    }
+
+    function renderPublicCollection() {
+      const $grid = document.getElementById("collection-grid");
+      const $empty = document.getElementById("collection-empty");
+      const $about = document.getElementById("collection-about-text");
+      if (!$grid) return;
+      // About blurb (from sellerProfile.collection_about_text). Set once
+      // here on each tab activation so it stays consistent if the data
+      // refreshes.
+      const aboutText = sellerProfile?.collection_about_text || "";
+      if (aboutText) {
+        $about.textContent = aboutText;
+        $about.hidden = false;
+      } else {
+        $about.hidden = true;
+      }
+      if (publicCollectionItems.length === 0) {
+        $grid.innerHTML = "";
+        $grid.hidden = true;
+        $empty.hidden = false;
+        return;
+      }
+      $empty.hidden = true;
+      $grid.hidden = false;
+      $grid.innerHTML = publicCollectionItems.map(renderCollectionPublicCard).join("");
+    }
+
+    function renderCollectionPublicCard(it) {
+      const url = it.image_path ? collectionImageUrlForSeller(it.image_path, { width: 600 }) : "";
+      const meta = [
+        it.medium ? escapeHtml(it.medium) : "",
+        it.artwork_category ? escapeHtml(it.artwork_category) : "",
+      ].filter(Boolean).join(" · ");
+      const story = it.public_story
+        ? `<div class="coll-story">${escapeHtml(it.public_story)}</div>`
+        : "";
+      return `
+        <div class="coll-card">
+          <div class="coll-thumb">${url ? `<img src="${url}" alt="" loading="lazy" />` : `<span style="color: var(--muted); font-size: 12px;">no image</span>`}</div>
+          <div class="coll-meta">
+            <div class="coll-artist">${escapeHtml(it.artist_name || "")}</div>
+            <div class="coll-title">${escapeHtml(it.artwork_title || "")}</div>
+            ${meta ? `<div class="coll-meta-line">${meta}</div>` : ""}
+            ${story}
+          </div>
+        </div>`;
+    }
+
+    // Public seller.html doesn't import publicImageUrl with bucket-override
+    // support, so this local helper builds the URL for the collection-images
+    // bucket directly. Same transform endpoint, same defaults.
+    function collectionImageUrlForSeller(storagePath, opts = {}) {
+      if (!storagePath) return "";
+      const transform = opts.width
+        ? { transform: { width: opts.width, quality: opts.quality || 75, resize: "contain", format: "webp" } }
+        : undefined;
+      const { data } = supabase.storage.from("collection-images").getPublicUrl(storagePath, transform);
+      return data?.publicUrl || "";
+    }
 
     // ----- Card render (mirrors index.html's renderCard, sale + ISO branches) -----
     function renderCard(listing) {
