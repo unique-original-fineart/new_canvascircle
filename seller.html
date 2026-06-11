@@ -316,6 +316,67 @@
     @media (min-width: 720px)  { .grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
     @media (min-width: 1000px) { .grid { grid-template-columns: repeat(4, 1fr); } }
 
+    /* Anonymous-viewer gate (cc-v203). Sits where the catalog grid
+       would normally render. Brand-tinted card with two prominent CTA
+       buttons. */
+    .anon-gate {
+      padding: 24px 20px;
+      margin: 0 0 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      border-radius: 14px;
+      text-align: center;
+    }
+    .anon-gate[hidden] { display: none; }
+    .anon-gate .ag-icon { font-size: 32px; margin-bottom: 4px; }
+    .anon-gate .ag-title {
+      margin: 6px 0 8px;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.3;
+      color: var(--fg);
+    }
+    .anon-gate .ag-body {
+      margin: 0 auto 16px;
+      max-width: 520px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text-soft);
+    }
+    .anon-gate .ag-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .anon-gate .ag-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      transition: filter .15s ease;
+    }
+    .anon-gate .ag-btn:hover { filter: brightness(1.08); }
+    .anon-gate .ag-btn-primary {
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      border: 1px solid transparent;
+    }
+    .anon-gate .ag-btn-secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent-soft);
+    }
+    .anon-gate .ag-fine {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
     /* Public Collection grid (Chunk B). Reuses the .card-wrap > .card >
        .img + .body markup from the For Sale grid so styling stays in
        lockstep. The only differences are:
@@ -833,6 +894,23 @@
     </section>
 
     <div id="content" hidden>
+      <!-- Anonymous-viewer gate (cc-v203). Hides the catalog-tabs +
+           listings/ISO/Collection grids behind a signup CTA for users
+           who aren't logged in. Identity (name, handle, Established,
+           joined, location, About, References) stays visible above so
+           visitors see they're on a real collector's page before being
+           asked to create an account. Signed-in users skip this entirely. -->
+      <div id="anon-gate" class="anon-gate" hidden>
+        <div class="ag-icon" aria-hidden="true">🎨</div>
+        <h3 class="ag-title">Create a free account to see <span id="ag-name">this collector's</span> listings + Collection</h3>
+        <p class="ag-body">CanvasCircle is a free platform for art collectors. Sign in or create a free account to see what <span id="ag-name-2">they</span> have for sale, what they're looking for, and what's in their personal Collection.</p>
+        <div class="ag-actions">
+          <a href="/portal/" class="ag-btn ag-btn-primary">Sign in</a>
+          <a href="/portal/" class="ag-btn ag-btn-secondary">Create free account</a>
+        </div>
+        <p class="ag-fine">It takes 30 seconds. We don't charge collectors anything to buy or sell.</p>
+      </div>
+
       <div class="catalog-tabs" role="tablist">
         <button type="button" class="catalog-tab is-active" data-listing-type="sale" role="tab" aria-selected="true">For Sale <span class="count" id="count-sale"></span></button>
         <button type="button" class="catalog-tab" data-listing-type="iso" role="tab" aria-selected="false">In Search Of <span class="count" id="count-iso"></span></button>
@@ -1222,6 +1300,30 @@
       setMeta(profile);
       renderHeader(profile);
 
+      // Anonymous gate (cc-v203). For anon viewers, skip the listings +
+      // Collection queries entirely (they'd be wasted work — we're not
+      // going to render that data anyway), load only the references
+      // query (anon trust signal), then render the gate panel where the
+      // catalog grid would normally live. Identity header is already
+      // visible above by this point.
+      if (!viewerSignedIn) {
+        let anonRefsResp = null;
+        try {
+          anonRefsResp = await supabase.from("seller_references").select(`
+            id,
+            reference:profiles!seller_references_reference_user_id_fkey
+              ( display_name, handle, is_trusted, account_status )
+          `).eq("seller_user_id", profile.user_id).eq("status", "accepted");
+        } catch { /* anon may not have access; fall through quietly */ }
+        const validRefs = (anonRefsResp?.data || [])
+          .filter(r => r.reference && r.reference.is_trusted && r.reference.account_status === "active");
+        renderReferences(validRefs);
+        showAnonGate(profile);
+        $status.hidden = true;
+        $content.hidden = false;
+        return;
+      }
+
       // 3) Fetch their listings (split by type via two parallel queries),
       // plus their accepted references in parallel for one less round trip.
       const [saleResp, isoResp, refsResp] = await Promise.all([
@@ -1360,6 +1462,39 @@
           }
         });
       }
+    }
+
+    // Anonymous gate (cc-v203). Populates the seller's name into the
+    // gate CTA copy, then hides all tabbed content + the toolbar so the
+    // only thing in the #content area is the gate. Identity header
+    // above stays visible. Signed-in viewers never see this — they go
+    // through the full listings + Collection load path instead.
+    function showAnonGate(profile) {
+      const $gate = document.getElementById("anon-gate");
+      if (!$gate) return;
+      const name = profile.display_name
+        || (profile.handle ? `@${profile.handle}` : "this collector");
+      const $n1 = document.getElementById("ag-name");
+      const $n2 = document.getElementById("ag-name-2");
+      if ($n1) $n1.textContent = name + "'s";
+      if ($n2) $n2.textContent = name;
+      $gate.hidden = false;
+
+      // Hide all the catalog/Collection surfaces — they have no
+      // content for anon and we don't want empty pills floating above
+      // the gate.
+      const ids = [
+        ".catalog-tabs",
+        "#seller-toolbar",
+        "#grid",
+        "#empty",
+        "#filter-empty",
+        "#collection-section",
+      ];
+      ids.forEach(sel => {
+        const el = document.querySelector(sel);
+        if (el) el.hidden = true;
+      });
     }
 
     function renderHeader(profile) {
