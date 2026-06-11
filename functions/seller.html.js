@@ -145,12 +145,14 @@ function buildSellerMeta({ profile, mode, image, requestUrl }) {
 
   let title, description;
   if (mode === "collection") {
-    title = handleStr
-      ? `${displayName}'s art Collection (${handleStr}) on CanvasCircle`
-      : `${displayName}'s art Collection on CanvasCircle`;
+    // Collection-deep-link share. Headline puts the focus on the
+    // Collection and the description disclaims the pieces are NOT
+    // for sale — otherwise first-time viewers click through expecting
+    // to buy and get confused.
+    title = `${displayName}'s Collection on CanvasCircle`;
     description = profile.collection_about_text
-      ? snippet(profile.collection_about_text)
-      : `Browse the pieces ${displayName} owns. Curated on CanvasCircle, the modern art listing platform for collectors.`;
+      ? `${snippet(profile.collection_about_text, 160)} (Personal collection on CanvasCircle, not for sale.)`
+      : `Browse this collector's personal art collection on CanvasCircle. Artworks are owned, not for sale.`;
   } else {
     title = handleStr
       ? `${displayName} (${handleStr}) on CanvasCircle`
