@@ -123,9 +123,10 @@
     /* Both contact CTAs share the same blue single-hue gradient, Guy's
        call that they're equally-valid contact methods, no primary/
        secondary hierarchy. Visual order comes from layout, not styling.
-       cc-v195: each button is flex:1 on narrow viewports so the two
-       contact CTAs sit side-by-side instead of stacking on iPhone-
-       width screens. Padding + font tightened to fit. */
+       cc-v196: flex basis = auto so each button sizes to its content
+       first, then grows proportionally to fill any remaining row width.
+       "Message on Facebook" naturally takes more space than "Email
+       Collector" without overflowing its button. */
     .seller-header .contact-actions a.primary,
     .seller-header .contact-actions a.secondary {
       background: var(--action-bg);
@@ -137,8 +138,7 @@
       font-size: 14px;
       border: 1px solid var(--action-border);
       transition: filter .15s ease;
-      flex: 1 1 0;
-      min-width: 0;
+      flex: 1 1 auto;
       text-align: center;
       white-space: nowrap;
     }
