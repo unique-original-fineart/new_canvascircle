@@ -8149,10 +8149,13 @@
     //   4. Diversity over time (distinct-artists line, cumulative)
     //   5. Spend vs appraised cumulative lines (private, hidden if no data)
     //
-    // Brand palette per [[brand-visual-system]]:
-    //   - Orange #FF6A1A (primary line / first series)
-    //   - Magenta #E91E63 (third series, donut/category secondary)
-    //   - Blue #2D7FFF (second series / cumulative complement)
+    // Brand palette (pink-leaning per cc-v207; site visuals trend
+    // magenta, not orange):
+    //   - Magenta #E91E63 (primary line / first series)
+    //   - Blue #2D7FFF (secondary / comparison series)
+    //   - Orange (the gradient's first stop) is intentionally NOT used
+    //     here — reserved for the existing Stats modal palette where
+    //     views/saves/inquiries already has an established convention.
     //   - Axis labels: rgba(255,255,255,0.65)
     //   - Gridlines: rgba(255,255,255,0.06)
     //
@@ -8301,10 +8304,13 @@
       const Chart = await loadChartJs();
 
       // Shared chart defaults — dark-mode friendly axis colors per
-      // [[brand-visual-system]].
+      // [[brand-visual-system]]. Series palette skewed to magenta + blue
+      // per Guy's note that the site visual leans pinkish, not orange.
+      // Orange stop of the brand gradient is reserved for the existing
+      // Stats modal (views/saves/inquiries) where the convention is
+      // already established.
       const AXIS_COLOR = "rgba(255,255,255,0.65)";
       const GRID_COLOR = "rgba(255,255,255,0.06)";
-      const ORANGE = "#FF6A1A";
       const MAGENTA = "#E91E63";
       const BLUE = "#2D7FFF";
       const sharedAxisOpts = {
@@ -8325,8 +8331,8 @@
             },
             {
               type: "line", label: "Cumulative pieces",
-              data: cumPieces, borderColor: ORANGE, backgroundColor: ORANGE,
-              borderWidth: 2.5, tension: 0.3, pointRadius: 3, pointBackgroundColor: ORANGE,
+              data: cumPieces, borderColor: MAGENTA, backgroundColor: MAGENTA,
+              borderWidth: 2.5, tension: 0.3, pointRadius: 3, pointBackgroundColor: MAGENTA,
               yAxisID: "y1", order: 1,
             },
           ],
@@ -8352,7 +8358,7 @@
             label: "Pieces",
             data: topArtistCounts,
             backgroundColor: topArtistLabels.map((_, i) =>
-              i === topArtistLabels.length - 1 && otherTotal > 0 ? "rgba(255,255,255,0.18)" : ORANGE
+              i === topArtistLabels.length - 1 && otherTotal > 0 ? "rgba(255,255,255,0.18)" : MAGENTA
             ),
             borderRadius: 3,
           }],
@@ -8374,8 +8380,8 @@
         data: {
           labels,
           datasets: [
-            { label: "Unique/Original", data: labels.map(y => perYear[y].unique), backgroundColor: ORANGE, borderRadius: 2, stack: "cat" },
-            { label: "Limited Edition", data: labels.map(y => perYear[y].limited), backgroundColor: BLUE,  borderRadius: 2, stack: "cat" },
+            { label: "Unique/Original", data: labels.map(y => perYear[y].unique), backgroundColor: MAGENTA, borderRadius: 2, stack: "cat" },
+            { label: "Limited Edition", data: labels.map(y => perYear[y].limited), backgroundColor: BLUE,    borderRadius: 2, stack: "cat" },
           ],
         },
         options: {
@@ -8429,8 +8435,8 @@
               {
                 label: "Cumulative appraised",
                 data: cumAppr,
-                borderColor: ORANGE, backgroundColor: ORANGE,
-                borderWidth: 2.5, tension: 0.3, pointRadius: 3, pointBackgroundColor: ORANGE,
+                borderColor: MAGENTA, backgroundColor: MAGENTA,
+                borderWidth: 2.5, tension: 0.3, pointRadius: 3, pointBackgroundColor: MAGENTA,
                 fill: false,
               },
             ],
@@ -8476,17 +8482,17 @@
         $head.appendChild(div);
       };
       injectLegend("#mcs-deep .mcs-chart-card:nth-of-type(1)", [
-        { label: "Cumulative pieces", color: ORANGE },
+        { label: "Cumulative pieces", color: MAGENTA },
         { label: "Added that year", color: BLUE },
       ]);
       injectLegend("#mcs-deep .mcs-chart-card:nth-of-type(3)", [
-        { label: "Unique/Original", color: ORANGE },
+        { label: "Unique/Original", color: MAGENTA },
         { label: "Limited Edition", color: BLUE },
       ]);
       if (hasMoneyData) {
         injectLegend("#mcs-deep .mcs-chart-card.mcs-private-card", [
           { label: "Cumulative paid",      color: BLUE, dashed: true },
-          { label: "Cumulative appraised", color: ORANGE },
+          { label: "Cumulative appraised", color: MAGENTA },
         ]);
       }
     }
