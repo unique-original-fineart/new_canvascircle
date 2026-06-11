@@ -729,6 +729,103 @@
       color: var(--muted);
       font-size: 13px;
     }
+
+    /* Deep-stats modal (cc-v208). Reuses the standard .edit-modal-overlay
+       + .edit-modal pattern but with a wider max-width and more padding
+       to give multiple charts room to breathe. All the per-chart styles
+       above (.mcs-chart-card, .mcs-chart-head, .mcs-legend etc.) cascade
+       into the modal body since they're not scoped to .my-collection-stats. */
+    .coll-stats-modal { max-width: 900px; }
+    #coll-stats-modal-body { display: flex; flex-direction: column; gap: 14px; }
+    #coll-stats-modal-body .mcs-chart-card {
+      background: var(--surface-1);
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    #coll-stats-modal-body .mcs-chart-card.mcs-private-card {
+      border-color: var(--accent-soft);
+      background: var(--accent-tint);
+    }
+    #coll-stats-modal-body .mcs-chart-head { margin-bottom: 10px; }
+    #coll-stats-modal-body .mcs-chart-head h4 {
+      margin: 0; font-size: 15px; font-weight: 700; color: var(--fg);
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    #coll-stats-modal-body .mcs-chart-head .mcs-chart-sub {
+      margin-top: 2px; font-size: 12px; color: var(--muted); line-height: 1.4;
+    }
+    #coll-stats-modal-body .mcs-private-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    #coll-stats-modal-body .mcs-chart-canvas-wrap { position: relative; width: 100%; }
+    #coll-stats-modal-body .mcs-legend {
+      display: flex; flex-wrap: wrap; gap: 12px;
+      margin-top: 8px;
+      font-size: 12px; color: var(--muted);
+    }
+    #coll-stats-modal-body .mcs-legend-chip { display: inline-flex; align-items: center; gap: 6px; }
+    #coll-stats-modal-body .mcs-legend-dot {
+      display: inline-block; width: 16px; height: 6px; border-radius: 1px;
+    }
+    #coll-stats-modal-body .mcs-empty { padding: 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* Heat calendar grid (cc-v208). One row per year. Year label on
+       the left, 12 month cells across. Cells colored by magenta-opacity
+       based on count. */
+    .mcs-heat-grid {
+      display: flex; flex-direction: column; gap: 4px;
+      font-size: 11px; color: var(--muted);
+    }
+    .mcs-heat-row {
+      display: grid;
+      grid-template-columns: 40px repeat(12, 1fr);
+      gap: 3px;
+      align-items: center;
+    }
+    .mcs-heat-row-head { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .4px; }
+    .mcs-heat-year-label { text-align: right; padding-right: 6px; color: var(--muted); }
+    .mcs-heat-month-head { text-align: center; color: var(--muted); }
+    .mcs-heat-cell {
+      display: block; height: 22px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.04);
+      transition: transform .12s ease, filter .12s ease;
+      cursor: default;
+    }
+    .mcs-heat-cell-zero { background: rgba(255,255,255,0.04); }
+    .mcs-heat-cell:hover { transform: scale(1.06); filter: brightness(1.1); }
+
+    /* Trivia card. 2-3 columns of stat-blocks. */
+    .mcs-trivia-card .mcs-trivia-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px 18px;
+    }
+    @media (min-width: 720px) {
+      .mcs-trivia-card .mcs-trivia-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    .mcs-trivia-stat .mcs-trivia-label {
+      font-size: 11px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: .4px; font-weight: 600; margin-bottom: 4px;
+    }
+    .mcs-trivia-stat .mcs-trivia-value {
+      font-size: 20px; font-weight: 700; color: var(--fg); line-height: 1.1;
+    }
+    .mcs-trivia-stat .mcs-trivia-sub {
+      font-size: 12px; color: var(--muted); margin-top: 2px;
+    }
+
+    /* Body-scroll lock for the deep-stats modal (cc-v208). */
+    html.modal-open, html.modal-open body { overflow: hidden; }
     .listing-row {
       display: grid;
       grid-template-columns: 72px 1fr auto;
@@ -5687,6 +5784,22 @@
     </div>
   </div>
 
+  <!-- Collection deep-stats modal (cc-v208). Full-screen-ish overlay
+       reusing the standard .edit-modal-overlay pattern. Wider than the
+       defaults (max-width 900px) to give charts room to breathe.
+       Contents are populated by renderCollectionDeepStats() on open. -->
+  <div class="edit-modal-overlay" id="coll-stats-modal-overlay" role="dialog" aria-modal="true" hidden>
+    <div class="edit-modal coll-stats-modal" style="max-width: 900px;">
+      <div class="edit-modal-header">
+        <h2>Your Collection, detailed stats</h2>
+        <button type="button" class="em-close" id="coll-stats-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="edit-modal-body" id="coll-stats-modal-body">
+        <!-- Charts injected by renderCollectionDeepStats() -->
+      </div>
+    </div>
+  </div>
+
   <!-- ============ STATS MODAL (per-listing engagement chart) ============ -->
   <!-- Opens from the 📊 Stats button on each preview card. Lazy-loads
        Chart.js the first time it's opened so the dashboard isn't paying
@@ -8087,10 +8200,9 @@
         <div class="mcs-deep-toggle-row">
           <button type="button" id="mcs-deep-toggle-btn" class="btn-secondary mcs-deep-toggle-btn">
             <span class="mcs-deep-label">View detailed stats</span>
-            <span class="mcs-deep-glyph">▾</span>
+            <span style="font-size: 14px; margin-left: 6px;">→</span>
           </button>
         </div>
-        <div id="mcs-deep" class="mcs-deep" hidden></div>
       `;
       $card.innerHTML = `
         <button type="button" id="mcs-toggle" class="cc-section-toggle">
@@ -8111,32 +8223,56 @@
           $mcsToggle.classList.toggle("is-open", willShow);
         });
       }
-      // Deep-stats sub-panel (cc-v206). Lazy-render the charts only on
-      // first expand so Chart.js doesn't load until the user asks for it.
+      // Deep-stats button (cc-v208). Opens a full modal instead of
+      // expanding inline so the chart deck has room to breathe.
       const $deepBtn = document.getElementById("mcs-deep-toggle-btn");
-      const $deepWrap = document.getElementById("mcs-deep");
-      if ($deepBtn && $deepWrap) {
-        let __deepRendered = false;
-        $deepBtn.addEventListener("click", async () => {
-          const willShow = $deepWrap.hidden;
-          $deepWrap.hidden = !willShow;
-          $deepBtn.classList.toggle("is-open", willShow);
-          const $label = $deepBtn.querySelector(".mcs-deep-label");
-          const $glyph = $deepBtn.querySelector(".mcs-deep-glyph");
-          if ($label) $label.textContent = willShow ? "Hide detailed stats" : "View detailed stats";
-          if ($glyph) $glyph.textContent  = willShow ? "▴" : "▾";
-          if (willShow && !__deepRendered) {
-            __deepRendered = true;
-            try {
-              await renderCollectionDeepStats();
-            } catch (err) {
-              console.error("[collection-deep-stats] render failed:", err);
-              $deepWrap.innerHTML = `<div class="banner error" style="margin: 12px 0;">Couldn't render charts: ${escapeHtml(err.message || String(err))}</div>`;
-            }
-          }
+      if ($deepBtn) {
+        $deepBtn.addEventListener("click", () => openCollectionDeepStatsModal());
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // Collection deep-stats modal — open/close + lazy render
+    // ---------------------------------------------------------------------
+    let __collDeepRendered = false;
+    function openCollectionDeepStatsModal() {
+      const $overlay = document.getElementById("coll-stats-modal-overlay");
+      if (!$overlay) return;
+      $overlay.hidden = false;
+      $overlay.classList.add("is-open");
+      // Body-scroll-lock so the modal is the only thing scrolling.
+      document.documentElement.classList.add("modal-open");
+      // Lazy-render the charts on first open. Subsequent opens reuse the
+      // already-rendered canvases (data freshness is fine since the
+      // Collection grid re-fetches on tab activation).
+      if (!__collDeepRendered) {
+        __collDeepRendered = true;
+        renderCollectionDeepStats().catch((err) => {
+          console.error("[collection-deep-stats] render failed:", err);
+          const $body = document.getElementById("coll-stats-modal-body");
+          if ($body) $body.innerHTML = `<div class="banner error" style="margin: 12px 0;">Couldn't render charts: ${escapeHtml(err.message || String(err))}</div>`;
         });
       }
     }
+    function closeCollectionDeepStatsModal() {
+      const $overlay = document.getElementById("coll-stats-modal-overlay");
+      if (!$overlay) return;
+      $overlay.classList.remove("is-open");
+      $overlay.hidden = true;
+      document.documentElement.classList.remove("modal-open");
+    }
+    document.getElementById("coll-stats-modal-close")?.addEventListener("click", closeCollectionDeepStatsModal);
+    document.getElementById("coll-stats-modal-overlay")?.addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) closeCollectionDeepStatsModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      const $overlay = document.getElementById("coll-stats-modal-overlay");
+      if ($overlay && !$overlay.hidden) closeCollectionDeepStatsModal();
+    });
+    // Invalidate the lazy-render cache when the Collection changes
+    // (item add/edit/delete). Next open re-renders fresh.
+    function invalidateCollectionDeepStatsCache() { __collDeepRendered = false; }
 
     // ---------------------------------------------------------------------
     // Collection deep-stats charts (cc-v206)
@@ -8163,7 +8299,7 @@
     // 'listing'). in_collection listings have no acquired_year and
     // could double-count if mixed in.
     async function renderCollectionDeepStats() {
-      const $wrap = document.getElementById("mcs-deep");
+      const $wrap = document.getElementById("coll-stats-modal-body");
       if (!$wrap) return;
       const items = (collectionData.items || []).filter(x => x.source_type !== "listing");
       if (items.length === 0) {
@@ -8248,6 +8384,94 @@
       // Show the spend-vs-appraised chart only if either field has data.
       const hasMoneyData = cumPaid.some(n => n > 0) || cumAppr.some(n => n > 0);
 
+      // ===== Additional aggregates (cc-v208) =====
+
+      // Heat-calendar grid: cell [y][m] = count of pieces acquired in
+      // (year y, month m). m is 0-11. Pieces without acquired_month
+      // are excluded from the calendar but still count toward the
+      // year-level totals.
+      const heatGrid = Object.create(null);
+      for (const y of labels) heatGrid[y] = new Array(12).fill(0);
+      let maxHeatCell = 0;
+      for (const it of items) {
+        const y = yearOf(it);
+        const m = it.acquired_month ? Number(it.acquired_month) - 1 : null;
+        if (y == null || m == null) continue;
+        const row = heatGrid[String(y)];
+        if (!row) continue;
+        row[m]++;
+        if (row[m] > maxHeatCell) maxHeatCell = row[m];
+      }
+
+      // Monthly seasonality: total pieces acquired in each month across
+      // ALL years (Jan, Feb, ...). Same exclusion rule for items without
+      // acquired_month.
+      const monthlyTotals = new Array(12).fill(0);
+      for (const it of items) {
+        const m = it.acquired_month ? Number(it.acquired_month) - 1 : null;
+        if (m == null) continue;
+        monthlyTotals[m]++;
+      }
+      const monthlyAny = monthlyTotals.some(n => n > 0);
+
+      // Medium breakdown: top 6 mediums + Others. Many pieces may share
+      // a medium ("Acrylic on canvas", "Giclée on canvas") so a donut
+      // with top-N makes sense.
+      const mediumCounts = Object.create(null);
+      for (const it of items) {
+        const m = (it.medium || "Unspecified").trim();
+        mediumCounts[m] = (mediumCounts[m] || 0) + 1;
+      }
+      const sortedMediums = Object.entries(mediumCounts).sort((a, b) => b[1] - a[1]);
+      const topMediums = sortedMediums.slice(0, 6);
+      const otherMediumTotal = sortedMediums.slice(6).reduce((s, p) => s + p[1], 0);
+      const mediumLabels = topMediums.map(p => p[0]);
+      const mediumValues = topMediums.map(p => p[1]);
+      if (otherMediumTotal > 0) {
+        mediumLabels.push("Others");
+        mediumValues.push(otherMediumTotal);
+      }
+      const mediumAny = mediumValues.length > 0;
+
+      // Trivia card stats: peak collecting year, longest gap, days
+      // since last acquisition, first piece. Sort acquisitions by date
+      // (year + month, defaulting month to 1 when missing). Created_at
+      // as fallback for items missing acquired_year.
+      const acquisitions = items
+        .map(it => {
+          const y = yearOf(it);
+          if (y == null) return null;
+          const m = it.acquired_month ? Number(it.acquired_month) : 1;
+          return { date: new Date(y, m - 1, 1), item: it };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.date - b.date);
+      let peakYear = null, peakYearCount = 0;
+      for (const y of labels) {
+        if (perYear[y].added > peakYearCount) {
+          peakYear = y;
+          peakYearCount = perYear[y].added;
+        }
+      }
+      let longestGapDays = 0, longestGapBetween = null;
+      for (let i = 1; i < acquisitions.length; i++) {
+        const gap = Math.round((acquisitions[i].date - acquisitions[i - 1].date) / (1000 * 60 * 60 * 24));
+        if (gap > longestGapDays) {
+          longestGapDays = gap;
+          longestGapBetween = { from: acquisitions[i - 1], to: acquisitions[i] };
+        }
+      }
+      const lastAcq = acquisitions[acquisitions.length - 1];
+      const firstAcq = acquisitions[0];
+      const daysSinceLast = lastAcq ? Math.round((Date.now() - lastAcq.date.getTime()) / (1000 * 60 * 60 * 24)) : null;
+      const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const fmtAcqDate = (a) => {
+        if (!a) return "—";
+        const m = a.item.acquired_month ? monthNames[a.item.acquired_month - 1] : "";
+        const y = yearOf(a.item);
+        return [m, y].filter(Boolean).join(" ");
+      };
+
       // Build chart container markup. Each chart sits in its own
       // mcs-chart-card so spacing is consistent.
       $wrap.innerHTML = `
@@ -8297,6 +8521,82 @@
               <canvas id="mcs-chart-money" role="img" aria-label="Cumulative paid versus appraised value over time"></canvas>
             </div>
           </div>` : ""}
+
+        <!-- Heat calendar (cc-v208). Months × years grid; opacity-based
+             color ramp on magenta. Pieces missing acquired_month
+             are excluded from the calendar. -->
+        <div class="mcs-chart-card">
+          <div class="mcs-chart-head">
+            <h4>Acquisition heat calendar</h4>
+            <div class="mcs-chart-sub">Each cell is one month. Deeper pink = more pieces acquired that month. Pieces without a month set don't appear here.</div>
+          </div>
+          <div id="mcs-heat-calendar" class="mcs-heat-grid"></div>
+        </div>
+
+        ${monthlyAny ? `
+          <!-- Monthly seasonality: which months of the year you tend
+               to acquire most pieces across all years. -->
+          <div class="mcs-chart-card">
+            <div class="mcs-chart-head">
+              <h4>Monthly seasonality</h4>
+              <div class="mcs-chart-sub">Total pieces by month-of-year, across all years. Shows your collecting rhythm (e.g. cruise months).</div>
+            </div>
+            <div class="mcs-chart-canvas-wrap" style="height: 200px;">
+              <canvas id="mcs-chart-seasonality" role="img" aria-label="Bar chart of total pieces acquired by month of the year"></canvas>
+            </div>
+          </div>` : ""}
+
+        ${mediumAny ? `
+          <!-- Medium breakdown donut. Top 6 + Others. -->
+          <div class="mcs-chart-card">
+            <div class="mcs-chart-head">
+              <h4>Medium breakdown</h4>
+              <div class="mcs-chart-sub">What your collection is made of, by medium/type.</div>
+            </div>
+            <div class="mcs-chart-canvas-wrap" style="height: 260px;">
+              <canvas id="mcs-chart-medium" role="img" aria-label="Donut chart of pieces by medium"></canvas>
+            </div>
+          </div>` : ""}
+
+        <!-- Trivia card. Hand-rolled, no Chart.js — just nice numbers. -->
+        <div class="mcs-chart-card mcs-trivia-card">
+          <div class="mcs-chart-head">
+            <h4>Collection trivia</h4>
+            <div class="mcs-chart-sub">Patterns hiding in your dates.</div>
+          </div>
+          <div class="mcs-trivia-grid">
+            <div class="mcs-trivia-stat">
+              <div class="mcs-trivia-label">Peak collecting year</div>
+              <div class="mcs-trivia-value">${peakYear ? escapeHtml(String(peakYear)) : "—"}</div>
+              ${peakYear ? `<div class="mcs-trivia-sub">${peakYearCount} ${peakYearCount === 1 ? "piece" : "pieces"} acquired</div>` : ""}
+            </div>
+            <div class="mcs-trivia-stat">
+              <div class="mcs-trivia-label">First piece</div>
+              <div class="mcs-trivia-value">${escapeHtml(fmtAcqDate(firstAcq))}</div>
+              ${firstAcq ? `<div class="mcs-trivia-sub">${escapeHtml(firstAcq.item.artist_name || "")}</div>` : ""}
+            </div>
+            <div class="mcs-trivia-stat">
+              <div class="mcs-trivia-label">Most recent piece</div>
+              <div class="mcs-trivia-value">${escapeHtml(fmtAcqDate(lastAcq))}</div>
+              ${lastAcq ? `<div class="mcs-trivia-sub">${escapeHtml(lastAcq.item.artist_name || "")}</div>` : ""}
+            </div>
+            <div class="mcs-trivia-stat">
+              <div class="mcs-trivia-label">Days since last</div>
+              <div class="mcs-trivia-value">${daysSinceLast != null ? daysSinceLast : "—"}</div>
+              ${daysSinceLast != null ? `<div class="mcs-trivia-sub">${daysSinceLast === 0 ? "Today!" : daysSinceLast < 30 ? "Fresh acquisition" : daysSinceLast < 180 ? "Recent" : daysSinceLast < 365 ? "Getting cold" : "Time to add one?"}</div>` : ""}
+            </div>
+            <div class="mcs-trivia-stat">
+              <div class="mcs-trivia-label">Longest gap</div>
+              <div class="mcs-trivia-value">${longestGapDays > 0 ? Math.round(longestGapDays / 30) + " mo" : "—"}</div>
+              ${longestGapBetween ? `<div class="mcs-trivia-sub">${escapeHtml(fmtAcqDate(longestGapBetween.from))} → ${escapeHtml(fmtAcqDate(longestGapBetween.to))}</div>` : ""}
+            </div>
+            <div class="mcs-trivia-stat">
+              <div class="mcs-trivia-label">Total in Collection</div>
+              <div class="mcs-trivia-value">${items.length}</div>
+              <div class="mcs-trivia-sub">${cumArtists[cumArtists.length - 1] || 0} distinct artists</div>
+            </div>
+          </div>
+        </div>
       `;
 
       // Lazy-load Chart.js. The portal already self-hosts it; loadChartJs
@@ -8466,6 +8766,94 @@
         });
       }
 
+      // ===== Heat calendar (cc-v208) — hand-rolled HTML grid =====
+      // Months × years. Color ramp uses magenta with opacity scaling
+      // by cell count relative to maxHeatCell. Cells with zero pieces
+      // show as a faint outline only.
+      const $heat = document.getElementById("mcs-heat-calendar");
+      if ($heat) {
+        const monthShort = ["J","F","M","A","M","J","J","A","S","O","N","D"];
+        let heatHtml = `<div class="mcs-heat-row mcs-heat-row-head"><span class="mcs-heat-year-label"></span>`;
+        for (const m of monthShort) heatHtml += `<span class="mcs-heat-month-head">${m}</span>`;
+        heatHtml += "</div>";
+        for (const y of labels) {
+          const row = heatGrid[y];
+          heatHtml += `<div class="mcs-heat-row"><span class="mcs-heat-year-label">${escapeHtml(y)}</span>`;
+          for (let m = 0; m < 12; m++) {
+            const c = row[m];
+            if (c === 0) {
+              heatHtml += `<span class="mcs-heat-cell mcs-heat-cell-zero" title="${y} ${monthShort[m]}: 0"></span>`;
+            } else {
+              const intensity = maxHeatCell > 0 ? c / maxHeatCell : 1;
+              // Min opacity 0.25 so even single-piece cells are visible;
+              // scale up to 1.0 at maxHeatCell.
+              const op = (0.25 + 0.75 * intensity).toFixed(2);
+              heatHtml += `<span class="mcs-heat-cell" style="background: rgba(233, 30, 99, ${op});" title="${y} ${monthShort[m]}: ${c} ${c === 1 ? "piece" : "pieces"}"></span>`;
+            }
+          }
+          heatHtml += "</div>";
+        }
+        $heat.innerHTML = heatHtml;
+      }
+
+      // ===== Monthly seasonality (cc-v208) =====
+      if (monthlyAny && document.getElementById("mcs-chart-seasonality")) {
+        const monthLabels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        new Chart(document.getElementById("mcs-chart-seasonality"), {
+          type: "bar",
+          data: {
+            labels: monthLabels,
+            datasets: [{
+              label: "Pieces",
+              data: monthlyTotals,
+              backgroundColor: MAGENTA,
+              borderRadius: 3,
+            }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { ...noLegend },
+            scales: {
+              x: { ...sharedAxisOpts, grid: { display: false } },
+              y: { beginAtZero: true, ...sharedAxisOpts, ticks: { ...sharedAxisOpts.ticks, precision: 0 } },
+            },
+          },
+        });
+      }
+
+      // ===== Medium breakdown donut (cc-v208) =====
+      if (mediumAny && document.getElementById("mcs-chart-medium")) {
+        // Color palette for the donut slices: rotate magenta + blue +
+        // tints of each for visual diversity. Last slice ("Others")
+        // gets a muted gray when present.
+        const donutColors = ["#E91E63", "#2D7FFF", "#F06090", "#7BB0FF", "#B71548", "#185FA5"];
+        const sliceColors = mediumLabels.map((lbl, i) =>
+          lbl === "Others" ? "rgba(255,255,255,0.18)" : donutColors[i % donutColors.length]
+        );
+        new Chart(document.getElementById("mcs-chart-medium"), {
+          type: "doughnut",
+          data: {
+            labels: mediumLabels,
+            datasets: [{
+              data: mediumValues,
+              backgroundColor: sliceColors,
+              borderColor: "rgba(255,255,255,0.05)",
+              borderWidth: 2,
+            }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "right",
+                labels: { color: AXIS_COLOR, font: { size: 12 }, boxWidth: 12, boxHeight: 12, padding: 8 },
+              },
+            },
+            cutout: "55%",
+          },
+        });
+      }
+
       // Custom HTML legends per [[brand-visual-system]] chart conventions
       // — inject one per chart card via a small helper.
       const injectLegend = (cardSelector, entries) => {
@@ -8518,6 +8906,12 @@
       const $err     = document.getElementById("collection-error");
       const $count   = document.getElementById("collection-count");
       if (!$grid) return;
+
+      // Invalidate deep-stats cache so next modal open re-renders fresh
+      // (data may have changed via add/edit/delete/sell-this-piece).
+      if (typeof invalidateCollectionDeepStatsCache === "function") {
+        invalidateCollectionDeepStatsCache();
+      }
 
       $loading.hidden = false;
       $empty.hidden = true;
