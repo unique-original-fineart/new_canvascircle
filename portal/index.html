@@ -7819,7 +7819,29 @@
           if (!$card) return;
           const id = $card.dataset.ciId;
           const item = collectionData.items.find(x => x.id === id);
-          if (item) openCollectionItemModal({ mode: "edit", item });
+          if (!item) return;
+          // Branch on source. Native Collection items open the edit
+          // modal (update_collection_item RPC). Listings flipped to
+          // in_collection state need to be managed in Your Listings —
+          // route the user there with the status filter pre-set so the
+          // listing is the only one (or one of a few) on screen.
+          if (item.source_type === "listing") {
+            activateTab("your-listings");
+            try {
+              if ($dashStatus) {
+                $dashStatus.value = "in_collection";
+                $dashStatus.dispatchEvent(new Event("change", { bubbles: true }));
+              }
+            } catch (err) { console.warn("[collection-tab → listings] filter set failed:", err); }
+            // Scroll to the listing card once it renders after the filter
+            // change.
+            setTimeout(() => {
+              const $listingCard = document.querySelector(`[data-listing-id="${id}"]`);
+              if ($listingCard) $listingCard.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 400);
+            return;
+          }
+          openCollectionItemModal({ mode: "edit", item });
         };
       }
 
@@ -7834,18 +7856,34 @@
       // to the owner that they have private data on this piece, without
       // revealing what). Plus a "Hidden from public" pill (migration 060)
       // for items the user has flipped is_public=false on.
-      const url = it.image_path ? collectionImageUrl(it.image_path, { width: 500 }) : "";
+      //
+      // Migration 062: this grid now ALSO renders listings flipped to
+      // status='in_collection'. Image lives in a different bucket and
+      // the click routes to Your Listings instead of opening the
+      // Collection edit modal. Source_type column drives both branches.
+      const isListing = it.source_type === "listing";
+      const url = it.image_path
+        ? (isListing
+            ? publicImageUrl(it.image_path, { width: 500 })
+            : collectionImageUrl(it.image_path, { width: 500 }))
+        : "";
       const hasPriv = (it.appraised_value_usd != null) || (it.paid_value_usd != null) || (it.private_notes && it.private_notes.length > 0);
       const isHiddenFromPublic = it.is_public === false;
       const hiddenBadge = isHiddenFromPublic
         ? `<span class="cc-private-flag" style="color: var(--accent); font-weight: 600;">🔒 Hidden from public Collection</span>`
         : "";
+      const listingBadge = isListing
+        ? `<span class="cc-private-flag" style="color: var(--accent); font-weight: 600;">📣 Was a listing, manage in Your Listings</span>`
+        : "";
+      // Tag the card with both id AND source_type so the grid click
+      // handler can route correctly.
       return `
-        <div class="collection-card" data-ci-id="${it.id}">
+        <div class="collection-card" data-ci-id="${it.id}" data-ci-source="${isListing ? "listing" : "collection_item"}">
           <div class="cc-thumb">${url ? `<img src="${url}" alt="" loading="lazy" />` : `<span style="color: var(--muted); font-size: 12px;">no image</span>`}</div>
           <div class="cc-meta">
             <div class="cc-artist">${escapeHtml(it.artist_name || "")}</div>
             <div class="cc-title">${escapeHtml(it.artwork_title || "")}</div>
+            ${listingBadge}
             ${hiddenBadge}
             ${hasPriv ? `<span class="cc-private-flag">Private notes stored</span>` : ""}
           </div>
