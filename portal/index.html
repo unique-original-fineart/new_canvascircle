@@ -648,6 +648,87 @@
       color: var(--fg); text-transform: none; letter-spacing: 0;
       font-weight: 700; font-size: 12px;
     }
+    /* Deep-stats sub-panel (cc-v206). "View detailed stats" button +
+       collapsible chart deck. Inside the at-a-glance card's body. */
+    .my-collection-stats .mcs-deep-toggle-row {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--card-line);
+      display: flex;
+      justify-content: center;
+    }
+    .my-collection-stats .mcs-deep-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .my-collection-stats .mcs-deep-toggle-btn .mcs-deep-glyph {
+      transition: transform .15s ease;
+      font-size: 12px;
+    }
+    .my-collection-stats .mcs-deep-toggle-btn.is-open .mcs-deep-glyph {
+      transform: rotate(180deg);
+    }
+    .my-collection-stats .mcs-deep {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .my-collection-stats .mcs-deep[hidden] { display: none; }
+    .my-collection-stats .mcs-chart-card {
+      background: var(--surface-1);
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .my-collection-stats .mcs-chart-card.mcs-private-card {
+      border-color: var(--accent-soft);
+      background: var(--accent-tint);
+    }
+    .my-collection-stats .mcs-chart-head { margin-bottom: 10px; }
+    .my-collection-stats .mcs-chart-head h4 {
+      margin: 0; font-size: 14px; font-weight: 700; color: var(--fg);
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .my-collection-stats .mcs-chart-head .mcs-chart-sub {
+      margin-top: 2px; font-size: 12px; color: var(--muted); line-height: 1.4;
+    }
+    .my-collection-stats .mcs-private-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .my-collection-stats .mcs-chart-canvas-wrap {
+      position: relative;
+      width: 100%;
+    }
+    .my-collection-stats .mcs-legend {
+      display: flex; flex-wrap: wrap; gap: 12px;
+      margin-top: 8px;
+      font-size: 12px; color: var(--muted);
+    }
+    .my-collection-stats .mcs-legend-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .my-collection-stats .mcs-legend-dot {
+      display: inline-block;
+      width: 16px; height: 6px; border-radius: 1px;
+    }
+    .my-collection-stats .mcs-empty {
+      padding: 14px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
     .listing-row {
       display: grid;
       grid-template-columns: 72px 1fr auto;
@@ -8003,6 +8084,13 @@
             <strong>Most-collected artists</strong>
             ${topArtists.map(a => `<span class="mcs-artist-chip">${escapeHtml(a.artist_name || "")} <strong>×${Number(a.count || 0)}</strong></span>`).join("")}
           </div>` : ""}
+        <div class="mcs-deep-toggle-row">
+          <button type="button" id="mcs-deep-toggle-btn" class="btn-secondary mcs-deep-toggle-btn">
+            <span class="mcs-deep-label">View detailed stats</span>
+            <span class="mcs-deep-glyph">▾</span>
+          </button>
+        </div>
+        <div id="mcs-deep" class="mcs-deep" hidden></div>
       `;
       $card.innerHTML = `
         <button type="button" id="mcs-toggle" class="cc-section-toggle">
@@ -8022,6 +8110,384 @@
           $mcsBody.hidden = !willShow;
           $mcsToggle.classList.toggle("is-open", willShow);
         });
+      }
+      // Deep-stats sub-panel (cc-v206). Lazy-render the charts only on
+      // first expand so Chart.js doesn't load until the user asks for it.
+      const $deepBtn = document.getElementById("mcs-deep-toggle-btn");
+      const $deepWrap = document.getElementById("mcs-deep");
+      if ($deepBtn && $deepWrap) {
+        let __deepRendered = false;
+        $deepBtn.addEventListener("click", async () => {
+          const willShow = $deepWrap.hidden;
+          $deepWrap.hidden = !willShow;
+          $deepBtn.classList.toggle("is-open", willShow);
+          const $label = $deepBtn.querySelector(".mcs-deep-label");
+          const $glyph = $deepBtn.querySelector(".mcs-deep-glyph");
+          if ($label) $label.textContent = willShow ? "Hide detailed stats" : "View detailed stats";
+          if ($glyph) $glyph.textContent  = willShow ? "▴" : "▾";
+          if (willShow && !__deepRendered) {
+            __deepRendered = true;
+            try {
+              await renderCollectionDeepStats();
+            } catch (err) {
+              console.error("[collection-deep-stats] render failed:", err);
+              $deepWrap.innerHTML = `<div class="banner error" style="margin: 12px 0;">Couldn't render charts: ${escapeHtml(err.message || String(err))}</div>`;
+            }
+          }
+        });
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // Collection deep-stats charts (cc-v206)
+    // ---------------------------------------------------------------------
+    // Five charts computed client-side from the already-loaded
+    // collectionData.items array (no extra DB round-trip needed):
+    //   1. Growth combo — cumulative pieces line + per-year bars
+    //   2. Top artists horizontal bar (top 8 + Others)
+    //   3. Category split over time (stacked bar by year)
+    //   4. Diversity over time (distinct-artists line, cumulative)
+    //   5. Spend vs appraised cumulative lines (private, hidden if no data)
+    //
+    // Brand palette per [[brand-visual-system]]:
+    //   - Orange #FF6A1A (primary line / first series)
+    //   - Magenta #E91E63 (third series, donut/category secondary)
+    //   - Blue #2D7FFF (second series / cumulative complement)
+    //   - Axis labels: rgba(255,255,255,0.65)
+    //   - Gridlines: rgba(255,255,255,0.06)
+    //
+    // Stats are scoped to NATIVE collection_items (source_type !==
+    // 'listing'). in_collection listings have no acquired_year and
+    // could double-count if mixed in.
+    async function renderCollectionDeepStats() {
+      const $wrap = document.getElementById("mcs-deep");
+      if (!$wrap) return;
+      const items = (collectionData.items || []).filter(x => x.source_type !== "listing");
+      if (items.length === 0) {
+        $wrap.innerHTML = `<div class="mcs-empty">Add at least one piece to your Collection to see charts.</div>`;
+        return;
+      }
+
+      // Year buckets. Fall back to created_at year if acquired_year is null.
+      const yearOf = (it) => {
+        if (it.acquired_year) return Number(it.acquired_year);
+        if (it.created_at)    return new Date(it.created_at).getFullYear();
+        return null;
+      };
+      const years = items.map(yearOf).filter(Boolean);
+      const minYear = Math.min(...years);
+      const maxYear = new Date().getFullYear();
+      const labels = [];
+      for (let y = minYear; y <= maxYear; y++) labels.push(String(y));
+
+      // Per-year aggregates.
+      const blank = () => ({
+        added: 0,
+        unique: 0,
+        limited: 0,
+        artistsSet: new Set(),
+        paid: 0,
+        appraised: 0,
+        viaCc: 0,
+      });
+      const perYear = Object.create(null);
+      for (const y of labels) perYear[y] = blank();
+      for (const it of items) {
+        const y = yearOf(it);
+        if (!y) continue;
+        const bucket = perYear[String(y)];
+        if (!bucket) continue;
+        bucket.added++;
+        if (it.artwork_category === "Unique/Original") bucket.unique++;
+        if (it.artwork_category === "Limited Edition") bucket.limited++;
+        if (it.artist_name) bucket.artistsSet.add(it.artist_name.trim().toLowerCase());
+        if (it.appraised_value_usd) bucket.appraised += Number(it.appraised_value_usd);
+        if (it.paid_value_usd)      bucket.paid      += Number(it.paid_value_usd);
+        if (it.via_canvascircle)    bucket.viaCc++;
+      }
+
+      // Derived series: cumulative pieces, cumulative distinct artists,
+      // cumulative paid + appraised.
+      const cumPieces = [];
+      const cumPaid = [];
+      const cumAppr = [];
+      const cumArtists = [];
+      const seenArtists = new Set();
+      let runPieces = 0, runPaid = 0, runAppr = 0;
+      for (const y of labels) {
+        const b = perYear[y];
+        runPieces += b.added;
+        runPaid += b.paid;
+        runAppr += b.appraised;
+        for (const a of b.artistsSet) seenArtists.add(a);
+        cumPieces.push(runPieces);
+        cumPaid.push(Math.round(runPaid));
+        cumAppr.push(Math.round(runAppr));
+        cumArtists.push(seenArtists.size);
+      }
+
+      // Top artists across the whole collection (top 8 + Others bucket).
+      const artistCounts = Object.create(null);
+      for (const it of items) {
+        const a = (it.artist_name || "Unknown").trim();
+        artistCounts[a] = (artistCounts[a] || 0) + 1;
+      }
+      const sortedArtists = Object.entries(artistCounts).sort((a, b) => b[1] - a[1]);
+      const topN = sortedArtists.slice(0, 8);
+      const otherTotal = sortedArtists.slice(8).reduce((s, p) => s + p[1], 0);
+      const topArtistLabels = topN.map(p => p[0]);
+      const topArtistCounts = topN.map(p => p[1]);
+      if (otherTotal > 0) {
+        topArtistLabels.push("Others");
+        topArtistCounts.push(otherTotal);
+      }
+
+      // Show the spend-vs-appraised chart only if either field has data.
+      const hasMoneyData = cumPaid.some(n => n > 0) || cumAppr.some(n => n > 0);
+
+      // Build chart container markup. Each chart sits in its own
+      // mcs-chart-card so spacing is consistent.
+      $wrap.innerHTML = `
+        <div class="mcs-chart-card">
+          <div class="mcs-chart-head">
+            <h4>Collection growth</h4>
+            <div class="mcs-chart-sub">Cumulative pieces + pieces added per year</div>
+          </div>
+          <div class="mcs-chart-canvas-wrap" style="height: 260px;">
+            <canvas id="mcs-chart-growth" role="img" aria-label="Combo chart of cumulative pieces and pieces added per year"></canvas>
+          </div>
+        </div>
+        <div class="mcs-chart-card">
+          <div class="mcs-chart-head">
+            <h4>Most-collected artists</h4>
+            <div class="mcs-chart-sub">Top ${topN.length}${otherTotal > 0 ? " + Others" : ""} by piece count</div>
+          </div>
+          <div class="mcs-chart-canvas-wrap" style="height: ${Math.max(220, topArtistLabels.length * 32 + 40)}px;">
+            <canvas id="mcs-chart-artists" role="img" aria-label="Horizontal bar chart of top collected artists by piece count"></canvas>
+          </div>
+        </div>
+        <div class="mcs-chart-card">
+          <div class="mcs-chart-head">
+            <h4>Category mix over time</h4>
+            <div class="mcs-chart-sub">Unique/Original vs Limited Edition, per acquisition year</div>
+          </div>
+          <div class="mcs-chart-canvas-wrap" style="height: 240px;">
+            <canvas id="mcs-chart-category" role="img" aria-label="Stacked bar chart of Unique/Original and Limited Edition pieces per year"></canvas>
+          </div>
+        </div>
+        <div class="mcs-chart-card">
+          <div class="mcs-chart-head">
+            <h4>Artist diversity over time</h4>
+            <div class="mcs-chart-sub">Distinct artists in your Collection, cumulative</div>
+          </div>
+          <div class="mcs-chart-canvas-wrap" style="height: 220px;">
+            <canvas id="mcs-chart-diversity" role="img" aria-label="Line chart of distinct artists in collection over time"></canvas>
+          </div>
+        </div>
+        ${hasMoneyData ? `
+          <div class="mcs-chart-card mcs-private-card">
+            <div class="mcs-chart-head">
+              <h4>Spend vs appraised value <span class="mcs-private-tag">Private to you</span></h4>
+              <div class="mcs-chart-sub">Cumulative paid + appraised over time. The gap between the lines is unrealized value.</div>
+            </div>
+            <div class="mcs-chart-canvas-wrap" style="height: 240px;">
+              <canvas id="mcs-chart-money" role="img" aria-label="Cumulative paid versus appraised value over time"></canvas>
+            </div>
+          </div>` : ""}
+      `;
+
+      // Lazy-load Chart.js. The portal already self-hosts it; loadChartJs
+      // is a singleton-promise loader defined elsewhere in this file.
+      const Chart = await loadChartJs();
+
+      // Shared chart defaults — dark-mode friendly axis colors per
+      // [[brand-visual-system]].
+      const AXIS_COLOR = "rgba(255,255,255,0.65)";
+      const GRID_COLOR = "rgba(255,255,255,0.06)";
+      const ORANGE = "#FF6A1A";
+      const MAGENTA = "#E91E63";
+      const BLUE = "#2D7FFF";
+      const sharedAxisOpts = {
+        ticks: { color: AXIS_COLOR, font: { size: 11 } },
+        grid: { color: GRID_COLOR },
+      };
+      const noLegend = { legend: { display: false } };
+
+      // ===== 1. Growth combo (line + bars) =====
+      new Chart(document.getElementById("mcs-chart-growth"), {
+        data: {
+          labels,
+          datasets: [
+            {
+              type: "bar", label: "Added that year",
+              data: labels.map(y => perYear[y].added),
+              backgroundColor: BLUE, borderRadius: 3, yAxisID: "y2", order: 2,
+            },
+            {
+              type: "line", label: "Cumulative pieces",
+              data: cumPieces, borderColor: ORANGE, backgroundColor: ORANGE,
+              borderWidth: 2.5, tension: 0.3, pointRadius: 3, pointBackgroundColor: ORANGE,
+              yAxisID: "y1", order: 1,
+            },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: { ...noLegend },
+          scales: {
+            x: { ...sharedAxisOpts, grid: { display: false } },
+            y1: { position: "left", beginAtZero: true, ...sharedAxisOpts, title: { display: true, text: "Total pieces", color: AXIS_COLOR, font: { size: 11 } } },
+            y2: { position: "right", beginAtZero: true, ...sharedAxisOpts, title: { display: true, text: "Added per year", color: AXIS_COLOR, font: { size: 11 } }, grid: { drawOnChartArea: false } },
+          },
+        },
+      });
+
+      // ===== 2. Top artists (horizontal bar) =====
+      new Chart(document.getElementById("mcs-chart-artists"), {
+        type: "bar",
+        data: {
+          labels: topArtistLabels,
+          datasets: [{
+            label: "Pieces",
+            data: topArtistCounts,
+            backgroundColor: topArtistLabels.map((_, i) =>
+              i === topArtistLabels.length - 1 && otherTotal > 0 ? "rgba(255,255,255,0.18)" : ORANGE
+            ),
+            borderRadius: 3,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          indexAxis: "y",
+          plugins: { ...noLegend },
+          scales: {
+            x: { beginAtZero: true, ...sharedAxisOpts, ticks: { ...sharedAxisOpts.ticks, precision: 0 } },
+            y: { ...sharedAxisOpts, grid: { display: false } },
+          },
+        },
+      });
+
+      // ===== 3. Category split over time (stacked bars) =====
+      new Chart(document.getElementById("mcs-chart-category"), {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            { label: "Unique/Original", data: labels.map(y => perYear[y].unique), backgroundColor: ORANGE, borderRadius: 2, stack: "cat" },
+            { label: "Limited Edition", data: labels.map(y => perYear[y].limited), backgroundColor: BLUE,  borderRadius: 2, stack: "cat" },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { ...noLegend, tooltip: { mode: "index", intersect: false } },
+          scales: {
+            x: { stacked: true, ...sharedAxisOpts, grid: { display: false } },
+            y: { stacked: true, beginAtZero: true, ...sharedAxisOpts, ticks: { ...sharedAxisOpts.ticks, precision: 0 } },
+          },
+        },
+      });
+
+      // ===== 4. Diversity (distinct artists over time, cumulative line) =====
+      new Chart(document.getElementById("mcs-chart-diversity"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Distinct artists",
+            data: cumArtists,
+            borderColor: MAGENTA, backgroundColor: MAGENTA,
+            borderWidth: 2.5, tension: 0.3, pointRadius: 3, pointBackgroundColor: MAGENTA,
+            fill: false,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { ...noLegend },
+          scales: {
+            x: { ...sharedAxisOpts, grid: { display: false } },
+            y: { beginAtZero: true, ...sharedAxisOpts, ticks: { ...sharedAxisOpts.ticks, precision: 0 } },
+          },
+        },
+      });
+
+      // ===== 5. Spend vs appraised (private, only if data) =====
+      if (hasMoneyData) {
+        new Chart(document.getElementById("mcs-chart-money"), {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Cumulative paid",
+                data: cumPaid,
+                borderColor: BLUE, backgroundColor: BLUE,
+                borderWidth: 2.5, tension: 0.3, pointRadius: 3, pointBackgroundColor: BLUE,
+                borderDash: [6, 4],
+                fill: false,
+              },
+              {
+                label: "Cumulative appraised",
+                data: cumAppr,
+                borderColor: ORANGE, backgroundColor: ORANGE,
+                borderWidth: 2.5, tension: 0.3, pointRadius: 3, pointBackgroundColor: ORANGE,
+                fill: false,
+              },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              ...noLegend,
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${ctx.dataset.label}: $${Number(ctx.parsed.y).toLocaleString("en-US")}`,
+                },
+              },
+            },
+            scales: {
+              x: { ...sharedAxisOpts, grid: { display: false } },
+              y: {
+                beginAtZero: true, ...sharedAxisOpts,
+                ticks: {
+                  ...sharedAxisOpts.ticks,
+                  callback: (v) => "$" + Number(v).toLocaleString("en-US"),
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Custom HTML legends per [[brand-visual-system]] chart conventions
+      // — inject one per chart card via a small helper.
+      const injectLegend = (cardSelector, entries) => {
+        const $card = document.querySelector(cardSelector);
+        if (!$card) return;
+        const $head = $card.querySelector(".mcs-chart-head");
+        if (!$head) return;
+        const html = entries.map(e =>
+          `<span class="mcs-legend-chip"><span class="mcs-legend-dot" style="background:${e.color};${e.dashed ? "background:linear-gradient(90deg," + e.color + " 0 6px,transparent 6px 10px," + e.color + " 10px 16px);" : ""}"></span>${escapeHtml(e.label)}</span>`
+        ).join("");
+        const div = document.createElement("div");
+        div.className = "mcs-legend";
+        div.innerHTML = html;
+        $head.appendChild(div);
+      };
+      injectLegend("#mcs-deep .mcs-chart-card:nth-of-type(1)", [
+        { label: "Cumulative pieces", color: ORANGE },
+        { label: "Added that year", color: BLUE },
+      ]);
+      injectLegend("#mcs-deep .mcs-chart-card:nth-of-type(3)", [
+        { label: "Unique/Original", color: ORANGE },
+        { label: "Limited Edition", color: BLUE },
+      ]);
+      if (hasMoneyData) {
+        injectLegend("#mcs-deep .mcs-chart-card.mcs-private-card", [
+          { label: "Cumulative paid",      color: BLUE, dashed: true },
+          { label: "Cumulative appraised", color: ORANGE },
+        ]);
       }
     }
 
