@@ -119,24 +119,38 @@
       text-transform: uppercase;
       margin: 0 0 10px;
     }
-    .seller-header .contact-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .seller-header .contact-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     /* Both contact CTAs share the same blue single-hue gradient, Guy's
        call that they're equally-valid contact methods, no primary/
-       secondary hierarchy. Visual order comes from layout, not styling. */
+       secondary hierarchy. Visual order comes from layout, not styling.
+       cc-v195: each button is flex:1 on narrow viewports so the two
+       contact CTAs sit side-by-side instead of stacking on iPhone-
+       width screens. Padding + font tightened to fit. */
     .seller-header .contact-actions a.primary,
     .seller-header .contact-actions a.secondary {
       background: var(--action-bg);
       color: var(--action-fg);
       text-decoration: none;
-      padding: 9px 18px;
+      padding: 9px 14px;
       border-radius: 6px;
       font-weight: 600;
       font-size: 14px;
       border: 1px solid var(--action-border);
       transition: filter .15s ease;
+      flex: 1 1 0;
+      min-width: 0;
+      text-align: center;
+      white-space: nowrap;
     }
     .seller-header .contact-actions a.primary:hover,
     .seller-header .contact-actions a.secondary:hover { filter: brightness(1.10); }
+    @media (max-width: 480px) {
+      .seller-header .contact-actions a.primary,
+      .seller-header .contact-actions a.secondary {
+        font-size: 13px;
+        padding: 9px 10px;
+      }
+    }
     /* Follow Seller button, same pill pattern as the listing.html
        Follow Artist button. Brand-gradient fill when active. */
     .follow-seller-btn {
@@ -1309,7 +1323,10 @@
           // down, which submits to the contact-seller-general edge fn
           // mode. The actual email lives only on the server. See
           // cc-v172 / migration 049.
-          parts.push(`<a class="secondary" id="email-collector-link" href="#" role="button">Email this collector</a>`);
+          // cc-v195: shortened "Email this collector" → "Email Collector"
+          // so it fits next to "Message on Facebook" on a single row on
+          // iPhone-width viewports.
+          parts.push(`<a class="secondary" id="email-collector-link" href="#" role="button">Email Collector</a>`);
         }
         if (!fbUrl && !profile.has_contact_email) {
           parts.push(`<span style="color:var(--muted); font-size:14px;">This collector hasn't published contact info yet.</span>`);
@@ -1792,14 +1809,12 @@
         // entry point. Force hidden regardless of cached prior state.
         if ($aboutP)  { $aboutP.hidden  = true; delete $aboutP.dataset.priorHidden; }
         if ($refsSec) { $refsSec.hidden = true; delete $refsSec.dataset.priorHidden; }
-        // Reset toggle button visual state to closed.
+        // Reset toggle button visual state to closed. Glyph orientation
+        // is governed by the .is-open class via CSS rotation; removing
+        // it returns the chevron to its default down-pointing state.
         ["seller-about-toggle", "seller-refs-toggle"].forEach((id) => {
           const $b = document.getElementById(id);
-          if ($b) {
-            $b.classList.remove("is-open");
-            const $g = $b.querySelector(".glyph");
-            if ($g) $g.textContent = "▾";
-          }
+          if ($b) $b.classList.remove("is-open");
         });
       }
       // Contact block — hide entirely on Collection tab.
@@ -1816,7 +1831,13 @@
     }
 
     // Bio toggle click handlers. Each toggle reveals/hides its
-    // corresponding section inline. Glyph rotates via .is-open class.
+    // corresponding section inline. Glyph rotation is purely CSS —
+    // the .is-open class on the button triggers a 180deg transform on
+    // the .glyph child (see .seller-bio-toggle.is-open .glyph rule).
+    // cc-v195 fix: previous version also text-swapped ▾ → ▴ in JS,
+    // which combined with the CSS rotation made the open state look
+    // the same as closed (rotating ▴ 180deg = ▾ shape). Stick to one
+    // mechanism only.
     document.getElementById("seller-about-toggle")?.addEventListener("click", (e) => {
       const $btn   = e.currentTarget;
       const $about = document.getElementById("seller-about");
@@ -1824,8 +1845,6 @@
       const willShow = $about.hidden;
       $about.hidden = !willShow;
       $btn.classList.toggle("is-open", willShow);
-      const $g = $btn.querySelector(".glyph");
-      if ($g) $g.textContent = willShow ? "▴" : "▾";
     });
     document.getElementById("seller-refs-toggle")?.addEventListener("click", (e) => {
       const $btn  = e.currentTarget;
@@ -1834,8 +1853,6 @@
       const willShow = $refs.hidden;
       $refs.hidden = !willShow;
       $btn.classList.toggle("is-open", willShow);
-      const $g = $btn.querySelector(".glyph");
-      if ($g) $g.textContent = willShow ? "▴" : "▾";
     });
 
     // Cached Collection data. Populated once at page bootstrap (alongside
