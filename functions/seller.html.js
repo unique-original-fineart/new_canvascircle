@@ -81,10 +81,61 @@ async function fetchFirstCollectionImage(ownerId) {
   return rows[0]?.image_path || "";
 }
 
+async function fetchPublicCollectionItem(itemId) {
+  const rows = await pgFetch(`/rest/v1/rpc/get_public_collection_item`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ p_item_id: itemId }),
+  });
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  return rows[0];
+}
+
 function snippet(text, max = 200) {
   const s = String(text || "").trim().replace(/\s+/g, " ");
   if (s.length <= max) return s;
   return s.slice(0, max - 1).trimEnd() + "…";
+}
+
+function buildPieceMeta({ piece, requestUrl }) {
+  const artist = (piece.artist_name || "").trim();
+  const work   = (piece.artwork_title || "").trim();
+  const pieceLabel = [artist, work].filter(Boolean).join(", ") || "An artwork";
+
+  const ownerName = (piece.owner_display_name || piece.owner_handle || "A collector").trim();
+  const ownerHandle = piece.owner_handle ? `@${piece.owner_handle}` : "";
+
+  const title = ownerHandle
+    ? `${pieceLabel} — In ${ownerName}'s (${ownerHandle}) Collection on CanvasCircle`
+    : `${pieceLabel} — In ${ownerName}'s Collection on CanvasCircle`;
+
+  let description;
+  if (piece.public_story) {
+    description = snippet(piece.public_story);
+  } else {
+    const parts = [];
+    if (piece.artwork_category) parts.push(piece.artwork_category);
+    if (piece.acquired_year) {
+      const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      const monthName = piece.acquired_month ? months[piece.acquired_month - 1] : null;
+      parts.push(monthName ? `acquired ${monthName} ${piece.acquired_year}` : `acquired ${piece.acquired_year}`);
+    }
+    if (piece.via_canvascircle) parts.push("acquired through CanvasCircle");
+    parts.push(`from ${ownerName}'s Collection on CanvasCircle`);
+    description = parts.join(", ").replace(/^./, c => c.toUpperCase()) + ".";
+  }
+
+  const ogImage = piece.image_path
+    ? imageUrl("collection-images", piece.image_path)
+    : `${SITE_ORIGIN}/assets/og-image.png`;
+
+  return {
+    title,
+    description,
+    image: ogImage,
+    url: requestUrl,
+    pageTitle: title,
+  };
 }
 
 function buildSellerMeta({ profile, mode, image, requestUrl }) {
@@ -125,10 +176,23 @@ export async function onRequestGet(context) {
   const url = new URL(request.url);
   const handle = (url.searchParams.get("handle") || "").trim().replace(/^@+/, "");
   const tab    = (url.searchParams.get("tab") || "").trim();
+  const piece  = (url.searchParams.get("piece") || "").trim();
 
   const assetResponse = await env.ASSETS.fetch(request);
 
   if (!handle || !assetResponse.ok) return assetResponse;
+
+  // Piece-share mode short-circuit. See seller.js header.
+  if (piece) {
+    let pieceRow = null;
+    try { pieceRow = await fetchPublicCollectionItem(piece); } catch {}
+    if (pieceRow) {
+      try {
+        const meta = buildPieceMeta({ piece: pieceRow, requestUrl: request.url });
+        return injectOgMeta(assetResponse, meta, "piece");
+      } catch { /* fall through */ }
+    }
+  }
 
   let profile;
   try {
@@ -175,6 +239,10 @@ export async function onRequestGet(context) {
     return assetResponse;
   }
 
+  return injectOgMeta(assetResponse, meta, "seller");
+}
+
+function injectOgMeta(assetResponse, meta, kind) {
   try {
     const rewriter = new HTMLRewriter()
       .on("title", {
@@ -203,7 +271,7 @@ export async function onRequestGet(context) {
 
     const headers = new Headers(transformed.headers);
     headers.set("Cache-Control", "public, max-age=300, s-maxage=300");
-    headers.set("X-CC-OG-Injected", "seller");
+    headers.set("X-CC-OG-Injected", kind);
 
     return new Response(transformed.body, {
       status: transformed.status,

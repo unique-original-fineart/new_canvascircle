@@ -468,6 +468,36 @@
       color: var(--text-soft);
       white-space: pre-wrap;
     }
+    .coll-detail-actions {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--card-line);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .coll-detail-actions[hidden] { display: none; }
+    .coll-share-btn {
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 9px 16px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .coll-share-btn:hover { filter: brightness(1.08); }
+    .coll-share-btn[disabled] { opacity: .55; cursor: wait; }
+    .coll-share-status {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .coll-share-status.is-ok { color: var(--accent); }
 
     .card {
       background: var(--card-bg);
@@ -924,7 +954,12 @@
          frame, COA, public story). No price, no contact, no actions —
          pure display. Artist is the bold primary line, title is the
          muted secondary line below — matches listing.html's .details
-         .artist / .title typography. -->
+         .artist / .title typography.
+
+         cc-v202: per-piece Share button bottom-right (collection_items
+         only; in_collection listings don't get a shareable URL since
+         they don't have acquired date / public_story to populate the
+         OG card meaningfully). -->
     <div id="coll-detail-overlay" class="coll-detail-overlay" aria-hidden="true">
       <div class="coll-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="coll-detail-artist">
         <button type="button" id="coll-detail-close" class="coll-detail-close" aria-label="Close">×</button>
@@ -937,6 +972,13 @@
           <div class="coll-detail-pills" id="coll-detail-pills"></div>
           <dl class="coll-detail-specs" id="coll-detail-specs"></dl>
           <div class="coll-detail-story" id="coll-detail-story" hidden></div>
+          <div class="coll-detail-actions" id="coll-detail-actions" hidden>
+            <button type="button" id="coll-share-btn" class="coll-share-btn" aria-label="Share this piece">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px;"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              Share this piece
+            </button>
+            <span id="coll-share-status" class="coll-share-status"></span>
+          </div>
         </div>
       </div>
     </div>
@@ -1280,14 +1322,21 @@
       //    on social): jump straight to the Collection tab once its data
       //    has loaded. The query param wins over any other default.
       //
-      // 2. Smart default for collection-only users: a seller with zero
+      // 2. ?piece=<id> (per-piece share link, cc-v202): jump to the
+      //    Collection tab AND auto-open the detail modal for that
+      //    piece. Same flow as ?tab=collection plus the modal open.
+      //
+      // 3. Smart default for collection-only users: a seller with zero
       //    sale + zero ISO + a public Collection should land ON the
       //    Collection tab, not stare at an empty For Sale tab. Only fires
       //    when ?tab isn't explicitly set.
       const urlParams = new URLSearchParams(window.location.search);
       const requestedTab = urlParams.get("tab");
+      const requestedPiece = urlParams.get("piece");
       const noListings = saleActiveN === 0 && listingsAll.iso.length === 0;
-      const wantsCollection = requestedTab === "collection" || (collectionIsPublic && noListings);
+      const wantsCollection = requestedTab === "collection"
+        || !!requestedPiece
+        || (collectionIsPublic && noListings);
       if (wantsCollection && collectionLoadPromise) {
         // Wait for the Collection query to finish so the tab button is
         // actually visible (revealed by loadPublicCollection) before we
@@ -1296,6 +1345,18 @@
           const $collTab = document.getElementById("tab-collection");
           if ($collTab && !$collTab.hidden) {
             activateCollectionTab($collTab);
+          }
+          // Auto-open the piece modal if ?piece=<id> resolved to a
+          // visible Collection item. We look it up in the already-
+          // loaded publicCollectionItems array; if it's not there,
+          // the piece is private or the gates failed server-side and
+          // we just leave the visitor on the Collection grid.
+          if (requestedPiece) {
+            const it = publicCollectionItems.find(x => x.id === requestedPiece);
+            if (it) {
+              // Small delay so the tab activation paint completes first.
+              setTimeout(() => openCollectionDetailModal(it), 80);
+            }
           }
         });
       }
@@ -2144,10 +2205,79 @@
         : "";
       $img.alt = `${it.artist_name || ""}, ${it.artwork_title || ""}`;
 
+      // Share action — collection_items only. in_collection listings
+      // don't get a per-piece share URL in v1 (they lack acquired_year
+      // and public_story, and the listing's description field could
+      // carry sales-context copy we don't want in a Collection share).
+      const $actions = document.getElementById("coll-detail-actions");
+      const $shareBtn = document.getElementById("coll-share-btn");
+      const $shareStatus = document.getElementById("coll-share-status");
+      if ($actions && $shareBtn) {
+        const isCollectionItem = it.source_type !== "listing";
+        $actions.hidden = !isCollectionItem;
+        if ($shareStatus) {
+          $shareStatus.textContent = "";
+          $shareStatus.classList.remove("is-ok");
+        }
+        // Stash the piece data the click handler will use.
+        __collShareCtx = isCollectionItem ? {
+          id: it.id,
+          artist: it.artist_name || "",
+          title: it.artwork_title || "",
+        } : null;
+      }
+
       const $overlay = document.getElementById("coll-detail-overlay");
       $overlay.classList.add("open");
       $overlay.setAttribute("aria-hidden", "false");
     }
+
+    // Tracks the currently-open Collection piece for the Share button.
+    // Cleared on modal close. Only set when source_type='collection_item'.
+    let __collShareCtx = null;
+
+    document.getElementById("coll-share-btn")?.addEventListener("click", async () => {
+      if (!__collShareCtx) return;
+      const $btn = document.getElementById("coll-share-btn");
+      const $status = document.getElementById("coll-share-status");
+      // Build the share URL. Format: /seller?handle=X&piece=Y so the
+      // Pages Function can build the per-piece OG card and seller.html
+      // auto-opens the detail modal on land.
+      const handle = sellerProfile?.handle || "";
+      if (!handle) {
+        if ($status) { $status.textContent = "Couldn't build a share link."; }
+        return;
+      }
+      const url = `${window.location.origin}/seller?handle=${encodeURIComponent(handle)}&piece=${encodeURIComponent(__collShareCtx.id)}`;
+      const pieceLabel = [__collShareCtx.artist, __collShareCtx.title].filter(Boolean).join(", ");
+      const shareTitle = pieceLabel ? `${pieceLabel} on CanvasCircle` : "Look what's in my Collection on CanvasCircle";
+      const shareText  = pieceLabel
+        ? `Look what's in my Collection on CanvasCircle: ${pieceLabel}.`
+        : "Look what's in my Collection on CanvasCircle.";
+      $btn.disabled = true;
+      try {
+        if (navigator.share) {
+          // Native share sheet (iOS, Android, recent desktop browsers).
+          await navigator.share({ title: shareTitle, text: shareText, url });
+          if ($status) { $status.textContent = "Shared!"; $status.classList.add("is-ok"); }
+        } else {
+          // Clipboard fallback.
+          await navigator.clipboard.writeText(url);
+          if ($status) { $status.textContent = "Link copied!"; $status.classList.add("is-ok"); }
+        }
+      } catch (err) {
+        // User cancelled native share — not an error condition.
+        if (err?.name !== "AbortError") {
+          console.warn("[coll-share] failed:", err);
+          if ($status) { $status.textContent = "Couldn't share, try again."; }
+        }
+      } finally {
+        $btn.disabled = false;
+        setTimeout(() => {
+          if ($status) { $status.textContent = ""; $status.classList.remove("is-ok"); }
+        }, 2500);
+      }
+    });
     function closeCollectionDetailModal() {
       const $overlay = document.getElementById("coll-detail-overlay");
       $overlay.classList.remove("open");
