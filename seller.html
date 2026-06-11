@@ -858,10 +858,18 @@
            Collection tab is active. -->
       <div id="seller-bio-toggles" class="seller-bio-toggles" hidden>
         <button type="button" id="seller-about-toggle" class="seller-bio-toggle" hidden>
-          About this collector <span class="glyph">▾</span>
+          About this collector <span class="glyph">▴</span>
         </button>
         <button type="button" id="seller-refs-toggle" class="seller-bio-toggle" hidden>
-          References <span id="seller-refs-toggle-count"></span> <span class="glyph">▾</span>
+          References <span id="seller-refs-toggle-count"></span> <span class="glyph">▴</span>
+        </button>
+        <!-- Contact this collector toggle (cc-v204). Same pattern as
+             About/References — collapsed by default, expand on demand
+             to surface the contact options + transaction disclaimer.
+             Both anon viewers (signed-out CTA) and signed-in viewers
+             (Facebook + Email buttons) hide under this toggle. -->
+        <button type="button" id="seller-contact-toggle" class="seller-bio-toggle" hidden>
+          Contact this collector <span class="glyph">▴</span>
         </button>
       </div>
 
@@ -871,8 +879,11 @@
         <p class="small" style="margin: 0 0 8px; color: var(--muted);">These Established Members have agreed to vouch for this collector. Reach out to them to ask about their transactions.</p>
         <ul id="seller-refs-list" style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;"></ul>
       </div>
-      <div class="contact-block">
-        <h3>Contact this collector</h3>
+      <!-- Contact block (cc-v204): hidden by default, revealed by the
+           "Contact this collector ▴" toggle in the bio-toggles row above.
+           h3 dropped because the toggle button itself acts as the
+           section header now. -->
+      <div id="seller-contact-block" class="contact-block" hidden>
         <div id="contact-signed-in" class="contact-actions" hidden></div>
         <div id="contact-signed-out" class="signed-out-contact" hidden>
           <strong>Sign in to see contact info</strong> for this collector and reach out about their listings.
@@ -1532,6 +1543,12 @@
           if ($aboutToggle) $aboutToggle.hidden = true;
         }
       }
+      // Contact toggle (cc-v204) is always visible on real seller pages
+      // — both anon and signed-in viewers benefit from the collapse-by-
+      // default behavior. (The Collection-tab minimal mode hides it
+      // separately when the user switches to that tab.)
+      const $contactToggle = document.getElementById("seller-contact-toggle");
+      if ($contactToggle) $contactToggle.hidden = false;
       // Reveal the bio-toggles wrapper if at least one toggle has content.
       refreshBioTogglesWrapVisibility();
 
@@ -1747,7 +1764,12 @@
         frag.appendChild(li);
       }
       $list.appendChild(frag);
-      $section.hidden = false;
+      // cc-v204 fix: do NOT un-hide the section here. Section stays
+      // collapsed by default behind the "References ▴" toggle (matching
+      // the About behavior); the toggle click handler reveals it on
+      // demand. Earlier versions of this function pre-rendered refs
+      // inline visible, and that line of code survived the cc-v194
+      // collapse-by-default refactor as a leftover bug.
     }
 
     function fbProfileUrl(url) {
@@ -2026,14 +2048,18 @@
     }
 
     // Bio toggles wrap-visibility helper. Reveals the wrapper if AT LEAST
-    // ONE child toggle has content (about_text or references). Otherwise
-    // keeps the wrapper hidden so we don't leave an empty pill row.
+    // ONE child toggle has content (about_text, references, or contact).
+    // Contact toggle is always shown on a real seller page, so the wrap
+    // will always render at least one pill for signed-in / anon viewers.
     function refreshBioTogglesWrapVisibility() {
       const $wrap   = document.getElementById("seller-bio-toggles");
       const $about  = document.getElementById("seller-about-toggle");
       const $refs   = document.getElementById("seller-refs-toggle");
+      const $contact = document.getElementById("seller-contact-toggle");
       if (!$wrap) return;
-      const anyVisible = ($about && !$about.hidden) || ($refs && !$refs.hidden);
+      const anyVisible = ($about && !$about.hidden)
+        || ($refs && !$refs.hidden)
+        || ($contact && !$contact.hidden);
       $wrap.hidden = !anyVisible;
     }
 
@@ -2111,6 +2137,15 @@
       if (!$refs) return;
       const willShow = $refs.hidden;
       $refs.hidden = !willShow;
+      $btn.classList.toggle("is-open", willShow);
+    });
+    // Contact toggle (cc-v204). Same expand/collapse pattern.
+    document.getElementById("seller-contact-toggle")?.addEventListener("click", (e) => {
+      const $btn = e.currentTarget;
+      const $cb  = document.getElementById("seller-contact-block");
+      if (!$cb) return;
+      const willShow = $cb.hidden;
+      $cb.hidden = !willShow;
       $btn.classList.toggle("is-open", willShow);
     });
 
