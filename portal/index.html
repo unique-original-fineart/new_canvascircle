@@ -5639,6 +5639,20 @@
             <textarea id="ci-story" rows="3" maxlength="500" placeholder="How did you acquire this piece? Any story behind it? No prices, no sales, no links."></textarea>
             <p class="small" style="margin: 4px 0 0; color: var(--muted);">Max 500 chars. Dollar amounts, sale offers, links, and phone numbers are blocked.</p>
           </div>
+          <!-- Per-item visibility toggle (migration 060). Default ON.
+               When the user's Collection itself isn't public this toggle
+               is structurally a no-op, but we still let them set it now
+               so it's correctly applied if they ever flip the Collection
+               public later. ISO matching is intentionally unaffected. -->
+          <div class="span-2" style="margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--card-line);">
+            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-weight: normal;">
+              <input type="checkbox" id="ci-is-public" checked style="margin-top: 2px;" />
+              <span>
+                <strong>Show this piece on my public Collection</strong>
+                <div class="small" style="margin-top: 2px; color: var(--muted);">When unchecked, this piece stays in your private portal view but is hidden from your public Collection page. It still counts toward ISO matches.</div>
+              </span>
+            </label>
+          </div>
         </div>
 
         <!-- Private section. Stronger visual break so users don't
@@ -7806,15 +7820,21 @@
       // Owner-side card. Shows public-side fields; "private fields stored"
       // tag if any of the private numeric fields have a value (subtle hint
       // to the owner that they have private data on this piece, without
-      // revealing what).
+      // revealing what). Plus a "Hidden from public" pill (migration 060)
+      // for items the user has flipped is_public=false on.
       const url = it.image_path ? collectionImageUrl(it.image_path, { width: 500 }) : "";
       const hasPriv = (it.appraised_value_usd != null) || (it.paid_value_usd != null) || (it.private_notes && it.private_notes.length > 0);
+      const isHiddenFromPublic = it.is_public === false;
+      const hiddenBadge = isHiddenFromPublic
+        ? `<span class="cc-private-flag" style="color: var(--accent); font-weight: 600;">🔒 Hidden from public Collection</span>`
+        : "";
       return `
         <div class="collection-card" data-ci-id="${it.id}">
           <div class="cc-thumb">${url ? `<img src="${url}" alt="" loading="lazy" />` : `<span style="color: var(--muted); font-size: 12px;">no image</span>`}</div>
           <div class="cc-meta">
             <div class="cc-artist">${escapeHtml(it.artist_name || "")}</div>
             <div class="cc-title">${escapeHtml(it.artwork_title || "")}</div>
+            ${hiddenBadge}
             ${hasPriv ? `<span class="cc-private-flag">Private notes stored</span>` : ""}
           </div>
         </div>`;
@@ -7911,6 +7931,13 @@
       document.getElementById("ci-notes").value     = it.private_notes || "";
       document.getElementById("ci-appraised").value = it.appraised_value_usd != null ? String(it.appraised_value_usd) : "";
       document.getElementById("ci-paid").value      = it.paid_value_usd != null ? String(it.paid_value_usd) : "";
+      // is_public toggle (migration 060). On for new items by default,
+      // reflects the stored value when editing. New pieces from the
+      // bought-piece prompt also default to public (they're shown off).
+      const $isPublicEl = document.getElementById("ci-is-public");
+      if ($isPublicEl) {
+        $isPublicEl.checked = (ctx.mode === "edit") ? (it.is_public !== false) : true;
+      }
 
       // Image: render existing or show placeholder.
       const $imgPreview = document.getElementById("ci-image-preview");
@@ -7991,6 +8018,9 @@
       const notes    = document.getElementById("ci-notes").value.trim();
       const appraised = document.getElementById("ci-appraised").value.trim();
       const paid     = document.getElementById("ci-paid").value.trim();
+      // Per-item visibility flag (migration 060). Defaults to true for
+      // new items; reflects current state for edits.
+      const isPublic = !!document.getElementById("ci-is-public")?.checked;
 
       // Validation. Required: artist, title, medium, category, image (for new).
       const errs = [];
@@ -8056,6 +8086,7 @@
             p_clear_appraised_value: !appraised && collectionItemSelected?.appraised_value_usd != null,
             p_clear_paid_value: !paid && collectionItemSelected?.paid_value_usd != null,
             p_clear_dimensions: !sizeStr && (collectionItemSelected?.height_in != null || collectionItemSelected?.width_in != null),
+            p_is_public: isPublic,
           });
           if (error) throw error;
         } else {
@@ -8079,6 +8110,7 @@
             // future loads (the join in get_pending_collection_prompts
             // suppresses rows that already have a matching collection_item).
             p_source_listing_id: __pendingBoughtPiece?.source_listing_id || null,
+            p_is_public: isPublic,
           });
           if (error) throw error;
           itemId = data;

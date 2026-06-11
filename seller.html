@@ -578,6 +578,31 @@
     }
     footer a { color: inherit; }
 
+    /* Bio toggle pills (About + References). Collapsed-by-default
+       affordances for the secondary trust-signal content that was
+       eating mobile real estate on the seller page. Click expands the
+       corresponding section inline. */
+    .seller-bio-toggles {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .seller-bio-toggle {
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      color: var(--fg);
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+    }
+    .seller-bio-toggle:hover { border-color: var(--accent-soft); }
+    .seller-bio-toggle .glyph { display: inline-block; margin-left: 4px; transition: transform .15s ease; }
+    .seller-bio-toggle.is-open .glyph { transform: rotate(180deg); }
+
     /* Contact modal — used by the "Email this collector" button. Same
        visual treatment as listing.html's contact modal so the UX feels
        consistent between the two surfaces. Hidden by default; opened
@@ -670,8 +695,24 @@
            IS this seller (no self-follow). Wired up in seller.html script
            after the profile loads. -->
       <button type="button" id="follow-seller-btn" class="follow-seller-btn" aria-pressed="false" hidden>+ Follow this seller</button>
-      <p id="seller-about" class="about-text" hidden style="margin: 14px 0 0; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--card-line); border-radius: 6px; color: var(--fg); font-size: 14px; line-height: 1.55; white-space: pre-line; text-align: left;"></p>
-      <div id="seller-refs-section" hidden style="margin-top: 14px;">
+
+      <!-- Bio toggle row (cc-v194). About + References are now collapsed
+           by default behind small pill buttons so the listings tabs
+           reach above the fold on mobile. Each toggle reveals its
+           corresponding section inline. Toggles are hidden when the
+           respective content is empty AND hidden entirely when the
+           Collection tab is active. -->
+      <div id="seller-bio-toggles" class="seller-bio-toggles" hidden>
+        <button type="button" id="seller-about-toggle" class="seller-bio-toggle" hidden>
+          About this collector <span class="glyph">▾</span>
+        </button>
+        <button type="button" id="seller-refs-toggle" class="seller-bio-toggle" hidden>
+          References <span id="seller-refs-toggle-count"></span> <span class="glyph">▾</span>
+        </button>
+      </div>
+
+      <p id="seller-about" class="about-text" hidden style="margin: 10px 0 0; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--card-line); border-radius: 6px; color: var(--fg); font-size: 14px; line-height: 1.55; white-space: pre-line; text-align: left;"></p>
+      <div id="seller-refs-section" hidden style="margin-top: 10px;">
         <div style="font-weight: 600; font-size: 13px; color: var(--muted); letter-spacing: .3px; text-transform: uppercase; margin-bottom: 6px;">References</div>
         <p class="small" style="margin: 0 0 8px; color: var(--muted);">These Established Members have agreed to vouch for this collector. Reach out to them to ask about their transactions.</p>
         <ul id="seller-refs-list" style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;"></ul>
@@ -1201,17 +1242,25 @@
       const $establishedRow = document.getElementById("seller-established-row");
       if ($establishedRow) $establishedRow.hidden = !profile.is_trusted;
 
-      // About text (admin-approved). Rendered as a paragraph below the meta
-      // row. Hidden if the seller hasn't set one.
+      // About text (admin-approved). cc-v194: collapsed by default behind
+      // the "About this collector ▾" toggle so the listings tabs reach
+      // above the fold on mobile. Content is rendered into the paragraph
+      // immediately so expand/collapse is instant; only the visibility
+      // flips on toggle click.
       const $aboutP = document.getElementById("seller-about");
+      const $aboutToggle = document.getElementById("seller-about-toggle");
       if ($aboutP) {
         if (profile.about_text) {
           $aboutP.textContent = profile.about_text;
-          $aboutP.hidden = false;
+          $aboutP.hidden = true;  // collapsed by default
+          if ($aboutToggle) $aboutToggle.hidden = false;
         } else {
           $aboutP.hidden = true;
+          if ($aboutToggle) $aboutToggle.hidden = true;
         }
       }
+      // Reveal the bio-toggles wrapper if at least one toggle has content.
+      refreshBioTogglesWrapVisibility();
 
       // Location is gated, only visible to signed-in users.
       if (viewerSignedIn && profile.location) {
@@ -1380,11 +1429,21 @@
     function renderReferences(validRefs) {
       const $section = document.getElementById("seller-refs-section");
       const $list    = document.getElementById("seller-refs-list");
+      const $refsToggle = document.getElementById("seller-refs-toggle");
+      const $refsCount  = document.getElementById("seller-refs-toggle-count");
       if (!$section || !$list) return;
       if (!validRefs || validRefs.length === 0) {
         $section.hidden = true;
+        if ($refsToggle) $refsToggle.hidden = true;
+        refreshBioTogglesWrapVisibility();
         return;
       }
+      // cc-v194: collapsed by default behind the "References ▾" toggle.
+      // Section stays hidden; toggle button shows the count inline.
+      if ($refsToggle) $refsToggle.hidden = false;
+      if ($refsCount)  $refsCount.textContent = `(${validRefs.length})`;
+      $section.hidden = true;
+      refreshBioTogglesWrapVisibility();
       $list.innerHTML = "";
       const frag = document.createDocumentFragment();
       for (const r of validRefs) {
@@ -1657,6 +1716,11 @@
       // Show collection surface.
       const $section = document.getElementById("collection-section");
       if ($section) $section.hidden = false;
+      // Minimal-header mode (cc-v194): Collection tab visitors get the
+      // identity (name, @handle, Established, joined, location) but not
+      // the listing-context bits (About, References, contact block,
+      // listing counts). Restored when leaving the tab.
+      setSellerHeaderMinimalMode(true);
       // Render the data (already loaded by loadPublicCollection during
       // the page bootstrap).
       renderPublicCollection();
@@ -1670,6 +1734,10 @@
       // separately, this just ensures it's not stuck hidden from the
       // Collection-mode toggle.
       if ($tool && (listingsAll[currentTab] || []).length > 0) $tool.hidden = false;
+      // Restore full-header mode (cc-v194). Bio toggles + contact block
+      // come back; About + References stay collapsed (their toggle is
+      // the entry point).
+      setSellerHeaderMinimalMode(false);
       // Restore Collection-tab to inactive; sale/iso tab active styling
       // will be re-applied by applyTab() / renderTab().
       const $collTab = document.getElementById("tab-collection");
@@ -1680,6 +1748,95 @@
       // Re-render the listings view in case the active styling needs a refresh.
       try { applyTab(); } catch {}
     }
+
+    // Bio toggles wrap-visibility helper. Reveals the wrapper if AT LEAST
+    // ONE child toggle has content (about_text or references). Otherwise
+    // keeps the wrapper hidden so we don't leave an empty pill row.
+    function refreshBioTogglesWrapVisibility() {
+      const $wrap   = document.getElementById("seller-bio-toggles");
+      const $about  = document.getElementById("seller-about-toggle");
+      const $refs   = document.getElementById("seller-refs-toggle");
+      if (!$wrap) return;
+      const anyVisible = ($about && !$about.hidden) || ($refs && !$refs.hidden);
+      $wrap.hidden = !anyVisible;
+    }
+
+    // Header minimal-mode toggle (cc-v194). On = hide listing-context
+    // bits when the Collection tab is active. Off = restore them for
+    // sale/iso tabs. Stores the "previous shown state" of each element
+    // so we don't accidentally un-hide something that was hidden for a
+    // separate reason (e.g. follow-seller button hidden because viewer
+    // is anon, listing counts hidden because they're empty).
+    function setSellerHeaderMinimalMode(on) {
+      // Listing-counts span (e.g. "5 for sale"). Misleading on the
+      // Collection tab — flip its hidden state in lockstep with mode.
+      const $counts = document.getElementById("seller-counts-item");
+      if ($counts && $counts.textContent.trim()) {
+        $counts.hidden = !!on;
+      }
+      // Bio toggles + their expanded content.
+      const $bioWrap = document.getElementById("seller-bio-toggles");
+      const $aboutP  = document.getElementById("seller-about");
+      const $refsSec = document.getElementById("seller-refs-section");
+      if (on) {
+        // Cache prior visibility so we can restore on leave.
+        if ($bioWrap) { $bioWrap.dataset.priorHidden = String(!!$bioWrap.hidden); $bioWrap.hidden = true; }
+        if ($aboutP)  { $aboutP.dataset.priorHidden  = String(!!$aboutP.hidden);  $aboutP.hidden  = true; }
+        if ($refsSec) { $refsSec.dataset.priorHidden = String(!!$refsSec.hidden); $refsSec.hidden = true; }
+      } else {
+        if ($bioWrap && $bioWrap.dataset.priorHidden !== undefined) {
+          $bioWrap.hidden = $bioWrap.dataset.priorHidden === "true";
+          delete $bioWrap.dataset.priorHidden;
+        }
+        // About + Refs stay collapsed on tab restore — the toggle is the
+        // entry point. Force hidden regardless of cached prior state.
+        if ($aboutP)  { $aboutP.hidden  = true; delete $aboutP.dataset.priorHidden; }
+        if ($refsSec) { $refsSec.hidden = true; delete $refsSec.dataset.priorHidden; }
+        // Reset toggle button visual state to closed.
+        ["seller-about-toggle", "seller-refs-toggle"].forEach((id) => {
+          const $b = document.getElementById(id);
+          if ($b) {
+            $b.classList.remove("is-open");
+            const $g = $b.querySelector(".glyph");
+            if ($g) $g.textContent = "▾";
+          }
+        });
+      }
+      // Contact block — hide entirely on Collection tab.
+      const $contactBlock = document.querySelector(".contact-block");
+      if ($contactBlock) {
+        if (on) {
+          $contactBlock.dataset.priorHidden = String(!!$contactBlock.hidden);
+          $contactBlock.hidden = true;
+        } else if ($contactBlock.dataset.priorHidden !== undefined) {
+          $contactBlock.hidden = $contactBlock.dataset.priorHidden === "true";
+          delete $contactBlock.dataset.priorHidden;
+        }
+      }
+    }
+
+    // Bio toggle click handlers. Each toggle reveals/hides its
+    // corresponding section inline. Glyph rotates via .is-open class.
+    document.getElementById("seller-about-toggle")?.addEventListener("click", (e) => {
+      const $btn   = e.currentTarget;
+      const $about = document.getElementById("seller-about");
+      if (!$about) return;
+      const willShow = $about.hidden;
+      $about.hidden = !willShow;
+      $btn.classList.toggle("is-open", willShow);
+      const $g = $btn.querySelector(".glyph");
+      if ($g) $g.textContent = willShow ? "▴" : "▾";
+    });
+    document.getElementById("seller-refs-toggle")?.addEventListener("click", (e) => {
+      const $btn  = e.currentTarget;
+      const $refs = document.getElementById("seller-refs-section");
+      if (!$refs) return;
+      const willShow = $refs.hidden;
+      $refs.hidden = !willShow;
+      $btn.classList.toggle("is-open", willShow);
+      const $g = $btn.querySelector(".glyph");
+      if ($g) $g.textContent = willShow ? "▴" : "▾";
+    });
 
     // Cached Collection data. Populated once at page bootstrap (alongside
     // the listings queries) so the user gets instant content when they
