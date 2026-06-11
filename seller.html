@@ -345,6 +345,27 @@
       border-left: 3px solid var(--accent);
       border-radius: 0 8px 8px 0;
     }
+    /* Public Collection explainer banner (cc-v198). Brand-tint surface
+       so it reads as a friendly heads-up, not a warning. Default-on so
+       new visitors immediately understand that pieces here are owned,
+       not for sale — addresses the "why are there no prices?" confusion
+       that comes up for users who haven't seen Collections before. */
+    .collection-explainer {
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      background: var(--accent-tint);
+      border: 1px solid var(--accent-soft);
+      border-radius: 10px;
+      color: var(--accent-deep);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .collection-explainer strong {
+      display: inline-block;
+      margin-right: 6px;
+      font-weight: 700;
+    }
+    .collection-explainer .ce-body { color: var(--text-soft); }
     /* Collection detail modal — opens when a card is clicked. Mirrors the
        contact-overlay overlay pattern (display:none default, .open class
        flips to flex). Wider dialog (max 720px) since we render an image
@@ -817,6 +838,16 @@
            clicks the Collection tab. Contains an optional About blurb
            and the grid of public items returned by get_public_collection. -->
       <section id="collection-section" hidden>
+        <!-- Public Collection explainer (cc-v198). Default-on banner that
+             makes clear to first-time visitors that these pieces are
+             owned by the collector, not for sale, and were intentionally
+             shared. Without this disclaimer, new users tend to assume
+             everything on a seller page is for sale and get confused by
+             the missing prices. -->
+        <div id="collection-explainer" class="collection-explainer">
+          <strong>Personal Collection</strong>
+          <span class="ce-body">These pieces are owned by <span id="collection-explainer-name">this collector</span>, not currently for sale. They've chosen to share what's hanging on their walls publicly so other collectors can see.</span>
+        </div>
         <p id="collection-about-text" class="collection-about" hidden></p>
         <div id="collection-grid" class="collection-grid"></div>
         <div id="collection-empty" class="empty" hidden>
@@ -1885,6 +1916,12 @@
       const $empty = document.getElementById("collection-empty");
       const $about = document.getElementById("collection-about-text");
       if (!$grid) return;
+      // Fill the explainer banner's display-name token so first-time
+      // visitors see "...owned by Guy Scuderi, not currently for sale".
+      const $explName = document.getElementById("collection-explainer-name");
+      if ($explName) {
+        $explName.textContent = sellerProfile?.display_name || (sellerProfile?.handle ? `@${sellerProfile.handle}` : "this collector");
+      }
       // About blurb (from sellerProfile.collection_about_text). Set once
       // here on each tab activation so it stays consistent if the data
       // refreshes.
@@ -1916,7 +1953,14 @@
     //   * No verified badge / trade pill — those are listing-state concepts
     //     that don't apply to a Collection display.
     function renderCollectionPublicCard(it) {
-      const imgUrl = it.image_path ? collectionImageUrlForSeller(it.image_path, { width: 600 }) : "";
+      // Image bucket depends on the row's source. Migration 061 added a
+      // source_type column that tells us 'collection_item' (collection-
+      // images bucket) vs 'listing' (listing-images bucket). Listings
+      // flipped to status='in_collection' share this grid alongside
+      // native Collection pieces.
+      const imgUrl = it.image_path
+        ? imageUrlForCollectionCard(it.image_path, it.source_type, { width: 600 })
+        : "";
       const imgInner = imgUrl
         ? `<img src="${imgUrl}" alt="${escapeHtml(it.artist_name || "")}, ${escapeHtml(it.artwork_title || "")}" loading="lazy" decoding="async" />`
         : "";
@@ -1941,6 +1985,19 @@
             </div>
           </div>
         </div>`;
+    }
+
+    // Image URL helper that picks the right bucket based on the row's
+    // source_type. Collection items live in collection-images; listings
+    // flipped to in_collection state keep their hero in listing-images.
+    function imageUrlForCollectionCard(storagePath, sourceType, opts = {}) {
+      if (!storagePath) return "";
+      const bucket = (sourceType === "listing") ? "listing-images" : "collection-images";
+      const transform = opts.width
+        ? { transform: { width: opts.width, quality: opts.quality || 75, resize: "contain", format: "webp" } }
+        : undefined;
+      const { data } = supabase.storage.from(bucket).getPublicUrl(storagePath, transform);
+      return data?.publicUrl || "";
     }
 
     // -----------------------------------------------------------------
@@ -1993,7 +2050,9 @@
 
       // Image — larger size for the modal.
       const $img = document.getElementById("coll-detail-img-el");
-      $img.src = it.image_path ? collectionImageUrlForSeller(it.image_path, { width: 1200 }) : "";
+      $img.src = it.image_path
+        ? imageUrlForCollectionCard(it.image_path, it.source_type, { width: 1200 })
+        : "";
       $img.alt = `${it.artist_name || ""}, ${it.artwork_title || ""}`;
 
       const $overlay = document.getElementById("coll-detail-overlay");

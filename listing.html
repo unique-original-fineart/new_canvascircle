@@ -1102,6 +1102,21 @@
         return;
       }
 
+      // cc-v198: listings flipped to status='in_collection' are private
+      // holds — visible only on the owner's public Collection tab, NOT
+      // as a standalone listing page. If anyone follows an old direct
+      // link, redirect them to the seller's Collection where the piece
+      // now lives. The owner themselves can still see + manage the
+      // listing from their portal (this gate is for external viewers).
+      if (data.status === "in_collection") {
+        const sellerHandle = data.profiles?.handle || "";
+        const link = sellerHandle
+          ? `/seller?handle=${encodeURIComponent(sellerHandle)}&tab=collection`
+          : "/";
+        $status.innerHTML = `This piece is in the collector's personal Collection, not currently for sale. <a href="${link}" style="text-decoration: underline;">See their Collection →</a>`;
+        return;
+      }
+
       // User-block gate. If the viewer has blocked this seller OR the seller
       // has blocked the viewer, hide the listing the same way we'd hide an
       // inactive-account listing. Generic copy preserves privacy, we don't

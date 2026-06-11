@@ -547,6 +547,7 @@
     .pill.status-available { background: var(--status-success-tint); color: var(--status-success-deep); border-color: var(--status-success-soft); }
     .pill.status-sold      { background: var(--status-danger-soft); color: var(--status-danger-deep); border-color: var(--status-danger-soft); }
     .pill.status-pending   { background: var(--accent-soft); color: var(--accent-deep); border-color: var(--accent-soft); }
+    .pill.status-in_collection { background: var(--accent-tint); color: var(--accent-deep); border-color: var(--accent-soft); }
     .pill.status-delisted, .pill.status-not_renewed, .pill.status-rejected, .pill.status-pending_review {
       background: var(--neutral-bg); color: var(--neutral-text); border-color: var(--neutral-border);
     }
@@ -4219,6 +4220,7 @@
               <option value="available">Available</option>
               <option value="pending">Pending Sale</option>
               <option value="sold">Sold / Closed</option>
+              <option value="in_collection">In Collection</option>
               <option value="not_renewed">Not renewed</option>
               <option value="pending_review">Pending review</option>
             </select>
@@ -5678,7 +5680,17 @@
         </div>
 
         <div style="display:flex; gap:10px; justify-content:space-between; margin-top:18px; flex-wrap: wrap;">
-          <button type="button" class="btn-danger" id="ci-delete-btn" hidden>Delete piece</button>
+          <div style="display:flex; gap:10px; flex-wrap: wrap;">
+            <button type="button" class="btn-danger" id="ci-delete-btn" hidden>Delete piece</button>
+            <!-- Sell-this-piece (cc-v198). Visible on edit mode only.
+                 Click closes this modal and opens the new-listing form
+                 pre-filled with the Collection item's data + image.
+                 The original Collection item is deleted on successful
+                 listing creation. Verification has to start fresh on
+                 the new listing per the existing rules for non-
+                 Established sellers. -->
+            <button type="button" class="btn-secondary" id="ci-sell-btn" hidden style="background: var(--brand-gradient); color: var(--text-inverse); border-color: transparent; font-weight: 600;">📣 Sell this piece</button>
+          </div>
           <div style="display:flex; gap:10px; flex-wrap: wrap; margin-left: auto;">
             <button type="button" class="btn-secondary" id="ci-cancel-btn">Cancel</button>
             <button type="button" class="btn-primary" id="ci-save-btn">Save piece</button>
@@ -7912,11 +7924,13 @@
       const $title   = document.getElementById("ci-modal-title");
       const $banner  = document.getElementById("ci-banner");
       const $delete  = document.getElementById("ci-delete-btn");
+      const $sell    = document.getElementById("ci-sell-btn");
       collectionItemSelected = ctx.mode === "edit" ? ctx.item : null;
       collectionImagePending = null;
       $banner.hidden = true; $banner.textContent = "";
       $title.textContent = ctx.mode === "edit" ? "Edit piece" : "Add piece";
       $delete.hidden = ctx.mode !== "edit";
+      if ($sell) $sell.hidden = ctx.mode !== "edit";
 
       // Populate (or clear) all fields.
       const it = collectionItemSelected || {};
@@ -8161,6 +8175,69 @@
         $banner.className = "banner error";
         $banner.hidden = false;
         $btn.disabled = false;
+      }
+    });
+
+    // -----------------------------------------------------------------
+    // Sell-this-piece flow (cc-v198): native Collection item → new listing
+    // -----------------------------------------------------------------
+    // Tracks an in-flight "sell from Collection" intent. Set when the
+    // user clicks Sell on a collection item; consumed by the new-listing
+    // submit handler to delete the source item + show a success banner.
+    let __pendingSellFromCollection = null;
+
+    document.getElementById("ci-sell-btn")?.addEventListener("click", async () => {
+      if (!collectionItemSelected) return;
+      const it = collectionItemSelected;
+      // Stash intent — submit handler will pick this up to delete the
+      // source item once the new listing is created.
+      __pendingSellFromCollection = {
+        itemId: it.id,
+        oldImagePath: it.image_path,
+      };
+      closeCollectionItemModal();
+      // Navigate to new-listing view (sale tab).
+      try { applyNlType("sale"); } catch {}
+      showView("new-listing");
+      // Pre-fill text fields. Image is handled below via fetch.
+      const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ""; };
+      setVal("nl-title",    it.artwork_title);
+      setVal("nl-artist",   it.artist_name);
+      setVal("nl-medium",   it.medium);
+      setVal("nl-category", it.artwork_category);
+      const sizeStr = fmtArtworkSize(it.height_in, it.width_in, it.depth_in);
+      setVal("nl-size",     sizeStr);
+      setVal("nl-framed",   it.framed_size);
+      setVal("nl-coa",      it.coa_included || "");
+      // Banner to set expectations on what's pre-filled + what's new.
+      setBanner(
+        "new-listing",
+        `Pre-filled from your Collection. Add a price + shipping option and submit to list this piece for sale. Your original Collection item will be removed when the listing goes live.`,
+        "info"
+      );
+      // Fetch the Collection image, wrap as a File-like, set as
+      // nlSelectedFile + update the preview UI. Best-effort: failure
+      // just leaves the image slot empty, the user can pick a new one.
+      if (it.image_path) {
+        try {
+          const url = collectionImageUrl(it.image_path, { width: 1200 });
+          const resp = await fetch(url);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const mime = blob.type || "image/webp";
+            const ext = mime.includes("jpeg") || mime.includes("jpg") ? "jpg"
+                      : mime.includes("png") ? "png" : "webp";
+            const file = new File([blob], `from-collection.${ext}`, { type: mime });
+            nlSelectedFile = file;
+            const previewUrl = URL.createObjectURL(blob);
+            $nlPreview.src = previewUrl;
+            $nlPlaceholder.hidden = true;
+            $nlPreviewWrap.hidden = false;
+            $nlImageZone.classList.add("has-file");
+          }
+        } catch (e) {
+          console.warn("[sell-from-collection] image preload failed (non-fatal):", e);
+        }
       }
     });
 
@@ -8513,6 +8590,7 @@
         available: "Available", pending: "Pending Sale", sold: "Sold",
         delisted: "Delisted", not_renewed: "Not renewed",
         pending_review: "Pending review", rejected: "Rejected",
+        in_collection: "In Collection",
       };
       return map[s] || s || "";
     }
@@ -9624,11 +9702,15 @@
           <div>
             <label>Status</label>
             <select data-field="status">
-              <option value="available" ${l.status === "available" ? "selected" : ""}>Available</option>
-              <option value="pending"   ${l.status === "pending"   ? "selected" : ""}>Pending Sale</option>
-              <option value="sold"      ${l.status === "sold"      ? "selected" : ""}>Sold</option>
+              <option value="available"     ${l.status === "available"     ? "selected" : ""}>Available</option>
+              <option value="pending"       ${l.status === "pending"       ? "selected" : ""}>Pending Sale</option>
+              <option value="sold"          ${l.status === "sold"          ? "selected" : ""}>Sold</option>
+              <option value="in_collection" ${l.status === "in_collection" ? "selected" : ""}>In my Collection (private hold)</option>
               ${l.status === "delisted" ? `<option value="delisted" selected>Delisted (legacy)</option>` : ""}
             </select>
+            <p class="small" style="margin: 4px 0 0; color: var(--muted); line-height: 1.4;">
+              Pick <strong>In my Collection</strong> to hide the listing from the catalog and For Sale tab while keeping the piece visible on your public Collection. Switch back to Available anytime; image, dimensions, and verification all stay intact.
+            </p>
           </div>
           <div>
             <label>Seller mood</label>
@@ -10815,7 +10897,10 @@
       //   <value>  → exact match on that single status
       // Note: ISO listings use status='sold' to mean "closed/found", so the
       // "active" filter naturally hides those too, same intent, same field.
-      if (stf === "active")      rows = rows.filter(l => l.status !== "sold");
+      // cc-v198: 'in_collection' is a privately-held state — also exclude
+      // from the default Active view so it doesn't clutter the for-sale
+      // workflow. Selecting "In Collection" from the filter shows them.
+      if (stf === "active")      rows = rows.filter(l => l.status !== "sold" && l.status !== "in_collection");
       else if (stf)              rows = rows.filter(l => l.status === stf);
       if (q) {
         rows = rows.filter(l => {
@@ -15972,6 +16057,10 @@
           // Leaving new-listing → wipe form so next open is clean.
           nlReset();
           applyNlType("sale");
+          // Clear any pending sell-from-Collection intent so a future
+          // brand-new listing doesn't accidentally trigger the source
+          // Collection item's deletion.
+          __pendingSellFromCollection = null;
         }
       });
     });
@@ -18378,6 +18467,31 @@
         applyNlType("sale");
         showView("account");
         await loadDashboardListings(currentUserId);
+
+        // Sell-from-Collection cleanup (cc-v198). If this submission was
+        // triggered by clicking "Sell this piece" on a native Collection
+        // item, delete the source item + its image now that the listing
+        // is live. Fire-and-forget — if the delete fails, the user just
+        // ends up with both the listing AND the Collection item, which
+        // they can clean up manually. Better than blocking on it.
+        if (__pendingSellFromCollection?.itemId) {
+          const pending = __pendingSellFromCollection;
+          __pendingSellFromCollection = null;
+          (async () => {
+            try {
+              await supabase.rpc("delete_collection_item", { p_item_id: pending.itemId });
+              if (pending.oldImagePath) {
+                supabase.storage.from("collection-images").remove([pending.oldImagePath]).catch(() => {});
+              }
+              // Refresh Collection panel state silently in case the user
+              // navigates there next.
+              loadCollection().catch(() => {});
+            } catch (e) {
+              console.warn("[sell-from-collection] cleanup failed (non-fatal):", e);
+            }
+          })();
+        }
+
         // Banner copy + CTA depend on the listing's trust path:
         //
         // (A) Established Member + sale or ISO:
