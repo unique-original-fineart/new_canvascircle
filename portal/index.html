@@ -510,14 +510,73 @@
       letter-spacing: .4px;
       color: var(--muted);
     }
+    /* Reusable collapsible-section toggle (cc-v205). Used by both the
+       collection-controls block and the my-collection-stats card. Full-
+       width clickable bar with title left, optional summary middle,
+       chevron right. The .is-open class rotates the chevron 180deg. */
+    .cc-section-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      color: var(--fg);
+      text-align: left;
+    }
+    .cc-section-toggle .cst-title {
+      font-weight: 700;
+      font-size: 14px;
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+    .cc-section-toggle .cst-summary {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 400;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cc-section-toggle .glyph {
+      flex: 0 0 auto;
+      font-size: 12px;
+      color: var(--muted);
+      transition: transform .15s ease;
+    }
+    .cc-section-toggle.is-open .glyph {
+      transform: rotate(180deg);
+    }
+    .cc-section-toggle:hover { background: var(--surface-1); }
+    .cc-section-body {
+      padding: 0 14px 14px;
+    }
+    .cc-section-body[hidden] { display: none; }
+
+    /* Collection-controls block — wrapper styling (inner contents
+       live in .cc-section-body). Moved from inline styles cc-v205. */
+    .collection-controls {
+      margin: 14px 0;
+      border: 1px solid var(--card-line);
+      border-radius: 10px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+
     /* Private owner-only stats card (cc-v201). Includes monetary totals
        — never rendered on the public seller-page Collection tab. */
     .my-collection-stats {
       background: var(--surface-2);
       border: 1px solid var(--card-line);
       border-radius: 12px;
-      padding: 14px 16px;
+      padding: 0;  /* cc-v205: padding moved into the .cc-section-body child */
       margin: 0 0 14px;
+      overflow: hidden;
     }
     .my-collection-stats[hidden] { display: none; }
     .my-collection-stats h3 {
@@ -4347,23 +4406,33 @@
             <button type="button" class="btn-primary" id="collection-add-btn">+ Add piece</button>
           </div>
 
-          <!-- Visibility toggle + About row. Compact UI; the toggle is
-               a labeled checkbox + status text + a "save" button when
-               the About text is being edited. -->
-          <div id="collection-controls" class="collection-controls" style="margin: 14px 0; padding: 12px 14px; border: 1px solid var(--card-line); border-radius: 10px; background: var(--surface-2); display: flex; flex-direction: column; gap: 10px;">
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="collection-public-toggle" />
-                <span><strong>Make my Collection public</strong></span>
-              </label>
-              <span id="collection-public-status" class="small" style="color: var(--muted);"></span>
-            </div>
-            <div>
-              <label for="collection-about" style="display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px;">About my Collection (public, optional)</label>
-              <textarea id="collection-about" rows="2" maxlength="1000" placeholder="A short intro: how you got into collecting, what you focus on, etc. No prices, no sales, no links." style="width: 100%;"></textarea>
-              <div style="display: flex; gap: 8px; align-items: center; margin-top: 6px;">
-                <button type="button" class="btn-secondary" id="collection-about-save-btn">Save About</button>
-                <span id="collection-about-status" class="small" style="color: var(--muted);"></span>
+          <!-- Visibility toggle + About row. cc-v205: collapsible block
+               with smart default state. Fresh users (no public toggle
+               flipped + no About text saved) see it expanded so they
+               discover the controls. Once they've interacted, future
+               loads default to collapsed with a brief summary in the
+               header (e.g. "Public · Has About"). -->
+          <div id="collection-controls" class="collection-controls">
+            <button type="button" id="collection-controls-toggle" class="cc-section-toggle">
+              <span class="cst-title">Collection settings</span>
+              <span class="cst-summary" id="collection-controls-summary"></span>
+              <span class="glyph">▴</span>
+            </button>
+            <div id="collection-controls-body" class="cc-section-body" hidden>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" id="collection-public-toggle" />
+                  <span><strong>Make my Collection public</strong></span>
+                </label>
+                <span id="collection-public-status" class="small" style="color: var(--muted);"></span>
+              </div>
+              <div style="margin-top: 10px;">
+                <label for="collection-about" style="display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px;">About my Collection (public, optional)</label>
+                <textarea id="collection-about" rows="2" maxlength="1000" placeholder="A short intro: how you got into collecting, what you focus on, etc. No prices, no sales, no links." style="width: 100%;"></textarea>
+                <div style="display: flex; gap: 8px; align-items: center; margin-top: 6px;">
+                  <button type="button" class="btn-secondary" id="collection-about-save-btn">Save About</button>
+                  <span id="collection-about-status" class="small" style="color: var(--muted);"></span>
+                </div>
               </div>
             </div>
           </div>
@@ -7898,6 +7967,13 @@
       const totalPaid  = Number(s.total_paid || 0);
       const topArtists = Array.isArray(s.top_artists) ? s.top_artists : [];
 
+      // Collapsible card (cc-v205). "Collection at a glance" title fits
+      // one line on mobile (previous wording "(private to you)" wrapped).
+      // Header summary surfaces the quickest at-a-glance signal so the
+      // user gets info without expanding ("47 pieces · 18 artists").
+      const summary = total > 0
+        ? `${total} ${total === 1 ? "piece" : "pieces"} · ${artists} ${artists === 1 ? "artist" : "artists"}`
+        : "";
       const grid = `
         <div class="mcs-grid">
           <div class="mcs-stat">
@@ -7928,8 +8004,25 @@
             ${topArtists.map(a => `<span class="mcs-artist-chip">${escapeHtml(a.artist_name || "")} <strong>×${Number(a.count || 0)}</strong></span>`).join("")}
           </div>` : ""}
       `;
-      $card.innerHTML = `<h3>Collection at a glance (private to you)</h3>${grid}`;
+      $card.innerHTML = `
+        <button type="button" id="mcs-toggle" class="cc-section-toggle">
+          <span class="cst-title">Collection at a glance</span>
+          <span class="cst-summary">${escapeHtml(summary)}</span>
+          <span class="glyph">▴</span>
+        </button>
+        <div id="mcs-body" class="cc-section-body" hidden>${grid}</div>
+      `;
       $card.hidden = false;
+      // Wire the toggle. Always default-collapsed; user expands on demand.
+      const $mcsToggle = document.getElementById("mcs-toggle");
+      const $mcsBody   = document.getElementById("mcs-body");
+      if ($mcsToggle && $mcsBody) {
+        $mcsToggle.addEventListener("click", () => {
+          const willShow = $mcsBody.hidden;
+          $mcsBody.hidden = !willShow;
+          $mcsToggle.classList.toggle("is-open", willShow);
+        });
+      }
     }
 
     // Local image URL helper for the collection-images bucket. publicImageUrl
@@ -8077,6 +8170,7 @@
       const profile = await currentProfile();
       const isPublic  = !!profile?.collection_is_public;
       const isTrusted = !!profile?.is_trusted;
+      const hasAbout  = !!(profile?.collection_about_text && profile.collection_about_text.length > 0);
       $toggle.checked = isPublic;
       $toggle.disabled = !isTrusted && !isPublic;
       if (!isTrusted) {
@@ -8091,7 +8185,54 @@
         $status.style.color = isPublic ? "var(--accent)" : "var(--muted)";
       }
       $about.value = profile?.collection_about_text || "";
+
+      // cc-v205: Collection settings collapsible. Smart default state —
+      // fresh users (no About + Collection private) see it expanded so
+      // they discover the controls. Once they've touched anything
+      // (set About text OR flipped public on), future loads default to
+      // collapsed. The summary text gives at-a-glance state without
+      // expanding ("Public · has About" / "Private" / etc.).
+      //
+      // Only apply the auto-default if the section isn't currently
+      // open AND the user hasn't manually toggled it during this
+      // session. This avoids the jarring "section just collapsed
+      // underneath me" effect when loadCollectionControls runs after
+      // a save (e.g. flipping the public toggle re-runs this function).
+      const $ccToggle  = document.getElementById("collection-controls-toggle");
+      const $ccBody    = document.getElementById("collection-controls-body");
+      const $ccSummary = document.getElementById("collection-controls-summary");
+      if ($ccToggle && $ccBody) {
+        const hasInteracted = isPublic || hasAbout;
+        const isCurrentlyOpen = !$ccBody.hidden;
+        if (!isCurrentlyOpen && !$ccToggle.dataset.userToggled) {
+          // Section is closed and user hasn't manually opened it this
+          // session — apply the default. Fresh users see it expanded;
+          // returning users see it collapsed.
+          $ccBody.hidden = hasInteracted;
+          $ccToggle.classList.toggle("is-open", !hasInteracted);
+        }
+        // Always refresh the summary so it reflects current state.
+        if ($ccSummary) {
+          const parts = [];
+          parts.push(isPublic ? "Public" : "Private");
+          if (hasAbout) parts.push("has About");
+          $ccSummary.textContent = parts.join(" · ");
+        }
+      }
     }
+
+    // Wire the Collection-settings toggle (cc-v205). Records the
+    // user's manual click so subsequent loadCollectionControls calls
+    // in this session don't override their choice.
+    document.getElementById("collection-controls-toggle")?.addEventListener("click", (e) => {
+      const $btn  = e.currentTarget;
+      const $body = document.getElementById("collection-controls-body");
+      if (!$body) return;
+      const willShow = $body.hidden;
+      $body.hidden = !willShow;
+      $btn.classList.toggle("is-open", willShow);
+      $btn.dataset.userToggled = "1";
+    });
 
     document.getElementById("collection-public-toggle")?.addEventListener("change", async (e) => {
       const $toggle = e.target;
