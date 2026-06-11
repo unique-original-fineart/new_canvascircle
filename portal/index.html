@@ -5483,26 +5483,33 @@
                  Powers the buyer-side "Estimate shipping" widget on the public
                  listing page, which seeds a Pirate Ship rate lookup. All four
                  fields must be filled for the widget to show; partial entries
-                 hide it. See db/migrations/044_shipping_calculator.sql. -->
-            <div class="span-2" data-nl-show-on="sale" style="border-top: 1px solid var(--card-line); padding-top: 14px; margin-top: 4px;">
+                 hide it. See db/migrations/044_shipping_calculator.sql.
+
+                 cc-v211: hidden by default + revealed only when seller picks
+                 "Shipping Included = No". When shipping is included in the
+                 sale price, buyers don't see the calculator anyway — so the
+                 box-dimension fields are dead weight on the form. The new
+                 data-nl-pack-section attribute pairs with a change listener
+                 on #nl-shipping to toggle this whole block. -->
+            <div class="span-2" data-nl-show-on="sale" data-nl-pack-section style="border-top: 1px solid var(--card-line); padding-top: 14px; margin-top: 4px;">
               <div style="font-weight:600; margin-bottom:4px;">Packed shipping details <span style="color:var(--muted); font-weight:400; font-size:13px;">(optional)</span></div>
               <p class="small" style="margin: 0 0 8px; color: var(--muted);">
                 Filling these in lets buyers look up exact shipping cost on Pirate Ship before they message you. Most sellers add these once they know which box they'll pack with (Park West originals typically ship in a 42 x 38 x 6 or 45 x 37 x 5 box).
               </p>
             </div>
-            <div data-nl-show-on="sale">
+            <div data-nl-show-on="sale" data-nl-pack-section>
               <label for="nl-pack-l">Box length (inches)</label>
               <input type="text" inputmode="decimal" id="nl-pack-l" placeholder="e.g. 42" />
             </div>
-            <div data-nl-show-on="sale">
+            <div data-nl-show-on="sale" data-nl-pack-section>
               <label for="nl-pack-w">Box width (inches)</label>
               <input type="text" inputmode="decimal" id="nl-pack-w" placeholder="e.g. 38" />
             </div>
-            <div data-nl-show-on="sale">
+            <div data-nl-show-on="sale" data-nl-pack-section>
               <label for="nl-pack-h">Box height (inches)</label>
               <input type="text" inputmode="decimal" id="nl-pack-h" placeholder="e.g. 6" />
             </div>
-            <div data-nl-show-on="sale">
+            <div data-nl-show-on="sale" data-nl-pack-section>
               <label for="nl-pack-wt">Packed weight (lbs)</label>
               <input type="text" inputmode="decimal" id="nl-pack-wt" placeholder="e.g. 10" />
             </div>
@@ -10929,23 +10936,23 @@
               <option value="No"  ${l.coa_included === "No"  ? "selected" : ""}>No</option>
             </select>
           </div>
-          <div class="span-2" style="border-top: 1px solid var(--card-line); padding-top: 10px; margin-top: 2px;">
+          <div class="span-2" data-edit-pack-section style="border-top: 1px solid var(--card-line); padding-top: 10px; margin-top: 2px;">
             <div style="font-weight:600; margin-bottom:2px;">Packed shipping details <span style="color:var(--muted); font-weight:400; font-size:12px;">(optional)</span></div>
             <p class="small" style="margin: 0 0 6px; color: var(--muted);">Fill these in to enable the buyer-side shipping calculator on your listing. Add or update once you know what box you'll pack with.</p>
           </div>
-          <div>
+          <div data-edit-pack-section>
             <label>Box length (in)</label>
             <input type="text" inputmode="decimal" data-field="pack_box_length_in" value="${l.pack_box_length_in ?? ""}" placeholder="e.g. 42" />
           </div>
-          <div>
+          <div data-edit-pack-section>
             <label>Box width (in)</label>
             <input type="text" inputmode="decimal" data-field="pack_box_width_in" value="${l.pack_box_width_in ?? ""}" placeholder="e.g. 38" />
           </div>
-          <div>
+          <div data-edit-pack-section>
             <label>Box height (in)</label>
             <input type="text" inputmode="decimal" data-field="pack_box_height_in" value="${l.pack_box_height_in ?? ""}" placeholder="e.g. 6" />
           </div>
-          <div>
+          <div data-edit-pack-section>
             <label>Packed weight (lbs)</label>
             <input type="text" inputmode="decimal" data-field="pack_weight_lbs" value="${l.pack_weight_lbs ?? ""}" placeholder="e.g. 10" />
           </div>`}
@@ -11060,6 +11067,24 @@
         $tradeChk.addEventListener("change", () => {
           $tradeWrap.hidden = !$tradeChk.checked;
         });
+      }
+
+      // Packed-shipping conditional visibility (cc-v211). Mirrors the
+      // new-listing form: show the box-dimension/weight inputs only when
+      // shipping_offered === "No". When shipping is included, the buyer-
+      // side calculator never renders so these fields are noise. Seller
+      // can still flip shipping to "No" and the inputs reveal with their
+      // existing values intact (we never clear them, only hide).
+      const $editShip     = card.querySelector('[data-field="shipping_offered"]');
+      const $editPackEls  = card.querySelectorAll('[data-edit-pack-section]');
+      const applyEditPack = () => {
+        const val = ($editShip?.value || "").trim();
+        const show = val === "No";
+        $editPackEls.forEach((el) => { el.hidden = !show; });
+      };
+      if ($editShip && $editPackEls.length) {
+        $editShip.addEventListener("change", applyEditPack);
+        applyEditPack();
       }
 
       // Verification badge popover toggle, pending / revoked / rejected
@@ -17170,6 +17195,11 @@
       // checkbox but our manual show/hide doesn't follow form-reset semantics).
       const $tradeWrap = document.getElementById("nl-trade-looking-wrap");
       if ($tradeWrap) $tradeWrap.hidden = true;
+      // Re-hide the packed-shipping block too. form.reset() empties the
+      // nl-shipping select, so the conditional showPack === (shipVal === "No")
+      // evaluates false, but we call the helper explicitly here in case the
+      // shipping listener didn't fire on the synthetic reset.
+      try { applyNlPackVisibility(); } catch {}
     }
 
     // ---- Open-to-Trade checkbox: reveal the looking-for textarea on tick ----
@@ -17270,6 +17300,12 @@
           $tradeWrap.hidden = isIso || !$tradeChk?.checked;
         }
       }
+      // Packed-shipping section (cc-v211): visible only when sale-mode
+      // AND seller picked "Shipping Included = No". When shipping is
+      // included in the price, buyers don't see the calculator anyway,
+      // so the box-dimension fields are noise. Re-sync here after the
+      // sale/iso sweep above so the section isn't accidentally re-shown.
+      applyNlPackVisibility();
       // Sale-only / ISO-only labels
       document.querySelectorAll("[data-nl-label-sale]").forEach(el => el.hidden = isIso);
       document.querySelectorAll("[data-nl-label-iso]").forEach(el  => el.hidden = !isIso);
@@ -17302,6 +17338,30 @@
     document.querySelectorAll(".nl-type-tab").forEach(t => {
       t.addEventListener("click", () => applyNlType(t.dataset.nlType));
     });
+
+    // ----- Packed-shipping conditional visibility (cc-v211) -----
+    // The "Packed shipping details" block is only relevant when the seller
+    // is NOT including shipping in the sale price. When shipping IS included,
+    // buyers never see the Pirate Ship calculator on the public listing
+    // anyway (the listing.html widget short-circuits) so the dimension/
+    // weight inputs are dead weight on the form. Hide them by default; only
+    // reveal when nl-shipping === "No". Re-run on sale/ISO tab toggle so
+    // switching tabs doesn't accidentally expose them. ISO mode hides the
+    // whole block via data-nl-show-on="sale" regardless.
+    function applyNlPackVisibility() {
+      const $ship = document.getElementById("nl-shipping");
+      const isIso = nlType === "iso";
+      const shipVal = ($ship?.value || "").trim();
+      const showPack = !isIso && shipVal === "No";
+      document.querySelectorAll("[data-nl-pack-section]").forEach((el) => {
+        el.hidden = !showPack;
+      });
+    }
+    {
+      const $nlShip = document.getElementById("nl-shipping");
+      if ($nlShip) $nlShip.addEventListener("change", applyNlPackVisibility);
+      applyNlPackVisibility();
+    }
 
     // Reset form whenever we navigate AWAY from the new-listing view; when
     // navigating INTO it via "+ Post In Search Of" or "+ Add new listing",
