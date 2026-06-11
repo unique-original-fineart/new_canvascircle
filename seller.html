@@ -335,6 +335,34 @@
        <a> tag. cursor pointer + focus ring for keyboard nav. */
     .card.coll-clickable { cursor: pointer; }
     .card.coll-clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    /* Stats strip on the public Collection (cc-v201). Inline pills with
+       aggregate counts only — no monetary data, no per-item identities. */
+    .collection-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 14px;
+    }
+    .collection-stats[hidden] { display: none; }
+    .collection-stats .cs-chip {
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 13px;
+      color: var(--text-soft);
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .collection-stats .cs-chip .cs-n {
+      color: var(--fg);
+      font-weight: 700;
+    }
+    .collection-stats .cs-chip.is-cc {
+      background: var(--accent-tint);
+      border-color: var(--accent-soft);
+      color: var(--accent-deep);
+    }
+
     /* About blurb above the Collection grid (sellerProfile.collection_about_text). */
     .collection-about {
       margin: 4px 0 14px;
@@ -848,6 +876,10 @@
           <strong>Personal Collection</strong>
           <span class="ce-body">These pieces are owned by <span id="collection-explainer-name">this collector</span>, not currently for sale. They've chosen to share what's hanging on their walls publicly so other collectors can see.</span>
         </div>
+        <!-- Stats strip (cc-v201). Aggregate counts only — no monetary
+             data, no per-item identities. Populated from
+             get_public_collection_stats. -->
+        <div id="collection-stats" class="collection-stats" hidden></div>
         <p id="collection-about-text" class="collection-about" hidden></p>
         <div id="collection-grid" class="collection-grid"></div>
         <div id="collection-empty" class="empty" hidden>
@@ -1891,12 +1923,21 @@
     // click the Collection tab.
     let publicCollectionItems = [];
 
+    // Cached public stats so the strip renders instantly on tab activate
+    // without a second round-trip.
+    let publicCollectionStats = null;
+
     async function loadPublicCollection(ownerId) {
       // Only call when the seller's profile has flipped Collection public.
       try {
-        const resp = await supabase.rpc("get_public_collection", { p_owner_id: ownerId });
-        if (resp.error) throw resp.error;
-        publicCollectionItems = resp.data || [];
+        const [collResp, statsResp] = await Promise.all([
+          supabase.rpc("get_public_collection", { p_owner_id: ownerId }),
+          supabase.rpc("get_public_collection_stats", { p_owner_id: ownerId }),
+        ]);
+        if (collResp.error) throw collResp.error;
+        publicCollectionItems = collResp.data || [];
+        // Stats RPC returns a single-row table; pluck the first row.
+        publicCollectionStats = (Array.isArray(statsResp?.data) ? statsResp.data[0] : null) || null;
         const $countEl = document.getElementById("count-collection");
         if ($countEl) $countEl.textContent = publicCollectionItems.length
           ? `(${publicCollectionItems.length})` : "";
@@ -1909,6 +1950,37 @@
       } catch (err) {
         console.warn("[seller-collection] load failed:", err);
       }
+    }
+
+    // Render the public stats strip from the cached publicCollectionStats.
+    // Builds inline chips: total pieces, distinct artists, collecting
+    // since (earliest year), and CanvasCircle-acquired count. Hidden if
+    // there's nothing to show (e.g. an empty Collection).
+    function renderPublicCollectionStats() {
+      const $stats = document.getElementById("collection-stats");
+      if (!$stats) return;
+      const s = publicCollectionStats;
+      if (!s || Number(s.total_pieces || 0) === 0) {
+        $stats.hidden = true;
+        $stats.innerHTML = "";
+        return;
+      }
+      const chips = [];
+      const total = Number(s.total_pieces || 0);
+      const artists = Number(s.total_artists || 0);
+      const viaCc = Number(s.acquired_via_cc || 0);
+      chips.push(`<span class="cs-chip"><span class="cs-n">${total}</span> ${total === 1 ? "piece" : "pieces"}</span>`);
+      if (artists > 0) {
+        chips.push(`<span class="cs-chip"><span class="cs-n">${artists}</span> ${artists === 1 ? "artist" : "artists"}</span>`);
+      }
+      if (s.earliest_year) {
+        chips.push(`<span class="cs-chip">Collecting since <span class="cs-n">${escapeHtml(String(s.earliest_year))}</span></span>`);
+      }
+      if (viaCc > 0) {
+        chips.push(`<span class="cs-chip is-cc"><span class="cs-n">${viaCc}</span> acquired through CanvasCircle</span>`);
+      }
+      $stats.innerHTML = chips.join("");
+      $stats.hidden = false;
     }
 
     function renderPublicCollection() {
@@ -1932,6 +2004,8 @@
       } else {
         $about.hidden = true;
       }
+      // Render the stats strip from the cached data. Hidden if empty.
+      renderPublicCollectionStats();
       if (publicCollectionItems.length === 0) {
         $grid.innerHTML = "";
         $grid.hidden = true;
@@ -2027,13 +2101,28 @@
       document.getElementById("coll-detail-pills").innerHTML = cats.join("");
 
       // Spec list. Build only the rows that have data so the dl doesn't
-      // show empty rows for optional fields.
+      // show empty rows for optional fields. Acquired date + "Acquired
+      // through CanvasCircle" badge added cc-v201.
       const specs = [];
       if (it.medium)  specs.push(["Medium / Type", it.medium]);
       const sizeStr = collFmtDims(it.height_in, it.width_in, it.depth_in);
       if (sizeStr)    specs.push(["Artwork size", sizeStr]);
       if (it.framed_size) specs.push(["Frame size", it.framed_size]);
       if (it.coa_included) specs.push(["COA included", it.coa_included]);
+      // Acquired: "April 2018", "in 2018", or skip if neither set.
+      if (it.acquired_year) {
+        const monthName = it.acquired_month
+          ? ["January","February","March","April","May","June","July","August","September","October","November","December"][it.acquired_month - 1]
+          : null;
+        const label = monthName ? `${monthName} ${it.acquired_year}` : `in ${it.acquired_year}`;
+        specs.push(["Acquired", label]);
+      }
+      // Provenance signal: this piece was purchased through CanvasCircle.
+      // Privacy boundary: the original seller's identity is never
+      // surfaced; the badge only confirms platform-level lineage.
+      if (it.via_canvascircle) {
+        specs.push(["Provenance", "Acquired through CanvasCircle"]);
+      }
       document.getElementById("coll-detail-specs").innerHTML = specs
         .map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`)
         .join("");

@@ -510,6 +510,85 @@
       letter-spacing: .4px;
       color: var(--muted);
     }
+    /* Private owner-only stats card (cc-v201). Includes monetary totals
+       — never rendered on the public seller-page Collection tab. */
+    .my-collection-stats {
+      background: var(--surface-2);
+      border: 1px solid var(--card-line);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin: 0 0 14px;
+    }
+    .my-collection-stats[hidden] { display: none; }
+    .my-collection-stats h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .my-collection-stats .mcs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 18px;
+    }
+    @media (min-width: 720px) {
+      .my-collection-stats .mcs-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    .my-collection-stats .mcs-stat .mcs-n {
+      font-size: 22px; font-weight: 700; color: var(--fg);
+      line-height: 1.1;
+    }
+    .my-collection-stats .mcs-stat .mcs-label {
+      font-size: 12px; color: var(--muted);
+      margin-top: 2px;
+    }
+    .my-collection-stats .mcs-private-row {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--card-line);
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      font-size: 13px;
+    }
+    .my-collection-stats .mcs-private-row .mcs-private-label {
+      color: var(--muted);
+    }
+    .my-collection-stats .mcs-private-row .mcs-private-value {
+      font-weight: 700;
+      color: var(--fg);
+      margin-left: 4px;
+    }
+    .my-collection-stats .mcs-top-artists {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--card-line);
+      font-size: 13px;
+    }
+    .my-collection-stats .mcs-top-artists strong {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      font-size: 12px;
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    .my-collection-stats .mcs-top-artists .mcs-artist-chip {
+      display: inline-block;
+      padding: 3px 10px;
+      margin: 2px 4px 2px 0;
+      background: var(--surface-1);
+      border: 1px solid var(--card-line);
+      border-radius: 999px;
+      font-size: 12px;
+    }
+    .my-collection-stats .mcs-top-artists .mcs-artist-chip strong {
+      display: inline; margin: 0;
+      color: var(--fg); text-transform: none; letter-spacing: 0;
+      font-weight: 700; font-size: 12px;
+    }
     .listing-row {
       display: grid;
       grid-template-columns: 72px 1fr auto;
@@ -4291,6 +4370,10 @@
 
           <div id="collection-loading" class="empty-state" hidden>Loading your Collection&hellip;</div>
           <div id="collection-error" class="banner error" hidden></div>
+          <!-- Private stats card (cc-v201). Owner-only stats including
+               monetary totals (appraised + paid) that NEVER leak to the
+               public Collection page. Hidden if collection is empty. -->
+          <div id="my-collection-stats" class="my-collection-stats" hidden></div>
           <div id="collection-empty" class="empty-state" hidden>
             No pieces in your Collection yet. Tap "+ Add piece" to start cataloging what you own.
           </div>
@@ -5634,6 +5717,31 @@
               <option value="">Not specified</option>
               <option value="Yes">Yes</option>
               <option value="No">No</option>
+            </select>
+          </div>
+          <!-- Acquired date (cc-v201). Year is the common case; month is
+               optional for collectors who want granular records. Both
+               are public per the privacy/design rules. -->
+          <div>
+            <label for="ci-acquired-year">Year acquired</label>
+            <input type="number" id="ci-acquired-year" min="1900" max="2200" step="1" placeholder="e.g. 2018" />
+          </div>
+          <div>
+            <label for="ci-acquired-month">Month acquired (optional)</label>
+            <select id="ci-acquired-month">
+              <option value="">Don't specify</option>
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
             </select>
           </div>
           <div class="span-2">
@@ -7759,6 +7867,71 @@
     let collectionItemSelected = null;  // when editing: the item row
     let collectionImagePending = null;  // when add/edit: { blob, mime, ext } from compressImage
 
+    // Render the private (owner-only) stats card. Includes monetary
+    // totals (appraised + paid) that NEVER appear on the public
+    // Collection page. Empty Collection → hidden.
+    function renderMyCollectionStats() {
+      const $card = document.getElementById("my-collection-stats");
+      if (!$card) return;
+      const s = collectionData.stats;
+      const items = collectionData.items || [];
+      // Only show when the owner actually has native Collection items.
+      // in_collection listings count toward grid display but not stats
+      // (the stats RPC scopes to collection_items only).
+      const nativeCount = items.filter(x => x.source_type !== "listing").length;
+      if (!s || nativeCount === 0) {
+        $card.hidden = true;
+        $card.innerHTML = "";
+        return;
+      }
+      const fmtMoney = (n) => {
+        const num = Number(n || 0);
+        if (!Number.isFinite(num) || num === 0) return "$0";
+        return "$" + Math.round(num).toLocaleString("en-US");
+      };
+      const total      = Number(s.total_pieces || 0);
+      const artists    = Number(s.total_artists || 0);
+      const viaCc      = Number(s.acquired_via_cc || 0);
+      const earliest   = s.earliest_year;
+      const thisYear   = Number(s.added_this_year || 0);
+      const totalAppr  = Number(s.total_appraised || 0);
+      const totalPaid  = Number(s.total_paid || 0);
+      const topArtists = Array.isArray(s.top_artists) ? s.top_artists : [];
+
+      const grid = `
+        <div class="mcs-grid">
+          <div class="mcs-stat">
+            <div class="mcs-n">${total}</div>
+            <div class="mcs-label">${total === 1 ? "piece" : "pieces"}</div>
+          </div>
+          <div class="mcs-stat">
+            <div class="mcs-n">${artists}</div>
+            <div class="mcs-label">${artists === 1 ? "artist" : "artists"}</div>
+          </div>
+          <div class="mcs-stat">
+            <div class="mcs-n">${earliest ? escapeHtml(String(earliest)) : "—"}</div>
+            <div class="mcs-label">${earliest ? "collecting since" : "earliest year not set"}</div>
+          </div>
+          <div class="mcs-stat">
+            <div class="mcs-n">${viaCc}</div>
+            <div class="mcs-label">${viaCc === 1 ? "piece via CanvasCircle" : "pieces via CanvasCircle"}</div>
+          </div>
+        </div>
+        <div class="mcs-private-row">
+          <div><span class="mcs-private-label">Added this year:</span><span class="mcs-private-value">${thisYear}</span></div>
+          ${totalAppr > 0 ? `<div><span class="mcs-private-label">Total appraised value (private):</span><span class="mcs-private-value">${fmtMoney(totalAppr)}</span></div>` : ""}
+          ${totalPaid > 0 ? `<div><span class="mcs-private-label">Total paid (private):</span><span class="mcs-private-value">${fmtMoney(totalPaid)}</span></div>` : ""}
+        </div>
+        ${topArtists.length ? `
+          <div class="mcs-top-artists">
+            <strong>Most-collected artists</strong>
+            ${topArtists.map(a => `<span class="mcs-artist-chip">${escapeHtml(a.artist_name || "")} <strong>×${Number(a.count || 0)}</strong></span>`).join("")}
+          </div>` : ""}
+      `;
+      $card.innerHTML = `<h3>Collection at a glance (private to you)</h3>${grid}`;
+      $card.hidden = false;
+    }
+
     // Local image URL helper for the collection-images bucket. publicImageUrl
     // from lib/supabase.js is hardcoded to the listings bucket; rather than
     // bump the lib API (sweep risk per [[versioned-module-imports]]) we
@@ -7787,13 +7960,14 @@
       $err.hidden = true;
 
       try {
-        const resp = await withTimeout(
-          supabase.rpc("get_my_collection"),
-          12000,
-          "collection query"
-        );
+        const [resp, statsResp] = await Promise.all([
+          withTimeout(supabase.rpc("get_my_collection"), 12000, "collection query"),
+          withTimeout(supabase.rpc("get_my_collection_stats"), 8000, "collection stats"),
+        ]);
         if (resp.error) throw resp.error;
         collectionData = { items: resp.data || [] };
+        // Single-row table return; pluck first row.
+        collectionData.stats = (Array.isArray(statsResp?.data) ? statsResp.data[0] : null) || null;
       } catch (err) {
         console.error("[collection] load failed:", err);
         collectionData = { items: [] };
@@ -7807,6 +7981,9 @@
       $loading.hidden = true;
       const items = collectionData.items;
       $count.textContent = items.length > 0 ? `(${items.length})` : "";
+      // Always re-render the private stats card to reflect any add/edit
+      // /delete that just happened. Hidden if Collection is empty.
+      renderMyCollectionStats();
       if (items.length === 0) {
         $empty.hidden = false;
         $grid.hidden = true;
@@ -7990,6 +8167,18 @@
       if ($isPublicEl) {
         $isPublicEl.checked = (ctx.mode === "edit") ? (it.is_public !== false) : true;
       }
+      // Acquired date (cc-v201). Year defaults to current year for new
+      // items; month is blank by default. Edits reflect stored value.
+      const $acqYear = document.getElementById("ci-acquired-year");
+      const $acqMo   = document.getElementById("ci-acquired-month");
+      if ($acqYear) {
+        $acqYear.value = it.acquired_year != null
+          ? String(it.acquired_year)
+          : (ctx.mode === "edit" ? "" : String(new Date().getFullYear()));
+      }
+      if ($acqMo) {
+        $acqMo.value = it.acquired_month != null ? String(it.acquired_month) : "";
+      }
 
       // Image: render existing or show placeholder.
       const $imgPreview = document.getElementById("ci-image-preview");
@@ -8073,6 +8262,19 @@
       // Per-item visibility flag (migration 060). Defaults to true for
       // new items; reflects current state for edits.
       const isPublic = !!document.getElementById("ci-is-public")?.checked;
+      // Acquired date (cc-v201). Year blank = null; month blank = null.
+      // Year is bounded 1900-2200 client-side mirror of the DB check.
+      const acqYearRaw  = document.getElementById("ci-acquired-year")?.value.trim() || "";
+      const acqMoRaw    = document.getElementById("ci-acquired-month")?.value || "";
+      const acqYear = acqYearRaw ? Number(acqYearRaw) : null;
+      const acqMo   = acqMoRaw ? Number(acqMoRaw) : null;
+      if (acqYear != null && (!Number.isInteger(acqYear) || acqYear < 1900 || acqYear > 2200)) {
+        const $banner = document.getElementById("ci-banner");
+        $banner.textContent = "Year acquired must be between 1900 and 2200.";
+        $banner.className = "banner error";
+        $banner.hidden = false;
+        return;
+      }
 
       // Validation. Required: artist, title, medium, category, image (for new).
       const errs = [];
@@ -8139,6 +8341,10 @@
             p_clear_paid_value: !paid && collectionItemSelected?.paid_value_usd != null,
             p_clear_dimensions: !sizeStr && (collectionItemSelected?.height_in != null || collectionItemSelected?.width_in != null),
             p_is_public: isPublic,
+            p_acquired_year: acqYear,
+            p_acquired_month: acqMo,
+            p_clear_acquired_date: (acqYear == null && acqMo == null)
+              && (collectionItemSelected?.acquired_year != null || collectionItemSelected?.acquired_month != null),
           });
           if (error) throw error;
         } else {
@@ -8163,6 +8369,8 @@
             // suppresses rows that already have a matching collection_item).
             p_source_listing_id: __pendingBoughtPiece?.source_listing_id || null,
             p_is_public: isPublic,
+            p_acquired_year: acqYear,
+            p_acquired_month: acqMo,
           });
           if (error) throw error;
           itemId = data;
@@ -8378,12 +8586,15 @@
       // knows how to consume, BUT in add-mode so the RPC is insert not update.
       // openCollectionItemModal uses ctx.item only for prefill; ctx.mode
       // governs the RPC choice.
+      // Default acquired date to today since the user is adding this
+      // piece via the post-sale prompt — they JUST bought it.
+      const _now = new Date();
       const prefill = {
         artist_name:      p.artist_name || "",
         artwork_title:    p.artwork_title || "",
         medium:           p.medium || "",
         artwork_category: p.artwork_category || "",
-        image_path:       null, // intentionally blank — image is loaded fresh via fetch below
+        image_path:       null, // intentionally blank, image is loaded fresh via fetch below
         height_in:        p.height_in,
         width_in:         p.width_in,
         depth_in:         p.depth_in,
@@ -8393,6 +8604,8 @@
         private_notes:    "",
         appraised_value_usd: null,
         paid_value_usd:   null,
+        acquired_year:    _now.getFullYear(),
+        acquired_month:   _now.getMonth() + 1,
       };
       // Stash the source_listing_id + image path so the save flow can use them.
       __pendingBoughtPiece = { source_listing_id: p.listing_id, listing_image_path: p.image_path };
