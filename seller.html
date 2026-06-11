@@ -1146,13 +1146,41 @@
       // seller has flipped collection_is_public AND is Established. The
       // RPC double-checks both gates server-side; this client check
       // avoids the round trip when we already know it's off.
-      if (profile.collection_is_public && profile.is_trusted) {
-        loadPublicCollection(profile.user_id).catch(() => {});
+      const collectionIsPublic = !!(profile.collection_is_public && profile.is_trusted);
+      let collectionLoadPromise = null;
+      if (collectionIsPublic) {
+        collectionLoadPromise = loadPublicCollection(profile.user_id).catch(() => {});
       }
 
       $status.hidden = true;
       $content.hidden = false;
       applyTab();
+
+      // Tab-param routing + smart default (Chunk C share helper).
+      //
+      // 1. Explicit ?tab=collection (e.g. "Copy Collection Link" shared
+      //    on social): jump straight to the Collection tab once its data
+      //    has loaded. The query param wins over any other default.
+      //
+      // 2. Smart default for collection-only users: a seller with zero
+      //    sale + zero ISO + a public Collection should land ON the
+      //    Collection tab, not stare at an empty For Sale tab. Only fires
+      //    when ?tab isn't explicitly set.
+      const urlParams = new URLSearchParams(window.location.search);
+      const requestedTab = urlParams.get("tab");
+      const noListings = saleActiveN === 0 && listingsAll.iso.length === 0;
+      const wantsCollection = requestedTab === "collection" || (collectionIsPublic && noListings);
+      if (wantsCollection && collectionLoadPromise) {
+        // Wait for the Collection query to finish so the tab button is
+        // actually visible (revealed by loadPublicCollection) before we
+        // try to click it.
+        collectionLoadPromise.then(() => {
+          const $collTab = document.getElementById("tab-collection");
+          if ($collTab && !$collTab.hidden) {
+            activateCollectionTab($collTab);
+          }
+        });
+      }
     }
 
     function renderHeader(profile) {

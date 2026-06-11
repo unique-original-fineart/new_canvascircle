@@ -4122,9 +4122,15 @@
              read/write the URL value. -->
         <div id="public-page-row" class="public-page-panel" hidden>
           <input type="hidden" id="public-page-url" />
+          <input type="hidden" id="public-collection-url" />
           <div class="ppp-actions">
             <button type="button" id="copy-public-page-btn" class="btn-secondary">🔗 Copy Your Page Link</button>
             <a id="preview-public-page-btn" class="btn-secondary" target="_blank" rel="noopener">Preview ↗</a>
+            <!-- Collection-direct link. Only shown when the user has
+                 opted in to a public Collection (Established + toggle on).
+                 Same URL with ?tab=collection appended; seller.html reads
+                 that param on load and auto-activates the Collection tab. -->
+            <button type="button" id="copy-collection-link-btn" class="btn-secondary" hidden>🎨 Copy Collection Link</button>
             <span id="copy-public-page-status" class="small ppp-status"></span>
           </div>
         </div>
@@ -6465,10 +6471,21 @@
       const $publicRow  = document.getElementById("public-page-row");
       const $publicUrl  = document.getElementById("public-page-url");
       const $previewBtn = document.getElementById("preview-public-page-btn");
+      // Collection direct-link (Chunk C share helper). Same base URL + the
+      // ?tab=collection param, which seller.html reads on load to auto-
+      // activate the Collection tab. Only shown when the user has
+      // opted in to a public Collection (Established + toggle ON).
+      const $publicCollUrl = document.getElementById("public-collection-url");
+      const $copyCollBtn   = document.getElementById("copy-collection-link-btn");
       if ($publicRow && profile?.handle) {
         const url = `${window.location.origin}/seller?handle=${encodeURIComponent(profile.handle)}`;
         if ($publicUrl)  $publicUrl.value = url;
         if ($previewBtn) $previewBtn.href = url;
+        const collUrl = url + "&tab=collection";
+        if ($publicCollUrl) $publicCollUrl.value = collUrl;
+        if ($copyCollBtn) {
+          $copyCollBtn.hidden = !(profile?.collection_is_public && profile?.is_trusted);
+        }
         $publicRow.hidden = false;
       } else if ($publicRow) {
         $publicRow.hidden = true;
@@ -13984,6 +14001,25 @@
         // Fallback (rare, e.g. denied clipboard permission): show the URL
         // in a prompt so the user can manually select + copy. The hidden
         // input itself can't be selected anymore.
+        prompt("Copy this link:", $url.value);
+        $status.textContent = "";
+      }
+    });
+
+    // ---- Copy public Collection deep-link to clipboard ----
+    // Same URL with ?tab=collection appended. seller.html auto-activates
+    // the Collection tab on load when that param is present. Useful for
+    // sharing on Instagram / Facebook / wherever a collector wants to
+    // show off their pieces without funneling viewers through their
+    // listings first.
+    document.getElementById("copy-collection-link-btn")?.addEventListener("click", async () => {
+      const $url = document.getElementById("public-collection-url");
+      const $status = document.getElementById("copy-public-page-status");
+      try {
+        await navigator.clipboard.writeText($url.value);
+        $status.textContent = "Collection link copied!";
+        setTimeout(() => { $status.textContent = ""; }, 2000);
+      } catch (err) {
         prompt("Copy this link:", $url.value);
         $status.textContent = "";
       }
