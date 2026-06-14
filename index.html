@@ -764,19 +764,33 @@
       top: 8px; right: 8px;
       display: inline-flex; align-items: center; gap: 4px;
       background: rgba(255,255,255,.92);
-      color: var(--text-soft);
+      /* Default state: white bubble + navy text/glyph. Was previously
+         var(--text-soft) which was a grey that read fine, but cc-v212
+         bumped --text-soft to the primary off-white for legibility on
+         the navy page bg. Off-white text on a white bubble disappears,
+         so the heart pill needs its own explicit dark color. */
+      color: var(--brand-navy);
       border: none;
       border-radius: 999px;
       padding: 4px 9px 4px 8px;
       font: 600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       cursor: pointer;
       box-shadow: 0 1px 3px rgba(0,0,0,.18);
-      transition: transform .12s ease, background .12s ease;
+      transition: transform .12s ease, background .12s ease, color .12s ease;
       z-index: 2;
     }
-    .card-wrap .heart-btn:hover { transform: scale(1.06); background: var(--surface-1); }
+    /* Hover and saved both flip the bubble to navy, so the text/count
+       has to flip back to off-white for that inverted state. */
+    .card-wrap .heart-btn:hover {
+      transform: scale(1.06);
+      background: var(--surface-1);
+      color: var(--text);
+    }
     .card-wrap .heart-btn .heart-glyph { font-size: 14px; line-height: 1; }
-    .card-wrap .heart-btn.is-saved { background: var(--surface-1); }
+    .card-wrap .heart-btn.is-saved {
+      background: var(--surface-1);
+      color: var(--text);
+    }
     .card-wrap .heart-btn.is-saved .heart-glyph { color: var(--status-danger-strong); }
     .card-wrap .heart-btn[disabled] { opacity: .55; cursor: progress; }
     .card .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; }

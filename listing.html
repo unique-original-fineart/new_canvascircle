@@ -102,22 +102,34 @@
       display: inline-flex; align-items: center; gap: 6px;
       z-index: 2;
     }
-    /* Heart (Save), white pill, image-overlay treatment unchanged. */
+    /* Heart (Save), white pill, image-overlay treatment unchanged.
+       Default state uses dark navy text so the glyph + count read on
+       the white pill (cc-v213 — off-white text was vanishing after the
+       v212 contrast bump). Hover and .is-saved flip the bubble to navy
+       so text flips back to the primary off-white for that inverted
+       state. */
     .heart-btn {
       display: inline-flex; align-items: center; gap: 6px;
       background: rgba(255,255,255,.94);
-      color: var(--text-soft);
+      color: var(--brand-navy);
       border: none;
       border-radius: 999px;
       padding: 7px 13px 7px 12px;
       font: 600 14px inherit;
       cursor: pointer;
       box-shadow: 0 2px 6px rgba(0,0,0,.18);
-      transition: transform .12s ease, background .12s ease;
+      transition: transform .12s ease, background .12s ease, color .12s ease;
     }
-    .heart-btn:hover { transform: scale(1.04); background: var(--surface-1); }
+    .heart-btn:hover {
+      transform: scale(1.04);
+      background: var(--surface-1);
+      color: var(--text);
+    }
     .heart-btn .heart-glyph { font-size: 18px; line-height: 1; }
-    .heart-btn.is-saved { background: var(--surface-1); }
+    .heart-btn.is-saved {
+      background: var(--surface-1);
+      color: var(--text);
+    }
     .heart-btn.is-saved .heart-glyph { color: var(--status-danger-strong); }
     .heart-btn[disabled] { opacity: .55; cursor: progress; }
 
