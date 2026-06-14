@@ -49,10 +49,21 @@
   /* ---------- Text tiers ----------
      Pure white on navy is harsh. --text is a slightly cool off-white
      that softens the contrast without sacrificing legibility (13.7:1
-     on --bg — well above WCAG AAA). */
+     on --bg — well above WCAG AAA).
+
+     cc-v212 contrast pass: the previous --text-soft (#A8B0C2) and
+     --text-muted (#7C8499) tested as grey-on-navy and were hard to read
+     for some collectors. Per Guy's feedback we collapsed all three tiers
+     onto a single off-white (#E5E7EB) so every block of body copy,
+     helper text, filter label, footer link, and modal spec line shares
+     the same high-contrast color against the navy background. Visual
+     hierarchy now leans on font weight, size, and spacing rather than
+     on text-color desaturation. If a specific spot feels too loud after
+     this change, dial back that one place with an inline rgba(229,231,235,0.75)
+     rather than re-darkening the token globally. */
   --text:            #E5E7EB;   /* primary body text */
-  --text-soft:       #A8B0C2;   /* between primary and muted */
-  --text-muted:      #7C8499;   /* secondary, captions, helper text */
+  --text-soft:       #E5E7EB;   /* legacy tier — now matches primary for legibility */
+  --text-muted:      #E5E7EB;   /* legacy tier — now matches primary for legibility */
   --text-inverse:    #FFFFFF;   /* text drawn ON a filled colored background
                                    (buttons, status pills, hero overlays).
                                    STAYS white in both light AND dark modes —
@@ -182,11 +193,15 @@
   --banner-revoked-soft:     rgba(233,30,99,0.20);
   --banner-revoked-tint:     rgba(233,30,99,0.05);
 
-  /* ---------- Neutral grays (delisted / inactive states) ---------- */
+  /* ---------- Neutral grays (delisted / inactive states) ----------
+     cc-v212: text tokens collapsed onto the primary off-white for the
+     same legibility reason as the --text-* tier above. Backgrounds and
+     borders kept at their original translucent-white values since those
+     are surface treatments, not text. */
   --neutral-bg:              rgba(255,255,255,0.06);
-  --neutral-text:            #A8B0C2;
+  --neutral-text:            #E5E7EB;
   --neutral-border:          rgba(255,255,255,0.12);
-  --neutral-warm:            #7C8499;
+  --neutral-warm:            #E5E7EB;
 
   /* ---------- Hover-state offsets ----------
      Slightly brighter variants — on dark surfaces, hovers feel right when
