@@ -44,7 +44,15 @@
       color: var(--fg);
       line-height: 1.5;
     }
-    a { color: var(--accent); }
+    /* cc-v214: portal link default shifted from accent blue to off-white
+       for legibility on navy. Anchor tags keep their default browser
+       underline (and most plain text-links in the portal still ride that
+       cue), so they read as interactive without competing for contrast
+       against the body copy. Spots that want a chromatic emphasis (CTA
+       buttons, gradient badges, status pills) set their own color
+       explicitly and aren't affected by this default. */
+    a { color: var(--text); }
+    a:hover { color: var(--accent-deep); }
 
     header.site {
       padding: 18px 16px;
@@ -227,11 +235,16 @@
       font-size: 13px;
       border: 1px solid var(--card-line);
       background: var(--accent-softer);
-      color: var(--accent-deeper);
+      /* cc-v214: banner body text shifted from colored tones to the
+         off-white primary text color for legibility on navy. The colored
+         border + translucent background still convey severity (red border
+         = error, blue border = info, etc.); the text itself is the part
+         users actually have to READ, so it gets the high-contrast color. */
+      color: var(--text);
     }
-    .banner.success { background: var(--status-success-wash); border-color: var(--status-success-soft); color: var(--green); }
-    .banner.error   { background: var(--status-danger-tint); border-color: var(--status-danger-soft); color: var(--red); }
-    .banner.info    { background: var(--banner-info-bg); border-color: var(--banner-info-border); color: var(--banner-info-text); }
+    .banner.success { background: var(--status-success-wash); border-color: var(--status-success-soft); color: var(--text); }
+    .banner.error   { background: var(--status-danger-tint); border-color: var(--status-danger-soft); color: var(--text); }
+    .banner.info    { background: var(--banner-info-bg); border-color: var(--banner-info-border); color: var(--text); }
 
     /* Persistent banner that surfaces revoked Ownership Verified badges
        across all listings, separate from the transient .banner element
@@ -362,7 +375,10 @@
       background: none;
       border: none;
       padding: 4px 0;
-      color: var(--accent);
+      /* cc-v214: off-white instead of accent blue for legibility on
+         the navy account-row background. The underline + ALL-CAPS
+         treatment still mark this as an interactive link. */
+      color: var(--text);
       font-family: inherit;
       font-size: 13px;
       font-weight: 700;
@@ -374,7 +390,7 @@
       white-space: nowrap;
     }
     .signed-in-row .name-row .signout-link:hover {
-      color: var(--fg);
+      color: var(--accent-deep);
     }
     .signed-in-row .who .who-handle {
       color: var(--muted);
@@ -1852,8 +1868,11 @@
     }
     .status-banner h3 { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
     .status-banner p  { margin: 0; font-size: 14px; line-height: 1.5; }
-    .status-banner.suspended { background: var(--accent-tint); border: 1px solid var(--accent-soft); color: var(--accent-deeper); }
-    .status-banner.banned    { background: var(--status-danger-tint); border: 1px solid var(--status-danger-soft); color: var(--status-danger-deep); }
+    /* cc-v214: suspended/banned body text bumped to off-white for
+       legibility. The tinted background + colored border still convey
+       severity (orange/magenta family). */
+    .status-banner.suspended { background: var(--accent-tint); border: 1px solid var(--accent-soft); color: var(--text); }
+    .status-banner.banned    { background: var(--status-danger-tint); border: 1px solid var(--status-danger-soft); color: var(--text); }
 
     /* Incoming reference requests banner, top-of-dashboard, prominent. */
     .incoming-refs-banner {
@@ -2088,11 +2107,13 @@
     .push-opt-banner .pob-cta:hover { filter: brightness(1.08); }
     .push-opt-banner .pob-link {
       background: none; border: none; padding: 0;
-      color: var(--accent); font-weight: 600; font-size: 12px;
+      /* cc-v214: off-white for legibility on navy push banner.
+         Underline keeps the interactive cue. */
+      color: var(--text); font-weight: 600; font-size: 12px;
       cursor: pointer; font-family: inherit;
       text-decoration: underline; text-underline-offset: 2px;
     }
-    .push-opt-banner .pob-link:hover { filter: brightness(.9); }
+    .push-opt-banner .pob-link:hover { color: var(--accent-deep); }
     .push-opt-banner .pob-icon {
       font-size: 18px; line-height: 1;
       flex-shrink: 0;
@@ -3173,7 +3194,9 @@
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .following-row .fr-name a.fr-handle {
-      color: var(--accent); text-decoration: none; font-weight: 500; font-size: 13px;
+      /* cc-v214: off-white instead of accent so "View listings →" reads
+         on the navy Following row. Hover adds the underline for affordance. */
+      color: var(--text); text-decoration: none; font-weight: 500; font-size: 13px;
       max-width: 100%;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       /* Padding gives the @handle a real tap target on mobile, without
@@ -3183,6 +3206,7 @@
     }
     .following-row .fr-name a.fr-handle:hover,
     .following-row .fr-name a.fr-handle:focus-visible {
+      color: var(--accent-deep);
       text-decoration: underline;
     }
     /* Category-filter chip, small native <select> that lets the user
@@ -4411,9 +4435,12 @@
                  horizontal scrolling). Profile is a settings-style page
                  visited rarely, so it belongs as a utility link, not
                  alongside daily-use content tabs. -->
-            <button type="button" id="open-profile-link" style="color: var(--accent); font-weight: 600; text-decoration: underline; font-size: 14px; background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;">⚙️ Profile</button>
-            <a href="/guidelines.html#selling" target="_blank" rel="noopener" style="color: var(--accent); font-weight: 600; text-decoration: underline; font-size: 14px;">Selling Guidelines</a>
-            <a href="#" id="contact-admin-top" style="color: var(--accent); font-weight: 600; text-decoration: underline; font-size: 14px;">Contact Admin</a>
+            <!-- cc-v214: utility links bumped from var(--accent) to
+                 var(--text) so they read cleanly on the navy account row.
+                 Underline + bold still mark them as interactive. -->
+            <button type="button" id="open-profile-link" style="color: var(--text); font-weight: 600; text-decoration: underline; font-size: 14px; background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;">⚙️ Profile</button>
+            <a href="/guidelines.html#selling" target="_blank" rel="noopener" style="color: var(--text); font-weight: 600; text-decoration: underline; font-size: 14px;">Selling Guidelines</a>
+            <a href="#" id="contact-admin-top" style="color: var(--text); font-weight: 600; text-decoration: underline; font-size: 14px;">Contact Admin</a>
           </div>
         </div>
 

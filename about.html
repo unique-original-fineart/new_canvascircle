@@ -33,7 +33,9 @@
       color: var(--fg);
       line-height: 1.6;
     }
-    a { color: var(--accent); }
+    /* cc-v214 contrast pass: default link color is off-white for navy bg. */
+    a { color: var(--text); }
+    a:hover { color: var(--accent-deep); }
 
     header.site {
       padding: 18px 16px;

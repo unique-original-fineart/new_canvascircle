@@ -31,7 +31,11 @@
       color: var(--fg);
       line-height: 1.5;
     }
-    a { color: var(--accent); }
+    /* cc-v214 contrast pass: default link color shifted from accent
+       blue to off-white for legibility on navy. Buttons + branded CTAs
+       set their own color explicitly. */
+    a { color: var(--text); }
+    a:hover { color: var(--accent-deep); }
     header {
       padding: 18px 16px;
       border-bottom: 1px solid var(--card-line);
