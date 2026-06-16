@@ -574,6 +574,60 @@
     }
     .cc-section-body[hidden] { display: none; }
 
+    /* cc-v220: removal notice banners. One banner per unacknowledged
+       tombstone (admin force-deleted a Collection piece). Reuses the
+       same danger-tint palette as .banner.error since these are
+       moderation actions. The "Got it" button is a softer style than
+       the brand-gradient CTA — this isn't a positive action, just an
+       acknowledgement. */
+    .collection-removal-notices {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .collection-removal-notices[hidden] { display: none; }
+    .crn-banner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      background: var(--status-danger-tint);
+      border: 1px solid var(--status-danger-soft);
+      color: var(--text);
+    }
+    .crn-body { flex: 1 1 240px; }
+    .crn-title { font-weight: 700; margin-bottom: 4px; }
+    .crn-piece { font-weight: 600; }
+    .crn-reason {
+      margin-top: 6px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .crn-meta {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text);
+      opacity: .8;
+    }
+    .crn-ack-btn {
+      align-self: center;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      background: var(--surface-1);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .crn-ack-btn:hover { border-color: var(--accent-deep); }
+    .crn-ack-btn[disabled] { opacity: .55; cursor: wait; }
+
     /* Collection-controls block — wrapper styling (inner contents
        live in .cc-section-body). Moved from inline styles cc-v205. */
     .collection-controls {
@@ -4665,6 +4719,16 @@
               </div>
             </div>
           </div>
+
+          <!-- cc-v220: removal notice banners (migration 070). When the
+               admin force-deletes a Collection piece, a tombstone row
+               is inserted in removed_collection_items. On Collection
+               tab open we fetch the owner's unacknowledged tombstones
+               and render one dismissable banner per. Each banner shows
+               the piece (artist + title), the admin's reason, and a
+               "Got it" button that acknowledges the notice so it stops
+               appearing. -->
+          <div id="collection-removal-notices" class="collection-removal-notices" hidden></div>
 
           <div id="collection-loading" class="empty-state" hidden>Loading your Collection&hellip;</div>
           <div id="collection-error" class="banner error" hidden></div>
@@ -9003,6 +9067,11 @@
       const $count   = document.getElementById("collection-count");
       if (!$grid) return;
 
+      // cc-v220: refresh admin-removal banners alongside the grid load.
+      // Fire-and-forget — banner failures shouldn't block the rest of
+      // the Collection tab from rendering.
+      try { loadCollectionRemovalNotices(); } catch {}
+
       // Invalidate deep-stats cache so next modal open re-renders fresh
       // (data may have changed via add/edit/delete/sell-this-piece).
       if (typeof invalidateCollectionDeepStatsCache === "function") {
@@ -9120,6 +9189,82 @@
             ${hasPriv ? `<span class="cc-private-flag">Private notes stored</span>` : ""}
           </div>
         </div>`;
+    }
+
+    // -------- Removal notice banners (cc-v220, migration 070) -------------
+    // Fetches the calling user's unacknowledged admin-removal tombstones
+    // and renders one banner per. Wired into loadCollection() so notices
+    // appear whenever the user opens the Collection tab. The "Got it"
+    // button calls acknowledge_collection_removal_notice() which sets
+    // acknowledged_at server-side; future loads won't see that notice.
+    async function loadCollectionRemovalNotices() {
+      const $container = document.getElementById("collection-removal-notices");
+      if (!$container) return;
+      $container.innerHTML = "";
+      $container.hidden = true;
+
+      let rows = [];
+      try {
+        const { data, error } = await supabase.rpc("get_my_collection_removal_notices");
+        if (error) {
+          console.warn("[loadCollectionRemovalNotices] rpc error:", error);
+          return;
+        }
+        rows = data || [];
+      } catch (err) {
+        console.warn("[loadCollectionRemovalNotices] failed:", err);
+        return;
+      }
+      if (rows.length === 0) return;
+
+      const frag = document.createDocumentFragment();
+      rows.forEach(r => frag.appendChild(renderCollectionRemovalBanner(r)));
+      $container.appendChild(frag);
+      $container.hidden = false;
+    }
+
+    function renderCollectionRemovalBanner(notice) {
+      const pieceLabel = [notice.artist_name, notice.artwork_title]
+        .filter(Boolean).join(", ") || "one of your Collection pieces";
+      const when = notice.removed_at
+        ? new Date(notice.removed_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+        : "";
+
+      const el = document.createElement("div");
+      el.className = "crn-banner";
+      el.dataset.noticeId = notice.id;
+      el.innerHTML = `
+        <div class="crn-body">
+          <div class="crn-title">A piece was removed from your Collection</div>
+          <div class="crn-piece">${escapeHtml(pieceLabel)}</div>
+          <div class="crn-reason"><strong>Reason from the admin:</strong> ${escapeHtml(notice.reason || "(no reason given)")}</div>
+          <div class="crn-meta">Removed ${escapeHtml(when)}. If you think this was a mistake, email admin@canvascircle.art.</div>
+        </div>
+        <button type="button" class="crn-ack-btn" data-action="ack">Got it</button>
+      `;
+      el.querySelector("[data-action=ack]").addEventListener("click", () => acknowledgeCollectionRemovalNotice(notice.id, el));
+      return el;
+    }
+
+    async function acknowledgeCollectionRemovalNotice(noticeId, bannerEl) {
+      const $btn = bannerEl.querySelector("[data-action=ack]");
+      if ($btn) $btn.disabled = true;
+      try {
+        const { error } = await supabase.rpc("acknowledge_collection_removal_notice", {
+          p_notice_id: noticeId,
+        });
+        if (error) throw error;
+        bannerEl.remove();
+        // Hide the container if no more banners remain.
+        const $container = document.getElementById("collection-removal-notices");
+        if ($container && $container.children.length === 0) {
+          $container.hidden = true;
+        }
+      } catch (err) {
+        console.error("[acknowledgeCollectionRemovalNotice] failed:", err);
+        if ($btn) $btn.disabled = false;
+        alert("Could not dismiss the notice: " + (err.message || err));
+      }
     }
 
     // -------- Collection controls (visibility + About) ---------------------
@@ -13448,21 +13593,23 @@
       if (!confirm(
         `Delete "${pieceLabel}"?\n\n` +
         `Owner: ${item.owner_name || "(no name)"} (@${item.owner_handle || "no-handle"})\n\n` +
-        `This permanently removes the DB row AND the image file. Open reports against this piece are auto-resolved. The owner will receive an email letting them know the piece was removed and why. The R2 backup retains a copy for forensics.`
+        `This permanently removes the DB row AND the image file. Open reports against this piece are auto-resolved. The owner will see a banner on their Collection tab letting them know the piece was removed and why. The R2 backup retains a copy for forensics.`
       )) return;
 
       // The reason text the admin enters here gets THREE jobs:
       //   1. Stored in admin_delete_collection_item RPC as the
       //      resolution_note on any auto-resolved reports.
-      //   2. Sent to the owner via email (so they know what happened
-      //      and have something to reply to if they want to appeal).
+      //   2. Persisted in removed_collection_items.reason — the owner
+      //      sees it VERBATIM as the banner copy on their Collection
+      //      tab next time they sign in (migration 070).
       //   3. Surfaced in the admin success banner.
-      // Phrase it as something you'd be comfortable sharing with the
-      // owner, since #2 means they read it verbatim.
+      // Phrase it as something you'd be comfortable showing the owner,
+      // since #2 means they read it verbatim.
       const reason = prompt(
         `Reason for deletion (required):\n\n` +
-        `This text is SENT TO THE OWNER by email, so write it as a sentence ` +
-        `they can act on — e.g. "Prohibited content (text overlay)", ` +
+        `This text is SHOWN TO THE OWNER as a banner on their Collection ` +
+        `tab next time they sign in, so write it as a sentence they can ` +
+        `act on — e.g. "Prohibited content (text overlay)", ` +
         `"Copyright concern, this isn't your image to post", ` +
         `"ToS violation: harassment in the public story field".`,
         ""
@@ -13493,30 +13640,6 @@
           }
         }
 
-        // Notify the owner by email via the existing send-email
-        // direct-to-seller mode (admin-only, looks up the owner's
-        // contact email from profiles by user_id). Best-effort —
-        // if the email fails (owner has no contact_email on file,
-        // Resend hiccup, etc.) the delete still succeeded; we just
-        // surface a softer banner so the admin knows to follow up
-        // out of band if needed.
-        let notifyStatus = "owner notified by email";
-        try {
-          const emailResult = await sendCollectionDeletionEmail({
-            ownerUserId: item.owner_id,
-            ownerName:   item.owner_name,
-            artist:      item.artist_name || "",
-            title:       item.artwork_title || "",
-            reason:      trimmed,
-          });
-          if (!emailResult.ok) {
-            notifyStatus = emailResult.message || "could not notify owner";
-          }
-        } catch (emailErr) {
-          console.warn("[adminDeleteCollectionItem] email failed:", emailErr);
-          notifyStatus = "could not notify owner (email error)";
-        }
-
         // Remove the row from the in-memory cache + DOM.
         __allCollectionItemsCache = __allCollectionItemsCache.filter(c => c.id !== item.id);
         row.remove();
@@ -13529,58 +13652,10 @@
         // Refresh the Collection reports section too — any related
         // open reports were auto-resolved in the same transaction.
         try { loadCollectionReports(); } catch {}
-        setAdminBanner(`Deleted "${pieceLabel}". ${notifyStatus}.`, "success");
+        setAdminBanner(`Deleted "${pieceLabel}". Owner will see a banner on their Collection tab next sign-in.`, "success");
       } catch (err) {
         console.error("[adminDeleteCollectionItem] failed:", err);
         setAdminBanner("Could not delete: " + (err.message || err), "error");
-      }
-    }
-
-    // Sends the "your piece was removed" email via send-email's
-    // direct-to-seller mode. Returns { ok, message } — ok=false on
-    // edge-fn errors or missing email so the admin gets a meaningful
-    // status string in the banner rather than a silent failure.
-    async function sendCollectionDeletionEmail({ ownerUserId, ownerName, artist, title, reason }) {
-      const pieceLabel = [artist, title].filter(Boolean).join(", ") || "one of your Collection pieces";
-      const subject = `A piece was removed from your Collection on CanvasCircle`;
-      const text =
-`We removed the following piece from your CanvasCircle Collection:
-
-  ${pieceLabel}
-
-Reason given by the admin:
-
-  ${reason}
-
-The image file has also been removed from our storage. If you think this was a mistake or you'd like to talk through it, just reply to this email and the admin will get back to you.
-
-A reminder of CanvasCircle's content rules: pieces in your Collection (even private ones) must follow our Terms of Use. Posts containing prohibited content, copyrighted images you don't own, harassment, or anything that violates the ToS can be removed at the admin's discretion.
-
-— The CanvasCircle team`;
-
-      try {
-        const { data, error } = await supabase.functions.invoke("send-email", {
-          body: {
-            mode:         "direct-to-seller",
-            sellerUserId: ownerUserId,
-            subject,
-            text,
-          },
-        });
-        if (error) {
-          // The edge function returns 400 when the owner has no
-          // contact_email — surface that distinctly so the admin can
-          // follow up via another channel (Facebook, etc.).
-          const msg = (error.message || "").toLowerCase();
-          if (msg.includes("contact email")) {
-            return { ok: false, message: "owner has no email on file, follow up manually" };
-          }
-          return { ok: false, message: `email failed: ${error.message || "unknown error"}` };
-        }
-        if (data && data.sent >= 1) return { ok: true };
-        return { ok: false, message: "email queued but not confirmed sent" };
-      } catch (err) {
-        return { ok: false, message: `email error: ${err.message || err}` };
       }
     }
 
