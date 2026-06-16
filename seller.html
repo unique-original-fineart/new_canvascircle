@@ -559,6 +559,24 @@
       color: var(--muted);
     }
     .coll-share-status.is-ok { color: var(--accent); }
+    /* cc-v215: low-contrast text link for the Report action. Pushed to
+       the far right with margin-left:auto so it doesn't compete with
+       the primary Share button. Same understated treatment used for
+       listing.html's "Report this listing". */
+    .coll-report-btn {
+      margin-left: auto;
+      background: none;
+      border: none;
+      padding: 6px 8px;
+      color: var(--muted);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .coll-report-btn:hover { color: var(--accent-deep); }
+    .coll-report-btn[disabled] { opacity: .55; cursor: wait; }
 
     .card {
       background: var(--card-bg);
@@ -1072,12 +1090,19 @@
           <div class="coll-detail-pills" id="coll-detail-pills"></div>
           <dl class="coll-detail-specs" id="coll-detail-specs"></dl>
           <div class="coll-detail-story" id="coll-detail-story" hidden></div>
-          <div class="coll-detail-actions" id="coll-detail-actions" hidden>
-            <button type="button" id="coll-share-btn" class="coll-share-btn" aria-label="Share this piece">
+          <div class="coll-detail-actions" id="coll-detail-actions">
+            <button type="button" id="coll-share-btn" class="coll-share-btn" aria-label="Share this piece" hidden>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px;"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
               Share this piece
             </button>
             <span id="coll-share-status" class="coll-share-status"></span>
+            <!-- cc-v215: Report link for public Collection pieces. Sits as
+                 a low-key text-link to match the same understated treatment
+                 used for listing.html's "Report this listing". Available
+                 for BOTH collection_items (which use collection_item_reports)
+                 AND in_collection status listings (which use listing_reports).
+                 The click handler dispatches based on source_type. -->
+            <button type="button" id="coll-report-btn" class="coll-report-btn" aria-label="Report this piece" title="Report this piece">Report this piece</button>
           </div>
         </div>
       </div>
@@ -2390,22 +2415,35 @@
       // don't get a per-piece share URL in v1 (they lack acquired_year
       // and public_story, and the listing's description field could
       // carry sales-context copy we don't want in a Collection share).
+      // Report action — available for BOTH source types (cc-v215);
+      // dispatches to collection_item_reports or listing_reports based
+      // on source_type. The actions container is always visible now,
+      // with the Share button conditional inside it.
       const $actions = document.getElementById("coll-detail-actions");
       const $shareBtn = document.getElementById("coll-share-btn");
       const $shareStatus = document.getElementById("coll-share-status");
-      if ($actions && $shareBtn) {
+      if ($actions) {
         const isCollectionItem = it.source_type !== "listing";
-        $actions.hidden = !isCollectionItem;
+        if ($shareBtn) $shareBtn.hidden = !isCollectionItem;
         if ($shareStatus) {
           $shareStatus.textContent = "";
           $shareStatus.classList.remove("is-ok");
         }
-        // Stash the piece data the click handler will use.
+        // Stash the piece data both action handlers use.
         __collShareCtx = isCollectionItem ? {
           id: it.id,
           artist: it.artist_name || "",
           title: it.artwork_title || "",
         } : null;
+        // Report context is set for EVERY piece regardless of source.
+        // Click handler routes to the right reports table by inspecting
+        // sourceType at dispatch time.
+        __collReportCtx = {
+          id: it.id,
+          sourceType: it.source_type === "listing" ? "listing" : "collection_item",
+          artist: it.artist_name || "",
+          title: it.artwork_title || "",
+        };
       }
 
       const $overlay = document.getElementById("coll-detail-overlay");
@@ -2416,6 +2454,10 @@
     // Tracks the currently-open Collection piece for the Share button.
     // Cleared on modal close. Only set when source_type='collection_item'.
     let __collShareCtx = null;
+    // Tracks the currently-open piece for the Report button. Set for
+    // BOTH source types (collection_item + listing). sourceType decides
+    // which reports table the insert goes into.
+    let __collReportCtx = null;
 
     document.getElementById("coll-share-btn")?.addEventListener("click", async () => {
       if (!__collShareCtx) return;
@@ -2459,6 +2501,62 @@
         }, 2500);
       }
     });
+    // Report-this-piece handler (cc-v215). Mirrors the listing.html
+    // "Report this listing" UX — signed-in only, prompt() for the
+    // reason, simple insert into the appropriate reports table. Unique
+    // constraint at the DB level prevents the same user from
+    // spam-reporting the same piece. Anon users get bounced to sign-in.
+    document.getElementById("coll-report-btn")?.addEventListener("click", async () => {
+      if (!__collReportCtx) return;
+      const ctx = __collReportCtx;
+      const $btn = document.getElementById("coll-report-btn");
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("You need to sign in to report a piece. Sign in or create a free account, then come back to report.");
+        return;
+      }
+
+      const pieceLabel = [ctx.artist, ctx.title].filter(Boolean).join(", ") || "this piece";
+      const reason = prompt(
+        `Why does "${pieceLabel}" violate the community rules?\n\n` +
+        "Be specific, prohibited content, harassment, copyright misuse, " +
+        "stolen image, etc. The admin reviews every report.",
+        ""
+      );
+      if (reason === null) return;
+      const trimmed = reason.trim();
+      if (!trimmed) {
+        alert("A reason is required so the admin knows what to look at.");
+        return;
+      }
+
+      $btn.disabled = true;
+      try {
+        // Route to the right reports table based on source type. Both
+        // tables share identical RLS (insert-where reporter_id =
+        // auth.uid()) so the call shape is the same.
+        const table = ctx.sourceType === "listing" ? "listing_reports" : "collection_item_reports";
+        const payload = ctx.sourceType === "listing"
+          ? { listing_id: ctx.id, reporter_id: user.id, reason: trimmed }
+          : { collection_item_id: ctx.id, reporter_id: user.id, reason: trimmed };
+        const { error } = await supabase.from(table).insert(payload);
+        if (error) {
+          if (String(error.code) === "23505" || /duplicate key/i.test(error.message || "")) {
+            alert("You've already reported this piece. The admin sees your report in the queue.");
+            return;
+          }
+          throw error;
+        }
+        alert("Thanks, the admin will review your report. You won't be notified individually but action (if any) happens directly on the piece.");
+      } catch (err) {
+        console.error("[coll-report] failed:", err);
+        alert("Could not submit the report: " + (err.message || err));
+      } finally {
+        $btn.disabled = false;
+      }
+    });
+
     function closeCollectionDetailModal() {
       const $overlay = document.getElementById("coll-detail-overlay");
       $overlay.classList.remove("open");
