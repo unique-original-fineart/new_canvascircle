@@ -5310,6 +5310,20 @@
             <div id="reports-list" class="reports-list" hidden></div>
           </section>
 
+          <!-- cc-v216: Reports against public Collection pieces. Parallel
+               structure to the listings reports section above. Backed by
+               collection_item_reports (migration 067). The "Open piece"
+               link goes to the seller's public Collection page with the
+               piece's detail modal auto-opened via the ?piece=<uuid> query
+               param (existing Pages Function + seller.html behavior). -->
+          <section class="admin-section">
+            <h3>Reported Collection pieces <span class="count" id="coll-reports-count"></span></h3>
+            <p class="help">Collection pieces users have flagged. Open the piece on its public page to review, then act on the owner directly (Sellers section below) or dismiss the report if it's a false alarm.</p>
+            <div id="coll-reports-loading" class="empty-state" hidden>Loading…</div>
+            <div id="coll-reports-empty" class="empty-state" hidden>No open Collection reports.</div>
+            <div id="coll-reports-list" class="reports-list" hidden></div>
+          </section>
+
           <section class="admin-section">
             <h3>Expiring soon <span class="count" id="expiring-count"></span></h3>
             <p class="help">Listings within 7 days of the 60-day renewal cutoff (or already expired). Click "Extend" to reset a listing's clock; "Run expiration check" flips long-overdue available listings to <em>not_renewed</em>.</p>
@@ -13116,11 +13130,144 @@
       }
     }
 
+    // ---------------------------------------------------------------
+    // Collection-piece reports (cc-v216, migrations 067 + 068).
+    // Parallel to loadReports/renderReportRow/dismissReport above.
+    //
+    // Backed by admin_get_collection_reports RPC (NOT a PostgREST
+    // embedded select) because collection_items revokes SELECT from
+    // authenticated — the table can only be reached via SECURITY
+    // DEFINER RPCs by design (see 057_collections.sql). The RPC
+    // returns the joined reports + collection_items + owner profile +
+    // reporter profile in a single round-trip; we only need to fetch
+    // reporter emails separately (those come from admin_get_contact_emails).
+    //
+    // The "Open piece" link target is the seller's public Collection
+    // page with the piece auto-opened (?piece=<uuid>) rather than
+    // /listing.html.
+    // ---------------------------------------------------------------
+    async function loadCollectionReports() {
+      const $list    = document.getElementById("coll-reports-list");
+      const $loading = document.getElementById("coll-reports-loading");
+      const $empty   = document.getElementById("coll-reports-empty");
+      const $count   = document.getElementById("coll-reports-count");
+      if (!$list) return;
+      $loading.hidden = false;
+      $list.hidden    = true;
+      $list.innerHTML = "";
+
+      const { data: rows, error: reportsErr } = await supabase
+        .rpc("admin_get_collection_reports");
+      $loading.hidden = true;
+      if (reportsErr) {
+        console.error("[loadCollectionReports] failed:", reportsErr);
+        setAdminBanner("Could not load Collection reports: " + (reportsErr.message || reportsErr), "error");
+        return;
+      }
+      const list = rows || [];
+      $count.textContent = list.length ? `(${list.length})` : "";
+      if (list.length === 0) {
+        $empty.hidden = false;
+        $list.hidden  = true;
+        return;
+      }
+      $empty.hidden = true;
+
+      // Fetch reporter contact emails (admin-only RPC) for follow-up.
+      const reporterIds = [...new Set(list.map(r => r.reporter_id))];
+      const emailMap = await getContactEmailsAsAdmin(reporterIds);
+
+      const frag = document.createDocumentFragment();
+      list.forEach(r => {
+        const email = emailMap.has(r.reporter_id) ? emailMap.get(r.reporter_id) : null;
+        frag.appendChild(renderCollectionReportRow(r, email));
+      });
+      $list.appendChild(frag);
+      $list.hidden = false;
+    }
+
+    function renderCollectionReportRow(report, reporterEmail) {
+      // Thumb — collection-images bucket is public, getPublicUrl works
+      // without auth. Use a small render width for the admin thumb to
+      // keep network light.
+      const imgUrl = report.item_image_path
+        ? supabase.storage.from("collection-images").getPublicUrl(report.item_image_path, { transform: { width: 300, resize: "contain" } }).data?.publicUrl
+        : "";
+      const when = new Date(report.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+      // Public deep link to the piece. Requires the owner's handle;
+      // a piece reported when public but flipped private later still
+      // has a handle but the page won't show the piece. Admin still
+      // gets visibility on the report row itself via this RPC.
+      const ownerHandle = report.owner_handle || "";
+      const pieceUrl = ownerHandle
+        ? `/seller?handle=${encodeURIComponent(ownerHandle)}&piece=${encodeURIComponent(report.collection_item_id)}`
+        : "";
+      const ownerLabel = report.owner_name
+        ? `${report.owner_name}${report.owner_handle ? ` (@${report.owner_handle})` : ""}`
+        : "(owner profile missing)";
+      const visibility = report.item_is_public === false ? " · <em>private piece</em>" : "";
+      const reporterLabel = report.reporter_name || "(unknown user)";
+
+      const row = document.createElement("div");
+      row.className = "report-row";
+      row.dataset.reportId = report.id;
+      row.innerHTML = `
+        <div class="rr-thumb">${imgUrl ? `<img src="${escapeHtml(imgUrl)}" alt="" loading="lazy" decoding="async" />` : ""}</div>
+        <div class="rr-body">
+          <div class="rr-title"><strong>${escapeHtml(report.item_artist_name || "Unknown")} – ${escapeHtml(report.item_artwork_title || "")}</strong></div>
+          <div class="rr-meta small">
+            Owner: ${escapeHtml(ownerLabel)}${visibility}<br>
+            Reported by ${escapeHtml(reporterLabel)}
+            ${reporterEmail ? `· ${escapeHtml(reporterEmail)}` : ""}
+            · ${when}
+          </div>
+          <div class="rr-reason"><strong>Reason:</strong> ${escapeHtml(report.reason)}</div>
+        </div>
+        <div class="rr-actions">
+          ${pieceUrl
+            ? `<a class="view-link" href="${pieceUrl}" target="_blank" rel="noopener">Open piece ↗</a>`
+            : `<span class="view-link" style="opacity:.6;">No public URL</span>`}
+          <button type="button" class="btn-secondary" data-action="dismiss">Dismiss report</button>
+        </div>
+      `;
+      row.querySelector("[data-action=dismiss]").addEventListener("click", () => dismissCollectionReport(report.id, row));
+      return row;
+    }
+
+    async function dismissCollectionReport(reportId, row) {
+      if (!confirm("Dismiss this report? The Collection piece stays live; the report disappears from the queue.")) return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error } = await supabase
+          .from("collection_item_reports")
+          .update({
+            status: "resolved",
+            resolved_by: user?.id || null,
+            resolved_at: new Date().toISOString(),
+            resolution_note: "dismissed by admin",
+          })
+          .eq("id", reportId);
+        if (error) throw error;
+        row.remove();
+        const $list  = document.getElementById("coll-reports-list");
+        const $empty = document.getElementById("coll-reports-empty");
+        const $count = document.getElementById("coll-reports-count");
+        const remaining = $list.querySelectorAll(".report-row").length;
+        $count.textContent = remaining ? `(${remaining})` : "";
+        if (remaining === 0) { $list.hidden = true; $empty.hidden = false; }
+        setAdminBanner("Collection report dismissed.", "success");
+      } catch (err) {
+        console.error("[dismissCollectionReport] failed:", err);
+        setAdminBanner("Could not dismiss: " + (err.message || err), "error");
+      }
+    }
+
+
     async function loadAdminTab() {
       $adminBanner.hidden = true;
       try {
         await withTimeout(
-          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadVerificationModQueue(), loadVerifiedListings(), loadReports(), loadSellers(), loadExpiring()]),
+          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadVerificationModQueue(), loadVerifiedListings(), loadReports(), loadCollectionReports(), loadSellers(), loadExpiring()]),
           15000,
           "admin tab load"
         );
