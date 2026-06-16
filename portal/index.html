@@ -2678,6 +2678,30 @@
       text-decoration: none; white-space: nowrap;
     }
     .report-row .view-link:hover { text-decoration: underline; }
+    /* cc-v217: visibility / status badges shown on All Collection items
+       audit rows. Single-color tinted backgrounds with matching borders,
+       all tokens from the brand system so they read on navy. */
+    .all-coll-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .all-coll-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid;
+      line-height: 1.4;
+    }
+    .all-coll-badge--private          { background: var(--neutral-bg); border-color: var(--neutral-border); color: var(--text); }
+    .all-coll-badge--owner-private    { background: var(--neutral-bg); border-color: var(--neutral-border); color: var(--text); }
+    .all-coll-badge--unestablished    { background: var(--status-warn-tint); border-color: var(--status-warn-border); color: var(--text); }
+    .all-coll-badge--inactive         { background: var(--banner-revoked-bg); border-color: var(--banner-revoked-border); color: var(--text); }
+    .all-coll-badge--reported         { background: var(--status-danger-tint); border-color: var(--status-danger-soft); color: var(--text); }
     @media (max-width: 720px) {
       .report-row { grid-template-columns: 56px 1fr; }
       .report-row .rr-actions { grid-column: 1 / -1; flex-direction: row; }
@@ -5322,6 +5346,30 @@
             <div id="coll-reports-loading" class="empty-state" hidden>Loading…</div>
             <div id="coll-reports-empty" class="empty-state" hidden>No open Collection reports.</div>
             <div id="coll-reports-list" class="reports-list" hidden></div>
+          </section>
+
+          <!-- cc-v217: All Collection items audit view (Layer 1 of the
+               prohibited-content moderation strategy). Spot-check
+               non-Established members who post freely to their own
+               Collection without admin approval. Shows EVERY piece
+               regardless of public/private gates — backed by
+               admin_get_all_collection_items RPC (migration 069).
+               Collapsed by default since it's a periodic spot-check
+               rather than a daily-use tool. -->
+          <section class="admin-section admin-collapsible">
+            <details>
+              <summary>
+                <span class="ac-title">All Collection items (audit)</span>
+                <span class="count" id="all-coll-count"></span>
+                <span class="ac-chev" aria-hidden="true">▾</span>
+              </summary>
+              <p class="help">Every Collection piece across all members, public AND private. Use this to spot-check non-Established members for ToS-violating content (profanity, harassment, prohibited images, etc.). Deletion is destructive but the nightly R2 backup retains a copy for forensics, so don't hesitate to remove anything that doesn't belong.</p>
+              <input type="search" id="all-coll-filter" class="verlist-filter-input" placeholder="Filter by artist, title, owner name, or @handle…" autocomplete="off" />
+              <div id="all-coll-loading" class="empty-state" hidden>Loading…</div>
+              <div id="all-coll-empty"   class="empty-state" hidden>No Collection items in the database.</div>
+              <div id="all-coll-no-match" class="empty-state" hidden>No items match that filter.</div>
+              <div id="all-coll-list"    class="mod-list mod-list--scroll" hidden></div>
+            </details>
           </section>
 
           <section class="admin-section">
@@ -13262,12 +13310,210 @@
       }
     }
 
+    // ---------------------------------------------------------------
+    // All Collection items audit view (cc-v217, migration 069).
+    // Layer 1 of the prohibited-content moderation strategy — admin
+    // sees ALL collection items regardless of is_public /
+    // collection_is_public / is_trusted gates. The big use case:
+    // spot-check non-Established members who can post to their own
+    // Collection without admin approval, but who could theoretically
+    // store prohibited content there since it never reaches a public
+    // page.
+    //
+    // The full result set is fetched once on tab open and filtered
+    // client-side as the admin types (same UX as Verified listings).
+    // At ~6 items today and likely <500 even at 100x scale, in-memory
+    // filter is far cheaper than a per-keystroke RPC roundtrip.
+    // ---------------------------------------------------------------
+    let __allCollectionItemsCache = [];
+
+    async function loadAllCollectionItems() {
+      const $list     = document.getElementById("all-coll-list");
+      const $loading  = document.getElementById("all-coll-loading");
+      const $empty    = document.getElementById("all-coll-empty");
+      const $noMatch  = document.getElementById("all-coll-no-match");
+      const $count    = document.getElementById("all-coll-count");
+      if (!$list) return;
+      $loading.hidden = false;
+      $list.hidden    = true;
+      $empty.hidden   = true;
+      $noMatch.hidden = true;
+      $list.innerHTML = "";
+
+      const { data, error } = await supabase.rpc("admin_get_all_collection_items", {
+        p_limit: 500,
+        p_offset: 0,
+        p_search: null,
+      });
+      $loading.hidden = true;
+      if (error) {
+        console.error("[loadAllCollectionItems] failed:", error);
+        setAdminBanner("Could not load Collection items: " + (error.message || error), "error");
+        return;
+      }
+      __allCollectionItemsCache = data || [];
+      $count.textContent = __allCollectionItemsCache.length ? `(${__allCollectionItemsCache.length})` : "";
+      renderAllCollectionItems(__allCollectionItemsCache, "");
+    }
+
+    function renderAllCollectionItems(items, filterText) {
+      const $list    = document.getElementById("all-coll-list");
+      const $empty   = document.getElementById("all-coll-empty");
+      const $noMatch = document.getElementById("all-coll-no-match");
+      $list.innerHTML = "";
+
+      if (__allCollectionItemsCache.length === 0) {
+        $empty.hidden = false; $noMatch.hidden = true; $list.hidden = true;
+        return;
+      }
+      const filtered = filterText
+        ? items.filter(i => {
+            const hay = `${i.artist_name || ""} ${i.artwork_title || ""} ${i.owner_name || ""} ${i.owner_handle || ""}`.toLowerCase();
+            return hay.includes(filterText);
+          })
+        : items;
+      if (filtered.length === 0) {
+        $noMatch.hidden = false; $empty.hidden = true; $list.hidden = true;
+        return;
+      }
+      $empty.hidden = true; $noMatch.hidden = true;
+
+      const frag = document.createDocumentFragment();
+      filtered.forEach(it => frag.appendChild(renderAllCollectionItemRow(it)));
+      $list.appendChild(frag);
+      $list.hidden = false;
+    }
+
+    function renderAllCollectionItemRow(it) {
+      const imgUrl = it.image_path
+        ? supabase.storage.from("collection-images").getPublicUrl(it.image_path, { transform: { width: 300, resize: "contain" } }).data?.publicUrl
+        : "";
+      const created = new Date(it.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+      const ownerLabel = it.owner_name
+        ? `${it.owner_name}${it.owner_handle ? ` (@${it.owner_handle})` : ""}`
+        : "(missing profile)";
+      // Visibility badges:
+      //  * is_public=false → piece itself flagged private
+      //  * owner_collection_is_public=false → owner's whole Collection is private
+      //  * owner_is_trusted=false → even if both flags were true, it wouldn't render publicly (gated to Established members only)
+      //  * owner_account_status != 'active' → suspended/banned
+      const badges = [];
+      if (it.is_public === false) badges.push(`<span class="all-coll-badge all-coll-badge--private">Private piece</span>`);
+      if (it.owner_collection_is_public === false) badges.push(`<span class="all-coll-badge all-coll-badge--owner-private">Collection set to private</span>`);
+      if (it.owner_is_trusted === false) badges.push(`<span class="all-coll-badge all-coll-badge--unestablished">Not Established</span>`);
+      if (it.owner_account_status && it.owner_account_status !== "active") {
+        badges.push(`<span class="all-coll-badge all-coll-badge--inactive">${escapeHtml(it.owner_account_status)}</span>`);
+      }
+      if (it.open_report_count > 0) {
+        badges.push(`<span class="all-coll-badge all-coll-badge--reported">${it.open_report_count} open report${it.open_report_count === 1 ? "" : "s"}</span>`);
+      }
+      // Public deep link only works if the piece WOULD be visible
+      // there (all three public gates true + account active). Otherwise
+      // we show a direct-image link so the admin can still see the
+      // content for audit purposes.
+      const publiclyVisible = it.is_public !== false
+        && it.owner_collection_is_public === true
+        && it.owner_is_trusted === true
+        && it.owner_account_status === "active"
+        && it.owner_handle;
+      const viewHref = publiclyVisible
+        ? `/seller?handle=${encodeURIComponent(it.owner_handle)}&piece=${encodeURIComponent(it.id)}`
+        : (imgUrl || "");
+      const viewLabel = publiclyVisible ? "Open piece ↗" : "View image ↗";
+
+      const row = document.createElement("div");
+      row.className = "report-row";
+      row.dataset.itemId = it.id;
+      row.innerHTML = `
+        <div class="rr-thumb">${imgUrl ? `<img src="${escapeHtml(imgUrl)}" alt="" loading="lazy" decoding="async" />` : ""}</div>
+        <div class="rr-body">
+          <div class="rr-title"><strong>${escapeHtml(it.artist_name || "Unknown")} – ${escapeHtml(it.artwork_title || "")}</strong></div>
+          <div class="rr-meta small">
+            Owner: ${escapeHtml(ownerLabel)} · added ${created}
+          </div>
+          ${badges.length ? `<div class="all-coll-badges">${badges.join("")}</div>` : ""}
+          ${it.public_story ? `<div class="rr-reason"><strong>Public story:</strong> ${escapeHtml(it.public_story)}</div>` : ""}
+        </div>
+        <div class="rr-actions">
+          ${viewHref ? `<a class="view-link" href="${escapeHtml(viewHref)}" target="_blank" rel="noopener">${viewLabel}</a>` : `<span class="view-link" style="opacity:.6;">No image</span>`}
+          <button type="button" class="btn-danger" data-action="delete">Delete piece</button>
+        </div>
+      `;
+      row.querySelector("[data-action=delete]").addEventListener("click", () => adminDeleteCollectionItem(it, row));
+      return row;
+    }
+
+    async function adminDeleteCollectionItem(item, row) {
+      const pieceLabel = [item.artist_name, item.artwork_title].filter(Boolean).join(", ") || "this piece";
+      if (!confirm(
+        `Delete "${pieceLabel}"?\n\n` +
+        `Owner: ${item.owner_name || "(no name)"} (@${item.owner_handle || "no-handle"})\n\n` +
+        `This permanently removes the DB row AND the image file. Open reports against this piece are auto-resolved. The R2 backup retains a copy for forensics.`
+      )) return;
+
+      const reason = prompt(
+        `Reason for deletion (required, will be logged):\n\n` +
+        "e.g. 'prohibited content', 'copyright infringement', 'ToS violation', etc.",
+        ""
+      );
+      if (reason === null) return;
+      const trimmed = reason.trim();
+      if (!trimmed) {
+        alert("A reason is required.");
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.rpc("admin_delete_collection_item", {
+          p_item_id: item.id,
+          p_reason:  trimmed,
+        });
+        if (error) throw error;
+
+        // Best-effort storage cleanup. If this fails the DB row is
+        // already gone (which is the safety-relevant outcome); the
+        // orphaned image becomes dead bytes until manual cleanup.
+        const imagePath = Array.isArray(data) ? data[0]?.image_path : data?.image_path;
+        if (imagePath) {
+          try {
+            await supabase.storage.from("collection-images").remove([imagePath]);
+          } catch (storageErr) {
+            console.warn("[adminDeleteCollectionItem] storage cleanup failed:", storageErr);
+          }
+        }
+
+        // Remove the row from the in-memory cache + DOM.
+        __allCollectionItemsCache = __allCollectionItemsCache.filter(c => c.id !== item.id);
+        row.remove();
+        const $count = document.getElementById("all-coll-count");
+        $count.textContent = __allCollectionItemsCache.length ? `(${__allCollectionItemsCache.length})` : "";
+        if (__allCollectionItemsCache.length === 0) {
+          document.getElementById("all-coll-list").hidden = true;
+          document.getElementById("all-coll-empty").hidden = false;
+        }
+        // Refresh the Collection reports section too — any related
+        // open reports were auto-resolved in the same transaction.
+        try { loadCollectionReports(); } catch {}
+        setAdminBanner(`Deleted "${pieceLabel}".`, "success");
+      } catch (err) {
+        console.error("[adminDeleteCollectionItem] failed:", err);
+        setAdminBanner("Could not delete: " + (err.message || err), "error");
+      }
+    }
+
+    // Live-filter as the admin types. Filter is in-memory against the
+    // cache so there's no network roundtrip — instant feedback.
+    document.getElementById("all-coll-filter")?.addEventListener("input", (e) => {
+      const v = (e.target.value || "").trim().toLowerCase();
+      renderAllCollectionItems(__allCollectionItemsCache, v);
+    });
+
 
     async function loadAdminTab() {
       $adminBanner.hidden = true;
       try {
         await withTimeout(
-          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadVerificationModQueue(), loadVerifiedListings(), loadReports(), loadCollectionReports(), loadSellers(), loadExpiring()]),
+          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadVerificationModQueue(), loadVerifiedListings(), loadReports(), loadCollectionReports(), loadAllCollectionItems(), loadSellers(), loadExpiring()]),
           15000,
           "admin tab load"
         );
