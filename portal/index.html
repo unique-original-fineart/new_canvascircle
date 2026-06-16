@@ -13448,12 +13448,23 @@
       if (!confirm(
         `Delete "${pieceLabel}"?\n\n` +
         `Owner: ${item.owner_name || "(no name)"} (@${item.owner_handle || "no-handle"})\n\n` +
-        `This permanently removes the DB row AND the image file. Open reports against this piece are auto-resolved. The R2 backup retains a copy for forensics.`
+        `This permanently removes the DB row AND the image file. Open reports against this piece are auto-resolved. The owner will receive an email letting them know the piece was removed and why. The R2 backup retains a copy for forensics.`
       )) return;
 
+      // The reason text the admin enters here gets THREE jobs:
+      //   1. Stored in admin_delete_collection_item RPC as the
+      //      resolution_note on any auto-resolved reports.
+      //   2. Sent to the owner via email (so they know what happened
+      //      and have something to reply to if they want to appeal).
+      //   3. Surfaced in the admin success banner.
+      // Phrase it as something you'd be comfortable sharing with the
+      // owner, since #2 means they read it verbatim.
       const reason = prompt(
-        `Reason for deletion (required, will be logged):\n\n` +
-        "e.g. 'prohibited content', 'copyright infringement', 'ToS violation', etc.",
+        `Reason for deletion (required):\n\n` +
+        `This text is SENT TO THE OWNER by email, so write it as a sentence ` +
+        `they can act on — e.g. "Prohibited content (text overlay)", ` +
+        `"Copyright concern, this isn't your image to post", ` +
+        `"ToS violation: harassment in the public story field".`,
         ""
       );
       if (reason === null) return;
@@ -13482,6 +13493,30 @@
           }
         }
 
+        // Notify the owner by email via the existing send-email
+        // direct-to-seller mode (admin-only, looks up the owner's
+        // contact email from profiles by user_id). Best-effort —
+        // if the email fails (owner has no contact_email on file,
+        // Resend hiccup, etc.) the delete still succeeded; we just
+        // surface a softer banner so the admin knows to follow up
+        // out of band if needed.
+        let notifyStatus = "owner notified by email";
+        try {
+          const emailResult = await sendCollectionDeletionEmail({
+            ownerUserId: item.owner_id,
+            ownerName:   item.owner_name,
+            artist:      item.artist_name || "",
+            title:       item.artwork_title || "",
+            reason:      trimmed,
+          });
+          if (!emailResult.ok) {
+            notifyStatus = emailResult.message || "could not notify owner";
+          }
+        } catch (emailErr) {
+          console.warn("[adminDeleteCollectionItem] email failed:", emailErr);
+          notifyStatus = "could not notify owner (email error)";
+        }
+
         // Remove the row from the in-memory cache + DOM.
         __allCollectionItemsCache = __allCollectionItemsCache.filter(c => c.id !== item.id);
         row.remove();
@@ -13494,10 +13529,58 @@
         // Refresh the Collection reports section too — any related
         // open reports were auto-resolved in the same transaction.
         try { loadCollectionReports(); } catch {}
-        setAdminBanner(`Deleted "${pieceLabel}".`, "success");
+        setAdminBanner(`Deleted "${pieceLabel}". ${notifyStatus}.`, "success");
       } catch (err) {
         console.error("[adminDeleteCollectionItem] failed:", err);
         setAdminBanner("Could not delete: " + (err.message || err), "error");
+      }
+    }
+
+    // Sends the "your piece was removed" email via send-email's
+    // direct-to-seller mode. Returns { ok, message } — ok=false on
+    // edge-fn errors or missing email so the admin gets a meaningful
+    // status string in the banner rather than a silent failure.
+    async function sendCollectionDeletionEmail({ ownerUserId, ownerName, artist, title, reason }) {
+      const pieceLabel = [artist, title].filter(Boolean).join(", ") || "one of your Collection pieces";
+      const subject = `A piece was removed from your Collection on CanvasCircle`;
+      const text =
+`We removed the following piece from your CanvasCircle Collection:
+
+  ${pieceLabel}
+
+Reason given by the admin:
+
+  ${reason}
+
+The image file has also been removed from our storage. If you think this was a mistake or you'd like to talk through it, just reply to this email and the admin will get back to you.
+
+A reminder of CanvasCircle's content rules: pieces in your Collection (even private ones) must follow our Terms of Use. Posts containing prohibited content, copyrighted images you don't own, harassment, or anything that violates the ToS can be removed at the admin's discretion.
+
+— The CanvasCircle team`;
+
+      try {
+        const { data, error } = await supabase.functions.invoke("send-email", {
+          body: {
+            mode:         "direct-to-seller",
+            sellerUserId: ownerUserId,
+            subject,
+            text,
+          },
+        });
+        if (error) {
+          // The edge function returns 400 when the owner has no
+          // contact_email — surface that distinctly so the admin can
+          // follow up via another channel (Facebook, etc.).
+          const msg = (error.message || "").toLowerCase();
+          if (msg.includes("contact email")) {
+            return { ok: false, message: "owner has no email on file, follow up manually" };
+          }
+          return { ok: false, message: `email failed: ${error.message || "unknown error"}` };
+        }
+        if (data && data.sent >= 1) return { ok: true };
+        return { ok: false, message: "email queued but not confirmed sent" };
+      } catch (err) {
+        return { ok: false, message: `email error: ${err.message || err}` };
       }
     }
 
