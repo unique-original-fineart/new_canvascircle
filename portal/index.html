@@ -10818,13 +10818,14 @@
     // back into the now-stale edit modal.
     let currentVerifySucceeded = false;
 
-    // 7 seconds is plenty of time to pan across the artwork while showing
-    // the handwritten date+handle card, and keeps modern phone HD/4K clips
-    // safely under the 25MB hard cap. iPhone 60fps HD at 10s came in at
-    // ~28MB which would fail the byte check, 7s solves that headroom.
     // Verification video caps. As of 2026-05-29 we re-encode the seller's
     // source on the client (lib/video-compression.js) before upload, so
     // the SOURCE allowance is now generous (200MB / any reasonable length)
+    // and we encode down to a target around 600 kbps + 720p with a 30s
+    // hard duration cap (see lib/video-compression.js maxDurationSec=30).
+    // The OUTPUT stays comfortably under the 25MB byte cap even for a
+    // full 30-second clip. The legal docs (terms.html / privacy.html)
+    // are synced to "up to 30 seconds, 25 MB" as of cc-v225.
     // and we trim + downscale to a much smaller artifact for storage +
     // admin review. Numbers:
     //   - Source cap: 200MB (covers any modern phone HD/4K capture).
