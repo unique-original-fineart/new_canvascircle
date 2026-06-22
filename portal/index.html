@@ -6321,7 +6321,7 @@
 
   <script type="module">
     import { supabase, currentProfile, publicImageUrl, compressImage, clearBlockFilterCache, getMyContactEmail, getContactEmailsAsAdmin } from "/lib/supabase.js?v=5";
-    import { TURNSTILE_SITE_KEY } from "/lib/config.js";
+    import { TURNSTILE_SITE_KEY, SUPABASE_URL, SUPABASE_ANON_KEY } from "/lib/config.js";
     import { getSavedListings, toggleSave, clearSavesCache } from "/lib/saves.js";
     import { readReturnTrail } from "/lib/return-trail.js";
     import { mountWelcomeBanner } from "/lib/welcome-banner.js";
@@ -9545,6 +9545,9 @@
 
       $btn.disabled = true;
       $btn.textContent = "Saving…";
+      // Track whether the image landed in the moderation 'pending'
+      // bucket so we can surface a notice to the seller after save.
+      let imageWasPending = false;
       try {
         // Image upload happens BEFORE the RPC for adds (need image_path
         // to insert), and AFTER for edits if a new file was selected
@@ -9554,14 +9557,18 @@
           // We don't know the item ID yet — use a UUID for the folder
           // and pass that path to insert_collection_item.
           const itemFolder = crypto.randomUUID();
-          imagePath = await uploadCollectionImage(itemFolder, collectionImagePending);
+          const uploadResult = await uploadCollectionImage(itemFolder, collectionImagePending);
+          imagePath = uploadResult.path;
+          if (uploadResult.pending) imageWasPending = true;
         }
 
         let itemId = collectionItemSelected?.id || null;
         if (isEdit) {
           // Edit: update the row first, then upload new image if needed.
           if (collectionImagePending) {
-            imagePath = await uploadCollectionImage(itemId, collectionImagePending);
+            const uploadResult = await uploadCollectionImage(itemId, collectionImagePending);
+            imagePath = uploadResult.path;
+            if (uploadResult.pending) imageWasPending = true;
           }
           const { error } = await supabase.rpc("update_collection_item", {
             p_item_id: itemId,
@@ -9632,6 +9639,19 @@
           await loadCollection();
           // Re-load the prompt banners since one may have just been resolved.
           loadCollectionPrompts().catch(() => {});
+        }
+        // Pending-review notice (cc-v222). Surfaces AFTER the modal
+        // closes + Collection grid reloads so the seller sees the piece
+        // they just added AND understands its visibility state. Alert
+        // is intrusive on purpose — this is a moderation decision the
+        // seller needs to read, not something they should miss while
+        // scrolling.
+        if (imageWasPending) {
+          alert(
+            "Your piece has been saved, but the image needs an admin to review it before it appears on your public Collection page (if your Collection is set to public). " +
+            "This usually happens within a day. Your private view of the piece is unaffected — you can still see it in your Collection tab right now. " +
+            "If you have questions, email admin@canvascircle.art."
+          );
         }
       } catch (err) {
         console.error("[collection] save failed:", err);
@@ -9740,15 +9760,59 @@
     // ArrayBuffer-conversion pattern from listing image upload to dodge
     // the WebKit boundary bug in multipart Blob uploads
     // (see [[image-upload-pipeline]]).
+    // Helper: upload the compressed image to the collection-images bucket
+    // via the moderate-and-upload edge function (cc-v222, migration 071 +
+    // supabase/functions/moderate-and-upload). The edge function calls
+    // Sightengine on the image bytes before writing to Storage, so any
+    // prohibited content (explicit sexual, gore, hate symbols) is
+    // refused with a 422 before it ever touches our bucket. Soft-block
+    // categories (artistic nudity edge cases, suggestive content,
+    // weapons-with-gore, recreational drugs) succeed the upload but
+    // mark the moderation_flags row as 'pending' for admin review.
+    //
+    // Returns { path, pending }:
+    //   * path: storage path the image landed at (same shape the old
+    //     function returned; callers can keep using it for image_path)
+    //   * pending: true if the verdict was 'pending'. UI uses this to
+    //     show the seller a "pending admin review" notice so they
+    //     understand why the piece might not appear publicly yet.
     async function uploadCollectionImage(folderId, compressed) {
       const { blob, mime, ext } = compressed;
       const path = `${currentUserId}/${folderId}/image.${ext}`;
       const arrayBuffer = await blob.arrayBuffer();
-      const { error } = await supabase.storage
-        .from("collection-images")
-        .upload(path, arrayBuffer, { contentType: mime, upsert: true });
-      if (error) throw error;
-      return path;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const jwt = session?.access_token;
+      if (!jwt) throw new Error("You're not signed in.");
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/moderate-and-upload`, {
+        method: "POST",
+        headers: {
+          "apikey":        SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${jwt}`,
+          "Content-Type":  mime,
+          "X-CC-Bucket":   "collection-images",
+          "X-CC-Path":     path,
+          "X-CC-Collection-Item-Id": folderId,
+        },
+        body: arrayBuffer,
+      });
+
+      // HARD BLOCK: 422 with a user-facing message from the edge fn.
+      if (res.status === 422) {
+        const err = await res.json().catch(() => ({}));
+        const userMsg = err.message
+          || "This image cannot be uploaded. It triggered our content moderation policy. If you believe this is a mistake, contact admin@canvascircle.art.";
+        const blockErr = new Error(userMsg);
+        blockErr.code = "MODERATION_BLOCKED";
+        throw blockErr;
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Image upload failed (${res.status})`);
+      }
+      const body = await res.json();
+      return { path: body.path, pending: !!body.pending };
     }
 
     // ---------------------------------------------------------------------
