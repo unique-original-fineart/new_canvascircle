@@ -5412,6 +5412,22 @@
             <div id="coll-reports-list" class="reports-list" hidden></div>
           </section>
 
+          <!-- cc-v224: Pending image moderation queue (Layer 2). Rows
+               here are Collection image uploads that Sightengine soft-
+               blocked (artistic-nudity edge cases, suggestive content,
+               weapons+gore, drugs, low-confidence hate). Hard-blocked
+               uploads never landed in Storage so they don't show here;
+               they only appear in moderation_flags with verdict='blocked'
+               as an audit record. CSAM-flagged rows (if/when we add
+               that signal) surface first via server-side ordering. -->
+          <section class="admin-section">
+            <h3>Pending image moderation <span class="count" id="mod-pending-count"></span></h3>
+            <p class="help">Collection image uploads our automated scan (Sightengine) flagged as borderline. Open the image, decide if it actually violates our content rules. <strong>Approve</strong> publishes it; <strong>Reject</strong> deletes the piece + sends the owner a banner on their Collection tab explaining why. CSAM-flagged rows show first.</p>
+            <div id="mod-pending-loading" class="empty-state" hidden>Loading…</div>
+            <div id="mod-pending-empty"   class="empty-state" hidden>No pending image reviews.</div>
+            <div id="mod-pending-list"    class="reports-list" hidden></div>
+          </section>
+
           <!-- cc-v217: All Collection items audit view (Layer 1 of the
                prohibited-content moderation strategy). Spot-check
                non-Established members who post freely to their own
@@ -13538,6 +13554,163 @@
     }
 
     // ---------------------------------------------------------------
+    // Pending image moderation queue (cc-v224, migrations 071 + 072).
+    // Sightengine-flagged Collection uploads land here. Admin reviews
+    // each row, then approves (image passes through to public surfaces)
+    // or rejects (image + piece deleted, owner notified via tombstone
+    // banner). Hard-blocked uploads never landed in Storage so they're
+    // not in the queue.
+    // ---------------------------------------------------------------
+    async function loadPendingImageModeration() {
+      const $list    = document.getElementById("mod-pending-list");
+      const $loading = document.getElementById("mod-pending-loading");
+      const $empty   = document.getElementById("mod-pending-empty");
+      const $count   = document.getElementById("mod-pending-count");
+      if (!$list) return;
+      $loading.hidden = false;
+      $list.hidden    = true;
+      $list.innerHTML = "";
+
+      const { data, error } = await supabase.rpc("admin_get_pending_moderation");
+      $loading.hidden = true;
+      if (error) {
+        console.error("[loadPendingImageModeration] failed:", error);
+        setAdminBanner("Could not load pending image moderation: " + (error.message || error), "error");
+        return;
+      }
+      const rows = data || [];
+      $count.textContent = rows.length ? `(${rows.length})` : "";
+      if (rows.length === 0) {
+        $empty.hidden = false;
+        $list.hidden  = true;
+        return;
+      }
+      $empty.hidden = true;
+
+      const frag = document.createDocumentFragment();
+      rows.forEach(r => frag.appendChild(renderPendingModerationRow(r)));
+      $list.appendChild(frag);
+      $list.hidden = false;
+    }
+
+    function renderPendingModerationRow(row) {
+      const imgUrl = row.storage_path
+        ? supabase.storage.from(row.bucket).getPublicUrl(row.storage_path, { transform: { width: 600, resize: "contain" } }).data?.publicUrl
+        : "";
+      const when = new Date(row.created_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+      const ownerLabel = row.owner_name
+        ? `${row.owner_name}${row.owner_handle ? ` (@${row.owner_handle})` : ""}`
+        : "(missing profile)";
+      const pieceLabel = (row.artist_name || row.artwork_title)
+        ? `${escapeHtml(row.artist_name || "Unknown")} – ${escapeHtml(row.artwork_title || "")}`
+        : `<em style="opacity:.7">No piece linked (image-only upload or unsaved item)</em>`;
+      // CSAM badge is the highest-priority visual cue — bright magenta.
+      const csamBadge = row.csam_detected
+        ? `<span class="all-coll-badge all-coll-badge--reported" title="CSAM hash match — escalate immediately">CSAM</span>`
+        : "";
+
+      const el = document.createElement("div");
+      el.className = "report-row";
+      el.dataset.flagId = row.flag_id;
+      el.innerHTML = `
+        <div class="rr-thumb">${imgUrl ? `<img src="${escapeHtml(imgUrl)}" alt="" loading="lazy" decoding="async" />` : ""}</div>
+        <div class="rr-body">
+          <div class="rr-title">${csamBadge} ${pieceLabel}</div>
+          <div class="rr-meta small">
+            Owner: ${escapeHtml(ownerLabel)} · scanned ${escapeHtml(when)}
+          </div>
+          <div class="rr-reason"><strong>Sightengine flag:</strong> ${escapeHtml(row.reason || "(no reason given)")}</div>
+        </div>
+        <div class="rr-actions">
+          ${imgUrl ? `<a class="view-link" href="${escapeHtml(imgUrl)}" target="_blank" rel="noopener">View full image ↗</a>` : ""}
+          <button type="button" class="btn-primary" data-action="approve">Approve</button>
+          <button type="button" class="btn-danger" data-action="reject">Reject</button>
+        </div>
+      `;
+      el.querySelector("[data-action=approve]").addEventListener("click", () => approveModerationRow(row, el));
+      el.querySelector("[data-action=reject]").addEventListener("click", () => rejectModerationRow(row, el));
+      return el;
+    }
+
+    async function approveModerationRow(row, el) {
+      if (!confirm(`Approve this image? It becomes visible on the owner's public Collection page (if their Collection is public).`)) return;
+      try {
+        const { error } = await supabase.rpc("admin_approve_moderation", {
+          p_flag_id: row.flag_id,
+          p_note:    null,
+        });
+        if (error) throw error;
+        el.remove();
+        decrementModPendingCount();
+        setAdminBanner("Approved.", "success");
+      } catch (err) {
+        console.error("[approveModerationRow] failed:", err);
+        setAdminBanner("Could not approve: " + (err.message || err), "error");
+      }
+    }
+
+    async function rejectModerationRow(row, el) {
+      const pieceLabel = [row.artist_name, row.artwork_title].filter(Boolean).join(", ") || "this image";
+      if (!confirm(
+        `Reject this image?\n\n` +
+        `"${pieceLabel}" will be permanently deleted from the owner's Collection. ` +
+        `The image file is removed from Storage. The owner sees a banner on their Collection tab with the reason. ` +
+        `Open reports against this piece (if any) are auto-resolved.`
+      )) return;
+
+      const reason = prompt(
+        "Reason for rejection (required):\n\n" +
+        "This text is SHOWN TO THE OWNER as the banner on their Collection tab next time they sign in, " +
+        "so write it as a sentence they can act on — e.g. \"Prohibited content: explicit imagery\", " +
+        "\"ToS violation: hate symbol\", \"Copyright concern: this isn't your image to post\".",
+        ""
+      );
+      if (reason === null) return;
+      const trimmed = reason.trim();
+      if (!trimmed) { alert("A reason is required."); return; }
+
+      try {
+        const { data, error } = await supabase.rpc("admin_reject_moderation", {
+          p_flag_id: row.flag_id,
+          p_reason:  trimmed,
+        });
+        if (error) throw error;
+
+        // Best-effort storage cleanup. The RPC returns the image path so
+        // we can remove the storage object client-side. If this fails
+        // the DB row is already gone (which is what matters).
+        const imagePath = Array.isArray(data) ? data[0]?.image_path : data?.image_path;
+        if (imagePath) {
+          try {
+            await supabase.storage.from(row.bucket).remove([imagePath]);
+          } catch (storageErr) {
+            console.warn("[rejectModerationRow] storage cleanup failed:", storageErr);
+          }
+        }
+
+        el.remove();
+        decrementModPendingCount();
+        // Refresh related queues — All Collection items audit + reports.
+        try { loadCollectionReports(); } catch {}
+        try { loadAllCollectionItems(); } catch {}
+        setAdminBanner(`Rejected "${pieceLabel}". Owner will see a banner on their Collection tab next sign-in.`, "success");
+      } catch (err) {
+        console.error("[rejectModerationRow] failed:", err);
+        setAdminBanner("Could not reject: " + (err.message || err), "error");
+      }
+    }
+
+    function decrementModPendingCount() {
+      const $count = document.getElementById("mod-pending-count");
+      const $list  = document.getElementById("mod-pending-list");
+      const $empty = document.getElementById("mod-pending-empty");
+      if (!$count || !$list) return;
+      const remaining = $list.querySelectorAll(".report-row").length;
+      $count.textContent = remaining ? `(${remaining})` : "";
+      if (remaining === 0) { $list.hidden = true; $empty.hidden = false; }
+    }
+
+    // ---------------------------------------------------------------
     // All Collection items audit view (cc-v217, migration 069).
     // Layer 1 of the prohibited-content moderation strategy — admin
     // sees ALL collection items regardless of is_public /
@@ -13753,7 +13926,7 @@
       $adminBanner.hidden = true;
       try {
         await withTimeout(
-          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadVerificationModQueue(), loadVerifiedListings(), loadReports(), loadCollectionReports(), loadAllCollectionItems(), loadSellers(), loadExpiring()]),
+          Promise.all([loadModerationQueue(), loadProfileModQueue(), loadVerificationModQueue(), loadVerifiedListings(), loadReports(), loadCollectionReports(), loadPendingImageModeration(), loadAllCollectionItems(), loadSellers(), loadExpiring()]),
           15000,
           "admin tab load"
         );
