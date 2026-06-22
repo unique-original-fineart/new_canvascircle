@@ -9565,8 +9565,10 @@
         let itemId = collectionItemSelected?.id || null;
         if (isEdit) {
           // Edit: update the row first, then upload new image if needed.
+          // We pass itemId as the third arg so the moderation_flags row
+          // gets FK-linked to the real collection_items row.
           if (collectionImagePending) {
-            const uploadResult = await uploadCollectionImage(itemId, collectionImagePending);
+            const uploadResult = await uploadCollectionImage(itemId, collectionImagePending, itemId);
             imagePath = uploadResult.path;
             if (uploadResult.pending) imageWasPending = true;
           }
@@ -9776,7 +9778,21 @@
     //   * pending: true if the verdict was 'pending'. UI uses this to
     //     show the seller a "pending admin review" notice so they
     //     understand why the piece might not appear publicly yet.
-    async function uploadCollectionImage(folderId, compressed) {
+    //
+    // Args:
+    //   folderId: UUID used as the storage folder name. For new items
+    //     this is a freshly generated UUID (doesn't match any item.id);
+    //     for edits this can be the item.id since the legacy upload
+    //     code did that.
+    //   compressed: { blob, mime, ext } from compressImage()
+    //   linkedItemId: OPTIONAL real collection_items.id to FK-link the
+    //     moderation_flags row to. Only set this for EDIT flows where
+    //     we know the row exists. For new items pass null/omit —
+    //     otherwise the FK insert silently fails because the folderId
+    //     is just a random storage folder name, NOT the item's
+    //     eventual primary key. The admin queue can still correlate
+    //     via storage_path; the FK is a convenience, not load-bearing.
+    async function uploadCollectionImage(folderId, compressed, linkedItemId = null) {
       const { blob, mime, ext } = compressed;
       const path = `${currentUserId}/${folderId}/image.${ext}`;
       const arrayBuffer = await blob.arrayBuffer();
@@ -9785,16 +9801,18 @@
       const jwt = session?.access_token;
       if (!jwt) throw new Error("You're not signed in.");
 
+      const headers = {
+        "apikey":        SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${jwt}`,
+        "Content-Type":  mime,
+        "X-CC-Bucket":   "collection-images",
+        "X-CC-Path":     path,
+      };
+      if (linkedItemId) headers["X-CC-Collection-Item-Id"] = linkedItemId;
+
       const res = await fetch(`${SUPABASE_URL}/functions/v1/moderate-and-upload`, {
         method: "POST",
-        headers: {
-          "apikey":        SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${jwt}`,
-          "Content-Type":  mime,
-          "X-CC-Bucket":   "collection-images",
-          "X-CC-Path":     path,
-          "X-CC-Collection-Item-Id": folderId,
-        },
+        headers,
         body: arrayBuffer,
       });
 
