@@ -2148,14 +2148,22 @@
     });
 
     // ---------------------------------------------------------------------
-    // Make-an-Offer modal (cc-v178). Buyer clicks "Make an offer", inputs
-    // an amount + optional note, submits via the insert_offer RPC. The RPC
-    // gates on listing availability, block-status, self-offer-prevention,
-    // and (silently) applies the seller's auto_reject_floor_usd. We never
-    // reveal to the buyer whether their offer was auto-declined vs landed
-    // pending — same generic "submitted, you'll hear back" confirmation
-    // either way. See migration 052 + [[preserve-seller-pricing-power]]
-    // for the asymmetric-info design rationale.
+    // Make-an-Offer modal. Buyer clicks "Make an offer", inputs an amount
+    // + optional note, submits via the insert_offer RPC. The RPC gates on
+    // listing availability, block-status, self-offer-prevention, and the
+    // seller's per-listing auto_reject_floor_usd.
+    //
+    // Asymmetric-info model (migration 054 + 073):
+    //   * Below-floor offers are NOT persisted. The RPC throws an
+    //     exception with a buyer-visible message that explicitly says
+    //     the offer was "automatically declined" and tells the buyer
+    //     the seller was not notified. The catch block below surfaces
+    //     this text verbatim in the modal's error area.
+    //   * The floor AMOUNT is never disclosed — buyer knows their offer
+    //     was too low, not by how much.
+    //   * Seller is not notified of below-floor attempts; the row isn't
+    //     written so no notification path triggers.
+    // See [[preserve-seller-pricing-power]] for the design rationale.
     // ---------------------------------------------------------------------
     const $offerOverlay = document.getElementById("offer-overlay");
     const $offerCtx     = document.getElementById("offer-ctx");

@@ -19,7 +19,7 @@
 // Bump CACHE_VERSION whenever you ship a breaking change to the cached shell so
 // older clients drop the stale cache on activation.
 
-const CACHE_VERSION = 'cc-v230-admin-loader-race-condition-fix';
+const CACHE_VERSION = 'cc-v231-explicit-auto-decline-message';
 const HTML_NETWORK_TIMEOUT_MS = 2500;
 
 // Cross-origin hostnames whose responses we cache aggressively. As of
