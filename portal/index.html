@@ -5534,16 +5534,29 @@
             </details>
           </section>
 
-          <section class="admin-section">
-            <h3>Expiring soon <span class="count" id="expiring-count"></span></h3>
-            <p class="help">Listings within 7 days of the 60-day renewal cutoff (or already expired). Click "Extend" to reset a listing's clock; "Run expiration check" flips long-overdue available listings to <em>not_renewed</em>.</p>
-            <div style="margin-bottom: 10px;">
-              <button type="button" class="btn-secondary" id="run-expiry-btn">Run expiration check now</button>
-              <span id="run-expiry-status" class="sp-text-status" style="margin-left: 10px;"></span>
-            </div>
-            <div id="expiring-loading" class="empty-state" hidden>Loading…</div>
-            <div id="expiring-empty"   class="empty-state" hidden>Nothing expiring soon.</div>
-            <div id="expiring-list"   class="all-listings-list" hidden></div>
+          <!-- cc-v229: Expiring-soon panel converted to the same
+               admin-collapsible + scrollable pattern used by Verified
+               Listings / All Collection items. Defaults to COLLAPSED to
+               keep the admin tab tight; loadExpiring() programmatically
+               opens the details element if there is at least one
+               already-expired (status='not_renewed') row, so the admin
+               can't miss listings that need action. -->
+          <section class="admin-section admin-collapsible">
+            <details id="expiring-details">
+              <summary>
+                <span class="ac-title">Expiring soon</span>
+                <span class="count" id="expiring-count"></span>
+                <span class="ac-chev" aria-hidden="true">▾</span>
+              </summary>
+              <p class="help">Listings within 7 days of the 60-day renewal cutoff (or already expired). Click "Extend" to reset a listing's clock; "Run expiration check" flips long-overdue available listings to <em>not_renewed</em>.</p>
+              <div style="margin-bottom: 10px;">
+                <button type="button" class="btn-secondary" id="run-expiry-btn">Run expiration check now</button>
+                <span id="run-expiry-status" class="sp-text-status" style="margin-left: 10px;"></span>
+              </div>
+              <div id="expiring-loading" class="empty-state" hidden>Loading…</div>
+              <div id="expiring-empty"   class="empty-state" hidden>Nothing expiring soon.</div>
+              <div id="expiring-list"    class="mod-list mod-list--scroll" hidden></div>
+            </details>
           </section>
 
           <!-- Sellers, collapsed by default. Admin only opens this to
@@ -14700,6 +14713,21 @@
       }
       const rows = data || [];
       $expiringCount.textContent = rows.length ? `(${rows.length})` : "";
+
+      // cc-v229: auto-open the collapsible section if there are already-
+      // expired (status='not_renewed') listings sitting in the queue,
+      // since those need admin action (extend) and should not be missed.
+      // Warning-state listings (still 'available' but within 7 days) do
+      // NOT trigger auto-open — they're informational only and the
+      // dashboard's other counters surface them. The details element
+      // defaults to collapsed in HTML; we set `open` to true here only
+      // when there's a not_renewed row.
+      const $expiringDetails = document.getElementById("expiring-details");
+      if ($expiringDetails) {
+        const hasNotRenewed = rows.some(r => r.status === "not_renewed");
+        $expiringDetails.open = hasNotRenewed;
+      }
+
       if (!rows.length) { $expiringEmpty.hidden = false; return; }
       // Batch-load seller emails for the admin queue (migration 050).
       const sellerIds = [...new Set(rows.map(r => r.profiles?.user_id).filter(Boolean))];
