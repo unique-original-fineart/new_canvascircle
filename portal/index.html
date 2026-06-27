@@ -1475,6 +1475,53 @@
       color: var(--status-warn-deep); font-weight: 700; font-size: 11px; margin-top: 4px;
     }
 
+    /* cc-v227: per-listing renewal status indicator. Sits between the
+       metrics row and the form fields so it reads as listing lifecycle
+       metadata (when does this expire, do I need to renew). Three tiers:
+       * normal:   >7 days remaining, neutral surface, informational
+       * urgent:   1-7 days remaining, warning tint with prominent Renew
+       * expired:  0 days or status=not_renewed, danger tint
+       Only renders on status=available or status=not_renewed; sold /
+       pending / in_collection / delisted / rejected don't have a
+       relevant renewal clock. */
+    .listing-card .renewal-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 6px 0 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--card-line);
+      background: var(--surface-2);
+      font-size: 13px;
+      color: var(--text);
+    }
+    .listing-card .renewal-row.is-urgent {
+      background: var(--status-warn-tint);
+      border-color: var(--status-warn-border);
+    }
+    .listing-card .renewal-row.is-expired {
+      background: var(--status-danger-tint);
+      border-color: var(--status-danger-soft);
+    }
+    .listing-card .renewal-row .rr-label { flex: 1 1 auto; }
+    .listing-card .renewal-row .rr-strong { font-weight: 700; }
+    .listing-card .renewal-row .rr-renew-btn {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--accent-deep);
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .listing-card .renewal-row .rr-renew-btn:hover { filter: brightness(1.08); }
+    .listing-card .renewal-row .rr-renew-btn[disabled] { opacity: .55; cursor: wait; }
+
     /* Per-listing metrics row (saves + views) */
     .card-metrics {
       display: flex; gap: 12px; flex-wrap: wrap;
@@ -7972,6 +8019,70 @@
       else color = "var(--muted)";
       return { label, color };
     }
+
+    // -------- Listing renewal countdown helpers (cc-v227) -----------------
+    // Listings auto-expire 60 days after their last_renewed_at (or their
+    // initial created_at if never renewed). When a listing expires, an
+    // admin-side cron flips its status to 'not_renewed' and hides it
+    // from the public catalog. The seller has to click Renew on each
+    // card to bring it back to active.
+    //
+    // Until cc-v227 the seller had NO visible indication of how close a
+    // listing was to expiring (just an email 7 days before). This
+    // helper produces the data the card uses to render an inline
+    // renewal-status row + a Renew button when action is needed.
+    //
+    // Returns { tier, daysRemaining, label, showRenewButton }:
+    //   * tier:        'normal' (>7 days) / 'urgent' (1-7 days) / 'expired' (0/not_renewed)
+    //   * daysRemaining: integer days until 60-day expiry; negative if past
+    //   * label:       user-facing text for the renewal row
+    //   * showRenewButton: true if the row should include a Renew CTA
+    const LISTING_RENEWAL_WINDOW_MS = 60 * 24 * 60 * 60 * 1000;  // 60 days
+    const LISTING_RENEWAL_WARN_DAYS = 7;
+    function computeRenewalStatus(listing) {
+      // Anchor: prefer last_renewed_at when set, fall back to created_at
+      // for never-renewed listings. Same anchor logic the admin "Expiring
+      // soon" query uses.
+      const anchorIso = listing.last_renewed_at || listing.created_at;
+      if (!anchorIso) {
+        return { tier: "normal", daysRemaining: 60, label: "", showRenewButton: false };
+      }
+      const anchorMs   = new Date(anchorIso).getTime();
+      const expiresMs  = anchorMs + LISTING_RENEWAL_WINDOW_MS;
+      const remainMs   = expiresMs - Date.now();
+      const daysRemaining = Math.ceil(remainMs / (24 * 60 * 60 * 1000));
+
+      // Already-expired cases: not_renewed status (cron has flipped it)
+      // OR available but past the 60-day mark (cron hasn't run yet).
+      if (listing.status === "not_renewed" || daysRemaining <= 0) {
+        return {
+          tier:        "expired",
+          daysRemaining,
+          label:       listing.status === "not_renewed"
+            ? "This listing has expired and is hidden from the public catalog. Click Renew to bring it back."
+            : "This listing is past its 60-day renewal window. Click Renew to keep it active.",
+          showRenewButton: true,
+        };
+      }
+
+      if (daysRemaining <= LISTING_RENEWAL_WARN_DAYS) {
+        const noun = daysRemaining === 1 ? "day" : "days";
+        return {
+          tier:        "urgent",
+          daysRemaining,
+          label:       `Expires in ${daysRemaining} ${noun}. Click Renew to extend it another 60 days.`,
+          showRenewButton: true,
+        };
+      }
+
+      const noun = daysRemaining === 1 ? "day" : "days";
+      return {
+        tier:        "normal",
+        daysRemaining,
+        label:       `Active for ${daysRemaining} more ${noun}, then auto-expires unless you renew.`,
+        showRenewButton: false,
+      };
+    }
     // Refresh all on-screen countdown elements every minute. Cheap DOM op —
     // we don't re-render the whole panel, just patch text + inline color.
     let _offerCountdownTimer = null;
@@ -11203,6 +11314,19 @@
           <span class="metric"><span class="icon">👁</span> ${viewCnt} ${viewCnt === 1 ? "view" : "views"}</span>
         </div>
         <div class="savers-list" data-savers-list hidden></div>
+        ${(l.status === "available" || l.status === "not_renewed") ? (() => {
+          // cc-v227: inline renewal status. Only renders on lifecycle
+          // states where a 60-day clock is meaningful. Renew button
+          // appears in the row when 7 days or less remain (or expired).
+          const r = computeRenewalStatus(l);
+          const tierClass = r.tier === "urgent" ? " is-urgent" : (r.tier === "expired" ? " is-expired" : "");
+          return `
+            <div class="renewal-row${tierClass}">
+              <span class="rr-label">${escapeHtml(r.label)}</span>
+              ${r.showRenewButton ? `<button type="button" class="rr-renew-btn" data-action="renew">Renew now</button>` : ""}
+            </div>
+          `;
+        })() : ""}
 
         <div class="form-grid">
           <div>
@@ -11357,9 +11481,9 @@
         <div class="card-footer">
           <a class="view-link" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View on catalog ↗</a>
           <div class="actions">
-            ${l.status === "not_renewed"
-              ? `<button type="button" class="btn-primary" data-action="renew" style="background:var(--status-success-deep); border-color:var(--status-success-deep);">Renew</button>`
-              : ""}
+            <!-- cc-v227: the inline renewal row above the form now hosts the
+                 Renew button when action is needed (≤7 days OR expired), so
+                 the footer no longer needs a duplicate Renew button. -->
             <button type="button" class="btn-danger" data-action="remove" title="Permanently delete this listing">Remove</button>
             <button type="button" class="btn-secondary" data-action="reset">Reset</button>
             <button type="button" class="btn-primary" data-action="save">Save</button>
@@ -11868,19 +11992,37 @@
     }
 
     function refreshNotRenewedBanner() {
-      // Show a yellow info banner above the listings if any of the seller's
-      // listings are in 'not_renewed' state.
+      // cc-v227: surface BOTH already-expired AND expiring-soon listings.
+      // Previously only the not_renewed state appeared, so sellers had no
+      // dashboard-level warning until AFTER their listing had already
+      // dropped off the public catalog. Now any listing with ≤7 days left
+      // triggers the banner too.
       const expired = allListings.filter(l => l.status === "not_renewed");
-      if (!expired.length) {
+      const expiringSoon = allListings.filter(l => {
+        if (l.status !== "available") return false;
+        const r = computeRenewalStatus(l);
+        return r.tier === "urgent" || r.tier === "expired";
+      });
+      if (!expired.length && !expiringSoon.length) {
         clearDashBanner();
         return;
       }
-      const n = expired.length;
-      $dashBanner.textContent =
-        `You have ${n} listing${n === 1 ? "" : "s"} that ${n === 1 ? "hasn't" : "haven't"} been renewed in 60+ days. ` +
-        `${n === 1 ? "It's" : "They're"} hidden from the public catalog with a "Not Renewed" warning. ` +
-        `Click Renew on each card to bring ${n === 1 ? "it" : "them"} back to active.`;
-      $dashBanner.className = "banner";  // default yellow info style
+
+      const parts = [];
+      if (expired.length) {
+        const n = expired.length;
+        parts.push(
+          `${n} listing${n === 1 ? " has" : "s have"} already expired and ${n === 1 ? "is" : "are"} hidden from the catalog. Click Renew on the card${n === 1 ? "" : "s"} to bring ${n === 1 ? "it" : "them"} back.`
+        );
+      }
+      if (expiringSoon.length) {
+        const n = expiringSoon.length;
+        parts.push(
+          `${n} listing${n === 1 ? "" : "s"} ${n === 1 ? "expires" : "expire"} within 7 days. Renew on each card to extend another 60 days.`
+        );
+      }
+      $dashBanner.textContent = parts.join(" ");
+      $dashBanner.className = "banner";
       $dashBanner.hidden = false;
     }
 
