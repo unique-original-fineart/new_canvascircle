@@ -1195,6 +1195,41 @@
       background: var(--banner-revoked-tint); color: var(--status-danger-deep);
       border: 1px solid var(--status-danger-soft);
     }
+    /* cc-v228: compact renewal banner inside the preview card body.
+       Only renders for urgent (≤7 days) or expired states — keeps
+       the card clean during the long 53-day no-action window.
+       Uses the same .pc-mod-banner shape so visual weight matches
+       the pending / rejected banners sellers are already used to. */
+    .preview-card .pc-renew-banner {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      margin: 4px 0 2px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 11px; line-height: 1.3;
+    }
+    .preview-card .pc-renew-banner.is-urgent {
+      background: var(--status-warn-tint); color: var(--text);
+      border: 1px solid var(--status-warn-border);
+    }
+    .preview-card .pc-renew-banner.is-expired {
+      background: var(--status-danger-tint); color: var(--text);
+      border: 1px solid var(--status-danger-soft);
+    }
+    .preview-card .pc-renew-banner .prb-label { flex: 1 1 auto; }
+    .preview-card .pc-renew-banner .prb-renew {
+      background: var(--brand-gradient);
+      color: var(--text-inverse);
+      border: 1px solid var(--accent-deep);
+      padding: 3px 9px;
+      border-radius: 999px;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .preview-card .pc-renew-banner .prb-renew:hover { filter: brightness(1.08); }
+    .preview-card .pc-renew-banner .prb-renew[disabled] { opacity: .55; cursor: wait; }
     /* Small "View admin note →" trigger inside the rejected moderation
        banner. Opens the generic info modal so a long admin note doesn't
        stretch the preview card vertically. Visual style mirrors the
@@ -10587,6 +10622,27 @@
               })()
             : ""}
           ${renderPreviewVerificationBadge(l)}
+          ${(l.status === "available" || l.status === "not_renewed") ? (() => {
+            // cc-v228: surface upcoming-expiration and expired states
+            // RIGHT ON the preview card so the seller doesn't have to
+            // click Edit to discover their listing is about to drop off.
+            // Only renders for urgent / expired tiers; normal (>7 days)
+            // is informational-only and lives in the Edit modal so the
+            // preview card stays clean during the long active window.
+            const r = computeRenewalStatus(l);
+            if (r.tier === "normal") return "";
+            const cls = r.tier === "expired" ? "is-expired" : "is-urgent";
+            const icon = r.tier === "expired" ? "❌" : "⏳";
+            const labelShort = r.tier === "expired"
+              ? "Expired — hidden from public catalog"
+              : `Expires in ${r.daysRemaining} day${r.daysRemaining === 1 ? "" : "s"}`;
+            return `
+              <div class="pc-renew-banner ${cls}">
+                <span class="prb-label">${icon} ${escapeHtml(labelShort)}</span>
+                <button type="button" class="prb-renew" data-action="renew-now">Renew now</button>
+              </div>
+            `;
+          })() : ""}
           <div class="pc-metrics">
             ${saveCnt > 0
               ? `<button type="button" class="pc-metric-btn" data-action="show-savers">♥ ${saveCnt} ${saveCnt === 1 ? "save" : "saves"}</button>`
@@ -10599,7 +10655,11 @@
         </div>
         <div class="pc-actions">
           <button type="button" class="btn-edit" data-action="open-edit">Edit</button>
-          ${l.status === "not_renewed" ? `<button type="button" class="btn-renew" data-action="renew-now">Renew</button>` : ""}
+          <!-- cc-v228: the Renew button moved INTO the new pc-renew-banner
+               inside pc-body (shown for urgent + expired states), so the
+               action bar no longer needs a duplicate. The existing
+               data-action="renew-now" click handler still fires off the
+               banner button via event delegation on the card root. -->
           <a class="pc-view" href="/listing.html?id=${l.listing_id}" target="_blank" rel="noopener">View ↗</a>
         </div>
       `;
