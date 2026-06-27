@@ -14689,7 +14689,15 @@
     const $runExpiryBtn    = document.getElementById("run-expiry-btn");
     const $runExpiryStatus = document.getElementById("run-expiry-status");
 
+    // cc-v230: request-versioning to prevent duplicate-row bugs when
+    // loadAdminTab fires twice in quick succession (e.g., user
+    // re-taps the Admin tab while the previous Promise.all is still
+    // in flight). Each call increments __loadExpiringSeq; the
+    // response only writes to the DOM if its captured seq is still
+    // the current value. Stale invocations abandon silently.
+    let __loadExpiringSeq = 0;
     async function loadExpiring() {
+      const mySeq = ++__loadExpiringSeq;
       $expiringLoading.hidden = false;
       $expiringEmpty.hidden   = true;
       $expiringList.hidden    = true;
@@ -14706,6 +14714,10 @@
         `)
         .or(`status.eq.not_renewed,and(status.eq.available,last_renewed_at.lt.${warnSinceISO})`)
         .order("last_renewed_at", { ascending: true });
+      // Stale-response guard. If a newer loadExpiring started while
+      // ours was in flight, that newer one will append the source of
+      // truth — we must not also append, or the user sees double rows.
+      if (mySeq !== __loadExpiringSeq) return;
       $expiringLoading.hidden = true;
       if (error) {
         setAdminBanner("Could not load expiring listings: " + (error.message || error), "error");
@@ -15193,7 +15205,15 @@
       }
     }
 
+    // cc-v230: request-versioning, same pattern as loadExpiring above.
+    // Prevents duplicate Seller rows when loadAdminTab fires twice in
+    // quick succession (re-tap of Admin tab, or other save-triggered
+    // re-renders). Stale invocations abandon silently after their query
+    // returns. This loader has multiple awaits + parallel sub-queries,
+    // so we guard at each await checkpoint to avoid partial appends.
+    let __loadSellersSeq = 0;
     async function loadSellers() {
+      const mySeq = ++__loadSellersSeq;
       $sellersLoading.hidden = false;
       $sellersList.hidden    = true;
       $sellersList.innerHTML = "";
@@ -15208,6 +15228,7 @@
           pending_about_text, pending_about_at
         `)
         .order("display_name", { ascending: true });
+      if (mySeq !== __loadSellersSeq) return;
       $sellersLoading.hidden = true;
       if (error) {
         setAdminBanner("Could not load sellers: " + (error.message || error), "error");
@@ -15222,10 +15243,12 @@
           .eq("seller_id", p.user_id)
           .then(r => r.count || 0)
       ));
+      if (mySeq !== __loadSellersSeq) return;
       // Batch-load contact emails for the admin sellers list (migration
       // 050 revoked the column from authenticated, admin reads them via
       // the SECURITY DEFINER helper).
       const __sellersEmailMap = await getContactEmailsAsAdmin(rows.map(p => p.user_id));
+      if (mySeq !== __loadSellersSeq) return;
       for (const p of rows) {
         if (__sellersEmailMap.has(p.user_id)) p.contact_email = __sellersEmailMap.get(p.user_id);
       }
